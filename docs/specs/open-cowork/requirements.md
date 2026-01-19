@@ -1,8 +1,8 @@
-# Feature Requirements: OpenAI Cowork
+# Feature Requirements: Open Cowork
 
 ## Introduction
 
-OpenAI Cowork is an agentic application that enables end users to interact with autonomous AI agents powered by OpenAI models (GPT-5 series). The application provides a sandboxed execution environment where AI-generated code can be safely executed on macOS systems. It replicates the core capabilities of Claude Cowork, adapted for OpenAI API integration and local macOS environments with basic process isolation.
+Open Cowork is an agentic application that enables end users to interact with autonomous AI agents powered by OpenAI models (GPT-5 series). The application provides a sandboxed execution environment where AI-generated code can be safely executed on macOS systems. It replicates the core capabilities of Claude Cowork, adapted for OpenAI API integration and local macOS environments with basic process isolation.
 
 ## Requirements
 
@@ -272,7 +272,7 @@ OpenAI Cowork is an agentic application that enables end users to interact with 
 
 ## Success Criteria
 
-The OpenAI Cowork application will be considered successfully implemented when:
+The Open Cowork application will be considered successfully implemented when:
 
 1. Users can start isolated sessions and interact with OpenAI-powered AI agents
 2. AI agents can safely execute code and commands within sandboxed environments

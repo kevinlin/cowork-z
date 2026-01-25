@@ -443,7 +443,10 @@ export async function logEvent(payload: { level?: string; message: string; conte
  * Check if running in Tauri shell
  */
 export function isRunningInTauri(): boolean {
-  return '__TAURI__' in window;
+  const hasWindow = typeof window !== 'undefined';
+  const hasTauri = hasWindow && '__TAURI__' in window;
+  const hasTauriInternals = hasWindow && '__TAURI_INTERNALS__' in window;
+  return hasTauri || hasTauriInternals;
 }
 
 /**

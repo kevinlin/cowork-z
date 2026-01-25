@@ -20,6 +20,7 @@ import type {
   ProviderId,
   ConnectedProvider,
 } from '@/shared';
+import { getTauriApi, isRunningInTauri } from './tauri-api';
 
 // Define the API interface
 interface AccomplishAPI {
@@ -114,8 +115,8 @@ interface AccomplishAPI {
   setLiteLLMConfig(config: { baseUrl: string; enabled: boolean; lastValidated?: number; models?: Array<{ id: string; name: string; provider: string; contextLength: number }> } | null): Promise<void>;
 
   // Bedrock configuration
-  validateBedrockCredentials(credentials: string): Promise<{ valid: boolean; error?: string }>;
-  saveBedrockCredentials(credentials: string): Promise<ApiKeyConfig>;
+  validateBedrockCredentials(credentials: BedrockCredentials): Promise<{ valid: boolean; error?: string }>;
+  saveBedrockCredentials(credentials: BedrockCredentials): Promise<ApiKeyConfig>;
   getBedrockCredentials(): Promise<BedrockCredentials | null>;
   fetchBedrockModels(credentials: string): Promise<{ success: boolean; models: Array<{ id: string; name: string; provider: string }>; error?: string }>;
 
@@ -165,26 +166,63 @@ declare global {
  * Throws if not running in Electron
  */
 export function getAccomplish() {
-  if (!window.accomplish) {
-    throw new Error('Accomplish API not available - not running in Electron');
+  if (window.accomplish) {
+    return {
+      ...window.accomplish,
+
+      validateBedrockCredentials: async (credentials: BedrockCredentials): Promise<{ valid: boolean; error?: string }> => {
+        return window.accomplish!.validateBedrockCredentials(credentials);
+      },
+
+      saveBedrockCredentials: async (credentials: BedrockCredentials): Promise<ApiKeyConfig> => {
+        return window.accomplish!.saveBedrockCredentials(credentials);
+      },
+
+      getBedrockCredentials: async (): Promise<BedrockCredentials | null> => {
+        return window.accomplish!.getBedrockCredentials();
+      },
+
+      fetchBedrockModels: (credentials: string) => window.accomplish!.fetchBedrockModels(credentials),
+    };
   }
-  return {
-    ...window.accomplish,
 
-    validateBedrockCredentials: async (credentials: BedrockCredentials): Promise<{ valid: boolean; error?: string }> => {
-      return window.accomplish!.validateBedrockCredentials(JSON.stringify(credentials));
-    },
+  if (isRunningInTauri()) {
+    const tauriApi = getTauriApi();
+    const toSyncUnlisten = (promise: Promise<() => void>) => {
+      let unlisten: (() => void) | null = null;
+      let pendingCancel = false;
+      promise
+        .then((fn) => {
+          unlisten = fn;
+          if (pendingCancel) {
+            fn();
+          }
+        })
+        .catch(() => {});
+      return () => {
+        if (unlisten) {
+          unlisten();
+        } else {
+          pendingCancel = true;
+        }
+      };
+    };
 
-    saveBedrockCredentials: async (credentials: BedrockCredentials): Promise<ApiKeyConfig> => {
-      return window.accomplish!.saveBedrockCredentials(JSON.stringify(credentials));
-    },
+    return {
+      ...tauriApi,
+      onTaskUpdate: (callback: (event: TaskUpdateEvent) => void) => toSyncUnlisten(tauriApi.onTaskUpdate(callback)),
+      onTaskUpdateBatch: (callback: (event: { taskId: string; messages: TaskMessage[] }) => void) =>
+        toSyncUnlisten(tauriApi.onTaskUpdateBatch(callback)),
+      onPermissionRequest: (callback: (request: PermissionRequest) => void) => toSyncUnlisten(tauriApi.onPermissionRequest(callback)),
+      onTaskProgress: (callback: (progress: TaskProgress) => void) => toSyncUnlisten(tauriApi.onTaskProgress(callback)),
+      onDebugLog: (callback: (log: unknown) => void) => toSyncUnlisten(tauriApi.onDebugLog(callback)),
+      onDebugModeChange: (callback: (data: { enabled: boolean }) => void) => toSyncUnlisten(tauriApi.onDebugModeChange(callback)),
+      onTaskStatusChange: (callback: (data: { taskId: string; status: TaskStatus }) => void) => toSyncUnlisten(tauriApi.onTaskStatusChange(callback)),
+      onTaskSummary: (callback: (data: { taskId: string; summary: string }) => void) => toSyncUnlisten(tauriApi.onTaskSummary(callback)),
+    };
+  }
 
-    getBedrockCredentials: async (): Promise<BedrockCredentials | null> => {
-      return window.accomplish!.getBedrockCredentials();
-    },
-
-    fetchBedrockModels: (credentials: string) => window.accomplish!.fetchBedrockModels(credentials),
-  };
+  throw new Error('Accomplish API not available - not running in Electron or Tauri');
 }
 
 /**
@@ -212,9 +250,5 @@ export function getShellPlatform(): string | null {
  * React hook to use the accomplish API
  */
 export function useAccomplish(): AccomplishAPI {
-  const api = window.accomplish;
-  if (!api) {
-    throw new Error('Accomplish API not available - not running in Electron');
-  }
-  return api;
+  return getAccomplish();
 }

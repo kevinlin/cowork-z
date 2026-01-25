@@ -38,15 +38,7 @@
   },
   "plugins": {
     "shell": {
-      "open": true,
-      "sidecar": true,
-      "scope": [
-        {
-          "name": "cowork-sidecar",
-          "sidecar": true,
-          "args": true
-        }
-      ]
+      "open": true
     }
   }
 }

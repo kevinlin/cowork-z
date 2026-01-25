@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "api-key-section",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:09.282Z",
+  "evaluationCriteria": [
+    "API key input is visible",
+    "User can enter an API key",
+    "Input is accessible"
+  ]
+}

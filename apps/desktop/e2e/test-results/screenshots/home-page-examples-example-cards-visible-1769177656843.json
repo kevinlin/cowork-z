@@ -1,0 +1,15 @@
+{
+  "testName": "home-page-examples",
+  "stateName": "example-cards-visible",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:14:17.131Z",
+  "evaluationCriteria": [
+    "At least 3 example cards are visible",
+    "Example cards are properly styled",
+    "Cards show task examples to users"
+  ]
+}

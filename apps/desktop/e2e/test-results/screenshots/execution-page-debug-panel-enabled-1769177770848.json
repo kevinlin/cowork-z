@@ -1,0 +1,15 @@
+{
+  "testName": "execution-page",
+  "stateName": "debug-panel-enabled",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177769957_f7knrco",
+  "timestamp": "2026-01-23T14:16:11.063Z",
+  "evaluationCriteria": [
+    "Debug panel is visible at bottom of execution page",
+    "Debug mode was successfully enabled in settings",
+    "Panel shows Debug Logs header"
+  ]
+}

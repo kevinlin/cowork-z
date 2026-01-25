@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "grid-layout",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:05.547Z",
+  "evaluationCriteria": [
+    "Settings dialog uses 4-column grid layout",
+    "First 4 providers visible in collapsed view",
+    "No horizontal scroll needed"
+  ]
+}

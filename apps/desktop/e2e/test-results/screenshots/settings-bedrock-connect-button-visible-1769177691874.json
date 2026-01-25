@@ -1,0 +1,14 @@
+{
+  "testName": "settings-bedrock",
+  "stateName": "connect-button-visible",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:14:52.167Z",
+  "evaluationCriteria": [
+    "Connect button is visible",
+    "User can connect to Bedrock"
+  ]
+}

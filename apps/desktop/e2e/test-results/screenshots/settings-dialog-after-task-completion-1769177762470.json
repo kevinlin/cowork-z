@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "after-task-completion",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177761837_fp60e7f",
+  "timestamp": "2026-01-23T14:16:02.881Z",
+  "evaluationCriteria": [
+    "Settings dialog opened successfully after task completion",
+    "No infinite loop or crash occurred",
+    "Dialog is fully functional"
+  ]
+}

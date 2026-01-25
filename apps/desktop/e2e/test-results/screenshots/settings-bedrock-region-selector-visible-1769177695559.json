@@ -1,0 +1,14 @@
+{
+  "testName": "settings-bedrock",
+  "stateName": "region-selector-visible",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:14:55.852Z",
+  "evaluationCriteria": [
+    "Region selector is visible",
+    "User can select AWS region"
+  ]
+}

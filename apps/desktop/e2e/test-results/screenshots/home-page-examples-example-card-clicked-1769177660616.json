@@ -1,0 +1,15 @@
+{
+  "testName": "home-page-examples",
+  "stateName": "example-card-clicked",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:14:20.887Z",
+  "evaluationCriteria": [
+    "Task input is filled with example text",
+    "Input value matches the example card content",
+    "User can now submit the pre-filled task"
+  ]
+}

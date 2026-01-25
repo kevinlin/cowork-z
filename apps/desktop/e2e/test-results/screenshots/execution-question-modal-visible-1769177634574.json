@@ -1,0 +1,16 @@
+{
+  "testName": "execution-question",
+  "stateName": "modal-visible",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177633745_5w97qdb",
+  "timestamp": "2026-01-23T14:13:54.851Z",
+  "evaluationCriteria": [
+    "Question modal is displayed",
+    "Question text is shown",
+    "Option buttons are visible",
+    "Submit button is visible but disabled until option selected"
+  ]
+}

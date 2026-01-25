@@ -1,0 +1,15 @@
+{
+  "testName": "execution-question",
+  "stateName": "option-selected",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177638387_2lwpc8q",
+  "timestamp": "2026-01-23T14:13:59.667Z",
+  "evaluationCriteria": [
+    "Option A is selected",
+    "Submit button is now enabled",
+    "Selected option is highlighted"
+  ]
+}

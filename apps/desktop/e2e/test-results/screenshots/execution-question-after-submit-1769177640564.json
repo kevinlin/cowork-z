@@ -1,0 +1,14 @@
+{
+  "testName": "execution-question",
+  "stateName": "after-submit",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177638387_2lwpc8q",
+  "timestamp": "2026-01-23T14:14:00.761Z",
+  "evaluationCriteria": [
+    "Question modal is dismissed",
+    "Response was submitted successfully"
+  ]
+}

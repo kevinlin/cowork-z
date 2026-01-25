@@ -1,0 +1,4 @@
+#!/bin/bash
+# Placeholder sidecar - will be replaced with compiled binary
+echo "Sidecar placeholder - run pnpm build:sidecar to build"
+exec node --experimental-specifier-resolution=node "$(dirname "$0")/../../sidecar/dist/index.js" "$@"

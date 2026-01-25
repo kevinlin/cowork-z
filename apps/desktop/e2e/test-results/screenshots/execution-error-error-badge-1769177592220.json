@@ -1,0 +1,14 @@
+{
+  "testName": "execution-error",
+  "stateName": "error-badge",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177591469_ntrhn84",
+  "timestamp": "2026-01-23T14:13:12.422Z",
+  "evaluationCriteria": [
+    "Status badge indicates error/failure",
+    "Badge shows: Failed"
+  ]
+}

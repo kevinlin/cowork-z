@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "provider-grid",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:02.339Z",
+  "evaluationCriteria": [
+    "Provider grid is visible",
+    "Provider cards are displayed",
+    "User can select a provider"
+  ]
+}

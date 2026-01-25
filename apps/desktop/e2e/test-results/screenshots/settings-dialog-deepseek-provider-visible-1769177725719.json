@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "deepseek-provider-visible",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:26.156Z",
+  "evaluationCriteria": [
+    "DeepSeek provider card is visible in settings",
+    "Provider card can be clicked",
+    "User can select DeepSeek as their provider"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "testName": "execution-completed",
+  "stateName": "success-badge",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177568768_vtluvor",
+  "timestamp": "2026-01-23T14:12:49.529Z",
+  "evaluationCriteria": [
+    "Status badge shows completed state",
+    "Task completed successfully",
+    "Success indicator is visible",
+    "No error messages displayed"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "zai-api-key-filled",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:37.024Z",
+  "evaluationCriteria": [
+    "Z.AI provider is selected",
+    "API key input accepts Z.AI key format",
+    "Value is correctly displayed"
+  ]
+}

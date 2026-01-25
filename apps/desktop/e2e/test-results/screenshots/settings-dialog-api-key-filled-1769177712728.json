@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "api-key-filled",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:13.012Z",
+  "evaluationCriteria": [
+    "API key input has value",
+    "Input accepts text entry",
+    "Value is correctly displayed"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "all-providers-visible",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:40.334Z",
+  "evaluationCriteria": [
+    "All provider cards are visible",
+    "Provider grid shows complete selection",
+    "User can select any provider"
+  ]
+}

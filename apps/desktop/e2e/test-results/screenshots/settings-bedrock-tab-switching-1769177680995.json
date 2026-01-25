@@ -1,0 +1,14 @@
+{
+  "testName": "settings-bedrock",
+  "stateName": "tab-switching",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:14:41.273Z",
+  "evaluationCriteria": [
+    "Can switch between auth tabs",
+    "Form fields update correctly"
+  ]
+}

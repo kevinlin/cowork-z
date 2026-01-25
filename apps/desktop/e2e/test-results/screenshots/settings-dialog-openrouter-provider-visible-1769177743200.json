@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "openrouter-provider-visible",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:43.637Z",
+  "evaluationCriteria": [
+    "OpenRouter provider card is visible in settings",
+    "Provider card can be clicked",
+    "User can select OpenRouter as their provider"
+  ]
+}

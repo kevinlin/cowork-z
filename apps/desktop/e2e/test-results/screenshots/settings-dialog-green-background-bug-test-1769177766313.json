@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "green-background-bug-test",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:16:06.604Z",
+  "evaluationCriteria": [
+    "Selected but non-ready provider does not have green background",
+    "Bug is fixed - isSelected does not trigger green background",
+    "Only active+ready providers should have green background"
+  ]
+}

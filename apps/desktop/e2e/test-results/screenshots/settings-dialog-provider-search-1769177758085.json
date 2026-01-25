@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "provider-search",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:58.399Z",
+  "evaluationCriteria": [
+    "Search filters provider cards",
+    "Only matching providers visible",
+    "Search functionality works"
+  ]
+}

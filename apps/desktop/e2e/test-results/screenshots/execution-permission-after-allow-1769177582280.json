@@ -1,0 +1,15 @@
+{
+  "testName": "execution-permission",
+  "stateName": "after-allow",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177581260_wnjivf3",
+  "timestamp": "2026-01-23T14:13:02.500Z",
+  "evaluationCriteria": [
+    "Permission modal is dismissed",
+    "Task continues execution",
+    "Permission was granted successfully"
+  ]
+}

@@ -14,31 +14,30 @@ Migrate the Electron app at `apps/desktop/` to the existing Tauri boilerplate, p
 
 ### Architecture Overview
 
-```
-┌─────────────────────────────────────┐
-│   Tauri Desktop App                 │
-│   ┌──────────────┐  ┌─────────────┐ │
-│   │   React UI   │  │  Rust Core  │ │
-│   │  (WebView)   │←→│   (IPC)     │ │
-│   └──────────────┘  └─────────────┘ │
-│                           │         │
-│         ┌─────────────────┤         │
-│         │   Database      │         │
-│         │   (rusqlite)    │         │
-│         └─────────────────┤         │
-│         ┌─────────────────┤         │
-│         │  Secure Storage │         │
-│         │  (OS Keychain)  │         │
-│         └─────────────────┘         │
-└──────────────┬──────────────────────┘
-               │ stdin/stdout (JSON)
-               ↓
-    ┌──────────────────────────────────┐
-    │  Node.js Sidecar Process         │
-    │  - OpenCode CLI (via node-pty)   │
-    │  - Task Manager                  │
-    │  - Stream Parser                 │
-    └──────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Tauri["Tauri Desktop App"]
+        UI["React UI<br/>(WebView)"]
+        Rust["Rust Backend<br/>(lib.rs)"]
+        UI <-->|"invoke/emit"| Rust
+    end
+
+    subgraph Sidecar["Node.js Sidecar (Port from Electron)"]
+        Index["index.ts<br/>(IPC Entry)"]
+        TM["task-manager.ts<br/>(from opencode/)"]
+        Adapter["adapter.ts<br/>(from opencode/)"]
+        Parser["stream-parser.ts<br/>(from opencode/)"]
+        Config["config-generator.ts<br/>(from opencode/)"]
+        Index --> TM --> Adapter --> Parser
+        Adapter --> Config
+    end
+
+    subgraph CLI["OpenCode CLI"]
+        OpenCode["opencode run<br/>--format json"]
+    end
+
+    Rust <-->|"stdin/stdout<br/>JSON-line"| Index
+    Adapter <-->|"node-pty"| OpenCode
 ```
 
 ---

@@ -1,0 +1,15 @@
+{
+  "testName": "execution-scroll",
+  "stateName": "scroll-button-hidden",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177624952_aq4i36r",
+  "timestamp": "2026-01-23T14:13:46.236Z",
+  "evaluationCriteria": [
+    "Scroll-to-bottom button is hidden",
+    "User is at bottom of messages",
+    "Normal message view without scroll indicator"
+  ]
+}

@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "cowork-z",
-        "width": 800,
-        "height": 600
+        "title": "Cowork Z",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
       }
     ],
     "security": {
@@ -30,6 +32,21 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "externalBin": ["binaries/cowork-sidecar"],
+    "resources": ["../apps/desktop/skills/*"]
+  },
+  "plugins": {
+    "shell": {
+      "open": true,
+      "sidecar": true,
+      "scope": [
+        {
+          "name": "cowork-sidecar",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    }
   }
 }

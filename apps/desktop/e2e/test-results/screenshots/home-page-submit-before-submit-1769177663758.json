@@ -1,0 +1,14 @@
+{
+  "testName": "home-page-submit",
+  "stateName": "before-submit",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:14:24.039Z",
+  "evaluationCriteria": [
+    "Task is entered in input field",
+    "Submit button is ready to click"
+  ]
+}

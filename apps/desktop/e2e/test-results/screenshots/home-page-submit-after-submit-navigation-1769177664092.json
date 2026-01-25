@@ -1,0 +1,15 @@
+{
+  "testName": "home-page-submit",
+  "stateName": "after-submit-navigation",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177664074_jonke1b",
+  "timestamp": "2026-01-23T14:14:24.306Z",
+  "evaluationCriteria": [
+    "URL changed to execution page",
+    "Navigation was successful",
+    "Execution page is loading"
+  ]
+}

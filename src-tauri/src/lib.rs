@@ -4,8 +4,10 @@ use tauri::{Manager, State};
 
 mod db;
 mod secure_storage;
+mod sidecar;
 
 use db::DbState;
+use sidecar::SidecarState;
 
 // ============================================================================
 // Types - Match the TypeScript types in src/shared/types
@@ -294,20 +296,81 @@ fn get_platform() -> String {
 // ============================================================================
 
 #[tauri::command]
-async fn start_task(_config: TaskConfig) -> Result<Task, String> {
-    // TODO: Implement with sidecar
-    Err("Task execution not yet implemented - sidecar required".to_string())
+async fn start_task(
+    config: TaskConfig,
+    app: tauri::AppHandle,
+    sidecar_state: State<'_, SidecarState>,
+) -> Result<Task, String> {
+    // Generate task ID
+    let task_id = config.task_id.clone().unwrap_or_else(|| {
+        format!("task_{}", uuid::Uuid::new_v4())
+    });
+
+    // Get API keys from secure storage
+    let api_keys = sidecar::get_all_api_keys()?;
+
+    // Ensure sidecar is running
+    let mut manager = sidecar_state.manager.lock().await;
+    if !manager.is_running() {
+        manager.spawn(&app).await?;
+    }
+
+    // Send start task command
+    manager
+        .send_command(sidecar::SidecarCommand::StartTask {
+            task_id: task_id.clone(),
+            payload: sidecar::StartTaskPayload {
+                task_id: task_id.clone(),
+                prompt: config.prompt.clone(),
+                session_id: None,
+                api_keys: Some(api_keys),
+                working_directory: None,
+                model_id: None,
+            },
+        })
+        .await?;
+
+    // Return task object (status will be updated via events)
+    Ok(Task {
+        id: task_id,
+        prompt: config.prompt,
+        status: "starting".to_string(),
+        messages: vec![],
+        result: None,
+        session_id: None,
+        summary: None,
+        created_at: chrono::Utc::now().to_rfc3339(),
+        updated_at: None,
+        completed_at: None,
+        started_at: Some(chrono::Utc::now().to_rfc3339()),
+    })
 }
 
 #[tauri::command]
-async fn cancel_task(_task_id: String) -> Result<(), String> {
-    // TODO: Implement with sidecar
+async fn cancel_task(
+    task_id: String,
+    sidecar_state: State<'_, SidecarState>,
+) -> Result<(), String> {
+    let mut manager = sidecar_state.manager.lock().await;
+    if manager.is_running() {
+        manager
+            .send_command(sidecar::SidecarCommand::CancelTask { task_id })
+            .await?;
+    }
     Ok(())
 }
 
 #[tauri::command]
-async fn interrupt_task(_task_id: String) -> Result<(), String> {
-    // TODO: Implement with sidecar
+async fn interrupt_task(
+    task_id: String,
+    sidecar_state: State<'_, SidecarState>,
+) -> Result<(), String> {
+    let mut manager = sidecar_state.manager.lock().await;
+    if manager.is_running() {
+        manager
+            .send_command(sidecar::SidecarCommand::InterruptTask { task_id })
+            .await?;
+    }
     Ok(())
 }
 
@@ -407,19 +470,77 @@ async fn clear_task_history(state: State<'_, DbState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn respond_to_permission(_response: PermissionResponse) -> Result<(), String> {
-    // TODO: Implement with sidecar
+async fn respond_to_permission(
+    response: PermissionResponse,
+    sidecar_state: State<'_, SidecarState>,
+) -> Result<(), String> {
+    let mut manager = sidecar_state.manager.lock().await;
+    if manager.is_running() {
+        // Send the response text to the sidecar
+        let response_text = if response.allowed { "yes" } else { "no" };
+        manager
+            .send_command(sidecar::SidecarCommand::SendResponse {
+                task_id: response.task_id,
+                payload: sidecar::SendResponsePayload {
+                    response: response_text.to_string(),
+                },
+            })
+            .await?;
+    }
     Ok(())
 }
 
 #[tauri::command]
 async fn resume_session(
-    _session_id: String,
-    _prompt: String,
-    _task_id: Option<String>,
+    session_id: String,
+    prompt: String,
+    task_id: Option<String>,
+    app: tauri::AppHandle,
+    sidecar_state: State<'_, SidecarState>,
 ) -> Result<Task, String> {
-    // TODO: Implement with sidecar
-    Err("Session resumption not yet implemented".to_string())
+    // Generate task ID
+    let task_id = task_id.unwrap_or_else(|| {
+        format!("task_{}", uuid::Uuid::new_v4())
+    });
+
+    // Get API keys from secure storage
+    let api_keys = sidecar::get_all_api_keys()?;
+
+    // Ensure sidecar is running
+    let mut manager = sidecar_state.manager.lock().await;
+    if !manager.is_running() {
+        manager.spawn(&app).await?;
+    }
+
+    // Send start task command with session ID for resume
+    manager
+        .send_command(sidecar::SidecarCommand::StartTask {
+            task_id: task_id.clone(),
+            payload: sidecar::StartTaskPayload {
+                task_id: task_id.clone(),
+                prompt: prompt.clone(),
+                session_id: Some(session_id.clone()),
+                api_keys: Some(api_keys),
+                working_directory: None,
+                model_id: None,
+            },
+        })
+        .await?;
+
+    // Return task object
+    Ok(Task {
+        id: task_id,
+        prompt,
+        status: "starting".to_string(),
+        messages: vec![],
+        result: None,
+        session_id: Some(session_id),
+        summary: None,
+        created_at: chrono::Utc::now().to_rfc3339(),
+        updated_at: None,
+        completed_at: None,
+        started_at: Some(chrono::Utc::now().to_rfc3339()),
+    })
 }
 
 // ============================================================================
@@ -1183,11 +1304,16 @@ async fn log_event(payload: LogPayload) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             // Initialize database
             let db_state = db::init_database(app.handle())
                 .expect("Failed to initialize database");
             app.manage(db_state);
+
+            // Initialize sidecar state
+            app.manage(SidecarState::new());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

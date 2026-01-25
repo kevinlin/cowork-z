@@ -1,0 +1,17 @@
+{
+  "testName": "execution-permission",
+  "stateName": "modal-visible",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177577318_yk0gixd",
+  "timestamp": "2026-01-23T14:12:58.367Z",
+  "evaluationCriteria": [
+    "Permission modal is displayed",
+    "Allow button is visible and clickable",
+    "Deny button is visible and clickable",
+    "Modal clearly shows what permission is being requested",
+    "User can make a choice"
+  ]
+}

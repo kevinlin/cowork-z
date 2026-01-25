@@ -1,0 +1,14 @@
+{
+  "testName": "execution-interrupted",
+  "stateName": "interrupted-badge",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177595797_h6t09ai",
+  "timestamp": "2026-01-23T14:13:16.799Z",
+  "evaluationCriteria": [
+    "Status badge shows interrupted/stopped state",
+    "Badge shows: Stopped"
+  ]
+}

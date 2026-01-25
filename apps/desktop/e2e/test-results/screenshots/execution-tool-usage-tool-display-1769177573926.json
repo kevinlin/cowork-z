@@ -1,0 +1,16 @@
+{
+  "testName": "execution-tool-usage",
+  "stateName": "tool-display",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177573110_6ixssxe",
+  "timestamp": "2026-01-23T14:12:54.137Z",
+  "evaluationCriteria": [
+    "Tool usage is displayed",
+    "Tool name or icon is visible",
+    "Tool execution is shown to user",
+    "UI clearly indicates tool interaction"
+  ]
+}

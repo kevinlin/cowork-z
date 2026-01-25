@@ -1,0 +1,15 @@
+{
+  "testName": "home-page-validation",
+  "stateName": "empty-input",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:14:27.608Z",
+  "evaluationCriteria": [
+    "Task input is empty",
+    "Submit button is disabled",
+    "User cannot submit an empty task"
+  ]
+}

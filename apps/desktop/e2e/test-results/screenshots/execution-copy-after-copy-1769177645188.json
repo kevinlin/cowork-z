@@ -1,0 +1,16 @@
+{
+  "testName": "execution-copy",
+  "stateName": "after-copy",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177644206_17s6i5x",
+  "timestamp": "2026-01-23T14:14:05.389Z",
+  "evaluationCriteria": [
+    "Copy button was clicked",
+    "Icon should change to checkmark",
+    "Background should turn green",
+    "Content was copied to clipboard"
+  ]
+}

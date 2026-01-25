@@ -1,0 +1,16 @@
+{
+  "testName": "execution-running",
+  "stateName": "thinking-indicator",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177564044_8siaehe",
+  "timestamp": "2026-01-23T14:12:45.101Z",
+  "evaluationCriteria": [
+    "Execution page is loaded",
+    "Thinking indicator is visible",
+    "Task is in running state",
+    "UI shows active processing"
+  ]
+}

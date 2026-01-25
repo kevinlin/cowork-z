@@ -1,0 +1,15 @@
+{
+  "testName": "execution-permission",
+  "stateName": "after-deny",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177586284_ufvquhq",
+  "timestamp": "2026-01-23T14:13:07.503Z",
+  "evaluationCriteria": [
+    "Permission modal is dismissed",
+    "Task handles denied permission gracefully",
+    "Appropriate message shown to user"
+  ]
+}

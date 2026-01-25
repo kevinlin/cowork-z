@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "openrouter-api-key-filled",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:47.297Z",
+  "evaluationCriteria": [
+    "OpenRouter provider is selected",
+    "API key input accepts OpenRouter key format",
+    "Value is correctly displayed"
+  ]
+}

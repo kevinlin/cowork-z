@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "ollama-settings",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:54.848Z",
+  "evaluationCriteria": [
+    "Ollama provider is selected",
+    "Server URL input is visible",
+    "User can configure Ollama connection"
+  ]
+}

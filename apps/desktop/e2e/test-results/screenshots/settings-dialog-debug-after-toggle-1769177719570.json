@@ -1,0 +1,14 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "debug-after-toggle",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:19.853Z",
+  "evaluationCriteria": [
+    "Debug toggle state changed",
+    "UI reflects new state"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "testName": "execution-permission",
+  "stateName": "deny-result",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177586284_ufvquhq",
+  "timestamp": "2026-01-23T14:13:08.061Z",
+  "evaluationCriteria": [
+    "Task responded to permission denial",
+    "No crashes or errors",
+    "User feedback is clear"
+  ]
+}

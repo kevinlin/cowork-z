@@ -1,0 +1,15 @@
+{
+  "testName": "execution-tool-usage",
+  "stateName": "tools-complete",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177573110_6ixssxe",
+  "timestamp": "2026-01-23T14:12:54.333Z",
+  "evaluationCriteria": [
+    "Tools were executed during task",
+    "Tool results are displayed",
+    "Complete history of tool usage visible"
+  ]
+}

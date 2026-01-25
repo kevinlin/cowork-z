@@ -1,0 +1,15 @@
+{
+  "testName": "home-page-input",
+  "stateName": "multi-line-task",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:14:30.665Z",
+  "evaluationCriteria": [
+    "Task input supports multiple lines",
+    "All lines are visible in the textarea",
+    "Textarea expands to show content"
+  ]
+}

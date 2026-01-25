@@ -10,7 +10,7 @@
  *
  * Message Types:
  * Input:
- *   - start_task: { taskId, prompt, sessionId? }
+ *   - start_task: { taskId, prompt, sessionId?, apiKeys?, workingDirectory?, modelId? }
  *   - cancel_task: { taskId }
  *   - interrupt_task: { taskId }
  *   - send_response: { taskId, response }
@@ -26,26 +26,16 @@
  */
 
 import * as readline from 'readline';
+import { TaskManager } from './task-manager.js';
+import { isOpenCodeAvailable, getOpenCodeVersion } from './cli-path.js';
+import type { TaskConfig, ApiKeys, SidecarMessage, SidecarCommand } from './types.js';
 
-// Import types
-interface Message {
-  type: string;
-  taskId?: string;
-  payload?: unknown;
-}
-
-interface TaskConfig {
-  taskId: string;
-  prompt: string;
-  sessionId?: string;
-}
-
-// Task management
-const activeTasks = new Map<string, { pty: unknown; cleanup: () => void }>();
+// Initialize task manager
+const taskManager = new TaskManager();
 
 // Send a message to the parent (Tauri)
 function send(type: string, payload: unknown, taskId?: string): void {
-  const message: Message = { type, payload };
+  const message: SidecarMessage = { type, payload };
   if (taskId) {
     message.taskId = taskId;
   }
@@ -58,13 +48,13 @@ function log(level: 'info' | 'warn' | 'error', message: string): void {
 }
 
 // Handle incoming messages
-async function handleMessage(msg: Message): Promise<void> {
+async function handleMessage(msg: SidecarCommand): Promise<void> {
   const { type, taskId, payload } = msg;
 
   try {
     switch (type) {
       case 'start_task': {
-        const config = payload as TaskConfig;
+        const config = payload as TaskConfig & { apiKeys?: ApiKeys };
         await startTask(config);
         break;
       }
@@ -96,6 +86,13 @@ async function handleMessage(msg: Message): Promise<void> {
         break;
       }
 
+      case 'check_cli': {
+        const available = isOpenCodeAvailable();
+        const version = available ? getOpenCodeVersion() : null;
+        send('cli_status', { available, version });
+        break;
+      }
+
       default:
         log('warn', `Unknown message type: ${type}`);
     }
@@ -105,80 +102,101 @@ async function handleMessage(msg: Message): Promise<void> {
   }
 }
 
-// Start a new task
-async function startTask(config: TaskConfig): Promise<void> {
-  const { taskId, prompt, sessionId } = config;
+// Start a new task using TaskManager
+async function startTask(config: TaskConfig & { apiKeys?: ApiKeys }): Promise<void> {
+  const { taskId } = config;
 
-  log('info', `Starting task ${taskId}: ${prompt.slice(0, 50)}...`);
+  log('info', `Starting task ${taskId}: ${config.prompt.slice(0, 50)}...`);
 
-  // Check if task already exists
-  if (activeTasks.has(taskId)) {
-    throw new Error(`Task ${taskId} is already running`);
-  }
-
-  // TODO: Implement actual OpenCode CLI spawning with node-pty
-  // For now, send a placeholder response
-
-  send('task_started', { taskId }, taskId);
-  send('task_progress', { stage: 'starting', message: 'Starting task...' }, taskId);
-
-  // Placeholder: simulate task completion after a delay
-  // In production, this would spawn the OpenCode CLI and stream its output
-  setTimeout(() => {
+  // Check if OpenCode CLI is available
+  if (!isOpenCodeAvailable()) {
     send(
       'task_error',
       {
-        error: 'OpenCode CLI integration not yet implemented. Install opencode-ai and configure the sidecar.',
+        error:
+          'OpenCode CLI not found. Please install opencode-ai globally: npm install -g opencode-ai',
       },
       taskId
     );
-  }, 1000);
+    return;
+  }
+
+  // Notify task started
+  send('task_started', { taskId }, taskId);
+
+  try {
+    await taskManager.startTask(config, {
+      onMessage: (message) => {
+        send('task_message', { message }, taskId);
+      },
+      onProgress: (progress) => {
+        send('task_progress', { progress }, taskId);
+      },
+      onPermissionRequest: (request) => {
+        send('permission_request', { request }, taskId);
+      },
+      onComplete: (result) => {
+        send('task_complete', { result }, taskId);
+      },
+      onError: (error) => {
+        send('task_error', { error }, taskId);
+      },
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    send('task_error', { error: errorMessage }, taskId);
+  }
 }
 
 // Cancel a running task
 async function cancelTask(taskId: string): Promise<void> {
   log('info', `Cancelling task ${taskId}`);
 
-  const task = activeTasks.get(taskId);
-  if (!task) {
+  if (!taskManager.hasActiveTask(taskId)) {
     log('warn', `Task ${taskId} not found for cancellation`);
     return;
   }
 
-  task.cleanup();
-  activeTasks.delete(taskId);
-
-  send('task_complete', { status: 'cancelled' }, taskId);
+  await taskManager.cancelTask(taskId);
 }
 
 // Interrupt a running task (Ctrl+C)
 async function interruptTask(taskId: string): Promise<void> {
   log('info', `Interrupting task ${taskId}`);
 
-  const task = activeTasks.get(taskId);
-  if (!task) {
+  if (!taskManager.hasActiveTask(taskId)) {
     log('warn', `Task ${taskId} not found for interruption`);
     return;
   }
 
-  // TODO: Send SIGINT to the PTY process
+  await taskManager.interruptTask(taskId);
 }
 
 // Send a response to a task's PTY (for permissions/questions)
 async function sendResponse(taskId: string, response: string): Promise<void> {
   log('info', `Sending response to task ${taskId}`);
 
-  const task = activeTasks.get(taskId);
-  if (!task) {
+  if (!taskManager.hasActiveTask(taskId)) {
     throw new Error(`Task ${taskId} not found`);
   }
 
-  // TODO: Write to the PTY process
+  await taskManager.sendResponse(taskId, response);
+}
+
+// Cleanup on shutdown
+function cleanup(): void {
+  log('info', 'Cleaning up task manager');
+  taskManager.dispose();
 }
 
 // Main entry point
 async function main(): Promise<void> {
   log('info', 'Cowork Z sidecar started');
+
+  // Check OpenCode CLI availability on startup
+  const cliAvailable = isOpenCodeAvailable();
+  const cliVersion = cliAvailable ? getOpenCodeVersion() : null;
+  log('info', `OpenCode CLI: ${cliAvailable ? `available (${cliVersion})` : 'not found'}`);
 
   // Set up stdin reading
   const rl = readline.createInterface({
@@ -190,7 +208,7 @@ async function main(): Promise<void> {
   // Process JSON-line messages
   rl.on('line', async (line: string) => {
     try {
-      const msg = JSON.parse(line) as Message;
+      const msg = JSON.parse(line) as SidecarCommand;
       await handleMessage(msg);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -201,22 +219,29 @@ async function main(): Promise<void> {
   // Handle stdin close
   rl.on('close', () => {
     log('info', 'Sidecar stdin closed, shutting down');
+    cleanup();
     process.exit(0);
   });
 
   // Handle process signals
   process.on('SIGINT', () => {
     log('info', 'Received SIGINT, shutting down');
+    cleanup();
     process.exit(0);
   });
 
   process.on('SIGTERM', () => {
     log('info', 'Received SIGTERM, shutting down');
+    cleanup();
     process.exit(0);
   });
 
-  // Send ready message
-  send('ready', { version: '0.1.0' });
+  // Send ready message with CLI status
+  send('ready', {
+    version: '0.1.0',
+    cliAvailable,
+    cliVersion,
+  });
 }
 
 main().catch((error) => {

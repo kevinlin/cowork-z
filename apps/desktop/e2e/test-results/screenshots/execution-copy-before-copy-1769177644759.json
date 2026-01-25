@@ -1,0 +1,15 @@
+{
+  "testName": "execution-copy",
+  "stateName": "before-copy",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177644206_17s6i5x",
+  "timestamp": "2026-01-23T14:14:04.975Z",
+  "evaluationCriteria": [
+    "Task is completed",
+    "Copy buttons are present on messages",
+    "Ready to test copy functionality"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "testName": "execution-interrupted",
+  "stateName": "interrupted-displayed",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177595797_h6t09ai",
+  "timestamp": "2026-01-23T14:13:16.577Z",
+  "evaluationCriteria": [
+    "Interrupted state is visible",
+    "Task shows it was stopped",
+    "UI clearly indicates interruption",
+    "User understands task did not complete normally"
+  ]
+}

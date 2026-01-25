@@ -1,0 +1,14 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "debug-before-toggle",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:19.535Z",
+  "evaluationCriteria": [
+    "Debug toggle in initial state",
+    "Toggle is ready to click"
+  ]
+}

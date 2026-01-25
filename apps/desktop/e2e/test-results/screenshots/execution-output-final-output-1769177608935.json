@@ -1,0 +1,15 @@
+{
+  "testName": "execution-output",
+  "stateName": "final-output",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177607910_lscouhc",
+  "timestamp": "2026-01-23T14:13:29.131Z",
+  "evaluationCriteria": [
+    "Complete task output is visible",
+    "All messages and results are displayed",
+    "Output is well-formatted"
+  ]
+}

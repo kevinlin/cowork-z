@@ -1,0 +1,16 @@
+{
+  "testName": "execution-output",
+  "stateName": "task-messages",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html#/execution/task_1769177607910_lscouhc",
+  "timestamp": "2026-01-23T14:13:28.932Z",
+  "evaluationCriteria": [
+    "Task output is visible",
+    "Messages from task execution are displayed",
+    "Output format is clear and readable",
+    "User can follow task progress"
+  ]
+}

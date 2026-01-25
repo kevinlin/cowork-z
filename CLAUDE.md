@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cowork Z is a macOS desktop application built with Tauri 2.x that provides a sandboxed environment for autonomous AI agents. The application integrates with the OpenCode SDK to enable users to interact with AI agents that can safely execute code, manipulate files, and perform multi-step workflows while maintaining strong isolation from the host system.
 
-**Current Status:** Frontend migrated from Electron, backend has stub implementations. Task execution requires sidecar implementation.
+**Current Status:** Migration from Electron complete. Frontend, backend, and sidecar are all implemented. The app is functional for task execution with OpenCode CLI.
 
 ## Technology Stack
 
@@ -17,7 +17,9 @@ Cowork Z is a macOS desktop application built with Tauri 2.x that provides a san
 - **State Management:** Zustand 5
 - **Build Tool:** Vite 7
 - **Package Manager:** pnpm
-- **Sandbox:** macOS App Sandbox with sandbox-exec (planned)
+- **Database:** SQLite (rusqlite)
+- **Secure Storage:** OS Keychain (keyring crate)
+- **Sidecar:** Node.js + node-pty for OpenCode CLI integration
 
 ## Development Commands
 
@@ -34,6 +36,21 @@ pnpm build
 
 # Type check
 pnpm exec tsc --noEmit
+```
+
+### Sidecar Development
+```bash
+# Install sidecar dependencies
+cd sidecar && pnpm install
+
+# Build sidecar TypeScript
+cd sidecar && pnpm build
+
+# Run sidecar in dev mode (with watch)
+cd sidecar && pnpm dev
+
+# Build standalone binary for current platform
+cd sidecar && pnpm build:binary
 ```
 
 ### Tauri/Rust Development
@@ -59,37 +76,41 @@ pnpm tauri build
 
 ## Project Architecture
 
-### Multi-Process Architecture (Planned)
+### Multi-Process Architecture
 
 The application follows a sidecar pattern where the Tauri app spawns and manages a Node.js subprocess:
 
 ```
-┌─────────────────────────────────────┐
-│   Tauri Desktop App                 │
-│   ┌──────────────┐  ┌─────────────┐ │
-│   │   React UI   │  │  Rust Core  │ │
-│   │  (WebView)   │←→│   (IPC)     │ │
-│   └──────────────┘  └─────────────┘ │
-└──────────────┬──────────────────────┘
-               │ stdin/stdout (JSON)
-               ↓
-    ┌──────────────────────────────────┐
-    │  Node.js Sidecar Process         │
-    │  - OpenCode CLI (via node-pty)   │
-    │  - Task Manager                  │
-    │  - Provider SDKs (AWS, Azure)    │
-    └──────────────────────────────────┘
-               │
-               ↓
-    ┌──────────────────────────────────┐
-    │  Sandboxed Execution             │
-    │  (sandbox-exec)                  │
-    │  - Tool Execution                │
-    │  - File Operations               │
-    └──────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│   Tauri Desktop App                                          │
+│   ┌──────────────┐  ┌─────────────────────────────────────┐ │
+│   │   React UI   │  │  Rust Backend (lib.rs)               │ │
+│   │  (WebView)   │←→│  - 50+ Tauri commands                │ │
+│   │              │  │  - SQLite database (rusqlite)        │ │
+│   │              │  │  - OS Keychain (keyring)             │ │
+│   │              │  │  - Sidecar manager (tauri-plugin-shell)│
+│   └──────────────┘  └─────────────────────────────────────┘ │
+└─────────────────────────────┬───────────────────────────────┘
+                              │ stdin/stdout (JSON-line)
+                              ↓
+         ┌────────────────────────────────────────────────────┐
+         │  Node.js Sidecar Process (sidecar/)                │
+         │  ├── index.ts        # IPC entry point             │
+         │  ├── task-manager.ts # Multi-task management       │
+         │  ├── adapter.ts      # OpenCode CLI adapter        │
+         │  ├── stream-parser.ts# NDJSON parsing              │
+         │  ├── config-generator.ts # OpenCode config         │
+         │  └── cli-path.ts     # CLI binary resolution       │
+         └────────────────────────────────────────────────────┘
+                              │ PTY (node-pty)
+                              ↓
+         ┌────────────────────────────────────────────────────┐
+         │  OpenCode CLI                                      │
+         │  opencode run --format json --agent accomplish     │
+         └────────────────────────────────────────────────────┘
 ```
 
-### Current Structure
+### Directory Structure
 
 **Frontend (`src/`):**
 - `main.tsx` - React app entry point with HashRouter
@@ -101,30 +122,41 @@ The application follows a sidecar pattern where the Tauri app spawns and manages
   - `settings/` - Provider configuration forms
   - `TaskLauncher/` - Command palette modal
 - `stores/taskStore.ts` - Zustand state management
-- `lib/tauri-api.ts` - Tauri command bridge (replaces Electron IPC)
+- `lib/tauri-api.ts` - Tauri command bridge
 - `shared/` - Shared types and constants
 
-**Backend (`src-tauri/`):**
-- `src/main.rs` - Tauri application entry point
-- `src/lib.rs` - Tauri commands (50+ stub implementations)
-- `Cargo.toml` - Rust dependencies
-- `tauri.conf.json` - Tauri configuration
+**Backend (`src-tauri/src/`):**
+- `main.rs` - Tauri application entry point
+- `lib.rs` - Tauri commands (50+ implementations)
+- `sidecar.rs` - Sidecar process management
+- `db/` - Database layer
+  - `mod.rs` - Database connection with app data directory
+  - `migrations.rs` - Schema migrations
+  - `tasks.rs` - Task CRUD operations
+  - `settings.rs` - App settings
+  - `providers.rs` - Provider management
+- `secure_storage.rs` - OS Keychain integration
 
-**Static Assets (`public/`):**
-- `assets/` - Images and logos
-- `fonts/` - DM Sans font files
+**Sidecar (`sidecar/src/`):**
+- `index.ts` - IPC entry point, JSON-line protocol
+- `types.ts` - OpenCode types, IPC protocol definitions
+- `stream-parser.ts` - NDJSON parser with Windows PTY handling
+- `adapter.ts` - OpenCode CLI adapter (node-pty)
+- `task-manager.ts` - Multi-task lifecycle management
+- `config-generator.ts` - OpenCode config generation
+- `cli-path.ts` - CLI binary resolution
 
 **Configuration:**
 - `vite.config.ts` - Vite configuration with path aliases
 - `tsconfig.json` - TypeScript compiler settings
 - `tailwind.config.ts` - Tailwind CSS theme configuration
-- `package.json` - Frontend dependencies and scripts
+- `src-tauri/tauri.conf.json` - Tauri configuration
+- `src-tauri/Cargo.toml` - Rust dependencies
+- `src-tauri/capabilities/default.json` - Shell permissions
 
-### Key Directories (Planned)
-
-- `~/.open-cowork/` - User configuration and settings
-- `~/Library/Application Support/Cowork Z/` - App data and database
-- `~/Library/Logs/Cowork Z/` - Application logs
+**Reference Source (`apps/desktop/`):**
+- Original Electron app source (preserved for reference)
+- `src/main/opencode/` - Original OpenCode integration code
 
 ## Key Implementation Details
 
@@ -148,13 +180,41 @@ export async function onTaskUpdate(cb: (e: TaskUpdateEvent) => void) {
 }
 ```
 
+### Sidecar Communication
+
+The Rust backend manages the sidecar via `tauri-plugin-shell`:
+
 ```rust
-// Rust command definition (src-tauri/src/lib.rs)
-#[tauri::command]
-async fn start_task(config: TaskConfig) -> Result<Task, String> {
-    // TODO: Implement with sidecar
-    Err("Task execution not yet implemented".to_string())
+// src-tauri/src/sidecar.rs
+let (rx, child) = shell.sidecar("cowork-sidecar").spawn()?;
+
+// Send command
+child.write(json_command.as_bytes())?;
+
+// Receive events
+while let Some(event) = rx.recv().await {
+    match event {
+        CommandEvent::Stdout(line) => {
+            let event: SidecarEvent = serde_json::from_str(&line)?;
+            app.emit(event_name, payload)?;
+        }
+        // ...
+    }
 }
+```
+
+### IPC Protocol
+
+**Rust → Sidecar (stdin):**
+```json
+{"type":"start_task","taskId":"task_123","payload":{"taskId":"task_123","prompt":"...","apiKeys":{...}}}
+```
+
+**Sidecar → Rust (stdout):**
+```json
+{"type":"task_message","taskId":"task_123","payload":{"message":{...}}}
+{"type":"task_progress","taskId":"task_123","payload":{"progress":{"stage":"executing"}}}
+{"type":"task_complete","taskId":"task_123","payload":{"result":{"status":"success"}}}
 ```
 
 ### State Management
@@ -165,32 +225,6 @@ Uses Zustand for global state with the store at `src/stores/taskStore.ts`:
 - Setup progress tracking
 - UI state (launcher modal)
 
-### Event Subscriptions
-
-Tauri events are async - subscriptions return `Promise<UnlistenFn>`:
-
-```typescript
-useEffect(() => {
-  const unlisteners: (() => void)[] = [];
-
-  api.onTaskUpdate((event) => {
-    // Handle event
-  }).then((unsub) => unlisteners.push(unsub));
-
-  return () => {
-    unlisteners.forEach((unsub) => unsub());
-  };
-}, []);
-```
-
-### Sidecar Communication (To Be Implemented)
-
-Planned architecture uses JSON messages over stdin/stdout:
-- Tauri spawns Node.js sidecar with bundled runtime
-- Sidecar runs OpenCode CLI via node-pty
-- Commands: start_task, cancel_task, resume_session
-- Events streamed back: task:update, permission:request, task:progress
-
 ## Provider Integrations
 
 The app supports multiple AI providers with dedicated configuration forms:
@@ -199,43 +233,18 @@ The app supports multiple AI providers with dedicated configuration forms:
 - **Google** - Gemini models
 - **AWS Bedrock** - Multiple foundation models
 - **Azure Foundry** - Azure OpenAI (API key or Entra ID auth)
-- **Ollama** - Local models
+- **Ollama** - Local models (connection test implemented)
 - **OpenRouter** - Aggregated providers
-- **LiteLLM** - Proxy for multiple providers
+- **LiteLLM** - Proxy for multiple providers (connection test implemented)
 
 Provider settings are managed via `src/components/settings/` with forms for each provider.
 
 ## Requirements and Design
 
-See documentation in `docs/specs/open-cowork/`:
-- `requirements.md` - Detailed feature requirements with acceptance criteria
-- `design.md` - Technical design document with architecture details
-
-Key requirements:
-1. Chat interface for AI agent interaction
-2. OpenCode SDK integration for agent orchestration
-3. Tool system (file read/write/edit, bash execution, code search)
-4. Sandboxed execution environment
-5. Session workspace management
-6. Configuration (API keys, model selection, theme)
-7. Error handling with user-friendly messages
-
-## Migration Status
-
-**Completed:**
-- Frontend migrated from `apps/desktop/src/renderer/` to `src/`
-- Shared types migrated to `src/shared/`
-- Tauri API bridge created (`src/lib/tauri-api.ts`)
-- Rust stub commands for all 50+ IPC handlers
-- TypeScript compiles without errors
-- Vite builds successfully
-
-**Pending:**
-- Rust database layer (rusqlite) for task history
-- Secure storage (OS Keychain) for API keys
-- Node.js sidecar for OpenCode CLI integration
-- Provider integration implementations (Ollama, OpenRouter, etc.)
-- Skills bundling as resources
+See documentation in `docs/specs/`:
+- `open-cowork/requirements.md` - Detailed feature requirements
+- `open-cowork/design.md` - Technical design document
+- `electron-to-tauri-migration/` - Migration documentation
 
 ## Vite Configuration
 
@@ -260,5 +269,15 @@ The Vite dev server is configured for Tauri:
 - Development uses port 1420 - ensure it's available
 - Rust changes require app restart (not hot-reloaded)
 - Frontend changes are hot-reloaded via Vite HMR
-- The sidecar is not yet implemented - task execution will fail
-- API key storage is not yet implemented - provider configuration won't persist
+- Sidecar uses a placeholder script in dev mode; build with `pnpm build:binary` for production
+- API keys are stored in OS Keychain (macOS Keychain, Windows Credential Manager)
+- Task history is stored in SQLite at `~/Library/Application Support/Cowork Z/`
+- OpenCode CLI must be installed globally: `npm install -g opencode-ai`
+
+## Future Enhancements
+
+- Azure Foundry connection testing (requires Azure SDK)
+- OpenRouter model fetching (requires API key)
+- Bedrock model fetching (requires AWS SDK)
+- Dev Browser Integration (Playwright support)
+- Permission API HTTP server

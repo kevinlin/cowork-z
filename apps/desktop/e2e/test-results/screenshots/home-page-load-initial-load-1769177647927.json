@@ -1,0 +1,15 @@
+{
+  "testName": "home-page-load",
+  "stateName": "initial-load",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:14:08.207Z",
+  "evaluationCriteria": [
+    "Title \"What will you accomplish today?\" is visible",
+    "Page layout is correct",
+    "All UI elements are rendered"
+  ]
+}

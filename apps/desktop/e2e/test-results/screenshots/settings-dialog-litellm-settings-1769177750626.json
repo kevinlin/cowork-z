@@ -1,0 +1,15 @@
+{
+  "testName": "settings-dialog",
+  "stateName": "litellm-settings",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "route": "file:///Users/kevinlin/dev/ai-engineering/desktop-app/openwork/apps/desktop/dist/index.html",
+  "timestamp": "2026-01-23T14:15:50.919Z",
+  "evaluationCriteria": [
+    "LiteLLM provider is selected",
+    "Server URL input is visible",
+    "User can configure LiteLLM connection"
+  ]
+}

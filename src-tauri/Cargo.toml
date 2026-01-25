@@ -23,3 +23,19 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# Database
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# Async runtime
+tokio = { version = "1", features = ["sync"] }
+
+# Utilities
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Secure storage (OS Keychain)
+keyring = "2"
+
+# HTTP client for provider validation
+reqwest = { version = "0.12", features = ["json"] }
+

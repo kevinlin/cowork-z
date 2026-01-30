@@ -78,6 +78,30 @@ export async function clearTaskHistory(): Promise<void> {
 }
 
 // ============================================================================
+// Task Persistence (for saving task updates to database)
+// ============================================================================
+
+export async function saveTaskMessage(taskId: string, message: TaskMessage): Promise<void> {
+  return invoke<void>('save_task_message', { taskId, message });
+}
+
+export async function saveTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
+  return invoke<void>('save_task_status', { taskId, status });
+}
+
+export async function saveTaskSession(taskId: string, sessionId: string): Promise<void> {
+  return invoke<void>('save_task_session', { taskId, sessionId });
+}
+
+export async function saveTaskSummary(taskId: string, summary: string): Promise<void> {
+  return invoke<void>('save_task_summary', { taskId, summary });
+}
+
+export async function completeTask(taskId: string, status: TaskStatus, sessionId?: string): Promise<void> {
+  return invoke<void>('complete_task', { taskId, status, sessionId });
+}
+
+// ============================================================================
 // Permission Responses
 // ============================================================================
 

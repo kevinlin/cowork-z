@@ -300,11 +300,31 @@ async fn start_task(
     config: TaskConfig,
     app: tauri::AppHandle,
     sidecar_state: State<'_, SidecarState>,
+    db_state: State<'_, DbState>,
 ) -> Result<Task, String> {
     // Generate task ID
     let task_id = config.task_id.clone().unwrap_or_else(|| {
         format!("task_{}", uuid::Uuid::new_v4())
     });
+
+    let created_at = chrono::Utc::now().to_rfc3339();
+    let started_at = chrono::Utc::now().to_rfc3339();
+
+    // Create initial task record in database
+    {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::tasks::save_task(&conn, &db::tasks::TaskInput {
+            id: task_id.clone(),
+            prompt: config.prompt.clone(),
+            status: "starting".to_string(),
+            session_id: None,
+            summary: None,
+            messages: vec![],
+            created_at: created_at.clone(),
+            started_at: Some(started_at.clone()),
+            completed_at: None,
+        })?;
+    }
 
     // Get API keys from secure storage
     let api_keys = sidecar::get_all_api_keys()?;
@@ -339,10 +359,10 @@ async fn start_task(
         result: None,
         session_id: None,
         summary: None,
-        created_at: chrono::Utc::now().to_rfc3339(),
+        created_at,
         updated_at: None,
         completed_at: None,
-        started_at: Some(chrono::Utc::now().to_rfc3339()),
+        started_at: Some(started_at),
     })
 }
 
@@ -467,6 +487,93 @@ async fn delete_task(task_id: String, state: State<'_, DbState>) -> Result<(), S
 async fn clear_task_history(state: State<'_, DbState>) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     db::tasks::clear_history(&conn)
+}
+
+// ============================================================================
+// Task Persistence Commands (for saving task updates from frontend events)
+// ============================================================================
+
+#[tauri::command]
+async fn save_task_message(
+    task_id: String,
+    message: TaskMessage,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+
+    db::tasks::add_task_message(
+        &conn,
+        &task_id,
+        &db::tasks::TaskMessageInput {
+            id: message.id,
+            msg_type: message.msg_type,
+            content: message.content,
+            timestamp: message.timestamp,
+            tool_name: message.tool_name,
+            tool_input: message.tool_input,
+            attachments: message.attachments.map(|atts| {
+                atts.into_iter()
+                    .map(|a| db::tasks::AttachmentInput {
+                        att_type: a.att_type,
+                        data: a.data,
+                        label: a.label,
+                    })
+                    .collect()
+            }),
+        },
+    )
+}
+
+#[tauri::command]
+async fn save_task_status(
+    task_id: String,
+    status: String,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    db::tasks::update_task_status(&conn, &task_id, &status, None)
+}
+
+#[tauri::command]
+async fn save_task_session(
+    task_id: String,
+    session_id: String,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    db::tasks::update_task_session_id(&conn, &task_id, &session_id)
+}
+
+#[tauri::command]
+async fn save_task_summary(
+    task_id: String,
+    summary: String,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    db::tasks::update_task_summary(&conn, &task_id, &summary)
+}
+
+#[tauri::command]
+async fn complete_task(
+    task_id: String,
+    status: String,
+    session_id: Option<String>,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+
+    let completed_at = chrono::Utc::now().to_rfc3339();
+
+    // Update status with completion time
+    db::tasks::update_task_status(&conn, &task_id, &status, Some(&completed_at))?;
+
+    // Update session ID if provided
+    if let Some(sid) = session_id {
+        db::tasks::update_task_session_id(&conn, &task_id, &sid)?;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -953,9 +1060,27 @@ async fn test_azure_foundry_connection(
 }
 
 #[tauri::command]
-async fn save_azure_foundry_config(_config: AzureFoundryTestConfig) -> Result<(), String> {
-    // TODO: Implement with secure storage for API key
-    Ok(())
+async fn save_azure_foundry_config(
+    config: AzureFoundryTestConfig,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    // Store API key securely if present
+    if let Some(api_key) = &config.api_key {
+        secure_storage::store_api_key("azureFoundry", api_key)?;
+    }
+
+    // Store rest of config (without API key) in database
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    db::settings::set_azure_foundry_config(
+        &conn,
+        Some(&db::settings::AzureFoundryConfig {
+            base_url: config.endpoint,
+            deployment_name: config.deployment_name,
+            auth_type: config.auth_type,
+            enabled: true,
+            last_validated: None,
+        }),
+    )
 }
 
 // ============================================================================
@@ -1328,6 +1453,11 @@ pub fn run() {
             list_tasks,
             delete_task,
             clear_task_history,
+            save_task_message,
+            save_task_status,
+            save_task_session,
+            save_task_summary,
+            complete_task,
             respond_to_permission,
             resume_session,
             // Settings

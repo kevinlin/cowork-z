@@ -332,6 +332,30 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       message: 'UI task update received',
       context: { ...event },
     });
+
+    // Persist message to database
+    if (event.type === 'message' && event.message) {
+      api.saveTaskMessage(event.taskId, event.message).catch((err) => {
+        console.error('Failed to save task message:', err);
+      });
+    }
+
+    // Persist complete event to database
+    if (event.type === 'complete' && event.result) {
+      const status = event.result.status === 'success' ? 'completed' :
+                    event.result.status === 'interrupted' ? 'interrupted' : 'failed';
+      api.completeTask(event.taskId, status, event.result.sessionId).catch((err) => {
+        console.error('Failed to save task completion:', err);
+      });
+    }
+
+    // Persist error status to database
+    if (event.type === 'error') {
+      api.saveTaskStatus(event.taskId, 'failed').catch((err) => {
+        console.error('Failed to save task error status:', err);
+      });
+    }
+
     set((state) => {
       // Determine if this event is for the currently viewed task
       const isCurrentTask = state.currentTask?.id === event.taskId;
@@ -427,6 +451,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   // Update task status (e.g., queued -> running)
   updateTaskStatus: (taskId: string, status: TaskStatus) => {
+    // Persist status to database
+    api.saveTaskStatus(taskId, status).catch((err) => {
+      console.error('Failed to save task status:', err);
+    });
+
     set((state) => {
       // Update in tasks list
       const updatedTasks = state.tasks.map((task) =>
@@ -450,6 +479,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   // Update task summary (AI-generated)
   setTaskSummary: (taskId: string, summary: string) => {
+    // Persist summary to database
+    api.saveTaskSummary(taskId, summary).catch((err) => {
+      console.error('Failed to save task summary:', err);
+    });
+
     set((state) => {
       // Update in tasks list
       const updatedTasks = state.tasks.map((task) =>

@@ -59,7 +59,9 @@ export function ClassicProviderForm({
   const logoSrc = PROVIDER_LOGOS[providerId];
 
   const handleConnect = async () => {
-    if (!apiKey.trim()) {
+    const trimmedKey = apiKey.trim();
+
+    if (!trimmedKey) {
       setError('Please enter an API key');
       return;
     }
@@ -69,7 +71,7 @@ export function ClassicProviderForm({
 
     try {
       const accomplish = getAccomplish();
-      const validation = await accomplish.validateApiKeyForProvider(providerId, apiKey.trim());
+      const validation = await accomplish.validateApiKeyForProvider(providerId, trimmedKey);
 
       if (!validation.valid) {
         setError(validation.error || 'Invalid API key');
@@ -78,13 +80,12 @@ export function ClassicProviderForm({
       }
 
       // Save the API key
-      await accomplish.addApiKey(providerId as any, apiKey.trim());
+      await accomplish.addApiKey(providerId as any, trimmedKey);
 
       // Get default model for this provider (if one exists)
       const defaultModel = getDefaultModelForProvider(providerId);
 
       // Create connected provider - store longer key prefix for display
-      const trimmedKey = apiKey.trim();
       const provider: ConnectedProvider = {
         providerId,
         connectionStatus: 'connected',

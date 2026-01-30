@@ -383,8 +383,71 @@ export async function isE2EMode(): Promise<boolean> {
 // Provider Settings API
 // ============================================================================
 
+type ConnectedProviderResponse = { id?: string; selectedModel?: string | null; config?: unknown };
+
+type ProviderSettingsResponse = {
+  activeProvider?: string | null;
+  connectedProviders?: Record<string, ConnectedProviderResponse>;
+  debugMode: boolean;
+};
+
+function isConnectedProviderShape(value: unknown): value is ConnectedProvider {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return (
+    'providerId' in record &&
+    'connectionStatus' in record &&
+    'selectedModelId' in record &&
+    'credentials' in record
+  );
+}
+
+function normalizeConnectedProvider(key: string, raw: ConnectedProviderResponse): ConnectedProvider {
+  const providerId = (raw.id ?? key) as ProviderId;
+  const config = raw.config;
+  let credentials = config as ConnectedProvider['credentials'] | null;
+  let availableModels: ConnectedProvider['availableModels'] | undefined;
+
+  if (config && typeof config === 'object' && 'credentials' in (config as Record<string, unknown>)) {
+    const configRecord = config as { credentials?: ConnectedProvider['credentials']; availableModels?: ConnectedProvider['availableModels'] };
+    credentials = configRecord.credentials ?? null;
+    availableModels = configRecord.availableModels;
+  }
+
+  if (!credentials || typeof credentials !== 'object') {
+    credentials = { type: 'api_key', keyPrefix: '' } as ConnectedProvider['credentials'];
+  }
+
+  return {
+    providerId,
+    connectionStatus: 'connected',
+    selectedModelId: raw.selectedModel ?? null,
+    credentials,
+    lastConnectedAt: new Date().toISOString(),
+    availableModels,
+  };
+}
+
 export async function getProviderSettings(): Promise<ProviderSettings> {
-  return invoke<ProviderSettings>('get_provider_settings');
+  const data = await invoke<ProviderSettings | ProviderSettingsResponse>('get_provider_settings');
+  const activeProviderId = ((data as ProviderSettings).activeProviderId ?? (data as ProviderSettingsResponse).activeProvider ?? null) as ProviderId | null;
+
+  const connectedProviders: ProviderSettings['connectedProviders'] = {};
+  if (data.connectedProviders) {
+    for (const [key, raw] of Object.entries(data.connectedProviders)) {
+      if (isConnectedProviderShape(raw)) {
+        connectedProviders[key as ProviderId] = raw as ConnectedProvider;
+      } else {
+        connectedProviders[key as ProviderId] = normalizeConnectedProvider(key, raw as ConnectedProviderResponse);
+      }
+    }
+  }
+
+  return {
+    activeProviderId,
+    connectedProviders,
+    debugMode: data.debugMode ?? false,
+  };
 }
 
 export async function setActiveProvider(providerId: ProviderId | null): Promise<void> {
@@ -392,11 +455,25 @@ export async function setActiveProvider(providerId: ProviderId | null): Promise<
 }
 
 export async function getConnectedProvider(providerId: ProviderId): Promise<ConnectedProvider | null> {
-  return invoke<ConnectedProvider | null>('get_connected_provider', { providerId });
+  const data = await invoke<ConnectedProvider | { id?: string; selectedModel?: string | null; config?: unknown } | null>(
+    'get_connected_provider',
+    { providerId }
+  );
+  if (!data) return null;
+  if (isConnectedProviderShape(data)) return data;
+  return normalizeConnectedProvider(providerId, data);
 }
 
 export async function setConnectedProvider(providerId: ProviderId, provider: ConnectedProvider): Promise<void> {
-  return invoke<void>('set_connected_provider', { providerId, provider });
+  const connectedProviderInput = {
+    id: provider.providerId,
+    selectedModel: provider.selectedModelId ?? undefined,
+    config: provider.credentials ? {
+      credentials: provider.credentials,
+      availableModels: provider.availableModels,
+    } : undefined,
+  };
+  return invoke<void>('set_connected_provider', { providerId, provider: connectedProviderInput });
 }
 
 export async function removeConnectedProvider(providerId: ProviderId): Promise<void> {

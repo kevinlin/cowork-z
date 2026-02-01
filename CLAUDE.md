@@ -35,7 +35,7 @@ pnpm tauri dev
 pnpm build
 
 # Type check
-pnpm exec tsc --noEmit
+pnpm typecheck
 ```
 
 ### Sidecar Development
@@ -49,8 +49,13 @@ cd src-tauri/sidecar && pnpm build
 # Run sidecar in dev mode (with watch)
 cd src-tauri/sidecar && pnpm dev
 
-# Build standalone binary for current platform
+# Build standalone binary for current platform (macOS ARM64)
 cd src-tauri/sidecar && pnpm build:binary
+
+# Build binaries for other platforms
+cd src-tauri/sidecar && pnpm build:binary:x64      # macOS Intel
+cd src-tauri/sidecar && pnpm build:binary:win      # Windows
+cd src-tauri/sidecar && pnpm build:binary:linux    # Linux
 ```
 
 ### Tauri/Rust Development
@@ -85,7 +90,7 @@ The application follows a sidecar pattern where the Tauri app spawns and manages
 │   Tauri Desktop App                                          │
 │   ┌──────────────┐  ┌─────────────────────────────────────┐ │
 │   │   React UI   │  │  Rust Backend (lib.rs)               │ │
-│   │  (WebView)   │←→│  - 50+ Tauri commands                │ │
+│   │  (WebView)   │←→│  - 60+ Tauri commands                │ │
 │   │              │  │  - SQLite database (rusqlite)        │ │
 │   │              │  │  - OS Keychain (keyring)             │ │
 │   │              │  │  - Sidecar manager (tauri-plugin-shell)│
@@ -127,7 +132,7 @@ The application follows a sidecar pattern where the Tauri app spawns and manages
 
 **Backend (`src-tauri/src/`):**
 - `main.rs` - Tauri application entry point
-- `lib.rs` - Tauri commands (50+ implementations)
+- `lib.rs` - Tauri commands (60+ implementations)
 - `sidecar.rs` - Sidecar process management
 - `db/` - Database layer
   - `mod.rs` - Database connection with app data directory
@@ -225,6 +230,15 @@ Uses Zustand for global state with the store at `src/stores/taskStore.ts`:
 - Setup progress tracking
 - UI state (launcher modal)
 
+### Sidecar Binary Management
+
+- **Development**: Sidecar runs from TypeScript source via `tsx watch`
+- **Production**: Compiled to standalone binary using `pkg`
+- **Binary location**: `src-tauri/binaries/cowork-sidecar-<target-triple>`
+- **Configuration**: Referenced in `tauri.conf.json` as `externalBin`
+- **Current binary**: Only macOS ARM64 (`aarch64-apple-darwin`) is committed
+- **Build new targets**: Use the `build:binary:*` commands to generate other platform binaries
+
 ## Provider Integrations
 
 The app supports multiple AI providers with dedicated configuration forms:
@@ -263,13 +277,27 @@ The Vite dev server is configured for Tauri:
 - Module resolution: `bundler` mode for Vite
 - JSX: `react-jsx` (React 17+ transform)
 
+## Testing
+
+Currently, no test infrastructure is set up for this project. Tests would need to be added for:
+- Frontend React components
+- Tauri command handlers (Rust)
+- Sidecar IPC logic
+- Database operations
+
 ## Important Notes
 
 - The app identifier is `com.kevinlin.cowork-z`
 - Development uses port 1420 - ensure it's available
+- `pnpm dev` runs only the Vite dev server (frontend only)
+- `pnpm tauri dev` runs the full stack (Vite + Tauri + spawns the app window)
+- Always use `pnpm tauri dev` for full-stack development
 - Rust changes require app restart (not hot-reloaded)
 - Frontend changes are hot-reloaded via Vite HMR
 - Sidecar uses a placeholder script in dev mode; build with `pnpm build:binary` for production
+- Shell permissions are defined in `src-tauri/capabilities/default.json`
+- Currently allows: spawn, stdin-write, kill, and open commands
+- Required for sidecar process management via `tauri-plugin-shell`
 - API keys are stored in OS Keychain (macOS Keychain, Windows Credential Manager)
 - Task history is stored in SQLite at `~/Library/Application Support/Cowork Z/`
 - OpenCode CLI must be installed globally: `npm install -g opencode-ai`

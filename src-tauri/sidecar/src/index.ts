@@ -135,6 +135,14 @@ async function startTask(config: TaskConfig & { apiKeys?: ApiKeys }): Promise<vo
       onMessage: (message) => {
         send('task_message', { message }, taskId);
       },
+      onMessagePartial: (update) => {
+        log('info', `[streaming] sending partial: messageId=${update.messageId}, textLength=${update.textSoFar.length}`);
+        send('task_message_partial', update, taskId);
+      },
+      onMessageComplete: (update) => {
+        log('info', `[streaming] sending complete: messageId=${update.messageId}, textLength=${update.text.length}`);
+        send('task_message_complete', update, taskId);
+      },
       onProgress: (progress) => {
         send('task_progress', { progress }, taskId);
       },

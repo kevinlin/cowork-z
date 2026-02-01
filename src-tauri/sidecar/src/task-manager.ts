@@ -14,6 +14,8 @@ import type {
   PermissionRequest,
   TaskCallbacks,
   ApiKeys,
+  PartialMessageUpdate,
+  CompleteMessageUpdate,
 } from './types';
 
 /**
@@ -65,6 +67,14 @@ export class TaskManager {
       callbacks.onMessage(message);
     };
 
+    const onMessagePartial = (update: PartialMessageUpdate) => {
+      callbacks.onMessagePartial?.(update);
+    };
+
+    const onMessageComplete = (update: CompleteMessageUpdate) => {
+      callbacks.onMessageComplete?.(update);
+    };
+
     const onProgress = (progress: TaskProgress) => {
       callbacks.onProgress(progress);
     };
@@ -85,6 +95,8 @@ export class TaskManager {
 
     // Attach listeners
     adapter.on('message', onMessage);
+    adapter.on('message-partial', onMessagePartial);
+    adapter.on('message-complete', onMessageComplete);
     adapter.on('progress', onProgress);
     adapter.on('permission-request', onPermissionRequest);
     adapter.on('complete', onComplete);
@@ -93,6 +105,8 @@ export class TaskManager {
     // Create cleanup function
     const cleanup = () => {
       adapter.off('message', onMessage);
+      adapter.off('message-partial', onMessagePartial);
+      adapter.off('message-complete', onMessageComplete);
       adapter.off('progress', onProgress);
       adapter.off('permission-request', onPermissionRequest);
       adapter.off('complete', onComplete);

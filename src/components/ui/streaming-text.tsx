@@ -18,6 +18,8 @@ interface StreamingTextProps {
   className?: string;
   /** Render function for the displayed text */
   children: (displayedText: string) => React.ReactNode;
+  /** If true, text is being streamed in real-time (no animation needed, just show cursor) */
+  isRealStreaming?: boolean;
 }
 
 export function StreamingText({
@@ -27,12 +29,25 @@ export function StreamingText({
   onComplete,
   className,
   children,
+  isRealStreaming = false,
 }: StreamingTextProps) {
   const [displayedLength, setDisplayedLength] = useState(isComplete ? text.length : 0);
   const [isStreaming, setIsStreaming] = useState(!isComplete);
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const textRef = useRef(text);
+
+  // Real streaming mode - show text immediately without animation
+  if (isRealStreaming) {
+    return (
+      <div className={className}>
+        {children(text)}
+        {!isComplete && (
+          <span className="inline-block w-2 h-4 bg-foreground/60 animate-pulse ml-0.5 align-text-bottom" />
+        )}
+      </div>
+    );
+  }
 
   // Update ref when text changes
   useEffect(() => {

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTaskStore } from '../stores/taskStore';
 import * as api from '../lib/tauri-api';
 import { springs } from '../lib/animations';
-import type { TaskMessage } from '@/shared';
+import type { TaskMessage, PartialMessage } from '@/shared';
 import { hasAnyReadyProvider } from '@/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,6 +138,7 @@ export default function ExecutionPage() {
     setupDownloadStep,
     startupStage,
     startupStageTaskId,
+    partialMessages,
   } = useTaskStore();
 
   // Debounced scroll function
@@ -281,7 +282,24 @@ export default function ExecutionPage() {
     if (isAtBottom) {
       scrollToBottom();
     }
-  }, [currentTask?.messages?.length, scrollToBottom, isAtBottom]);
+  }, [currentTask?.messages?.length, partialMessages.size, scrollToBottom, isAtBottom]);
+
+  // Combine completed messages with partial messages for rendering
+  type RenderableMessage = TaskMessage | PartialMessage;
+  const messagesToRender = useMemo((): RenderableMessage[] => {
+    const completed = currentTask?.messages || [];
+    const partials = Array.from(partialMessages.values());
+
+    // Filter out completed messages that have a corresponding partial (avoid duplicates)
+    const partialIds = new Set(partials.map((p) => p.id));
+    const filteredCompleted = completed.filter((m) => !partialIds.has(m.id));
+
+    // Combine and sort by timestamp
+    const combined = [...filteredCompleted, ...partials];
+    return combined.sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+  }, [currentTask?.messages, partialMessages]);
 
   // Auto-scroll debug panel when new logs arrive
   useEffect(() => {
@@ -651,10 +669,11 @@ export default function ExecutionPage() {
       {currentTask.status !== 'queued' && (
         <div className="flex-1 overflow-y-auto px-6 py-6" ref={scrollContainerRef} onScroll={handleScroll} data-testid="messages-scroll-container">
           <div className="max-w-4xl mx-auto space-y-4">
-            {currentTask.messages
-              .filter((m) => !(m.type === 'tool' && m.toolName?.toLowerCase() === 'bash'))
+            {messagesToRender
+              .filter((m) => !(m.type === 'tool' && 'toolName' in m && (m as TaskMessage).toolName?.toLowerCase() === 'bash'))
               .map((message, index, filteredMessages) => {
               const isLastMessage = index === filteredMessages.length - 1;
+              const isPartial = 'isStreaming' in message && message.isStreaming;
               const isLastAssistantMessage =
                 message.type === 'assistant' && isLastMessage;
               // Find the last assistant message index for the continue button
@@ -666,23 +685,33 @@ export default function ExecutionPage() {
                 }
               }
               const isLastAssistantForContinue = index === lastAssistantIndex;
+              // Get message content (handle both complete and partial messages)
+              const messageContent = isPartial
+                ? (message as PartialMessage).textSoFar
+                : (message as TaskMessage).content;
               // Show continue button on last assistant message when:
               // - Task was interrupted (user can always continue)
               // - Task completed AND the message indicates agent is waiting for user action
-              const showContinue = isLastAssistantForContinue && !!hasSession &&
+              const showContinue = isLastAssistantForContinue && !!hasSession && !isPartial &&
                 (currentTask.status === 'interrupted' ||
-                 (currentTask.status === 'completed' && isWaitingForUser(message.content)));
+                 (currentTask.status === 'completed' && isWaitingForUser(messageContent)));
+              // For partial messages, use real streaming mode (no animation)
+              // For complete messages during running, use animated streaming
+              const shouldStream = isLastAssistantMessage && currentTask.status === 'running' && !isPartial;
               return (
                 <MessageBubble
                   key={message.id}
-                  message={message}
-                  shouldStream={isLastAssistantMessage && currentTask.status === 'running'}
+                  message={isPartial
+                    ? { ...message, content: messageContent, type: 'assistant' as const }
+                    : message as TaskMessage}
+                  shouldStream={shouldStream}
                   isLastMessage={isLastMessage}
                   isRunning={currentTask.status === 'running'}
                   showContinueButton={showContinue}
                   continueLabel={currentTask.status === 'interrupted' ? 'Continue' : 'Done, Continue'}
                   onContinue={handleContinue}
                   isLoading={isLoading}
+                  isRealStreaming={isPartial}
                 />
               );
             })}
@@ -1227,12 +1256,14 @@ interface MessageBubbleProps {
   continueLabel?: string;
   onContinue?: () => void;
   isLoading?: boolean;
+  /** If true, text is being streamed in real-time (no animation needed) */
+  isRealStreaming?: boolean;
 }
 
 const COPIED_STATE_DURATION_MS = 1000
 
 // Memoized MessageBubble to prevent unnecessary re-renders and markdown re-parsing
-const MessageBubble = memo(function MessageBubble({ message, shouldStream = false, isLastMessage = false, isRunning = false, showContinueButton = false, continueLabel, onContinue, isLoading = false }: MessageBubbleProps) {
+const MessageBubble = memo(function MessageBubble({ message, shouldStream = false, isLastMessage = false, isRunning = false, showContinueButton = false, continueLabel, onContinue, isLoading = false, isRealStreaming = false }: MessageBubbleProps) {
   const [streamComplete, setStreamComplete] = useState(!shouldStream);
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1342,6 +1373,20 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
               >
                 {message.content}
               </p>
+            ) : isAssistant && isRealStreaming ? (
+              // Real streaming mode - show text immediately with cursor
+              <StreamingText
+                text={message.content}
+                speed={120}
+                isComplete={false}
+                isRealStreaming={true}
+              >
+                {(displayedText) => (
+                  <div className={proseClasses}>
+                    <ReactMarkdown>{displayedText}</ReactMarkdown>
+                  </div>
+                )}
+              </StreamingText>
             ) : isAssistant && shouldStream && !streamComplete ? (
               <StreamingText
                 text={message.content}
@@ -1413,4 +1458,4 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
       )}
     </motion.div>
   );
-}, (prev, next) => prev.message.id === next.message.id && prev.shouldStream === next.shouldStream && prev.isLastMessage === next.isLastMessage && prev.isRunning === next.isRunning && prev.showContinueButton === next.showContinueButton && prev.isLoading === next.isLoading);
+}, (prev, next) => prev.message.id === next.message.id && prev.message.content === next.message.content && prev.shouldStream === next.shouldStream && prev.isLastMessage === next.isLastMessage && prev.isRunning === next.isRunning && prev.showContinueButton === next.showContinueButton && prev.isLoading === next.isLoading && prev.isRealStreaming === next.isRealStreaming);

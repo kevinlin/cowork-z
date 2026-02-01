@@ -216,6 +216,8 @@ export type SidecarOutputMessage =
   | { type: 'pong'; payload: { timestamp: number } }
   | { type: 'task_started'; taskId: string; payload: { taskId: string } }
   | { type: 'task_message'; taskId: string; payload: OpenCodeMessage }
+  | { type: 'task_message_partial'; taskId: string; payload: PartialMessageUpdate }
+  | { type: 'task_message_complete'; taskId: string; payload: CompleteMessageUpdate }
   | { type: 'task_progress'; taskId: string; payload: TaskProgress }
   | { type: 'permission_request'; taskId: string; payload: PermissionRequest }
   | { type: 'task_complete'; taskId: string; payload: TaskResult }
@@ -225,6 +227,8 @@ export type SidecarOutputMessage =
 /** Task callbacks for event handling */
 export interface TaskCallbacks {
   onMessage: (message: OpenCodeMessage) => void;
+  onMessagePartial?: (update: PartialMessageUpdate) => void;
+  onMessageComplete?: (update: CompleteMessageUpdate) => void;
   onProgress: (progress: TaskProgress) => void;
   onPermissionRequest: (request: PermissionRequest) => void;
   onComplete: (result: TaskResult) => void;
@@ -243,4 +247,28 @@ export interface SidecarCommand {
   type: string;
   taskId?: string;
   payload?: unknown;
+}
+
+// ========== Streaming Message Types ==========
+
+/** Partial message update sent during streaming */
+export interface PartialMessageUpdate {
+  messageId: string;
+  textSoFar: string;
+  isStreaming: boolean;
+}
+
+/** Complete message update sent when streaming finishes */
+export interface CompleteMessageUpdate {
+  messageId: string;
+  text: string;
+}
+
+/** Message accumulator for tracking streaming text */
+export interface MessageAccumulator {
+  messageId: string;
+  sessionId: string;
+  textChunks: string[];
+  lastUpdate: number;
+  isComplete: boolean;
 }

@@ -20,10 +20,15 @@ import type {
   PermissionRequest,
   ApiKeys,
   OpenCodeToolUseMessage,
+  MessageAccumulator,
+  PartialMessageUpdate,
+  CompleteMessageUpdate,
 } from './types';
 
 export interface OpenCodeAdapterEvents {
   message: [OpenCodeMessage];
+  'message-partial': [PartialMessageUpdate];
+  'message-complete': [CompleteMessageUpdate];
   'tool-use': [string, unknown];
   'tool-result': [string];
   'permission-request': [PermissionRequest];
@@ -35,6 +40,10 @@ export interface OpenCodeAdapterEvents {
 export interface AdapterConfig extends TaskConfig {
   apiKeys?: ApiKeys;
 }
+
+// Constants for streaming
+const PARTIAL_UPDATE_THROTTLE_MS = 100;
+const MAX_TEXT_SIZE_BYTES = 100 * 1024; // 100KB limit per message
 
 export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
   private ptyProcess: pty.IPty | null = null;
@@ -48,6 +57,11 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
   private lastWorkingDirectory: string | undefined;
   private currentModelId: string | null = null;
   private apiKeys: ApiKeys = {};
+
+  // Message accumulation for streaming
+  private messageAccumulators: Map<string, MessageAccumulator> = new Map();
+  private lastPartialEmitTime: Map<string, number> = new Map();
+  private pendingPartialEmits: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(taskId?: string) {
     super();
@@ -122,6 +136,7 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
     const useShell = process.platform === 'win32';
     const spawnCommand = useShell ? shellCmd : command;
     const spawnArgs = useShell ? shellArgs : allArgs;
+    console.error(`[spawn command] ${spawnCommand} ${spawnArgs.join(' ')}`);
     const cwdExists = fs.existsSync(safeCwd);
     const shellExists = fs.existsSync(shellCmd);
     const commandPreview = fullCommand.slice(0, 160);
@@ -331,6 +346,145 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
   }
 
   /**
+   * Accumulate text chunks for a message and emit partial updates (throttled)
+   */
+  private accumulateText(messageId: string, sessionId: string, textChunk: string): void {
+    let accumulator = this.messageAccumulators.get(messageId);
+    const isNew = !accumulator;
+
+    if (!accumulator) {
+      accumulator = {
+        messageId,
+        sessionId,
+        textChunks: [],
+        lastUpdate: Date.now(),
+        isComplete: false,
+      };
+      this.messageAccumulators.set(messageId, accumulator);
+      console.error(`[streaming] created accumulator for messageId=${messageId}`);
+    }
+
+    console.error(`[streaming] accumulating text: messageId=${messageId}, chunkLength=${textChunk.length}, isNew=${isNew}`);
+
+    // Check size limit before adding
+    const currentSize = accumulator.textChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    if (currentSize + textChunk.length > MAX_TEXT_SIZE_BYTES) {
+      // Truncate if over limit
+      const remainingSpace = MAX_TEXT_SIZE_BYTES - currentSize;
+      if (remainingSpace > 0) {
+        accumulator.textChunks.push(textChunk.slice(0, remainingSpace));
+      }
+    } else {
+      accumulator.textChunks.push(textChunk);
+    }
+
+    accumulator.lastUpdate = Date.now();
+
+    // Emit partial update (throttled)
+    this.emitPartialUpdate(messageId, accumulator);
+  }
+
+  /**
+   * Emit a partial message update, throttled to avoid excessive updates
+   */
+  private emitPartialUpdate(messageId: string, accumulator: MessageAccumulator): void {
+    const now = Date.now();
+    const lastEmit = this.lastPartialEmitTime.get(messageId) || 0;
+    const timeSinceLastEmit = now - lastEmit;
+
+    // Clear any pending emit for this message
+    const pendingTimeout = this.pendingPartialEmits.get(messageId);
+    if (pendingTimeout) {
+      clearTimeout(pendingTimeout);
+      this.pendingPartialEmits.delete(messageId);
+    }
+
+    if (timeSinceLastEmit >= PARTIAL_UPDATE_THROTTLE_MS) {
+      // Emit immediately
+      this.doEmitPartial(messageId, accumulator);
+    } else {
+      // Schedule emit after throttle period
+      const delay = PARTIAL_UPDATE_THROTTLE_MS - timeSinceLastEmit;
+      const timeout = setTimeout(() => {
+        this.pendingPartialEmits.delete(messageId);
+        // Re-fetch accumulator in case it was updated
+        const currentAccumulator = this.messageAccumulators.get(messageId);
+        if (currentAccumulator && !currentAccumulator.isComplete) {
+          this.doEmitPartial(messageId, currentAccumulator);
+        }
+      }, delay);
+      this.pendingPartialEmits.set(messageId, timeout);
+    }
+  }
+
+  /**
+   * Actually emit the partial update
+   */
+  private doEmitPartial(messageId: string, accumulator: MessageAccumulator): void {
+    this.lastPartialEmitTime.set(messageId, Date.now());
+
+    const textSoFar = accumulator.textChunks.join('');
+    const update: PartialMessageUpdate = {
+      messageId,
+      textSoFar,
+      isStreaming: !accumulator.isComplete,
+    };
+
+    // Debug: log partial emission
+    console.error(`[streaming] emitting partial: messageId=${messageId}, textLength=${textSoFar.length}, chunks=${accumulator.textChunks.length}`);
+
+    this.emit('message-partial', update);
+  }
+
+  /**
+   * Finalize all accumulators for a session (called on step_finish)
+   */
+  private finalizeAccumulators(sessionId: string): void {
+    console.error(`[streaming] finalizing accumulators for session=${sessionId}, count=${this.messageAccumulators.size}`);
+
+    for (const [messageId, accumulator] of this.messageAccumulators) {
+      if (accumulator.sessionId === sessionId && !accumulator.isComplete) {
+        accumulator.isComplete = true;
+
+        // Clear any pending emit
+        const pendingTimeout = this.pendingPartialEmits.get(messageId);
+        if (pendingTimeout) {
+          clearTimeout(pendingTimeout);
+          this.pendingPartialEmits.delete(messageId);
+        }
+
+        console.error(`[streaming] finalizing messageId=${messageId}, chunks=${accumulator.textChunks.length}`);
+
+        // Emit complete message
+        const text = accumulator.textChunks.join('');
+        const completeUpdate: CompleteMessageUpdate = {
+          messageId,
+          text,
+        };
+
+        this.emit('message-complete', completeUpdate);
+
+        // Clean up
+        this.messageAccumulators.delete(messageId);
+        this.lastPartialEmitTime.delete(messageId);
+      }
+    }
+  }
+
+  /**
+   * Clear all accumulators (called on dispose)
+   */
+  private clearAccumulators(): void {
+    // Clear all pending timeouts
+    for (const timeout of this.pendingPartialEmits.values()) {
+      clearTimeout(timeout);
+    }
+    this.pendingPartialEmits.clear();
+    this.messageAccumulators.clear();
+    this.lastPartialEmitTime.clear();
+  }
+
+  /**
    * Dispose the adapter and clean up resources
    */
   dispose(): void {
@@ -339,6 +493,9 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
     }
 
     this.isDisposed = true;
+
+    // Clear message accumulators
+    this.clearAccumulators();
 
     if (this.ptyProcess) {
       try {
@@ -403,12 +560,23 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
         });
         break;
 
-      case 'text':
+      case 'text': {
         if (!this.currentSessionId && message.part.sessionID) {
           this.currentSessionId = message.part.sessionID;
         }
-        this.emit('message', message);
+
+        // Accumulate text for streaming - this emits 'message-partial' events
+        // The final message is emitted as 'message-complete' on step_finish
+        const messageId = message.part.messageID;
+        const sessionId = message.part.sessionID;
+        const textChunk = message.part.text;
+
+        if (messageId && textChunk) {
+          this.accumulateText(messageId, sessionId, textChunk);
+        }
+        // Note: Don't emit 'message' here - use streaming path instead
         break;
+      }
 
       case 'tool_call': {
         const toolName = message.part.tool || 'unknown';
@@ -455,7 +623,11 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
         this.emit('tool-result', message.part.output || '');
         break;
 
-      case 'step_finish':
+      case 'step_finish': {
+        // Finalize all accumulators for this session
+        const finishSessionId = message.part.sessionID;
+        this.finalizeAccumulators(finishSessionId);
+
         if (message.part.reason === 'error') {
           if (!this.hasCompleted) {
             this.hasCompleted = true;
@@ -476,6 +648,7 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
           });
         }
         break;
+      }
 
       case 'error':
         this.hasCompleted = true;

@@ -7,6 +7,9 @@ import type {
   PermissionRequest,
   PermissionResponse,
   TaskMessage,
+  PartialMessage,
+  PartialMessageEvent,
+  CompleteMessageEvent,
 } from '@/shared';
 import * as api from '@/lib/tauri-api';
 
@@ -43,6 +46,9 @@ interface TaskState {
   // Task history
   tasks: Task[];
 
+  // Partial messages (streaming)
+  partialMessages: Map<string, PartialMessage>;
+
   // Permission handling
   permissionRequest: PermissionRequest | null;
 
@@ -72,6 +78,8 @@ interface TaskState {
   respondToPermission: (response: PermissionResponse) => Promise<void>;
   addTaskUpdate: (event: TaskUpdateEvent) => void;
   addTaskUpdateBatch: (event: TaskUpdateBatchEvent) => void;
+  addPartialMessage: (event: PartialMessageEvent) => void;
+  finalizePartialMessage: (event: CompleteMessageEvent) => void;
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   setTaskSummary: (taskId: string, summary: string) => void;
   loadTasks: () => Promise<void>;
@@ -106,6 +114,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   isLoading: false,
   error: null,
   tasks: [],
+  partialMessages: new Map<string, PartialMessage>(),
   permissionRequest: null,
   setupProgress: null,
   setupProgressTaskId: null,
@@ -509,6 +518,82 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     });
   },
 
+  // Add or update a partial message (streaming)
+  addPartialMessage: (event: PartialMessageEvent) => {
+    set((state) => {
+      // Only process if this is for the current task
+      if (!state.currentTask || state.currentTask.id !== event.taskId) {
+        return state;
+      }
+
+      // Create new Map to trigger re-render
+      const newPartialMessages = new Map(state.partialMessages);
+
+      // Get existing partial or create new one
+      const existing = newPartialMessages.get(event.messageId);
+      const partial: PartialMessage = {
+        id: event.messageId,
+        type: 'assistant',
+        textSoFar: event.textSoFar,
+        isStreaming: event.isStreaming,
+        timestamp: existing?.timestamp || new Date().toISOString(),
+      };
+
+      newPartialMessages.set(event.messageId, partial);
+
+      return { partialMessages: newPartialMessages };
+    });
+  },
+
+  // Finalize a partial message (convert to complete message)
+  finalizePartialMessage: (event: CompleteMessageEvent) => {
+    set((state) => {
+      // Only process if this is for the current task
+      if (!state.currentTask || state.currentTask.id !== event.taskId) {
+        return state;
+      }
+
+      // Get the partial message
+      const partial = state.partialMessages.get(event.messageId);
+
+      // Create new Map without this partial
+      const newPartialMessages = new Map(state.partialMessages);
+      newPartialMessages.delete(event.messageId);
+
+      // If no partial existed, just clean up
+      if (!partial) {
+        return { partialMessages: newPartialMessages };
+      }
+
+      // Convert partial to complete message
+      const completeMessage: TaskMessage = {
+        id: event.messageId,
+        type: 'assistant',
+        content: event.text,
+        timestamp: partial.timestamp,
+      };
+
+      // Check if message already exists in messages array
+      const existingIndex = state.currentTask.messages.findIndex((m) => m.id === event.messageId);
+      const updatedMessages = existingIndex === -1
+        ? [...state.currentTask.messages, completeMessage]
+        : state.currentTask.messages.map((m, idx) => (idx === existingIndex ? completeMessage : m));
+
+      // Persist to database
+      api.saveTaskMessage(event.taskId, completeMessage).catch((err) => {
+        console.error('Failed to save finalized message:', err);
+      });
+
+      return {
+        partialMessages: newPartialMessages,
+        currentTask: {
+          ...state.currentTask,
+          messages: updatedMessages,
+        },
+      };
+    });
+  },
+
   // Update task status (e.g., queued -> running)
   updateTaskStatus: (taskId: string, status: TaskStatus) => {
     // Persist status to database
@@ -592,6 +677,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       currentTask: null,
       isLoading: false,
       error: null,
+      partialMessages: new Map<string, PartialMessage>(),
       permissionRequest: null,
       setupProgress: null,
       setupProgressTaskId: null,
@@ -665,5 +751,25 @@ if (typeof window !== 'undefined' && api.isRunningInTauri()) {
   // Subscribe to task summary updates
   void api.onTaskSummary((data) => {
     useTaskStore.getState().setTaskSummary(data.taskId, data.summary);
+  });
+
+  // Subscribe to partial message updates (streaming)
+  void api.onTaskMessagePartial((event) => {
+    console.log('[streaming] received partial:', event.messageId, 'textLength:', event.textSoFar.length);
+    void api.logEvent({
+      level: 'debug',
+      message: `[streaming] partial received: messageId=${event.messageId}, textLength=${event.textSoFar.length}`,
+    });
+    useTaskStore.getState().addPartialMessage(event);
+  });
+
+  // Subscribe to complete message updates (streaming finalized)
+  void api.onTaskMessageComplete((event) => {
+    console.log('[streaming] received complete:', event.messageId, 'textLength:', event.text.length);
+    void api.logEvent({
+      level: 'debug',
+      message: `[streaming] complete received: messageId=${event.messageId}, textLength=${event.text.length}`,
+    });
+    useTaskStore.getState().finalizePartialMessage(event);
   });
 }

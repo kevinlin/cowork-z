@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.kevinlin.cowork-z",
   "build": {
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build",
+    "beforeDevCommand": "cd src-tauri/sidecar && pnpm build:binary && cd ../.. && pnpm dev",
+    "beforeBuildCommand": "cd src-tauri/sidecar && pnpm build:binary && cd ../.. && pnpm build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },

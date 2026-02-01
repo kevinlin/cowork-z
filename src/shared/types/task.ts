@@ -99,3 +99,29 @@ export interface TaskUpdateEvent {
   result?: TaskResult;
   error?: string;
 }
+
+// ========== Streaming Message Types ==========
+
+/** Partial message being streamed */
+export interface PartialMessage {
+  id: string;
+  type: 'assistant';
+  textSoFar: string;
+  isStreaming: boolean;
+  timestamp: string;
+}
+
+/** Event payload for partial message updates */
+export interface PartialMessageEvent {
+  taskId: string;
+  messageId: string;
+  textSoFar: string;
+  isStreaming: boolean;
+}
+
+/** Event payload for complete message updates */
+export interface CompleteMessageEvent {
+  taskId: string;
+  messageId: string;
+  text: string;
+}

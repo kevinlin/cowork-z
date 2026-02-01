@@ -25,6 +25,8 @@ import type {
   ProviderId,
   ConnectedProvider,
   OpenCodeMessage,
+  PartialMessageEvent,
+  CompleteMessageEvent,
 } from '@/shared';
 
 // ============================================================================
@@ -665,6 +667,45 @@ export async function onTaskSummary(callback: (data: { taskId: string; summary: 
   return listen<{ taskId: string; summary: string }>('task:summary', (event) => callback(event.payload));
 }
 
+export async function onTaskMessagePartial(
+  callback: (event: PartialMessageEvent) => void
+): Promise<UnlistenFn> {
+  return listen<{ taskId?: string; payload?: { messageId?: string; textSoFar?: string; isStreaming?: boolean } }>(
+    'task:message:partial',
+    (event) => {
+      const taskId = event.payload?.taskId;
+      const payload = event.payload?.payload;
+      if (taskId && payload?.messageId && payload.textSoFar !== undefined) {
+        callback({
+          taskId,
+          messageId: payload.messageId,
+          textSoFar: payload.textSoFar,
+          isStreaming: payload.isStreaming ?? true,
+        });
+      }
+    }
+  );
+}
+
+export async function onTaskMessageComplete(
+  callback: (event: CompleteMessageEvent) => void
+): Promise<UnlistenFn> {
+  return listen<{ taskId?: string; payload?: { messageId?: string; text?: string } }>(
+    'task:message:complete',
+    (event) => {
+      const taskId = event.payload?.taskId;
+      const payload = event.payload?.payload;
+      if (taskId && payload?.messageId && payload.text !== undefined) {
+        callback({
+          taskId,
+          messageId: payload.messageId,
+          text: payload.text,
+        });
+      }
+    }
+  );
+}
+
 // ============================================================================
 // Logging
 // ============================================================================
@@ -826,6 +867,8 @@ export function getTauriApi() {
     onDebugModeChange,
     onTaskStatusChange,
     onTaskSummary,
+    onTaskMessagePartial,
+    onTaskMessageComplete,
 
     // Logging
     logEvent,

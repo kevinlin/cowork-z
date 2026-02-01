@@ -49,6 +49,9 @@ cd src-tauri/sidecar && pnpm build
 # Run sidecar in dev mode (with watch)
 cd src-tauri/sidecar && pnpm dev
 
+# Run sidecar tests (Jest)
+cd src-tauri/sidecar && pnpm test
+
 # Build standalone binary for current platform (macOS ARM64)
 cd src-tauri/sidecar && pnpm build:binary
 
@@ -77,6 +80,33 @@ cd src-tauri && cargo test
 ```bash
 # Production build (compiles Rust + bundles frontend + creates macOS app)
 pnpm tauri build
+```
+
+### Testing
+```bash
+# Run frontend tests (Vitest)
+pnpm test
+
+# Run frontend tests in watch mode
+pnpm test
+
+# Run frontend tests with coverage
+pnpm test:coverage
+
+# Run frontend tests once (CI mode)
+pnpm test --run
+
+# Run sidecar tests (Jest)
+cd src-tauri/sidecar && pnpm test
+
+# Run sidecar tests in watch mode
+cd src-tauri/sidecar && pnpm test:watch
+
+# Run sidecar tests with coverage
+cd src-tauri/sidecar && pnpm test:coverage
+
+# Run all tests (frontend + sidecar)
+pnpm test --run && cd src-tauri/sidecar && pnpm test
 ```
 
 ## Project Architecture
@@ -279,11 +309,28 @@ The Vite dev server is configured for Tauri:
 
 ## Testing
 
-Currently, no test infrastructure is set up for this project. Tests would need to be added for:
-- Frontend React components
+The project has comprehensive test coverage for streaming chat response functionality:
+
+### Frontend Tests (Vitest)
+- **Framework**: Vitest 4.0.18 with jsdom
+- **Location**: `src/**/__tests__/*.test.{ts,tsx}`
+- **Setup**: `src/test/setup.ts`
+- **Config**: `vitest.config.ts`
+- **Coverage**: 26 tests across taskStore, StreamingText, and Execution components
+
+### Sidecar Tests (Jest)
+- **Framework**: Jest 30.2.0 with ts-jest 29.4.6
+- **Location**: `src-tauri/sidecar/src/__tests__/*.test.ts`
+- **Config**: `src-tauri/sidecar/jest.config.js`
+- **Coverage**: 20 tests for adapter and task-manager streaming logic
+
+### Test Documentation
+See `docs/specs/streaming-chat-response/test-implementation-summary.md` for detailed test descriptions and coverage analysis.
+
+### Areas Not Yet Tested
 - Tauri command handlers (Rust)
-- Sidecar IPC logic
 - Database operations
+- Full E2E integration tests
 
 ## Important Notes
 

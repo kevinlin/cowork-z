@@ -182,8 +182,8 @@ impl SidecarManager {
                 match event {
                     CommandEvent::Stdout(line) => {
                         let line_str = String::from_utf8_lossy(&line);
-                        let mut parsed = 0;
-                        let mut lines = 0;
+                        let mut parsed: usize = 0;
+                        let mut lines: usize = 0;
                         for json_line in line_str.lines() {
                             lines += 1;
                             if let Ok(event) = serde_json::from_str::<SidecarEvent>(json_line) {
@@ -221,7 +221,7 @@ impl SidecarManager {
 
     /// Send a command to the sidecar
     pub async fn send_command(&mut self, cmd: SidecarCommand) -> Result<(), String> {
-        let (cmd_type, has_task_id) = match &cmd {
+        let (_cmd_type, _has_task_id) = match &cmd {
             SidecarCommand::StartTask { task_id, .. } => ("start_task", !task_id.is_empty()),
             SidecarCommand::CancelTask { task_id } => ("cancel_task", !task_id.is_empty()),
             SidecarCommand::InterruptTask { task_id } => ("interrupt_task", !task_id.is_empty()),
@@ -258,6 +258,8 @@ impl SidecarManager {
             "cli_status" => "sidecar:cli_status",
             "task_started" => "task:started",
             "task_message" => "task:message",
+            "task_message_partial" => "task:message:partial",
+            "task_message_complete" => "task:message:complete",
             "task_progress" => "task:progress",
             "permission_request" => "task:permission_request",
             "task_complete" => "task:complete",

@@ -574,9 +574,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   deleteTask: async (taskId: string) => {
-        await api.deleteTask(taskId);
+    await api.deleteTask(taskId);
     set((state) => ({
       tasks: state.tasks.filter((t) => t.id !== taskId),
+      // Clear currentTask if it's the one being deleted
+      currentTask: state.currentTask?.id === taskId ? null : state.currentTask,
     }));
   },
 

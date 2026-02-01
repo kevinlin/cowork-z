@@ -26,9 +26,9 @@
  */
 
 import * as readline from 'readline';
-import { TaskManager } from './task-manager.js';
-import { isOpenCodeAvailable, getOpenCodeVersion } from './cli-path.js';
-import type { TaskConfig, ApiKeys, SidecarMessage, SidecarCommand } from './types.js';
+import { TaskManager } from './task-manager';
+import { isOpenCodeAvailable, getOpenCodeVersion } from './cli-path';
+import type { TaskConfig, ApiKeys, SidecarMessage, SidecarCommand } from './types';
 
 // Initialize task manager
 const taskManager = new TaskManager();
@@ -50,6 +50,10 @@ function log(level: 'info' | 'warn' | 'error', message: string): void {
 // Handle incoming messages
 async function handleMessage(msg: SidecarCommand): Promise<void> {
   const { type, taskId, payload } = msg;
+  const promptLength =
+    type === 'start_task' && typeof (payload as { prompt?: unknown })?.prompt === 'string'
+      ? (payload as { prompt: string }).prompt.length
+      : null;
 
   try {
     switch (type) {
@@ -109,7 +113,9 @@ async function startTask(config: TaskConfig & { apiKeys?: ApiKeys }): Promise<vo
   log('info', `Starting task ${taskId}: ${config.prompt.slice(0, 50)}...`);
 
   // Check if OpenCode CLI is available
-  if (!isOpenCodeAvailable()) {
+  const cliAvailable = isOpenCodeAvailable();
+
+  if (!cliAvailable) {
     send(
       'task_error',
       {

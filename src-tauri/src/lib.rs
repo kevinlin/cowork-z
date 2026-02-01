@@ -302,6 +302,41 @@ async fn start_task(
     sidecar_state: State<'_, SidecarState>,
     db_state: State<'_, DbState>,
 ) -> Result<Task, String> {
+    // Resolve model ID from provider settings to avoid interactive CLI prompts
+    let resolved_model_id = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        let active_id = db::providers::get_active_provider_id(&conn);
+        if let Some(active_id) = active_id {
+            if let Some(provider) = db::providers::get_connected_provider(&conn, &active_id) {
+                if provider.connection_status == "connected" {
+                    if let Some(model_id) = provider.selected_model_id {
+                        Some(model_id)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+        .or_else(|| {
+            let settings = db::providers::get_provider_settings(&conn);
+            settings
+                .connected_providers
+                .values()
+                .find_map(|provider| {
+                    if provider.connection_status == "connected" {
+                        provider.selected_model_id.clone()
+                    } else {
+                        None
+                    }
+                })
+        })
+    };
     // Generate task ID
     let task_id = config.task_id.clone().unwrap_or_else(|| {
         format!("task_{}", uuid::Uuid::new_v4())
@@ -345,7 +380,7 @@ async fn start_task(
                 session_id: None,
                 api_keys: Some(api_keys),
                 working_directory: None,
-                model_id: None,
+                model_id: resolved_model_id,
             },
         })
         .await?;

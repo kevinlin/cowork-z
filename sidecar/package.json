@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Node.js sidecar for OpenCode CLI integration",
   "main": "dist/index.js",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",

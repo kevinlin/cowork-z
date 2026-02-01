@@ -5,7 +5,7 @@
  * state, and event handling.
  */
 
-import { OpenCodeAdapter, AdapterConfig } from './adapter.js';
+import { OpenCodeAdapter, AdapterConfig } from './adapter';
 import type {
   TaskConfig,
   TaskResult,
@@ -14,7 +14,7 @@ import type {
   PermissionRequest,
   TaskCallbacks,
   ApiKeys,
-} from './types.js';
+} from './types';
 
 /**
  * Internal representation of a managed task

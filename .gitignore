@@ -26,3 +26,6 @@ dist-ssr
 # Cursor IDE
 .history/
 .vscode/
+
+# Build binaries
+src-tauri/binaries/

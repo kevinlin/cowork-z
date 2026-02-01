@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import type { OpenCodeMessage } from './types.js';
+import type { OpenCodeMessage } from './types';
 
 export interface StreamParserEvents {
   message: [OpenCodeMessage];

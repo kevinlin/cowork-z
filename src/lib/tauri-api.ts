@@ -17,6 +17,7 @@ import type {
   PermissionRequest,
   PermissionResponse,
   TaskProgress,
+  TaskResult,
   ApiKeyConfig,
   TaskMessage,
   BedrockCredentials,
@@ -497,7 +498,47 @@ export async function getProviderDebugMode(): Promise<boolean> {
 // ============================================================================
 
 export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): Promise<UnlistenFn> {
-  return listen<TaskUpdateEvent>('task:update', (event) => callback(event.payload));
+  const unlisteners: UnlistenFn[] = [];
+  const track = (unlisten: UnlistenFn) => {
+    unlisteners.push(unlisten);
+  };
+
+  await Promise.all([
+    listen<TaskUpdateEvent>('task:update', (event) => callback(event.payload)).then(track),
+    listen<{ taskId?: string; payload?: { message?: TaskMessage } }>('task:message', (event) => {
+      const taskId = event.payload?.taskId;
+      const message = event.payload?.payload?.message;
+      if (taskId && message) {
+        callback({ taskId, type: 'message', message });
+      }
+    }).then(track),
+    listen<{ taskId?: string; payload?: { progress?: TaskProgress } }>('task:progress', (event) => {
+      const taskId = event.payload?.taskId;
+      const progress = event.payload?.payload?.progress;
+      if (taskId && progress) {
+        callback({ taskId, type: 'progress', progress });
+      }
+    }).then(track),
+    listen<{ taskId?: string; payload?: { result?: TaskResult } }>('task:complete', (event) => {
+      const taskId = event.payload?.taskId;
+      const result = event.payload?.payload?.result;
+      if (taskId && result) {
+        callback({ taskId, type: 'complete', result });
+      }
+    }).then(track),
+    listen<{ taskId?: string; payload?: { error?: unknown } }>('task:error', (event) => {
+      const taskId = event.payload?.taskId;
+      const errorPayload = event.payload?.payload?.error;
+      if (taskId && errorPayload !== undefined) {
+        const error = typeof errorPayload === 'string' ? errorPayload : JSON.stringify(errorPayload);
+        callback({ taskId, type: 'error', error });
+      }
+    }).then(track),
+  ]);
+
+  return () => {
+    unlisteners.forEach((unlisten) => unlisten());
+  };
 }
 
 export async function onTaskUpdateBatch(callback: (event: { taskId: string; messages: TaskMessage[] }) => void): Promise<UnlistenFn> {

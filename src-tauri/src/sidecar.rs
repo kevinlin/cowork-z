@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::async_runtime::Mutex;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
@@ -125,6 +125,45 @@ impl SidecarManager {
             return Ok(());
         }
 
+        let resource_dir = app.path().resource_dir().ok();
+        let current_exe = std::env::current_exe().ok();
+        let current_dir = std::env::current_dir().ok();
+        let candidate_names = [
+            "cowork-sidecar-aarch64-apple-darwin",
+            "cowork-sidecar-x86_64-apple-darwin",
+            "cowork-sidecar",
+        ];
+        let mut candidates = serde_json::Map::new();
+
+        if let Some(dir) = resource_dir.as_ref() {
+            for name in &candidate_names {
+                let path = dir.join("binaries").join(name);
+                let meta = std::fs::metadata(&path).ok();
+                candidates.insert(
+                    format!("resource_binaries/{}", name),
+                    serde_json::json!({
+                        "exists": meta.is_some(),
+                        "size": meta.as_ref().map(|m| m.len()),
+                        "path": path.to_string_lossy().to_string(),
+                    }),
+                );
+            }
+        }
+        if let Some(dir) = current_dir.as_ref() {
+            for name in &candidate_names {
+                let path = dir.join("src-tauri").join("binaries").join(name);
+                let meta = std::fs::metadata(&path).ok();
+                candidates.insert(
+                    format!("cwd_src-tauri_binaries/{}", name),
+                    serde_json::json!({
+                        "exists": meta.is_some(),
+                        "size": meta.as_ref().map(|m| m.len()),
+                        "path": path.to_string_lossy().to_string(),
+                    }),
+                );
+            }
+        }
+
         let shell = app.shell();
 
         // Spawn the sidecar
@@ -143,8 +182,12 @@ impl SidecarManager {
                 match event {
                     CommandEvent::Stdout(line) => {
                         let line_str = String::from_utf8_lossy(&line);
+                        let mut parsed = 0;
+                        let mut lines = 0;
                         for json_line in line_str.lines() {
+                            lines += 1;
                             if let Ok(event) = serde_json::from_str::<SidecarEvent>(json_line) {
+                                parsed += 1;
                                 Self::handle_sidecar_event(&app_handle, event);
                             }
                         }
@@ -154,8 +197,9 @@ impl SidecarManager {
                         eprintln!("[sidecar stderr] {}", line_str);
                     }
                     CommandEvent::Error(err) => {
+                        let err_str = err.to_string();
                         eprintln!("[sidecar error] {}", err);
-                        let _ = app_handle.emit("sidecar:error", err);
+                        let _ = app_handle.emit("sidecar:error", &err);
                     }
                     CommandEvent::Terminated(payload) => {
                         println!(
@@ -177,6 +221,15 @@ impl SidecarManager {
 
     /// Send a command to the sidecar
     pub async fn send_command(&mut self, cmd: SidecarCommand) -> Result<(), String> {
+        let (cmd_type, has_task_id) = match &cmd {
+            SidecarCommand::StartTask { task_id, .. } => ("start_task", !task_id.is_empty()),
+            SidecarCommand::CancelTask { task_id } => ("cancel_task", !task_id.is_empty()),
+            SidecarCommand::InterruptTask { task_id } => ("interrupt_task", !task_id.is_empty()),
+            SidecarCommand::SendResponse { task_id, .. } => ("send_response", !task_id.is_empty()),
+            SidecarCommand::Ping => ("ping", false),
+            SidecarCommand::CheckCli => ("check_cli", false),
+        };
+
         let child = self
             .child
             .as_mut()
@@ -194,6 +247,11 @@ impl SidecarManager {
 
     /// Handle events from the sidecar and forward to frontend
     fn handle_sidecar_event(app: &AppHandle, event: SidecarEvent) {
+        if matches!(
+            event.event_type.as_str(),
+            "task_message" | "task_progress" | "task_complete" | "task_error"
+        ) {
+        }
         let event_name = match event.event_type.as_str() {
             "ready" => "sidecar:ready",
             "pong" => "sidecar:pong",

@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import type { ApiKeys } from './types.js';
+import type { ApiKeys } from './types';
 
 /**
  * Agent name used by Accomplish

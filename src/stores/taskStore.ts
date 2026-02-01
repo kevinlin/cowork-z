@@ -367,9 +367,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
       // Handle message events - only if viewing this task
       if (event.type === 'message' && event.message && isCurrentTask && state.currentTask) {
+        const existingIndex = state.currentTask.messages.findIndex((m) => m.id === event.message!.id);
+        const nextMessages = existingIndex === -1
+          ? [...state.currentTask.messages, event.message]
+          : state.currentTask.messages.map((m, idx) => (idx === existingIndex ? event.message! : m));
         updatedCurrentTask = {
           ...state.currentTask,
-          messages: [...state.currentTask.messages, event.message],
+          messages: nextMessages,
         };
       }
 
@@ -439,10 +443,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         return state;
       }
 
-      // Add all messages in a single state update
+      // Add all messages in a single state update, de-duplicating by id
+      const existingById = new Map(state.currentTask.messages.map((msg) => [msg.id, msg]));
+      event.messages.forEach((message) => {
+        existingById.set(message.id, message);
+      });
+      const mergedMessages = Array.from(existingById.values());
       const updatedTask = {
         ...state.currentTask,
-        messages: [...state.currentTask.messages, ...event.messages],
+        messages: mergedMessages,
       };
 
       return { currentTask: updatedTask, isLoading: false };

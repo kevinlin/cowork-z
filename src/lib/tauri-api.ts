@@ -24,6 +24,7 @@ import type {
   ProviderSettings,
   ProviderId,
   ConnectedProvider,
+  OpenCodeMessage,
 } from '@/shared';
 
 // ============================================================================
@@ -497,6 +498,88 @@ export async function getProviderDebugMode(): Promise<boolean> {
 // Event Subscriptions
 // ============================================================================
 
+const TASK_MESSAGE_TYPES = new Set(['assistant', 'user', 'tool', 'system'] as const);
+
+function normalizeTimestamp(rawTimestamp?: number): string {
+  if (typeof rawTimestamp === 'number' && Number.isFinite(rawTimestamp)) {
+    return new Date(rawTimestamp).toISOString();
+  }
+  return new Date().toISOString();
+}
+
+function isTaskMessage(message: unknown): message is TaskMessage {
+  if (!message || typeof message !== 'object') return false;
+  const type = (message as { type?: unknown }).type;
+  const content = (message as { content?: unknown }).content;
+  return typeof type === 'string' && TASK_MESSAGE_TYPES.has(type as 'assistant' | 'user' | 'tool' | 'system') && typeof content === 'string';
+}
+
+function isOpenCodeMessage(message: unknown): message is OpenCodeMessage {
+  if (!message || typeof message !== 'object') return false;
+  const type = (message as { type?: unknown }).type;
+  return typeof type === 'string';
+}
+
+function buildOpenCodeMessageId(message: OpenCodeMessage): string {
+  const withPart = message as { part?: { messageID?: string; id?: string } };
+  if (withPart.part?.messageID) return withPart.part.messageID;
+  if (withPart.part?.id) return withPart.part.id;
+  const fallbackTimestamp = typeof message.timestamp === 'number' ? message.timestamp : Date.now();
+  return `opencode_${fallbackTimestamp}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeOpenCodeMessage(message: OpenCodeMessage): TaskMessage | null {
+  switch (message.type) {
+    case 'text': {
+      const textMessage = message as OpenCodeMessage & { part?: { text?: string } };
+      const content = textMessage.part?.text ?? '';
+      if (!content.trim()) {
+        return null;
+      }
+      return {
+        id: buildOpenCodeMessageId(message),
+        type: 'assistant',
+        content,
+        timestamp: normalizeTimestamp(message.timestamp),
+      };
+    }
+    case 'tool_call': {
+      const toolMessage = message as OpenCodeMessage & { part?: { tool?: string; input?: unknown } };
+      return {
+        id: buildOpenCodeMessageId(message),
+        type: 'tool',
+        content: '',
+        timestamp: normalizeTimestamp(message.timestamp),
+        toolName: toolMessage.part?.tool,
+        toolInput: toolMessage.part?.input,
+      };
+    }
+    case 'tool_use': {
+      const toolUseMessage = message as OpenCodeMessage & { part?: { tool?: string; state?: { input?: unknown } } };
+      return {
+        id: buildOpenCodeMessageId(message),
+        type: 'tool',
+        content: '',
+        timestamp: normalizeTimestamp(message.timestamp),
+        toolName: toolUseMessage.part?.tool,
+        toolInput: toolUseMessage.part?.state?.input,
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+function normalizeIncomingMessage(message: unknown): TaskMessage | null {
+  if (isTaskMessage(message)) {
+    return message;
+  }
+  if (isOpenCodeMessage(message)) {
+    return normalizeOpenCodeMessage(message);
+  }
+  return null;
+}
+
 export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): Promise<UnlistenFn> {
   const unlisteners: UnlistenFn[] = [];
   const track = (unlisten: UnlistenFn) => {
@@ -504,12 +587,25 @@ export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): 
   };
 
   await Promise.all([
-    listen<TaskUpdateEvent>('task:update', (event) => callback(event.payload)).then(track),
+    listen<TaskUpdateEvent>('task:update', (event) => {
+      if (event.payload?.type === 'message' && event.payload.message) {
+        const normalized = normalizeIncomingMessage(event.payload.message);
+        if (normalized) {
+          callback({ ...event.payload, message: normalized });
+        }
+        return;
+      }
+      callback(event.payload);
+    }).then(track),
     listen<{ taskId?: string; payload?: { message?: TaskMessage } }>('task:message', (event) => {
       const taskId = event.payload?.taskId;
       const message = event.payload?.payload?.message;
       if (taskId && message) {
-        callback({ taskId, type: 'message', message });
+        const normalized = normalizeIncomingMessage(message);
+        if (!normalized) {
+          return;
+        }
+        callback({ taskId, type: 'message', message: normalized });
       }
     }).then(track),
     listen<{ taskId?: string; payload?: { progress?: TaskProgress } }>('task:progress', (event) => {

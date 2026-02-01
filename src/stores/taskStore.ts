@@ -329,7 +329,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   addTaskUpdate: (event: TaskUpdateEvent) => {
     void api.logEvent({
       level: 'debug',
-      message: 'UI task update received',
+      message: `UI task update received: ${JSON.stringify(event)}`,
       context: { ...event },
     });
 

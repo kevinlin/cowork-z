@@ -34,7 +34,7 @@
       "icons/icon.ico"
     ],
     "externalBin": ["binaries/cowork-sidecar"],
-    "resources": ["../apps/desktop/skills/*"]
+    "resources": ["skills/"]
   },
   "plugins": {
     "shell": {

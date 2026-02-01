@@ -85,6 +85,22 @@ function createMessageId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+// Module-level cache to track last logged events for deduplication
+const lastLoggedEvents = new Map<string, {
+  type: string;
+  normalizedContent: string;
+}>();
+
+/**
+ * Normalizes progress messages by removing timestamp variations
+ * to enable content-based deduplication.
+ * Example: "INFO 2026-02-01T06:20:03 +7ms service=bus" -> "INFO 2026-02-01T06:20:03 +Xms service=bus"
+ */
+function normalizeProgressMessage(message: string): string {
+  // Remove timestamp patterns like "+7ms", "+10ms", etc.
+  return message.replace(/\+\d+ms/g, '+Xms');
+}
+
 export const useTaskStore = create<TaskState>((set, get) => ({
   currentTask: null,
   isLoading: false,
@@ -327,11 +343,35 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   addTaskUpdate: (event: TaskUpdateEvent) => {
-    void api.logEvent({
-      level: 'debug',
-      message: `UI task update received: ${JSON.stringify(event)}`,
-      context: { ...event },
-    });
+    // Determine if we should log this event (deduplication for progress events)
+    let shouldLog = true;
+
+    if (event.type === 'progress' && event.progress?.message) {
+      // Normalize the progress message to remove timestamp variations
+      const normalizedMessage = normalizeProgressMessage(event.progress.message);
+      const eventKey = `${event.taskId}:${event.progress.stage}`;
+      const lastLogged = lastLoggedEvents.get(eventKey);
+
+      // Skip logging if the normalized content is the same as last time
+      if (lastLogged?.normalizedContent === normalizedMessage) {
+        shouldLog = false;
+      } else {
+        // Update the last logged event
+        lastLoggedEvents.set(eventKey, {
+          type: event.type,
+          normalizedContent: normalizedMessage,
+        });
+      }
+    }
+
+    // Log only if content has changed or it's not a duplicate progress event
+    if (shouldLog) {
+      void api.logEvent({
+        level: 'debug',
+        message: `UI task update received: ${JSON.stringify(event)}`,
+        context: { ...event },
+      });
+    }
 
     // Persist message to database
     if (event.type === 'message' && event.message) {
@@ -354,6 +394,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       api.saveTaskStatus(event.taskId, 'failed').catch((err) => {
         console.error('Failed to save task error status:', err);
       });
+    }
+
+    // Clean up cache entries when tasks complete or error (prevent memory leaks)
+    if (event.type === 'complete' || event.type === 'error') {
+      const keysToDelete: string[] = [];
+      lastLoggedEvents.forEach((_, key) => {
+        if (key.startsWith(`${event.taskId}:`)) {
+          keysToDelete.push(key);
+        }
+      });
+      keysToDelete.forEach(key => lastLoggedEvents.delete(key));
     }
 
     set((state) => {

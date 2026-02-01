@@ -41,16 +41,16 @@ pnpm exec tsc --noEmit
 ### Sidecar Development
 ```bash
 # Install sidecar dependencies
-cd sidecar && pnpm install
+cd src-tauri/sidecar && pnpm install
 
 # Build sidecar TypeScript
-cd sidecar && pnpm build
+cd src-tauri/sidecar && pnpm build
 
 # Run sidecar in dev mode (with watch)
-cd sidecar && pnpm dev
+cd src-tauri/sidecar && pnpm dev
 
 # Build standalone binary for current platform
-cd sidecar && pnpm build:binary
+cd src-tauri/sidecar && pnpm build:binary
 ```
 
 ### Tauri/Rust Development
@@ -94,7 +94,7 @@ The application follows a sidecar pattern where the Tauri app spawns and manages
                               │ stdin/stdout (JSON-line)
                               ↓
          ┌────────────────────────────────────────────────────┐
-         │  Node.js Sidecar Process (sidecar/)                │
+         │  Node.js Sidecar Process (src-tauri/sidecar/)       │
          │  ├── index.ts        # IPC entry point             │
          │  ├── task-manager.ts # Multi-task management       │
          │  ├── adapter.ts      # OpenCode CLI adapter        │
@@ -137,7 +137,7 @@ The application follows a sidecar pattern where the Tauri app spawns and manages
   - `providers.rs` - Provider management
 - `secure_storage.rs` - OS Keychain integration
 
-**Sidecar (`sidecar/src/`):**
+**Sidecar (`src-tauri/sidecar/src/`):**
 - `index.ts` - IPC entry point, JSON-line protocol
 - `types.ts` - OpenCode types, IPC protocol definitions
 - `stream-parser.ts` - NDJSON parser with Windows PTY handling

@@ -1,0 +1,25 @@
+{
+  "name": "cowork-z-sidecar",
+  "version": "0.1.0",
+  "description": "Node.js sidecar for OpenCode CLI integration",
+  "main": "dist/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build:binary": "pnpm build && pkg dist/index.js --targets node20-macos-arm64 --output ../binaries/cowork-sidecar-aarch64-apple-darwin",
+    "build:binary:x64": "pnpm build && pkg dist/index.js --targets node20-macos-x64 --output ../binaries/cowork-sidecar-x86_64-apple-darwin",
+    "build:binary:win": "pnpm build && pkg dist/index.js --targets node20-win-x64 --output ../binaries/cowork-sidecar-x86_64-pc-windows-msvc.exe",
+    "build:binary:linux": "pnpm build && pkg dist/index.js --targets node20-linux-x64 --output ../binaries/cowork-sidecar-x86_64-unknown-linux-gnu"
+  },
+  "dependencies": {
+    "node-pty": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.0",
+    "tsx": "^4.0.0",
+    "@yao-pkg/pkg": "^5.11.0"
+  }
+}

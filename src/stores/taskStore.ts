@@ -179,11 +179,33 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         context: { prompt: config.prompt, taskId: config.taskId },
       });
       const task = await api.startTask(config);
+
+      // Create initial user message for the prompt
+      const initialUserMessage: TaskMessage = {
+        id: createMessageId(),
+        type: 'user',
+        content: config.prompt,
+        timestamp: task.createdAt,
+      };
+
+      // Persist initial user message to database (fire-and-forget for performance)
+      api.saveTaskMessage(task.id, initialUserMessage).catch((err) => {
+        console.error('Failed to save initial user message:', err);
+        void api.logEvent({
+          level: 'error',
+          message: 'Failed to persist initial user message',
+          context: { taskId: task.id, messageId: initialUserMessage.id, error: String(err) },
+        });
+      });
+
       // Task might be 'running' or 'queued' depending on if another task is running
       // Also add to tasks list so sidebar updates immediately
       const currentTasks = get().tasks;
       set({
-        currentTask: task,
+        currentTask: {
+          ...task,
+          messages: [initialUserMessage], // Add initial message to task
+        },
         tasks: [task, ...currentTasks.filter((t) => t.id !== task.id)],
         // Keep loading state if queued (waiting for queue)
         isLoading: task.status === 'queued',
@@ -266,6 +288,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         t.id === taskId ? { ...t, status: 'running' as TaskStatus } : t
       ),
     }));
+
+    // Persist user message to database (fire-and-forget for performance)
+    api.saveTaskMessage(taskId, userMessage).catch((err) => {
+      console.error('Failed to save user message:', err);
+      void api.logEvent({
+        level: 'error',
+        message: 'Failed to persist user message',
+        context: { taskId, messageId: userMessage.id, error: String(err) },
+      });
+    });
 
     try {
       void api.logEvent({

@@ -7,6 +7,14 @@ vi.mock('@/lib/tauri-api', () => ({
   isRunningInTauri: () => false,
   saveTaskMessage: vi.fn().mockResolvedValue(undefined),
   logEvent: vi.fn().mockResolvedValue(undefined),
+  resumeSession: vi.fn().mockResolvedValue({ id: 'task-123', status: 'running' }),
+  startTask: vi.fn().mockResolvedValue({
+    id: 'task-123',
+    prompt: 'Test prompt',
+    status: 'starting',
+    messages: [],
+    createdAt: new Date().toISOString(),
+  }),
 }));
 
 describe('taskStore - Partial Message Management', () => {
@@ -240,5 +248,237 @@ describe('taskStore - Partial Message Management', () => {
     // Message should not be added to current task
     const message = store.currentTask?.messages.find((m) => m.id === 'msg-456');
     expect(message).toBeUndefined();
+  });
+});
+
+describe('taskStore - User Message Persistence', () => {
+  // We need to import the mocked api to access the mock functions
+  let mockSaveTaskMessage: ReturnType<typeof vi.fn>;
+  let mockResumeSession: ReturnType<typeof vi.fn>;
+  let mockLogEvent: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    // Get references to the mocked functions
+    const api = await import('@/lib/tauri-api');
+    mockSaveTaskMessage = vi.mocked(api.saveTaskMessage);
+    mockResumeSession = vi.mocked(api.resumeSession);
+    mockLogEvent = vi.mocked(api.logEvent);
+
+    // Reset default implementations
+    mockSaveTaskMessage.mockResolvedValue(undefined);
+    mockResumeSession.mockResolvedValue({ id: 'task-123', status: 'running' });
+    mockLogEvent.mockResolvedValue(undefined);
+
+    // Reset store state
+    useTaskStore.getState().reset();
+
+    // Setup store with a completed task that has a session
+    const mockTask: Task = {
+      id: 'task-123',
+      prompt: 'Initial prompt',
+      status: 'completed',
+      sessionId: 'session-456',
+      messages: [
+        {
+          id: 'msg-1',
+          type: 'assistant',
+          content: 'Initial response',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    };
+
+    useTaskStore.setState({
+      currentTask: mockTask,
+      tasks: [mockTask],
+    });
+  });
+
+  it('should persist user message when sending follow-up', async () => {
+    await useTaskStore.getState().sendFollowUp('Follow-up message');
+
+    expect(mockSaveTaskMessage).toHaveBeenCalledTimes(1);
+    expect(mockSaveTaskMessage).toHaveBeenCalledWith(
+      'task-123',
+      expect.objectContaining({
+        type: 'user',
+        content: 'Follow-up message',
+        id: expect.any(String),
+        timestamp: expect.any(String),
+      })
+    );
+  });
+
+  it('should include user message in optimistic state update', async () => {
+    await useTaskStore.getState().sendFollowUp('Test message');
+
+    const state = useTaskStore.getState();
+    const userMessages = state.currentTask?.messages.filter(m => m.type === 'user');
+
+    expect(userMessages).toHaveLength(1);
+    expect(userMessages?.[0].content).toBe('Test message');
+  });
+
+  it('should handle persistence failure gracefully', async () => {
+    mockSaveTaskMessage.mockRejectedValueOnce(new Error('DB error'));
+
+    // Should not throw - error is caught and logged
+    await expect(
+      useTaskStore.getState().sendFollowUp('Test')
+    ).resolves.not.toThrow();
+
+    // Verify error was logged
+    expect(mockLogEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'error',
+        message: 'Failed to persist user message',
+      })
+    );
+
+    // UI should still show the message (optimistic update)
+    const state = useTaskStore.getState();
+    expect(state.currentTask?.messages.some(m => m.content === 'Test')).toBe(true);
+  });
+
+  it('should persist before attempting to resume session', async () => {
+    const callOrder: string[] = [];
+
+    mockSaveTaskMessage.mockImplementation(async () => {
+      callOrder.push('saveTaskMessage');
+    });
+
+    mockResumeSession.mockImplementation(async () => {
+      callOrder.push('resumeSession');
+      return { id: 'task-123', status: 'running' };
+    });
+
+    await useTaskStore.getState().sendFollowUp('Test');
+
+    // SaveTaskMessage should be called first (or concurrently)
+    expect(mockSaveTaskMessage).toHaveBeenCalled();
+    expect(mockResumeSession).toHaveBeenCalled();
+  });
+
+  it('should generate stable message IDs', async () => {
+    await useTaskStore.getState().sendFollowUp('Message 1');
+    const call1Id = mockSaveTaskMessage.mock.calls[0][1].id;
+
+    await useTaskStore.getState().sendFollowUp('Message 2');
+    const call2Id = mockSaveTaskMessage.mock.calls[1][1].id;
+
+    // IDs should be different
+    expect(call1Id).not.toBe(call2Id);
+    // IDs should follow the format: msg_timestamp_random
+    expect(call1Id).toMatch(/^msg_\d+_[a-z0-9]+$/);
+    expect(call2Id).toMatch(/^msg_\d+_[a-z0-9]+$/);
+  });
+});
+
+describe('taskStore - Initial Prompt Persistence', () => {
+  let mockSaveTaskMessage: ReturnType<typeof vi.fn>;
+  let mockStartTask: ReturnType<typeof vi.fn>;
+  let mockLogEvent: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    // Get references to the mocked functions
+    const api = await import('@/lib/tauri-api');
+    mockSaveTaskMessage = vi.mocked(api.saveTaskMessage);
+    mockStartTask = vi.mocked(api.startTask);
+    mockLogEvent = vi.mocked(api.logEvent);
+
+    // Reset default implementations
+    mockSaveTaskMessage.mockResolvedValue(undefined);
+    mockLogEvent.mockResolvedValue(undefined);
+    mockStartTask.mockResolvedValue({
+      id: 'task-456',
+      prompt: 'Test prompt',
+      status: 'starting',
+      messages: [],
+      createdAt: new Date().toISOString(),
+    });
+
+    // Reset store state
+    useTaskStore.getState().reset();
+  });
+
+  it('should persist initial prompt as user message when starting task', async () => {
+    await useTaskStore.getState().startTask({ prompt: 'Hello, AI!' });
+
+    expect(mockSaveTaskMessage).toHaveBeenCalledTimes(1);
+    expect(mockSaveTaskMessage).toHaveBeenCalledWith(
+      'task-456',
+      expect.objectContaining({
+        type: 'user',
+        content: 'Hello, AI!',
+        id: expect.any(String),
+        timestamp: expect.any(String),
+      })
+    );
+  });
+
+  it('should include initial prompt in task state', async () => {
+    await useTaskStore.getState().startTask({ prompt: 'Test prompt' });
+
+    const state = useTaskStore.getState();
+    const userMessages = state.currentTask?.messages.filter(m => m.type === 'user');
+
+    expect(userMessages).toHaveLength(1);
+    expect(userMessages?.[0].content).toBe('Test prompt');
+  });
+
+  it('should use task createdAt timestamp for initial message', async () => {
+    const createdAt = '2026-02-01T12:00:00Z';
+    mockStartTask.mockResolvedValueOnce({
+      id: 'task-456',
+      prompt: 'Test',
+      status: 'starting',
+      messages: [],
+      createdAt,
+    });
+
+    await useTaskStore.getState().startTask({ prompt: 'Test' });
+
+    expect(mockSaveTaskMessage).toHaveBeenCalledWith(
+      'task-456',
+      expect.objectContaining({
+        timestamp: createdAt,
+      })
+    );
+  });
+
+  it('should handle persistence failure gracefully for initial message', async () => {
+    mockSaveTaskMessage.mockRejectedValueOnce(new Error('DB error'));
+
+    // Should not throw - error is caught and logged
+    await expect(
+      useTaskStore.getState().startTask({ prompt: 'Test' })
+    ).resolves.not.toBeNull();
+
+    // Verify error was logged
+    expect(mockLogEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'error',
+        message: 'Failed to persist initial user message',
+      })
+    );
+
+    // UI should still show the message (in state)
+    const state = useTaskStore.getState();
+    expect(state.currentTask?.messages.some(m => m.content === 'Test')).toBe(true);
+  });
+
+  it('should handle task start failure without persisting message', async () => {
+    mockStartTask.mockRejectedValueOnce(new Error('Failed to start'));
+
+    const result = await useTaskStore.getState().startTask({ prompt: 'Test' });
+
+    expect(result).toBeNull();
+    // saveTaskMessage should not be called if task start fails
+    expect(mockSaveTaskMessage).not.toHaveBeenCalled();
   });
 });

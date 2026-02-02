@@ -14,6 +14,7 @@ import { Card } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { XCircle, CornerDownLeft, ArrowLeft, CheckCircle2, AlertCircle, AlertTriangle, Terminal, Wrench, FileText, Search, Brain, Clock, Square, Play, Download, File, Bug, ChevronUp, ChevronDown, Trash2, Check, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { extractUserFacingContent } from '@/lib/message-utils';
 import ReactMarkdown from 'react-markdown';
 import { StreamingText } from '../components/ui/streaming-text';
 import { isWaitingForUser } from '../lib/waiting-detection';
@@ -1272,6 +1273,14 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
   const isSystem = message.type === 'system';
   const isAssistant = message.type === 'assistant';
 
+  // Extract user-facing content for assistant messages (filters out Plan: sections)
+  const displayContent = useMemo(() => {
+    if (isAssistant) {
+      return extractUserFacingContent(message.content);
+    }
+    return message.content;
+  }, [isAssistant, message.content]);
+
   // Get tool icon from mapping
   const toolName = message.toolName || message.content?.match(/Using tool: (\w+)/)?.[1];
   const ToolIcon = toolName && TOOL_PROGRESS_MAP[toolName]?.icon;
@@ -1293,7 +1302,7 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(message.content);
+      await navigator.clipboard.writeText(displayContent);
       setCopied(true);
 
       if (timeoutRef.current) {
@@ -1306,7 +1315,7 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
     }
-  }, [message.content]);
+  }, [displayContent]);
 
   const showCopyButton = !isTool && !(isAssistant && showContinueButton);
 
@@ -1371,12 +1380,12 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
                   'text-primary-foreground'
                 )}
               >
-                {message.content}
+                {displayContent}
               </p>
             ) : isAssistant && isRealStreaming ? (
               // Real streaming mode - show text immediately with cursor
               <StreamingText
-                text={message.content}
+                text={displayContent}
                 speed={120}
                 isComplete={false}
                 isRealStreaming={true}
@@ -1389,7 +1398,7 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
               </StreamingText>
             ) : isAssistant && shouldStream && !streamComplete ? (
               <StreamingText
-                text={message.content}
+                text={displayContent}
                 speed={120}
                 isComplete={streamComplete}
                 onComplete={() => setStreamComplete(true)}
@@ -1402,7 +1411,7 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
               </StreamingText>
             ) : (
               <div className={proseClasses}>
-                <ReactMarkdown>{message.content}</ReactMarkdown>
+                <ReactMarkdown>{displayContent}</ReactMarkdown>
               </div>
             )}
             <p

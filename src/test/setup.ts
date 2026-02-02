@@ -5,6 +5,7 @@ if (!window.matchMedia) {
     ({
       matches: false,
       media: '',
+      onchange: null,
       addEventListener: () => {},
       removeEventListener: () => {},
       addListener: () => {},

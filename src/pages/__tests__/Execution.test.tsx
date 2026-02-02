@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import type { Task, TaskMessage, PartialMessage } from '@/shared';
+import type { Task, PartialMessage } from '@/shared';
 import ExecutionPage from '../Execution';
 
 // Mock the tauri-api module

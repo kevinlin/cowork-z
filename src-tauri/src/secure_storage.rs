@@ -23,20 +23,6 @@ pub const PROVIDERS: &[&str] = &[
     "custom",
 ];
 
-/// Stored API key metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApiKeyInfo {
-    pub id: String,
-    pub provider: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    pub created_at: String,
-    /// First few characters of the key for display
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub key_prefix: Option<String>,
-}
-
 /// Store an API key in the OS keychain
 pub fn store_api_key(provider: &str, api_key: &str) -> Result<(), String> {
     let entry = Entry::new(SERVICE_NAME, provider).map_err(|e| format!("Keychain error: {}", e))?;
@@ -159,10 +145,3 @@ pub struct BedrockCredentials {
     pub region: String,
 }
 
-/// Clear all stored API keys
-pub fn clear_all_api_keys() -> Result<(), String> {
-    for provider in PROVIDERS {
-        let _ = delete_api_key(provider);
-    }
-    Ok(())
-}

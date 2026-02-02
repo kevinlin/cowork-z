@@ -65,7 +65,9 @@ pub enum SidecarCommand {
         task_id: String,
         payload: SendResponsePayload,
     },
+    #[allow(dead_code)]
     Ping,
+    #[allow(dead_code)]
     CheckCli,
 }
 
@@ -126,7 +128,7 @@ impl SidecarManager {
         }
 
         let resource_dir = app.path().resource_dir().ok();
-        let current_exe = std::env::current_exe().ok();
+        let _current_exe = std::env::current_exe().ok();
         let current_dir = std::env::current_dir().ok();
         let candidate_names = [
             "cowork-sidecar-aarch64-apple-darwin",
@@ -182,12 +184,8 @@ impl SidecarManager {
                 match event {
                     CommandEvent::Stdout(line) => {
                         let line_str = String::from_utf8_lossy(&line);
-                        let mut parsed: usize = 0;
-                        let mut lines: usize = 0;
                         for json_line in line_str.lines() {
-                            lines += 1;
                             if let Ok(event) = serde_json::from_str::<SidecarEvent>(json_line) {
-                                parsed += 1;
                                 Self::handle_sidecar_event(&app_handle, event);
                             }
                         }
@@ -197,7 +195,6 @@ impl SidecarManager {
                         eprintln!("[sidecar stderr] {}", line_str);
                     }
                     CommandEvent::Error(err) => {
-                        let err_str = err.to_string();
                         eprintln!("[sidecar error] {}", err);
                         let _ = app_handle.emit("sidecar:error", &err);
                     }
@@ -287,6 +284,7 @@ impl SidecarManager {
     }
 
     /// Stop the sidecar process
+    #[allow(dead_code)]
     pub async fn stop(&mut self) -> Result<(), String> {
         if let Some(child) = self.child.take() {
             child.kill().map_err(|e| format!("Failed to kill sidecar: {}", e))?;

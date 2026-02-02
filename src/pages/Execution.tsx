@@ -141,6 +141,8 @@ export default function ExecutionPage() {
     startupStageTaskId,
     partialMessages,
   } = useTaskStore();
+  const taskStatus = currentTask?.status as string | undefined;
+  const isTaskRunning = taskStatus === 'running' || taskStatus === 'starting';
 
   // Debounced scroll function
   const scrollToBottom = useMemo(
@@ -698,7 +700,7 @@ export default function ExecutionPage() {
                  (currentTask.status === 'completed' && isWaitingForUser(messageContent)));
               // For partial messages, use real streaming mode (no animation)
               // For complete messages during running, use animated streaming
-              const shouldStream = isLastAssistantMessage && currentTask.status === 'running' && !isPartial;
+              const shouldStream = isLastAssistantMessage && isTaskRunning && !isPartial;
               return (
                 <MessageBubble
                   key={message.id}
@@ -707,7 +709,7 @@ export default function ExecutionPage() {
                     : message as TaskMessage}
                   shouldStream={shouldStream}
                   isLastMessage={isLastMessage}
-                  isRunning={currentTask.status === 'running'}
+                  isRunning={isTaskRunning}
                   showContinueButton={showContinue}
                   continueLabel={currentTask.status === 'interrupted' ? 'Continue' : 'Done, Continue'}
                   onContinue={handleContinue}
@@ -718,7 +720,7 @@ export default function ExecutionPage() {
             })}
 
             <AnimatePresence>
-              {currentTask.status === 'running' && !permissionRequest && (
+              {isTaskRunning && !permissionRequest && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1057,7 +1059,7 @@ export default function ExecutionPage() {
       </AnimatePresence>
 
 {/* Running state input with Stop button */}
-      {currentTask.status === 'running' && !permissionRequest && (
+      {isTaskRunning && !permissionRequest && (
         <div className="flex-shrink-0 border-t border-border bg-card/50 px-6 py-4">
           <div className="max-w-4xl mx-auto flex gap-3">
             <Input

@@ -16,6 +16,7 @@ import { XCircle, CornerDownLeft, ArrowLeft, CheckCircle2, AlertCircle, AlertTri
 import { cn } from '@/lib/utils';
 import { extractUserFacingContent } from '@/lib/message-utils';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { StreamingText } from '../components/ui/streaming-text';
 import { isWaitingForUser } from '../lib/waiting-detection';
 import loadingSymbol from '/assets/loading-symbol.svg';
@@ -1334,6 +1335,11 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
     'prose-a:text-primary prose-a:underline',
     'prose-blockquote:text-muted-foreground prose-blockquote:border-l-4 prose-blockquote:border-border prose-blockquote:pl-4',
     'prose-hr:border-border',
+    'prose-table:w-full prose-table:border-collapse prose-table:my-4',
+    'prose-thead:border-b prose-thead:border-border',
+    'prose-th:text-left prose-th:font-semibold prose-th:text-foreground prose-th:px-3 prose-th:py-2',
+    'prose-td:px-3 prose-td:py-2 prose-td:text-foreground prose-td:border-t prose-td:border-border',
+    'prose-tr:border-b prose-tr:border-border',
     'break-words'
   );
 
@@ -1394,7 +1400,7 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
               >
                 {(displayedText) => (
                   <div className={proseClasses}>
-                    <ReactMarkdown>{displayedText}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayedText}</ReactMarkdown>
                   </div>
                 )}
               </StreamingText>
@@ -1407,13 +1413,13 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
               >
                 {(streamedText) => (
                   <div className={proseClasses}>
-                    <ReactMarkdown>{streamedText}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamedText}</ReactMarkdown>
                   </div>
                 )}
               </StreamingText>
             ) : (
               <div className={proseClasses}>
-                <ReactMarkdown>{displayContent}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
               </div>
             )}
             <p

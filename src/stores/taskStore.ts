@@ -404,7 +404,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     // Log the event
     void api.logEvent({
       level: 'debug',
-      message: `UI task update received: ${JSON.stringify(event)}`,
+      message: `taskUpdateEvent: ${JSON.stringify(event)}`,
       context: { ...event },
     });
 
@@ -794,7 +794,7 @@ if (typeof window !== 'undefined' && api.isRunningInTauri()) {
     console.log('[streaming] received complete:', event.messageId, 'textLength:', event.text.length);
     void api.logEvent({
       level: 'debug',
-      message: `[streaming] complete received: messageId=${event.messageId}, textLength=${event.text.length}`,
+      message: `[streaming] complete received: messageId=${event.messageId}, textLength=${event.text.length}, text="${event.text}"`,
     });
     useTaskStore.getState().finalizePartialMessage(event);
   });

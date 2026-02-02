@@ -66,6 +66,11 @@ interface TaskState {
   openLauncher: () => void;
   closeLauncher: () => void;
 
+  // Working folders (session-only, not persisted)
+  folders: string[];
+  addFolder: (path: string) => void;
+  removeFolder: (path: string) => void;
+
   // Actions
   startTask: (config: TaskConfig) => Promise<Task | null>;
   setSetupProgress: (taskId: string | null, message: string | null) => void;
@@ -125,6 +130,23 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   startupStage: null,
   startupStageTaskId: null,
   isLauncherOpen: false,
+  folders: [],
+
+  addFolder: (path: string) => {
+    set((state) => {
+      // Avoid duplicates
+      if (state.folders.includes(path)) {
+        return state;
+      }
+      return { folders: [...state.folders, path] };
+    });
+  },
+
+  removeFolder: (path: string) => {
+    set((state) => ({
+      folders: state.folders.filter((f) => f !== path),
+    }));
+  },
 
   setSetupProgress: (taskId: string | null, message: string | null) => {
     // Detect which package is being downloaded from the message
@@ -716,6 +738,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       startupStage: null,
       startupStageTaskId: null,
       isLauncherOpen: false,
+      folders: [],
     });
   },
 

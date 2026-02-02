@@ -11,7 +11,9 @@ import { analytics } from '@/lib/analytics';
 import { staggerContainer } from '@/lib/animations';
 import { useTaskStore } from '@/stores/taskStore';
 import logoImage from '/assets/logo-1.png';
+import CollapsibleSection from './CollapsibleSection';
 import ConversationListItem from './ConversationListItem';
+import FoldersPanel from './FoldersPanel';
 import SettingsDialog from './SettingsDialog';
 
 // Resize constraints
@@ -138,8 +140,9 @@ export default function Sidebar() {
           </Button>
         </div>
 
-        {/* Conversation List */}
+        {/* Scrollable Content Area */}
         <ScrollArea className="flex-1">
+          {/* Conversation List - Always Expanded */}
           <div className="space-y-1 p-2">
             <AnimatePresence mode="wait">
               {tasks.length === 0 ? (
@@ -161,6 +164,16 @@ export default function Sidebar() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Folders Panel - Collapsible, Default Collapsed */}
+          <FoldersPanel />
+
+          {/* Tasks Panel - Placeholder, Always Collapsed */}
+          <CollapsibleSection defaultOpen={false} disabled title="Tasks">
+            <div className="px-2 py-3 text-center text-muted-foreground text-xs">
+              Coming soon...
+            </div>
+          </CollapsibleSection>
         </ScrollArea>
 
         {/* Bottom Section - Logo and Settings */}

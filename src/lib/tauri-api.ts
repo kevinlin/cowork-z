@@ -7,6 +7,8 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { homeDir } from '@tauri-apps/api/path';
+import { open } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 import type {
@@ -47,6 +49,30 @@ export async function getPlatform(): Promise<string> {
 
 export async function openExternal(url: string): Promise<void> {
   await openUrl(url);
+}
+
+// ============================================================================
+// Dialog / Folder Picker
+// ============================================================================
+
+/**
+ * Open a native folder picker dialog
+ * @returns The selected folder path, or null if cancelled
+ */
+export async function pickFolder(): Promise<string | null> {
+  const result = await open({
+    directory: true,
+    multiple: false,
+    title: 'Select Folder',
+  });
+  return result as string | null;
+}
+
+/**
+ * Get the user's home directory path
+ */
+export async function getHomeDir(): Promise<string> {
+  return homeDir();
 }
 
 // ============================================================================

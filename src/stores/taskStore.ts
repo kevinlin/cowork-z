@@ -384,35 +384,29 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   addTaskUpdate: (event: TaskUpdateEvent) => {
-    // Determine if we should log this event (deduplication for progress events)
-    let shouldLog = true;
+    // Determine the eventKey and normalizedContent based on event type
+    let eventKey = `${event.taskId}:${event.type}`;
+    let normalizedContent = event.type as string;
 
+    // For progress events, include stage and normalize message content
     if (event.type === 'progress' && event.progress?.message) {
-      // Normalize the progress message to remove timestamp variations
-      const normalizedMessage = normalizeProgressMessage(event.progress.message);
-      const eventKey = `${event.taskId}:${event.progress.stage}`;
-      const lastLogged = lastLoggedEvents.get(eventKey);
-
-      // Skip logging if the normalized content is the same as last time
-      if (lastLogged?.normalizedContent === normalizedMessage) {
-        shouldLog = false;
-      } else {
-        // Update the last logged event
-        lastLoggedEvents.set(eventKey, {
-          type: event.type,
-          normalizedContent: normalizedMessage,
-        });
-      }
+      eventKey = `${event.taskId}:${event.progress.stage}`;
+      normalizedContent = normalizeProgressMessage(event.progress.message);
     }
 
-    // Log only if content has changed or it's not a duplicate progress event
-    if (shouldLog) {
-      void api.logEvent({
-        level: 'debug',
-        message: `UI task update received: ${JSON.stringify(event)}`,
-        context: { ...event },
-      });
+    // Check for duplicate AFTER determining the correct key
+    const lastLogged = lastLoggedEvents.get(eventKey);
+    if (lastLogged?.normalizedContent === normalizedContent) {
+      return; // Skip duplicate event
     }
+    lastLoggedEvents.set(eventKey, { type: event.type as string, normalizedContent });
+
+    // Log the event
+    void api.logEvent({
+      level: 'debug',
+      message: `UI task update received: ${JSON.stringify(event)}`,
+      context: { ...event },
+    });
 
     // Persist message to database
     if (event.type === 'message' && event.message) {

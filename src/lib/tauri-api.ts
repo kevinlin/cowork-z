@@ -127,6 +127,10 @@ export async function saveTaskSummary(taskId: string, summary: string): Promise<
   return invoke<void>('save_task_summary', { taskId, summary });
 }
 
+export async function saveTaskFolders(taskId: string, folders: string[]): Promise<void> {
+  return invoke<void>('save_task_folders', { taskId, folders });
+}
+
 export async function completeTask(taskId: string, status: TaskStatus, sessionId?: string): Promise<void> {
   return invoke<void>('complete_task', { taskId, status, sessionId });
 }
@@ -143,8 +147,8 @@ export async function respondToPermission(response: PermissionResponse): Promise
 // Session Management
 // ============================================================================
 
-export async function resumeSession(sessionId: string, prompt: string, taskId?: string): Promise<Task> {
-  return invoke<Task>('resume_session', { sessionId, prompt, taskId });
+export async function resumeSession(sessionId: string, prompt: string, taskId?: string, folders?: string[]): Promise<Task> {
+  return invoke<Task>('resume_session', { sessionId, prompt, taskId, folders });
 }
 
 // ============================================================================

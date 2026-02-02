@@ -84,11 +84,16 @@ pub struct StartTaskPayload {
     pub working_directory: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub folders: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SendResponsePayload {
     pub response: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub folders: Option<Vec<String>>,
 }
 
 /// Events received from the sidecar

@@ -451,3 +451,39 @@ export function buildOpenCodeEnvironment(apiKeys: ApiKeys = {}): NodeJS.ProcessE
 
   return env;
 }
+
+/**
+ * Build the OPENCODE_PERMISSION environment variable JSON.
+ * This constructs the permission object that controls what directories
+ * the OpenCode CLI can access.
+ *
+ * @param folders - Array of allowed folder paths
+ * @returns JSON string for OPENCODE_PERMISSION environment variable
+ */
+export function buildOpenCodePermission(folders: string[] = []): string {
+  // Build the external_directory permissions object
+  const externalDirectory: Record<string, string> = {};
+  const edit: Record<string, string> = {};
+
+  // Deny for all directories by default
+  // externalDirectory['*'] = 'deny';
+
+  // Add each folder as allowed
+  for (const folder of folders) {
+    externalDirectory[folder] = 'allow';
+    edit[folder] = 'allow';
+  }
+
+  const permission = {
+    doom_loop: 'deny',
+    external_directory: externalDirectory,
+    edit: edit,
+  };
+
+  const configContent = {
+    "$schema": "https://opencode.ai/config.json",
+    permission: permission,
+  };
+
+  return JSON.stringify(configContent);
+}

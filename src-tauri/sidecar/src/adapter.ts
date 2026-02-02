@@ -5,7 +5,13 @@ import * as pty from 'node-pty';
 import os from 'os';
 import path from 'path';
 import { getOpenCodeCliPath, isOpenCodeAvailable, OpenCodeCliNotFoundError } from './cli-path';
-import { ACCOMPLISH_AGENT_NAME, buildOpenCodeEnvironment, generateOpenCodeConfig, getOpenCodeConfigDir } from './config-generator';
+import {
+  ACCOMPLISH_AGENT_NAME,
+  buildOpenCodeEnvironment,
+  buildOpenCodePermission as buildOpenCodeConfig,
+  generateOpenCodeConfig,
+  getOpenCodeConfigDir,
+} from './config-generator';
 import { StreamParser } from './stream-parser';
 import type {
   ApiKeys,
@@ -116,6 +122,14 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
     const env = buildOpenCodeEnvironment(this.apiKeys);
     env.OPENCODE_CONFIG = configPath;
     env.OPENCODE_CONFIG_DIR = getOpenCodeConfigDir();
+
+    // Set OPENCODE_CONFIG_CONTENT if folders are provided
+    if (config.folders && config.folders.length > 0) {
+      const openCodeConfigContent = buildOpenCodeConfig(config.folders);
+      console.error('OPENCODE_CONFIG_CONTENT:', openCodeConfigContent);
+      env.OPENCODE_CONFIG_CONTENT = openCodeConfigContent;
+    }
+
     const authSync = syncApiKeysToOpenCodeAuth(this.apiKeys);
 
     // Use temp directory as default cwd

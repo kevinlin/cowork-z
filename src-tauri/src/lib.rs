@@ -33,6 +33,8 @@ pub struct Task {
     pub completed_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub started_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub folders: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,6 +79,8 @@ pub struct TaskConfig {
     pub prompt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub folders: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -358,6 +362,7 @@ async fn start_task(
             created_at: created_at.clone(),
             started_at: Some(started_at.clone()),
             completed_at: None,
+            folders: config.folders.clone(),
         })?;
     }
 
@@ -381,6 +386,7 @@ async fn start_task(
                 api_keys: Some(api_keys),
                 working_directory: None,
                 model_id: resolved_model_id,
+                folders: config.folders.clone(),
             },
         })
         .await?;
@@ -398,6 +404,7 @@ async fn start_task(
         updated_at: None,
         completed_at: None,
         started_at: Some(started_at),
+        folders: config.folders,
     })
 }
 
@@ -466,6 +473,7 @@ async fn get_task(task_id: String, state: State<'_, DbState>) -> Result<Option<T
         updated_at: None,
         completed_at: t.completed_at,
         started_at: t.started_at,
+        folders: t.folders,
     }))
 }
 
@@ -508,6 +516,7 @@ async fn list_tasks(state: State<'_, DbState>) -> Result<Vec<Task>, String> {
             updated_at: None,
             completed_at: t.completed_at,
             started_at: t.started_at,
+            folders: t.folders,
         })
         .collect())
 }
@@ -590,6 +599,16 @@ async fn save_task_summary(
 }
 
 #[tauri::command]
+async fn save_task_folders(
+    task_id: String,
+    folders: Vec<String>,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    db::tasks::update_task_folders(&conn, &task_id, &folders)
+}
+
+#[tauri::command]
 async fn complete_task(
     task_id: String,
     status: String,
@@ -615,7 +634,14 @@ async fn complete_task(
 async fn respond_to_permission(
     response: PermissionResponse,
     sidecar_state: State<'_, SidecarState>,
+    db_state: State<'_, DbState>,
 ) -> Result<(), String> {
+    // Get folders from the task in the database
+    let folders = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::tasks::get_task_folders(&conn, &response.task_id)
+    };
+
     let mut manager = sidecar_state.manager.lock().await;
     if manager.is_running() {
         // Send the response text to the sidecar
@@ -625,6 +651,7 @@ async fn respond_to_permission(
                 task_id: response.task_id,
                 payload: sidecar::SendResponsePayload {
                     response: response_text.to_string(),
+                    folders,
                 },
             })
             .await?;
@@ -637,12 +664,20 @@ async fn resume_session(
     session_id: String,
     prompt: String,
     task_id: Option<String>,
+    folders: Option<Vec<String>>,
     app: tauri::AppHandle,
     sidecar_state: State<'_, SidecarState>,
+    db_state: State<'_, DbState>,
 ) -> Result<Task, String> {
     // Generate task ID
     let task_id = task_id.unwrap_or_else(|| {
         format!("task_{}", uuid::Uuid::new_v4())
+    });
+
+    // Get folders from the database if not provided (for resuming conversations)
+    let folders = folders.or_else(|| {
+        let conn = db_state.conn.lock().ok()?;
+        db::tasks::get_task_folders(&conn, &task_id)
     });
 
     // Get API keys from secure storage
@@ -665,6 +700,7 @@ async fn resume_session(
                 api_keys: Some(api_keys),
                 working_directory: None,
                 model_id: None,
+                folders: folders.clone(),
             },
         })
         .await?;
@@ -682,6 +718,7 @@ async fn resume_session(
         updated_at: None,
         completed_at: None,
         started_at: Some(chrono::Utc::now().to_rfc3339()),
+        folders,
     })
 }
 
@@ -1493,6 +1530,7 @@ pub fn run() {
             save_task_status,
             save_task_session,
             save_task_summary,
+            save_task_folders,
             complete_task,
             respond_to_permission,
             resume_session,

@@ -162,6 +162,8 @@ export interface TaskConfig {
   apiKeys?: ApiKeys;
   workingDirectory?: string;
   modelId?: string;
+  /** Allowed folder paths for file operations */
+  folders?: string[];
 }
 
 /** Task progress stages */
@@ -200,7 +202,7 @@ export type SidecarInputMessage =
   | { type: 'start_task'; taskId: string; payload: TaskConfig }
   | { type: 'cancel_task'; taskId: string }
   | { type: 'interrupt_task'; taskId: string }
-  | { type: 'send_response'; taskId: string; payload: { response: string } }
+  | { type: 'send_response'; taskId: string; payload: { response: string; folders?: string[] } }
   | { type: 'ping' };
 
 /** Messages sent to Rust via stdout */

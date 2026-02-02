@@ -133,19 +133,33 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   folders: [],
 
   addFolder: (path: string) => {
-    set((state) => {
-      // Avoid duplicates
-      if (state.folders.includes(path)) {
-        return state;
-      }
-      return { folders: [...state.folders, path] };
-    });
+    const { folders, currentTask } = get();
+    // Avoid duplicates
+    if (folders.includes(path)) {
+      return;
+    }
+    const newFolders = [...folders, path];
+    set({ folders: newFolders });
+
+    // Persist to database if there's an active task with a session
+    if (currentTask?.sessionId) {
+      api.saveTaskFolders(currentTask.id, newFolders).catch((err) => {
+        console.error('Failed to persist folders:', err);
+      });
+    }
   },
 
   removeFolder: (path: string) => {
-    set((state) => ({
-      folders: state.folders.filter((f) => f !== path),
-    }));
+    const { folders, currentTask } = get();
+    const newFolders = folders.filter((f) => f !== path);
+    set({ folders: newFolders });
+
+    // Persist to database if there's an active task with a session
+    if (currentTask?.sessionId) {
+      api.saveTaskFolders(currentTask.id, newFolders).catch((err) => {
+        console.error('Failed to persist folders:', err);
+      });
+    }
   },
 
   setSetupProgress: (taskId: string | null, message: string | null) => {
@@ -199,14 +213,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   startTask: async (config: TaskConfig) => {
+    const { folders } = get();
     set({ isLoading: true, error: null });
     try {
+      // Include current folders in the task config
+      const taskConfig: TaskConfig = {
+        ...config,
+        folders: config.folders ?? (folders.length > 0 ? folders : undefined),
+      };
       void api.logEvent({
         level: 'info',
         message: 'UI start task',
-        context: { prompt: config.prompt, taskId: config.taskId },
+        context: { prompt: config.prompt, taskId: config.taskId, folders: taskConfig.folders },
       });
-      const task = await api.startTask(config);
+      const task = await api.startTask(taskConfig);
 
       // Create initial user message for the prompt
       const initialUserMessage: TaskMessage = {
@@ -263,7 +283,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   sendFollowUp: async (message: string) => {
-    const { currentTask, startTask } = get();
+    const { currentTask, startTask, folders } = get();
     if (!currentTask) {
       set({ error: 'No active task to continue' });
       void api.logEvent({
@@ -333,9 +353,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       void api.logEvent({
         level: 'info',
         message: 'UI follow-up sent',
-        context: { taskId: currentTask.id, message },
+        context: { taskId: currentTask.id, message, folders },
       });
-      const task = await api.resumeSession(sessionId, message, currentTask.id);
+      // Pass current folders to the resume session for permission construction
+      const currentFolders = folders.length > 0 ? folders : undefined;
+      const task = await api.resumeSession(sessionId, message, currentTask.id, currentFolders);
 
       // Update status based on response (could be 'running' or 'queued')
       set((state) => ({

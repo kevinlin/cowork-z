@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquarePlus, Search, Settings } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,11 +14,72 @@ import logoImage from '/assets/logo-1.png';
 import ConversationListItem from './ConversationListItem';
 import SettingsDialog from './SettingsDialog';
 
+// Resize constraints
+const MIN_WIDTH = 200; // pixels
+const MAX_WIDTH_PERCENT = 0.5; // 50% of window
+const DEFAULT_WIDTH = 260;
+
 export default function Sidebar() {
   const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
   const { tasks, loadTasks, updateTaskStatus, addTaskUpdate, openLauncher } = useTaskStore();
   const accomplish = getAccomplish();
+
+  // Resize state
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Handle mouse move during resize
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+
+    const maxWidth = window.innerWidth * MAX_WIDTH_PERCENT;
+    const newWidth = Math.min(Math.max(e.clientX, MIN_WIDTH), maxWidth);
+    setSidebarWidth(newWidth);
+  }, [isResizing]);
+
+  // Handle mouse up to stop resizing
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  // Add/remove document listeners for resize
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      // Prevent text selection while resizing
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
+  // Handle window resize to enforce max width constraint
+  useEffect(() => {
+    const handleWindowResize = () => {
+      const maxWidth = window.innerWidth * MAX_WIDTH_PERCENT;
+      if (sidebarWidth > maxWidth) {
+        setSidebarWidth(maxWidth);
+      }
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, [sidebarWidth]);
+
+  // Start resizing
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
 
   useEffect(() => {
     loadTasks();
@@ -48,7 +109,17 @@ export default function Sidebar() {
 
   return (
     <>
-      <div className="flex h-screen w-[260px] flex-col border-border border-r bg-card pt-12">
+      <div
+        ref={sidebarRef}
+        className="relative flex h-screen flex-col border-border border-r bg-card pt-12"
+        style={{ width: sidebarWidth }}
+      >
+        {/* Resize Handle */}
+        <div
+          className={`sidebar-resize-handle ${isResizing ? 'active' : ''}`}
+          onMouseDown={handleResizeStart}
+        />
+
         {/* Action Buttons */}
         <div className="flex gap-2 border-border border-b px-3 py-3">
           <Button

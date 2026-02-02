@@ -150,3 +150,35 @@ textarea::placeholder {
 }
 
 /* Component utilities - removed as we're using shadcn components now */
+
+/* Sidebar resize handle */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background-color 0.15s ease;
+}
+
+.sidebar-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2px;
+  height: 100%;
+  background-color: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.sidebar-resize-handle:hover::after {
+  background-color: hsl(var(--border));
+}
+
+.sidebar-resize-handle.active::after,
+.sidebar-resize-handle:active::after {
+  background-color: hsl(var(--primary));
+}

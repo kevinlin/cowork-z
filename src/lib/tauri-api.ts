@@ -624,12 +624,13 @@ export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): 
         callback({ taskId, type: 'complete', result });
       }
     }).then(track),
-    listen<{ taskId?: string; payload?: { error?: unknown } }>('task:error', (event) => {
+    listen<{ taskId?: string; payload?: { error?: unknown; sessionId?: string } }>('task:error', (event) => {
       const taskId = event.payload?.taskId;
       const errorPayload = event.payload?.payload?.error;
+      const sessionId = event.payload?.payload?.sessionId;
       if (taskId && errorPayload !== undefined) {
         const error = typeof errorPayload === 'string' ? errorPayload : JSON.stringify(errorPayload);
-        callback({ taskId, type: 'error', error });
+        callback({ taskId, type: 'error', error, sessionId });
       }
     }).then(track),
   ]);

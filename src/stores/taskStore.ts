@@ -424,9 +424,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       });
     }
 
-    // Persist error status to database
+    // Persist error status and sessionId to database
     if (event.type === 'error') {
-      api.saveTaskStatus(event.taskId, 'failed').catch((err) => {
+      api.completeTask(event.taskId, 'failed', event.sessionId).catch((err) => {
         console.error('Failed to save task error status:', err);
       });
     }
@@ -493,10 +493,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
         // Update currentTask if viewing this task
         if (isCurrentTask && state.currentTask) {
+          // Preserve sessionId from event OR existing task (robust fallback)
+          const preservedSessionId = event.sessionId || state.currentTask.sessionId || state.currentTask.result?.sessionId;
           updatedCurrentTask = {
             ...state.currentTask,
             status: newStatus,
-            result: { status: 'error', error: event.error },
+            result: { status: 'error', error: event.error, sessionId: preservedSessionId },
+            sessionId: preservedSessionId,
           };
         }
       }

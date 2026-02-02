@@ -221,7 +221,7 @@ export type SidecarOutputMessage =
   | { type: 'task_progress'; taskId: string; payload: TaskProgress }
   | { type: 'permission_request'; taskId: string; payload: PermissionRequest }
   | { type: 'task_complete'; taskId: string; payload: TaskResult }
-  | { type: 'task_error'; taskId: string; payload: { error: string } }
+  | { type: 'task_error'; taskId: string; payload: { error: string; sessionId?: string } }
   | { type: 'log'; payload: { level: 'info' | 'warn' | 'error'; message: string } };
 
 /** Task callbacks for event handling */
@@ -232,7 +232,7 @@ export interface TaskCallbacks {
   onProgress: (progress: TaskProgress) => void;
   onPermissionRequest: (request: PermissionRequest) => void;
   onComplete: (result: TaskResult) => void;
-  onError: (error: string) => void;
+  onError: (error: string, sessionId?: string) => void;
 }
 
 /** Generic sidecar message sent to Rust */

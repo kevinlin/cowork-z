@@ -98,6 +98,8 @@ export interface TaskUpdateEvent {
   progress?: TaskProgress;
   result?: TaskResult;
   error?: string;
+  /** Session ID from error events - allows follow-up after failures */
+  sessionId?: string;
 }
 
 // ========== Streaming Message Types ==========

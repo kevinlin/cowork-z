@@ -152,8 +152,8 @@ async function startTask(config: TaskConfig & { apiKeys?: ApiKeys }): Promise<vo
       onComplete: (result) => {
         send('task_complete', { result }, taskId);
       },
-      onError: (error) => {
-        send('task_error', { error }, taskId);
+      onError: (error, sessionId) => {
+        send('task_error', { error, sessionId }, taskId);
       },
     });
   } catch (error) {

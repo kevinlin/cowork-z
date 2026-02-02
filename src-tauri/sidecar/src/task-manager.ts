@@ -89,7 +89,9 @@ export class TaskManager {
     };
 
     const onError = (error: Error) => {
-      callbacks.onError(error.message);
+      // Get sessionId before cleanup disposes the adapter
+      const sessionId = adapter.getSessionId();
+      callbacks.onError(error.message, sessionId || undefined);
       this.cleanupTask(taskId);
     };
 

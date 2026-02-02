@@ -3,7 +3,8 @@
  * for a more engaging, "typing" effect during AI responses.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
 // import { cn } from '@/lib/utils';
 
 interface StreamingTextProps {
@@ -42,9 +43,7 @@ export function StreamingText({
     return (
       <div className={className}>
         {children(text)}
-        {!isComplete && (
-          <span className="inline-block w-2 h-4 bg-foreground/60 animate-pulse ml-0.5 align-text-bottom" />
-        )}
+        {!isComplete && <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-foreground/60 align-text-bottom" />}
       </div>
     );
   }
@@ -112,7 +111,7 @@ export function StreamingText({
     <div className={className}>
       {children(displayedText)}
       {isStreaming && displayedLength < text.length && (
-        <span className="inline-block w-2 h-4 bg-foreground/60 animate-pulse ml-0.5 align-text-bottom" />
+        <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-foreground/60 align-text-bottom" />
       )}
     </div>
   );
@@ -122,11 +121,7 @@ export function StreamingText({
  * Hook to track whether a message should be streamed
  * (only the latest assistant message while task is running)
  */
-export function useStreamingState(
-  messageId: string,
-  isLatestAssistantMessage: boolean,
-  isTaskRunning: boolean
-) {
+export function useStreamingState(messageId: string, isLatestAssistantMessage: boolean, isTaskRunning: boolean) {
   const [hasFinishedStreaming, setHasFinishedStreaming] = useState(false);
   const wasStreamingRef = useRef(false);
 

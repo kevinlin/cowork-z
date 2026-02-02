@@ -10,23 +10,23 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 import type {
-  Task,
-  TaskConfig,
-  TaskUpdateEvent,
-  TaskStatus,
-  PermissionRequest,
-  PermissionResponse,
-  TaskProgress,
-  TaskResult,
   ApiKeyConfig,
-  TaskMessage,
   BedrockCredentials,
-  ProviderSettings,
-  ProviderId,
+  CompleteMessageEvent,
   ConnectedProvider,
   OpenCodeMessage,
   PartialMessageEvent,
-  CompleteMessageEvent,
+  PermissionRequest,
+  PermissionResponse,
+  ProviderId,
+  ProviderSettings,
+  Task,
+  TaskConfig,
+  TaskMessage,
+  TaskProgress,
+  TaskResult,
+  TaskStatus,
+  TaskUpdateEvent,
 } from '@/shared';
 
 // ============================================================================
@@ -130,7 +130,18 @@ export async function getApiKeys(): Promise<ApiKeyConfig[]> {
 }
 
 export async function addApiKey(
-  provider: 'anthropic' | 'openai' | 'openrouter' | 'google' | 'xai' | 'deepseek' | 'zai' | 'azure-foundry' | 'custom' | 'bedrock' | 'litellm',
+  provider:
+    | 'anthropic'
+    | 'openai'
+    | 'openrouter'
+    | 'google'
+    | 'xai'
+    | 'deepseek'
+    | 'zai'
+    | 'azure-foundry'
+    | 'custom'
+    | 'bedrock'
+    | 'litellm',
   key: string,
   label?: string
 ): Promise<ApiKeyConfig> {
@@ -149,7 +160,10 @@ export async function setDebugMode(enabled: boolean): Promise<void> {
   return invoke<void>('set_debug_mode', { enabled });
 }
 
-export async function getAppSettings(): Promise<{ debugMode: boolean; onboardingComplete: boolean }> {
+export async function getAppSettings(): Promise<{
+  debugMode: boolean;
+  onboardingComplete: boolean;
+}> {
   return invoke<{ debugMode: boolean; onboardingComplete: boolean }>('get_app_settings');
 }
 
@@ -170,7 +184,9 @@ export async function getApiKey(): Promise<string | null> {
 }
 
 export async function validateApiKey(key: string): Promise<{ valid: boolean; error?: string }> {
-  return invoke<{ valid: boolean; error?: string }>('validate_api_key', { key });
+  return invoke<{ valid: boolean; error?: string }>('validate_api_key', {
+    key,
+  });
 }
 
 export async function validateApiKeyForProvider(
@@ -209,8 +225,16 @@ export async function setOnboardingComplete(complete: boolean): Promise<void> {
 // Claude CLI
 // ============================================================================
 
-export async function checkClaudeCli(): Promise<{ installed: boolean; version: string | null; installCommand: string }> {
-  return invoke<{ installed: boolean; version: string | null; installCommand: string }>('check_claude_cli');
+export async function checkClaudeCli(): Promise<{
+  installed: boolean;
+  version: string | null;
+  installCommand: string;
+}> {
+  return invoke<{
+    installed: boolean;
+    version: string | null;
+    installCommand: string;
+  }>('check_claude_cli');
 }
 
 export async function getClaudeVersion(): Promise<string | null> {
@@ -221,11 +245,26 @@ export async function getClaudeVersion(): Promise<string | null> {
 // Model Selection
 // ============================================================================
 
-export async function getSelectedModel(): Promise<{ provider: string; model: string; baseUrl?: string; deploymentName?: string } | null> {
-  return invoke<{ provider: string; model: string; baseUrl?: string; deploymentName?: string } | null>('get_selected_model');
+export async function getSelectedModel(): Promise<{
+  provider: string;
+  model: string;
+  baseUrl?: string;
+  deploymentName?: string;
+} | null> {
+  return invoke<{
+    provider: string;
+    model: string;
+    baseUrl?: string;
+    deploymentName?: string;
+  } | null>('get_selected_model');
 }
 
-export async function setSelectedModel(model: { provider: string; model: string; baseUrl?: string; deploymentName?: string }): Promise<void> {
+export async function setSelectedModel(model: {
+  provider: string;
+  model: string;
+  baseUrl?: string;
+  deploymentName?: string;
+}): Promise<void> {
   return invoke<void>('set_selected_model', { model });
 }
 
@@ -250,12 +289,14 @@ export async function getOllamaConfig(): Promise<{
   return invoke('get_ollama_config');
 }
 
-export async function setOllamaConfig(config: {
-  baseUrl: string;
-  enabled: boolean;
-  lastValidated?: number;
-  models?: Array<{ id: string; displayName: string; size: number }>;
-} | null): Promise<void> {
+export async function setOllamaConfig(
+  config: {
+    baseUrl: string;
+    enabled: boolean;
+    lastValidated?: number;
+    models?: Array<{ id: string; displayName: string; size: number }>;
+  } | null
+): Promise<void> {
   return invoke('set_ollama_config', { config });
 }
 
@@ -273,13 +314,15 @@ export async function getAzureFoundryConfig(): Promise<{
   return invoke('get_azure_foundry_config');
 }
 
-export async function setAzureFoundryConfig(config: {
-  baseUrl: string;
-  deploymentName: string;
-  authType: 'api-key' | 'entra-id';
-  enabled: boolean;
-  lastValidated?: number;
-} | null): Promise<void> {
+export async function setAzureFoundryConfig(
+  config: {
+    baseUrl: string;
+    deploymentName: string;
+    authType: 'api-key' | 'entra-id';
+    enabled: boolean;
+    lastValidated?: number;
+  } | null
+): Promise<void> {
   return invoke('set_azure_foundry_config', { config });
 }
 
@@ -307,7 +350,12 @@ export async function saveAzureFoundryConfig(config: {
 
 export async function fetchOpenRouterModels(): Promise<{
   success: boolean;
-  models?: Array<{ id: string; name: string; provider: string; contextLength: number }>;
+  models?: Array<{
+    id: string;
+    name: string;
+    provider: string;
+    contextLength: number;
+  }>;
   error?: string;
 }> {
   return invoke('fetch_openrouter_models');
@@ -317,9 +365,17 @@ export async function fetchOpenRouterModels(): Promise<{
 // LiteLLM Configuration
 // ============================================================================
 
-export async function testLiteLLMConnection(url: string, apiKey?: string): Promise<{
+export async function testLiteLLMConnection(
+  url: string,
+  apiKey?: string
+): Promise<{
   success: boolean;
-  models?: Array<{ id: string; name: string; provider: string; contextLength: number }>;
+  models?: Array<{
+    id: string;
+    name: string;
+    provider: string;
+    contextLength: number;
+  }>;
   error?: string;
 }> {
   return invoke('test_litellm_connection', { url, apiKey });
@@ -327,7 +383,12 @@ export async function testLiteLLMConnection(url: string, apiKey?: string): Promi
 
 export async function fetchLiteLLMModels(): Promise<{
   success: boolean;
-  models?: Array<{ id: string; name: string; provider: string; contextLength: number }>;
+  models?: Array<{
+    id: string;
+    name: string;
+    provider: string;
+    contextLength: number;
+  }>;
   error?: string;
 }> {
   return invoke('fetch_litellm_models');
@@ -337,17 +398,29 @@ export async function getLiteLLMConfig(): Promise<{
   baseUrl: string;
   enabled: boolean;
   lastValidated?: number;
-  models?: Array<{ id: string; name: string; provider: string; contextLength: number }>;
+  models?: Array<{
+    id: string;
+    name: string;
+    provider: string;
+    contextLength: number;
+  }>;
 } | null> {
   return invoke('get_litellm_config');
 }
 
-export async function setLiteLLMConfig(config: {
-  baseUrl: string;
-  enabled: boolean;
-  lastValidated?: number;
-  models?: Array<{ id: string; name: string; provider: string; contextLength: number }>;
-} | null): Promise<void> {
+export async function setLiteLLMConfig(
+  config: {
+    baseUrl: string;
+    enabled: boolean;
+    lastValidated?: number;
+    models?: Array<{
+      id: string;
+      name: string;
+      provider: string;
+      contextLength: number;
+    }>;
+  } | null
+): Promise<void> {
   return invoke('set_litellm_config', { config });
 }
 
@@ -356,11 +429,15 @@ export async function setLiteLLMConfig(config: {
 // ============================================================================
 
 export async function validateBedrockCredentials(credentials: BedrockCredentials): Promise<{ valid: boolean; error?: string }> {
-  return invoke('validate_bedrock_credentials', { credentials: JSON.stringify(credentials) });
+  return invoke('validate_bedrock_credentials', {
+    credentials: JSON.stringify(credentials),
+  });
 }
 
 export async function saveBedrockCredentials(credentials: BedrockCredentials): Promise<ApiKeyConfig> {
-  return invoke('save_bedrock_credentials', { credentials: JSON.stringify(credentials) });
+  return invoke('save_bedrock_credentials', {
+    credentials: JSON.stringify(credentials),
+  });
 }
 
 export async function getBedrockCredentials(): Promise<BedrockCredentials | null> {
@@ -387,7 +464,11 @@ export async function isE2EMode(): Promise<boolean> {
 // Provider Settings API
 // ============================================================================
 
-type ConnectedProviderResponse = { id?: string; selectedModel?: string | null; config?: unknown };
+type ConnectedProviderResponse = {
+  id?: string;
+  selectedModel?: string | null;
+  config?: unknown;
+};
 
 type ProviderSettingsResponse = {
   activeProvider?: string | null;
@@ -398,12 +479,7 @@ type ProviderSettingsResponse = {
 function isConnectedProviderShape(value: unknown): value is ConnectedProvider {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
-  return (
-    'providerId' in record &&
-    'connectionStatus' in record &&
-    'selectedModelId' in record &&
-    'credentials' in record
-  );
+  return 'providerId' in record && 'connectionStatus' in record && 'selectedModelId' in record && 'credentials' in record;
 }
 
 function normalizeConnectedProvider(key: string, raw: ConnectedProviderResponse): ConnectedProvider {
@@ -413,13 +489,19 @@ function normalizeConnectedProvider(key: string, raw: ConnectedProviderResponse)
   let availableModels: ConnectedProvider['availableModels'] | undefined;
 
   if (config && typeof config === 'object' && 'credentials' in (config as Record<string, unknown>)) {
-    const configRecord = config as { credentials?: ConnectedProvider['credentials']; availableModels?: ConnectedProvider['availableModels'] };
+    const configRecord = config as {
+      credentials?: ConnectedProvider['credentials'];
+      availableModels?: ConnectedProvider['availableModels'];
+    };
     credentials = configRecord.credentials ?? null;
     availableModels = configRecord.availableModels;
   }
 
   if (!credentials || typeof credentials !== 'object') {
-    credentials = { type: 'api_key', keyPrefix: '' } as ConnectedProvider['credentials'];
+    credentials = {
+      type: 'api_key',
+      keyPrefix: '',
+    } as ConnectedProvider['credentials'];
   }
 
   return {
@@ -434,7 +516,9 @@ function normalizeConnectedProvider(key: string, raw: ConnectedProviderResponse)
 
 export async function getProviderSettings(): Promise<ProviderSettings> {
   const data = await invoke<ProviderSettings | ProviderSettingsResponse>('get_provider_settings');
-  const activeProviderId = ((data as ProviderSettings).activeProviderId ?? (data as ProviderSettingsResponse).activeProvider ?? null) as ProviderId | null;
+  const activeProviderId = ((data as ProviderSettings).activeProviderId ??
+    (data as ProviderSettingsResponse).activeProvider ??
+    null) as ProviderId | null;
 
   const connectedProviders: ProviderSettings['connectedProviders'] = {};
   if (data.connectedProviders) {
@@ -472,12 +556,17 @@ export async function setConnectedProvider(providerId: ProviderId, provider: Con
   const connectedProviderInput = {
     id: provider.providerId,
     selectedModel: provider.selectedModelId ?? undefined,
-    config: provider.credentials ? {
-      credentials: provider.credentials,
-      availableModels: provider.availableModels,
-    } : undefined,
+    config: provider.credentials
+      ? {
+          credentials: provider.credentials,
+          availableModels: provider.availableModels,
+        }
+      : undefined,
   };
-  return invoke<void>('set_connected_provider', { providerId, provider: connectedProviderInput });
+  return invoke<void>('set_connected_provider', {
+    providerId,
+    provider: connectedProviderInput,
+  });
 }
 
 export async function removeConnectedProvider(providerId: ProviderId): Promise<void> {
@@ -513,7 +602,9 @@ function isTaskMessage(message: unknown): message is TaskMessage {
   if (!message || typeof message !== 'object') return false;
   const type = (message as { type?: unknown }).type;
   const content = (message as { content?: unknown }).content;
-  return typeof type === 'string' && TASK_MESSAGE_TYPES.has(type as 'assistant' | 'user' | 'tool' | 'system') && typeof content === 'string';
+  return (
+    typeof type === 'string' && TASK_MESSAGE_TYPES.has(type as 'assistant' | 'user' | 'tool' | 'system') && typeof content === 'string'
+  );
 }
 
 function isOpenCodeMessage(message: unknown): message is OpenCodeMessage {
@@ -533,7 +624,9 @@ function buildOpenCodeMessageId(message: OpenCodeMessage): string {
 function normalizeOpenCodeMessage(message: OpenCodeMessage): TaskMessage | null {
   switch (message.type) {
     case 'text': {
-      const textMessage = message as OpenCodeMessage & { part?: { text?: string } };
+      const textMessage = message as OpenCodeMessage & {
+        part?: { text?: string };
+      };
       const content = textMessage.part?.text ?? '';
       if (!content.trim()) {
         return null;
@@ -546,7 +639,9 @@ function normalizeOpenCodeMessage(message: OpenCodeMessage): TaskMessage | null 
       };
     }
     case 'tool_call': {
-      const toolMessage = message as OpenCodeMessage & { part?: { tool?: string; input?: unknown } };
+      const toolMessage = message as OpenCodeMessage & {
+        part?: { tool?: string; input?: unknown };
+      };
       return {
         id: buildOpenCodeMessageId(message),
         type: 'tool',
@@ -557,7 +652,9 @@ function normalizeOpenCodeMessage(message: OpenCodeMessage): TaskMessage | null 
       };
     }
     case 'tool_use': {
-      const toolUseMessage = message as OpenCodeMessage & { part?: { tool?: string; state?: { input?: unknown } } };
+      const toolUseMessage = message as OpenCodeMessage & {
+        part?: { tool?: string; state?: { input?: unknown } };
+      };
       return {
         id: buildOpenCodeMessageId(message),
         type: 'tool',
@@ -624,7 +721,10 @@ export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): 
         callback({ taskId, type: 'complete', result });
       }
     }).then(track),
-    listen<{ taskId?: string; payload?: { error?: unknown; sessionId?: string } }>('task:error', (event) => {
+    listen<{
+      taskId?: string;
+      payload?: { error?: unknown; sessionId?: string };
+    }>('task:error', (event) => {
       const taskId = event.payload?.taskId;
       const errorPayload = event.payload?.payload?.error;
       const sessionId = event.payload?.payload?.sessionId;
@@ -668,43 +768,39 @@ export async function onTaskSummary(callback: (data: { taskId: string; summary: 
   return listen<{ taskId: string; summary: string }>('task:summary', (event) => callback(event.payload));
 }
 
-export async function onTaskMessagePartial(
-  callback: (event: PartialMessageEvent) => void
-): Promise<UnlistenFn> {
-  return listen<{ taskId?: string; payload?: { messageId?: string; textSoFar?: string; isStreaming?: boolean } }>(
-    'task:message:partial',
-    (event) => {
-      const taskId = event.payload?.taskId;
-      const payload = event.payload?.payload;
-      if (taskId && payload?.messageId && payload.textSoFar !== undefined) {
-        callback({
-          taskId,
-          messageId: payload.messageId,
-          textSoFar: payload.textSoFar,
-          isStreaming: payload.isStreaming ?? true,
-        });
-      }
+export async function onTaskMessagePartial(callback: (event: PartialMessageEvent) => void): Promise<UnlistenFn> {
+  return listen<{
+    taskId?: string;
+    payload?: { messageId?: string; textSoFar?: string; isStreaming?: boolean };
+  }>('task:message:partial', (event) => {
+    const taskId = event.payload?.taskId;
+    const payload = event.payload?.payload;
+    if (taskId && payload?.messageId && payload.textSoFar !== undefined) {
+      callback({
+        taskId,
+        messageId: payload.messageId,
+        textSoFar: payload.textSoFar,
+        isStreaming: payload.isStreaming ?? true,
+      });
     }
-  );
+  });
 }
 
-export async function onTaskMessageComplete(
-  callback: (event: CompleteMessageEvent) => void
-): Promise<UnlistenFn> {
-  return listen<{ taskId?: string; payload?: { messageId?: string; text?: string } }>(
-    'task:message:complete',
-    (event) => {
-      const taskId = event.payload?.taskId;
-      const payload = event.payload?.payload;
-      if (taskId && payload?.messageId && payload.text !== undefined) {
-        callback({
-          taskId,
-          messageId: payload.messageId,
-          text: payload.text,
-        });
-      }
+export async function onTaskMessageComplete(callback: (event: CompleteMessageEvent) => void): Promise<UnlistenFn> {
+  return listen<{
+    taskId?: string;
+    payload?: { messageId?: string; text?: string };
+  }>('task:message:complete', (event) => {
+    const taskId = event.payload?.taskId;
+    const payload = event.payload?.payload;
+    if (taskId && payload?.messageId && payload.text !== undefined) {
+      callback({
+        taskId,
+        messageId: payload.messageId,
+        text: payload.text,
+      });
     }
-  );
+  });
 }
 
 // ============================================================================

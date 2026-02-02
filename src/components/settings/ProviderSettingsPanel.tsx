@@ -1,17 +1,17 @@
 // apps/desktop/src/renderer/components/settings/ProviderSettingsPanel.tsx
 
 import { AnimatePresence, motion } from 'framer-motion';
-import type { ProviderId, ConnectedProvider } from '@/shared';
+import { settingsTransitions, settingsVariants } from '@/lib/animations';
+import type { ConnectedProvider, ProviderId } from '@/shared';
 import { PROVIDER_META } from '@/shared';
 import {
-  ClassicProviderForm,
-  BedrockProviderForm,
   AzureFoundryProviderForm,
+  BedrockProviderForm,
+  ClassicProviderForm,
+  LiteLLMProviderForm,
   OllamaProviderForm,
   OpenRouterProviderForm,
-  LiteLLMProviderForm,
 } from './providers';
-import { settingsVariants, settingsTransitions } from '@/lib/animations';
 
 interface ProviderSettingsPanelProps {
   providerId: ProviderId;
@@ -38,11 +38,11 @@ export function ProviderSettingsPanel({
       case 'classic':
         return (
           <ClassicProviderForm
-            providerId={providerId}
             connectedProvider={connectedProvider}
             onConnect={onConnect}
             onDisconnect={onDisconnect}
             onModelChange={onModelChange}
+            providerId={providerId}
             showModelError={showModelError}
           />
         );
@@ -113,12 +113,12 @@ export function ProviderSettingsPanel({
     <div className="min-h-[260px]">
       <AnimatePresence mode="wait">
         <motion.div
-          key={providerId}
-          variants={settingsVariants.slideDown}
-          initial="initial"
           animate="animate"
           exit="exit"
+          initial="initial"
+          key={providerId}
           transition={settingsTransitions.enter}
+          variants={settingsVariants.slideDown}
         >
           {renderForm()}
         </motion.div>

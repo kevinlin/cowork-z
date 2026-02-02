@@ -1,0 +1,88 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["ultracite/biome/core", "ultracite/biome/react"],
+  "formatter": {
+    "attributePosition": "auto",
+    "bracketSameLine": false,
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 140
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single"
+    }
+  },
+  "linter": {
+    "rules": {
+      "a11y": {
+        "noLabelWithoutControl": "off",
+        "noSvgWithoutTitle": "off",
+        "useButtonType": "off",
+        "useSemanticElements": "off"
+      },
+      "complexity": {
+        "noStaticOnlyClass": "off",
+        "useLiteralKeys": "off",
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": {
+            "maxAllowedComplexity": 100
+          }
+        },
+        "useOptionalChain": "off",
+        "noForEach": "off",
+        "noUselessFragments": "off",
+        "noUselessStringConcat": "off",
+        "noVoid": "off"
+      },
+      "correctness": {
+        "noUndeclaredVariables": "off",
+        "noUnusedFunctionParameters": "off",
+        "noUnusedVariables": "off",
+        "useExhaustiveDependencies": "off",
+        "useHookAtTopLevel": "off",
+        "useImageSize": "off"
+      },
+      "performance": {
+        "useTopLevelRegex": "off",
+        "noBarrelFile": "off",
+        "noNamespaceImport": "off"
+      },
+      "style": {
+        "useNodejsImportProtocol": "off",
+        "useBlockStatements": "off",
+        "useDefaultSwitchClause": "off",
+        "noDoneCallback": "off",
+        "noExportedImports": "off",
+        "noNestedTernary": "off",
+        "noNonNullAssertion": "off",
+        "useCollapsedIf": "off",
+        "useConsistentTypeDefinitions": "off",
+        "useFilenamingConvention": "off",
+        "useReadonlyClassProperties": "off",
+        "useTemplate": "off"
+      },
+      "suspicious": {
+        "noEmptyBlockStatements": "off",
+        "noImplicitAnyLet": "off",
+        "noEvolvingTypes": "off",
+        "noAlert": "off",
+        "noArrayIndexKey": "off",
+        "noAssignInExpressions": "off",
+        "noBitwiseOperators": "off",
+        "noControlCharactersInRegex": "off",
+        "noDuplicateCase": "off",
+        "noExplicitAny": "off",
+        "noUnknownAtRules": "off",
+        "useAwait": "off",
+        "useIterableCallbackReturn": "off"
+      },
+      "security": {
+        "noGlobalEval": "off"
+      }
+    }
+  }
+}

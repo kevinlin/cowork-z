@@ -24,12 +24,12 @@ interface RegionSelectorProps {
 export function RegionSelector({ value, onChange }: RegionSelectorProps) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-foreground">Region</label>
+      <label className="mb-2 block font-medium text-foreground text-sm">Region</label>
       <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        data-testid="bedrock-region-select"
         className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
+        data-testid="bedrock-region-select"
+        onChange={(e) => onChange(e.target.value)}
+        value={value}
       >
         {AWS_REGIONS.map((region) => (
           <option key={region.id} value={region.id}>

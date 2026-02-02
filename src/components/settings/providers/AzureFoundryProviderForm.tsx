@@ -2,17 +2,10 @@
 
 import { useState } from 'react';
 import { getAccomplish } from '@/lib/accomplish';
-import type { ConnectedProvider, AzureFoundryCredentials } from '@/shared';
-import {
-  ModelSelector,
-  ConnectButton,
-  ConnectedControls,
-  ProviderFormHeader,
-  FormError,
-} from '../shared';
-
+import type { AzureFoundryCredentials, ConnectedProvider } from '@/shared';
 // Import Azure logo
 import azureLogo from '/assets/ai-logos/azure.svg';
+import { ConnectButton, ConnectedControls, FormError, ModelSelector, ProviderFormHeader } from '../shared';
 
 interface AzureFoundryProviderFormProps {
   connectedProvider?: ConnectedProvider;
@@ -39,7 +32,7 @@ export function AzureFoundryProviderForm({
   const isConnected = connectedProvider?.connectionStatus === 'connected';
 
   const handleConnect = async () => {
-    if (!endpoint.trim() || !deploymentName.trim()) {
+    if (!(endpoint.trim() && deploymentName.trim())) {
       setError('Endpoint URL and Deployment Name are required');
       return;
     }
@@ -112,119 +105,39 @@ export function AzureFoundryProviderForm({
       <ProviderFormHeader logoSrc={azureLogo} providerName="Azure AI Foundry" />
 
       <div className="space-y-3">
-        {!isConnected ? (
-          <>
-            {/* Auth type tabs */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setAuthType('api-key')}
-                data-testid="azure-foundry-auth-api-key"
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  authType === 'api-key'
-                    ? 'bg-[#0078D4] text-white'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                API Key
-              </button>
-              <button
-                onClick={() => setAuthType('entra-id')}
-                data-testid="azure-foundry-auth-entra-id"
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  authType === 'entra-id'
-                    ? 'bg-[#0078D4] text-white'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Entra ID
-              </button>
-            </div>
-
-            {authType === 'entra-id' && (
-              <p className="text-xs text-muted-foreground">
-                Uses your Azure CLI credentials. Run <code className="bg-muted px-1 rounded">az login</code> first.
-              </p>
-            )}
-
-            {/* Endpoint URL */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-foreground">
-                Azure OpenAI Endpoint
-              </label>
-              <input
-                type="text"
-                value={endpoint}
-                onChange={(e) => setEndpoint(e.target.value)}
-                placeholder="https://your-resource.openai.azure.com"
-                data-testid="azure-foundry-endpoint"
-                className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
-              />
-            </div>
-
-            {/* Deployment Name */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-foreground">
-                Deployment Name
-              </label>
-              <input
-                type="text"
-                value={deploymentName}
-                onChange={(e) => setDeploymentName(e.target.value)}
-                placeholder="e.g., gpt-4o, gpt-5"
-                data-testid="azure-foundry-deployment"
-                className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
-              />
-            </div>
-
-            {/* API Key - only for API key auth */}
-            {authType === 'api-key' && (
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  API Key
-                </label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Enter your Azure API key"
-                  data-testid="azure-foundry-api-key"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
-                />
-              </div>
-            )}
-
-            <FormError error={error} />
-            <ConnectButton onClick={handleConnect} connecting={connecting} />
-          </>
-        ) : (
+        {isConnected ? (
           <>
             {/* Display saved credentials info */}
             <div className="space-y-3">
               <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">Endpoint</label>
+                <label className="mb-2 block font-medium text-foreground text-sm">Endpoint</label>
                 <input
+                  className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-muted-foreground text-sm"
+                  disabled
                   type="text"
                   value={(connectedProvider?.credentials as AzureFoundryCredentials)?.endpoint || ''}
-                  disabled
-                  className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">Deployment</label>
+                <label className="mb-2 block font-medium text-foreground text-sm">Deployment</label>
                 <input
+                  className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-muted-foreground text-sm"
+                  disabled
                   type="text"
                   value={(connectedProvider?.credentials as AzureFoundryCredentials)?.deploymentName || ''}
-                  disabled
-                  className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">Authentication</label>
+                <label className="mb-2 block font-medium text-foreground text-sm">Authentication</label>
                 <input
-                  type="text"
-                  value={(connectedProvider?.credentials as AzureFoundryCredentials)?.authMethod === 'entra-id' ? 'Entra ID (Azure CLI)' : 'API Key'}
+                  className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-muted-foreground text-sm"
                   disabled
-                  className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground"
+                  type="text"
+                  value={
+                    (connectedProvider?.credentials as AzureFoundryCredentials)?.authMethod === 'entra-id'
+                      ? 'Entra ID (Azure CLI)'
+                      : 'API Key'
+                  }
                 />
               </div>
             </div>
@@ -233,11 +146,85 @@ export function AzureFoundryProviderForm({
 
             {/* Model Selector */}
             <ModelSelector
-              models={models}
-              value={connectedProvider?.selectedModelId || null}
-              onChange={onModelChange}
               error={showModelError && !connectedProvider?.selectedModelId}
+              models={models}
+              onChange={onModelChange}
+              value={connectedProvider?.selectedModelId || null}
             />
+          </>
+        ) : (
+          <>
+            {/* Auth type tabs */}
+            <div className="flex gap-2">
+              <button
+                className={`flex-1 rounded-lg px-4 py-2 font-medium text-sm transition-colors ${
+                  authType === 'api-key' ? 'bg-[#0078D4] text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+                data-testid="azure-foundry-auth-api-key"
+                onClick={() => setAuthType('api-key')}
+              >
+                API Key
+              </button>
+              <button
+                className={`flex-1 rounded-lg px-4 py-2 font-medium text-sm transition-colors ${
+                  authType === 'entra-id' ? 'bg-[#0078D4] text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+                data-testid="azure-foundry-auth-entra-id"
+                onClick={() => setAuthType('entra-id')}
+              >
+                Entra ID
+              </button>
+            </div>
+
+            {authType === 'entra-id' && (
+              <p className="text-muted-foreground text-xs">
+                Uses your Azure CLI credentials. Run <code className="rounded bg-muted px-1">az login</code> first.
+              </p>
+            )}
+
+            {/* Endpoint URL */}
+            <div>
+              <label className="mb-2 block font-medium text-foreground text-sm">Azure OpenAI Endpoint</label>
+              <input
+                className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
+                data-testid="azure-foundry-endpoint"
+                onChange={(e) => setEndpoint(e.target.value)}
+                placeholder="https://your-resource.openai.azure.com"
+                type="text"
+                value={endpoint}
+              />
+            </div>
+
+            {/* Deployment Name */}
+            <div>
+              <label className="mb-2 block font-medium text-foreground text-sm">Deployment Name</label>
+              <input
+                className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
+                data-testid="azure-foundry-deployment"
+                onChange={(e) => setDeploymentName(e.target.value)}
+                placeholder="e.g., gpt-4o, gpt-5"
+                type="text"
+                value={deploymentName}
+              />
+            </div>
+
+            {/* API Key - only for API key auth */}
+            {authType === 'api-key' && (
+              <div>
+                <label className="mb-2 block font-medium text-foreground text-sm">API Key</label>
+                <input
+                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
+                  data-testid="azure-foundry-api-key"
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Enter your Azure API key"
+                  type="password"
+                  value={apiKey}
+                />
+              </div>
+            )}
+
+            <FormError error={error} />
+            <ConnectButton connecting={connecting} onClick={handleConnect} />
           </>
         )}
       </div>

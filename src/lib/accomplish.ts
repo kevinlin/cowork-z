@@ -6,19 +6,19 @@
  */
 
 import type {
-  Task,
-  TaskConfig,
-  TaskUpdateEvent,
-  TaskStatus,
+  ApiKeyConfig,
+  BedrockCredentials,
+  ConnectedProvider,
   PermissionRequest,
   PermissionResponse,
-  TaskProgress,
-  ApiKeyConfig,
-  TaskMessage,
-  BedrockCredentials,
-  ProviderSettings,
   ProviderId,
-  ConnectedProvider,
+  ProviderSettings,
+  Task,
+  TaskConfig,
+  TaskMessage,
+  TaskProgress,
+  TaskStatus,
+  TaskUpdateEvent,
 } from '@/shared';
 import { getTauriApi, isRunningInTauri } from './tauri-api';
 
@@ -48,11 +48,29 @@ interface AccomplishAPI {
 
   // Settings
   getApiKeys(): Promise<ApiKeyConfig[]>;
-  addApiKey(provider: 'anthropic' | 'openai' | 'openrouter' | 'google' | 'xai' | 'deepseek' | 'zai' | 'azure-foundry' | 'custom' | 'bedrock' | 'litellm', key: string, label?: string): Promise<ApiKeyConfig>;
+  addApiKey(
+    provider:
+      | 'anthropic'
+      | 'openai'
+      | 'openrouter'
+      | 'google'
+      | 'xai'
+      | 'deepseek'
+      | 'zai'
+      | 'azure-foundry'
+      | 'custom'
+      | 'bedrock'
+      | 'litellm',
+    key: string,
+    label?: string
+  ): Promise<ApiKeyConfig>;
   removeApiKey(id: string): Promise<void>;
   getDebugMode(): Promise<boolean>;
   setDebugMode(enabled: boolean): Promise<void>;
-  getAppSettings(): Promise<{ debugMode: boolean; onboardingComplete: boolean }>;
+  getAppSettings(): Promise<{
+    debugMode: boolean;
+    onboardingComplete: boolean;
+  }>;
 
   // API Key management
   hasApiKey(): Promise<boolean>;
@@ -71,11 +89,20 @@ interface AccomplishAPI {
   setOnboardingComplete(complete: boolean): Promise<void>;
 
   // Claude CLI
-  checkClaudeCli(): Promise<{ installed: boolean; version: string | null; installCommand: string }>;
+  checkClaudeCli(): Promise<{
+    installed: boolean;
+    version: string | null;
+    installCommand: string;
+  }>;
   getClaudeVersion(): Promise<string | null>;
 
   // Model selection
-  getSelectedModel(): Promise<{ provider: string; model: string; baseUrl?: string; deploymentName?: string } | null>;
+  getSelectedModel(): Promise<{
+    provider: string;
+    model: string;
+    baseUrl?: string;
+    deploymentName?: string;
+  } | null>;
   setSelectedModel(model: { provider: string; model: string; baseUrl?: string; deploymentName?: string }): Promise<void>;
 
   // Ollama configuration
@@ -84,41 +111,121 @@ interface AccomplishAPI {
     models?: Array<{ id: string; displayName: string; size: number }>;
     error?: string;
   }>;
-  getOllamaConfig(): Promise<{ baseUrl: string; enabled: boolean; lastValidated?: number; models?: Array<{ id: string; displayName: string; size: number }> } | null>;
-  setOllamaConfig(config: { baseUrl: string; enabled: boolean; lastValidated?: number; models?: Array<{ id: string; displayName: string; size: number }> } | null): Promise<void>;
+  getOllamaConfig(): Promise<{
+    baseUrl: string;
+    enabled: boolean;
+    lastValidated?: number;
+    models?: Array<{ id: string; displayName: string; size: number }>;
+  } | null>;
+  setOllamaConfig(
+    config: {
+      baseUrl: string;
+      enabled: boolean;
+      lastValidated?: number;
+      models?: Array<{ id: string; displayName: string; size: number }>;
+    } | null
+  ): Promise<void>;
 
   // Azure Foundry configuration
-  getAzureFoundryConfig(): Promise<{ baseUrl: string; deploymentName: string; authType: 'api-key' | 'entra-id'; enabled: boolean; lastValidated?: number } | null>;
-  setAzureFoundryConfig(config: { baseUrl: string; deploymentName: string; authType: 'api-key' | 'entra-id'; enabled: boolean; lastValidated?: number } | null): Promise<void>;
-  testAzureFoundryConnection(config: { endpoint: string; deploymentName: string; authType: 'api-key' | 'entra-id'; apiKey?: string }): Promise<{ success: boolean; error?: string }>;
-  saveAzureFoundryConfig(config: { endpoint: string; deploymentName: string; authType: 'api-key' | 'entra-id'; apiKey?: string }): Promise<void>;
+  getAzureFoundryConfig(): Promise<{
+    baseUrl: string;
+    deploymentName: string;
+    authType: 'api-key' | 'entra-id';
+    enabled: boolean;
+    lastValidated?: number;
+  } | null>;
+  setAzureFoundryConfig(
+    config: {
+      baseUrl: string;
+      deploymentName: string;
+      authType: 'api-key' | 'entra-id';
+      enabled: boolean;
+      lastValidated?: number;
+    } | null
+  ): Promise<void>;
+  testAzureFoundryConnection(config: {
+    endpoint: string;
+    deploymentName: string;
+    authType: 'api-key' | 'entra-id';
+    apiKey?: string;
+  }): Promise<{ success: boolean; error?: string }>;
+  saveAzureFoundryConfig(config: {
+    endpoint: string;
+    deploymentName: string;
+    authType: 'api-key' | 'entra-id';
+    apiKey?: string;
+  }): Promise<void>;
 
   // OpenRouter configuration
   fetchOpenRouterModels(): Promise<{
     success: boolean;
-    models?: Array<{ id: string; name: string; provider: string; contextLength: number }>;
+    models?: Array<{
+      id: string;
+      name: string;
+      provider: string;
+      contextLength: number;
+    }>;
     error?: string;
   }>;
 
   // LiteLLM configuration
-  testLiteLLMConnection(url: string, apiKey?: string): Promise<{
+  testLiteLLMConnection(
+    url: string,
+    apiKey?: string
+  ): Promise<{
     success: boolean;
-    models?: Array<{ id: string; name: string; provider: string; contextLength: number }>;
+    models?: Array<{
+      id: string;
+      name: string;
+      provider: string;
+      contextLength: number;
+    }>;
     error?: string;
   }>;
   fetchLiteLLMModels(): Promise<{
     success: boolean;
-    models?: Array<{ id: string; name: string; provider: string; contextLength: number }>;
+    models?: Array<{
+      id: string;
+      name: string;
+      provider: string;
+      contextLength: number;
+    }>;
     error?: string;
   }>;
-  getLiteLLMConfig(): Promise<{ baseUrl: string; enabled: boolean; lastValidated?: number; models?: Array<{ id: string; name: string; provider: string; contextLength: number }> } | null>;
-  setLiteLLMConfig(config: { baseUrl: string; enabled: boolean; lastValidated?: number; models?: Array<{ id: string; name: string; provider: string; contextLength: number }> } | null): Promise<void>;
+  getLiteLLMConfig(): Promise<{
+    baseUrl: string;
+    enabled: boolean;
+    lastValidated?: number;
+    models?: Array<{
+      id: string;
+      name: string;
+      provider: string;
+      contextLength: number;
+    }>;
+  } | null>;
+  setLiteLLMConfig(
+    config: {
+      baseUrl: string;
+      enabled: boolean;
+      lastValidated?: number;
+      models?: Array<{
+        id: string;
+        name: string;
+        provider: string;
+        contextLength: number;
+      }>;
+    } | null
+  ): Promise<void>;
 
   // Bedrock configuration
   validateBedrockCredentials(credentials: BedrockCredentials): Promise<{ valid: boolean; error?: string }>;
   saveBedrockCredentials(credentials: BedrockCredentials): Promise<ApiKeyConfig>;
   getBedrockCredentials(): Promise<BedrockCredentials | null>;
-  fetchBedrockModels(credentials: string): Promise<{ success: boolean; models: Array<{ id: string; name: string; provider: string }>; error?: string }>;
+  fetchBedrockModels(credentials: string): Promise<{
+    success: boolean;
+    models: Array<{ id: string; name: string; provider: string }>;
+    error?: string;
+  }>;
 
   // E2E Testing
   isE2EMode(): Promise<boolean>;
@@ -217,7 +324,8 @@ export function getAccomplish() {
       onTaskProgress: (callback: (progress: TaskProgress) => void) => toSyncUnlisten(tauriApi.onTaskProgress(callback)),
       onDebugLog: (callback: (log: unknown) => void) => toSyncUnlisten(tauriApi.onDebugLog(callback)),
       onDebugModeChange: (callback: (data: { enabled: boolean }) => void) => toSyncUnlisten(tauriApi.onDebugModeChange(callback)),
-      onTaskStatusChange: (callback: (data: { taskId: string; status: TaskStatus }) => void) => toSyncUnlisten(tauriApi.onTaskStatusChange(callback)),
+      onTaskStatusChange: (callback: (data: { taskId: string; status: TaskStatus }) => void) =>
+        toSyncUnlisten(tauriApi.onTaskStatusChange(callback)),
       onTaskSummary: (callback: (data: { taskId: string; summary: string }) => void) => toSyncUnlisten(tauriApi.onTaskSummary(callback)),
     };
   }

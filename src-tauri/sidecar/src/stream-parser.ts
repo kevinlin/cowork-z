@@ -16,9 +16,9 @@ const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
  * across multiple data chunks.
  */
 export class StreamParser extends EventEmitter<StreamParserEvents> {
-  private buffer: string = '';
+  private buffer = '';
   // Buffer for incomplete JSON objects that started with { but failed to parse
-  private incompleteJson: string = '';
+  private incompleteJson = '';
 
   /**
    * Feed raw data from stdout
@@ -63,23 +63,7 @@ export class StreamParser extends EventEmitter<StreamParserEvents> {
   private isTerminalDecoration(line: string): boolean {
     const trimmed = line.trim();
     // Box-drawing and UI characters used by the CLI's interactive prompts
-    const terminalChars = [
-      '│',
-      '┌',
-      '┐',
-      '└',
-      '┘',
-      '├',
-      '┤',
-      '┬',
-      '┴',
-      '┼',
-      '─',
-      '◆',
-      '●',
-      '○',
-      '◇',
-    ];
+    const terminalChars = ['│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼', '─', '◆', '●', '○', '◇'];
     // Check if line starts with a terminal decoration character
     if (terminalChars.some((char) => trimmed.startsWith(char))) {
       return true;

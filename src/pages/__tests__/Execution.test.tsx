@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import type { Task, PartialMessage } from '@/shared';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PartialMessage, Task } from '@/shared';
 import ExecutionPage from '../Execution';
 
 // Mock the tauri-api module
@@ -77,11 +77,11 @@ describe('Execution - Partial Message Rendering', () => {
     mockTaskStore.partialMessages = new Map();
   });
 
-  const renderWithRouter = (taskId: string = 'task-123') => {
+  const renderWithRouter = (taskId = 'task-123') => {
     return render(
       <MemoryRouter initialEntries={[`/execution/${taskId}`]}>
         <Routes>
-          <Route path="/execution/:id" element={<ExecutionPage />} />
+          <Route element={<ExecutionPage />} path="/execution/:id" />
         </Routes>
       </MemoryRouter>
     );
@@ -92,8 +92,18 @@ describe('Execution - Partial Message Rendering', () => {
       id: 'task-123',
       prompt: 'Test task',
       messages: [
-        { id: 'msg-1', type: 'user', content: 'Hello', timestamp: '2024-01-01T00:00:00Z' },
-        { id: 'msg-2', type: 'assistant', content: 'Hi there', timestamp: '2024-01-01T00:00:01Z' },
+        {
+          id: 'msg-1',
+          type: 'user',
+          content: 'Hello',
+          timestamp: '2024-01-01T00:00:00Z',
+        },
+        {
+          id: 'msg-2',
+          type: 'assistant',
+          content: 'Hi there',
+          timestamp: '2024-01-01T00:00:01Z',
+        },
       ],
       status: 'completed',
       createdAt: '2024-01-01T00:00:00Z',
@@ -114,7 +124,12 @@ describe('Execution - Partial Message Rendering', () => {
       id: 'task-123',
       prompt: 'Test task',
       messages: [
-        { id: 'msg-1', type: 'user', content: 'Hello', timestamp: '2024-01-01T00:00:00Z' },
+        {
+          id: 'msg-1',
+          type: 'user',
+          content: 'Hello',
+          timestamp: '2024-01-01T00:00:00Z',
+        },
       ],
       status: 'running',
       createdAt: '2024-01-01T00:00:00Z',
@@ -148,8 +163,18 @@ describe('Execution - Partial Message Rendering', () => {
       id: 'task-123',
       prompt: 'Test task',
       messages: [
-        { id: 'msg-1', type: 'assistant', content: 'First', timestamp: '2024-01-01T00:00:02Z' },
-        { id: 'msg-3', type: 'assistant', content: 'Third', timestamp: '2024-01-01T00:00:04Z' },
+        {
+          id: 'msg-1',
+          type: 'assistant',
+          content: 'First',
+          timestamp: '2024-01-01T00:00:02Z',
+        },
+        {
+          id: 'msg-3',
+          type: 'assistant',
+          content: 'Third',
+          timestamp: '2024-01-01T00:00:04Z',
+        },
       ],
       status: 'running',
       createdAt: '2024-01-01T00:00:00Z',
@@ -185,7 +210,7 @@ describe('Execution - Partial Message Rendering', () => {
 
     // Get all message bubbles
     const messages = screen.getAllByText(/First|Second|Third|Fourth/);
-    
+
     // Verify order
     expect(messages[0].textContent).toContain('First');
     expect(messages[1].textContent).toContain('Second');
@@ -198,7 +223,12 @@ describe('Execution - Partial Message Rendering', () => {
       id: 'task-123',
       prompt: 'Test task',
       messages: [
-        { id: 'msg-1', type: 'assistant', content: 'Old version', timestamp: '2024-01-01T00:00:01Z' },
+        {
+          id: 'msg-1',
+          type: 'assistant',
+          content: 'Old version',
+          timestamp: '2024-01-01T00:00:01Z',
+        },
       ],
       status: 'running',
       createdAt: '2024-01-01T00:00:00Z',

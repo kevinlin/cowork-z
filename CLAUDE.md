@@ -38,6 +38,20 @@ pnpm build
 pnpm typecheck
 ```
 
+#### Linter & Formatter
+This project uses **Ultracite**, Biome (the underlying engine) provides robust linting and formatting. Most issues are automatically fixable.
+
+```bash
+# Format code
+pnpm dlx ultracite fix src/ src-tauri/sidecar/
+
+# Check for issues
+pnpm dlx ultracite check src/ src-tauri/sidecar/
+
+# Diagnose setup
+pnpm dlx ultracite doctor
+```
+
 ### Sidecar Development
 ```bash
 # Install sidecar dependencies
@@ -307,31 +321,6 @@ The Vite dev server is configured for Tauri:
 - Module resolution: `bundler` mode for Vite
 - JSX: `react-jsx` (React 17+ transform)
 
-## Testing
-
-The project has comprehensive test coverage for streaming chat response functionality:
-
-### Frontend Tests (Vitest)
-- **Framework**: Vitest 4.0.18 with jsdom
-- **Location**: `src/**/__tests__/*.test.{ts,tsx}`
-- **Setup**: `src/test/setup.ts`
-- **Config**: `vitest.config.ts`
-- **Coverage**: 26 tests across taskStore, StreamingText, and Execution components
-
-### Sidecar Tests (Jest)
-- **Framework**: Jest 30.2.0 with ts-jest 29.4.6
-- **Location**: `src-tauri/sidecar/src/__tests__/*.test.ts`
-- **Config**: `src-tauri/sidecar/jest.config.js`
-- **Coverage**: 20 tests for adapter and task-manager streaming logic
-
-### Test Documentation
-See `docs/specs/streaming-chat-response/test-implementation-summary.md` for detailed test descriptions and coverage analysis.
-
-### Areas Not Yet Tested
-- Tauri command handlers (Rust)
-- Database operations
-- Full E2E integration tests
-
 ## Important Notes
 
 - The app identifier is `com.kevinlin.cowork-z`
@@ -348,11 +337,3 @@ See `docs/specs/streaming-chat-response/test-implementation-summary.md` for deta
 - API keys are stored in OS Keychain (macOS Keychain, Windows Credential Manager)
 - Task history is stored in SQLite at `~/Library/Application Support/Cowork Z/`
 - OpenCode CLI must be installed globally: `npm install -g opencode-ai`
-
-## Future Enhancements
-
-- Azure Foundry connection testing (requires Azure SDK)
-- OpenRouter model fetching (requires API key)
-- Bedrock model fetching (requires AWS SDK)
-- Dev Browser Integration (Playwright support)
-- Permission API HTTP server

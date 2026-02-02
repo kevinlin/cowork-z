@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { MessageSquarePlus, Search, Settings } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useTaskStore } from '@/stores/taskStore';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { getAccomplish } from '@/lib/accomplish';
 import { analytics } from '@/lib/analytics';
 import { staggerContainer } from '@/lib/animations';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useTaskStore } from '@/stores/taskStore';
+import logoImage from '/assets/logo-1.png';
 import ConversationListItem from './ConversationListItem';
 import SettingsDialog from './SettingsDialog';
-import { Settings, MessageSquarePlus, Search } from 'lucide-react';
-import logoImage from '/assets/logo-1.png';
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -48,53 +48,41 @@ export default function Sidebar() {
 
   return (
     <>
-      <div className="flex h-screen w-[260px] flex-col border-r border-border bg-card pt-12">
+      <div className="flex h-screen w-[260px] flex-col border-border border-r bg-card pt-12">
         {/* Action Buttons */}
-        <div className="px-3 py-3 border-b border-border flex gap-2">
+        <div className="flex gap-2 border-border border-b px-3 py-3">
           <Button
+            className="flex-1 justify-center gap-2"
             data-testid="sidebar-new-task-button"
             onClick={handleNewConversation}
-            variant="default"
             size="sm"
-            className="flex-1 justify-center gap-2"
             title="New Task"
+            variant="default"
           >
             <MessageSquarePlus className="h-4 w-4" />
             New Task
           </Button>
-          <Button
-            onClick={openLauncher}
-            variant="outline"
-            size="sm"
-            className="px-2"
-            title="Search Tasks (⌘K)"
-          >
+          <Button className="px-2" onClick={openLauncher} size="sm" title="Search Tasks (⌘K)" variant="outline">
             <Search className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Conversation List */}
         <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
+          <div className="space-y-1 p-2">
             <AnimatePresence mode="wait">
               {tasks.length === 0 ? (
                 <motion.div
-                  key="empty"
-                  initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
+                  className="px-3 py-8 text-center text-muted-foreground text-sm"
                   exit={{ opacity: 0 }}
-                  className="px-3 py-8 text-center text-sm text-muted-foreground"
+                  initial={{ opacity: 0 }}
+                  key="empty"
                 >
                   No conversations yet
                 </motion.div>
               ) : (
-                <motion.div
-                  key="task-list"
-                  variants={staggerContainer}
-                  initial="initial"
-                  animate="animate"
-                  className="space-y-1"
-                >
+                <motion.div animate="animate" className="space-y-1" initial="initial" key="task-list" variants={staggerContainer}>
                   {tasks.map((task) => (
                     <ConversationListItem key={task.id} task={task} />
                   ))}
@@ -105,33 +93,29 @@ export default function Sidebar() {
         </ScrollArea>
 
         {/* Bottom Section - Logo and Settings */}
-        <div className="px-3 py-4 border-t border-border flex items-center justify-between">
+        <div className="flex items-center justify-between border-border border-t px-3 py-4">
           {/* Logo - Bottom Left */}
           <div className="flex items-center">
-            <img
-              src={logoImage}
-              alt="Openwork"
-              style={{ height: '20px', paddingLeft: '6px' }}
-            />
+            <img alt="Openwork" src={logoImage} style={{ height: '20px', paddingLeft: '6px' }} />
           </div>
 
           {/* Settings Button - Bottom Right */}
           <Button
             data-testid="sidebar-settings-button"
-            variant="ghost"
-            size="icon"
             onClick={() => {
               analytics.trackOpenSettings();
               setShowSettings(true);
             }}
+            size="icon"
             title="Settings"
+            variant="ghost"
           >
             <Settings className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+      <SettingsDialog onOpenChange={setShowSettings} open={showSettings} />
     </>
   );
 }

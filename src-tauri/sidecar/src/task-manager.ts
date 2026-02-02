@@ -5,17 +5,17 @@
  * state, and event handling.
  */
 
-import { OpenCodeAdapter, AdapterConfig } from './adapter';
+import { type AdapterConfig, OpenCodeAdapter } from './adapter';
 import type {
-  TaskConfig,
-  TaskResult,
-  TaskProgress,
+  ApiKeys,
+  CompleteMessageUpdate,
   OpenCodeMessage,
+  PartialMessageUpdate,
   PermissionRequest,
   TaskCallbacks,
-  ApiKeys,
-  PartialMessageUpdate,
-  CompleteMessageUpdate,
+  TaskConfig,
+  TaskProgress,
+  TaskResult,
 } from './types';
 
 /**

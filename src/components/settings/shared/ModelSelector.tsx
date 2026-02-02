@@ -1,8 +1,8 @@
 // apps/desktop/src/renderer/components/settings/shared/ModelSelector.tsx
 
-import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { settingsVariants, settingsTransitions } from '@/lib/animations';
+import { useEffect, useRef, useState } from 'react';
+import { settingsTransitions, settingsVariants } from '@/lib/animations';
 
 interface Model {
   id: string;
@@ -38,10 +38,7 @@ export function ModelSelector({
 
   // Filter models based on search term
   const filteredModels = search
-    ? models.filter((m) =>
-        m.name.toLowerCase().includes(search.toLowerCase()) ||
-        m.id.toLowerCase().includes(search.toLowerCase())
-      )
+    ? models.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()) || m.id.toLowerCase().includes(search.toLowerCase()))
     : models;
 
   // Get display name for selected value
@@ -68,25 +65,23 @@ export function ModelSelector({
   }, [isOpen, showSearch]);
 
   if (loading) {
-    return (
-      <div className="h-10 animate-pulse rounded-md bg-muted" />
-    );
+    return <div className="h-10 animate-pulse rounded-md bg-muted" />;
   }
 
   // For small model lists, use simple select
   if (!showSearch) {
     return (
       <div>
-        <label className="mb-2 block text-sm font-medium text-foreground">Model</label>
+        <label className="mb-2 block font-medium text-foreground text-sm">Model</label>
         <select
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-md border bg-background px-3 py-2.5 text-sm ${error ? 'border-destructive' : 'border-input'}`}
           data-testid="model-selector"
-          className={`w-full rounded-md border bg-background px-3 py-2.5 text-sm ${
-            error ? 'border-destructive' : 'border-input'
-          }`}
+          onChange={(e) => onChange(e.target.value)}
+          value={value || ''}
         >
-          <option value="" disabled>{placeholder}</option>
+          <option disabled value="">
+            {placeholder}
+          </option>
           {models.map((model) => (
             <option key={model.id} value={model.id}>
               {model.name}
@@ -94,7 +89,9 @@ export function ModelSelector({
           ))}
         </select>
         {error && !value && (
-          <p className="mt-2 text-sm text-destructive" data-testid="model-selector-error">{errorMessage}</p>
+          <p className="mt-2 text-destructive text-sm" data-testid="model-selector-error">
+            {errorMessage}
+          </p>
         )}
       </div>
     );
@@ -103,69 +100,63 @@ export function ModelSelector({
   // For large model lists, use searchable dropdown
   return (
     <div ref={containerRef}>
-      <label className="mb-2 block text-sm font-medium text-foreground">Model</label>
+      <label className="mb-2 block font-medium text-foreground text-sm">Model</label>
       <div className="relative">
         <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          className={`flex w-full items-center justify-between rounded-md border bg-background px-3 py-2.5 text-left text-sm ${error ? 'border-destructive' : 'border-input'}`}
           data-testid="model-selector"
-          className={`w-full rounded-md border bg-background px-3 py-2.5 text-sm text-left flex items-center justify-between ${
-            error ? 'border-destructive' : 'border-input'
-          }`}
+          onClick={() => setIsOpen(!isOpen)}
+          type="button"
         >
-          <span className={value ? 'text-foreground' : 'text-muted-foreground'}>
-            {displayValue || placeholder}
-          </span>
+          <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{displayValue || placeholder}</span>
           <svg
             className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
             fill="none"
-            viewBox="0 0 24 24"
             stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
           </svg>
         </button>
 
         <AnimatePresence>
           {isOpen && (
             <motion.div
-              className="absolute z-50 w-full mt-1 rounded-md border border-input bg-background shadow-lg"
-              variants={settingsVariants.scaleDropdown}
-              initial="initial"
               animate="animate"
+              className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg"
               exit="exit"
-              transition={settingsTransitions.fast}
+              initial="initial"
               style={{ transformOrigin: 'top' }}
+              transition={settingsTransitions.fast}
+              variants={settingsVariants.scaleDropdown}
             >
               {/* Search input */}
-              <div className="p-2 border-b border-input">
+              <div className="border-input border-b p-2">
                 <input
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search models..."
                   ref={inputRef}
                   type="text"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search models..."
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
               </div>
 
               {/* Model list */}
               <div className="max-h-60 overflow-y-auto">
                 {filteredModels.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">No models found</div>
+                  <div className="px-3 py-2 text-muted-foreground text-sm">No models found</div>
                 ) : (
                   filteredModels.map((model) => (
                     <button
+                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${model.id === value ? 'bg-muted font-medium' : ''}`}
                       key={model.id}
-                      type="button"
                       onClick={() => {
                         onChange(model.id);
                         setIsOpen(false);
                         setSearch('');
                       }}
-                      className={`w-full px-3 py-2 text-sm text-left hover:bg-muted ${
-                        model.id === value ? 'bg-muted font-medium' : ''
-                      }`}
+                      type="button"
                     >
                       {model.name}
                     </button>
@@ -177,7 +168,9 @@ export function ModelSelector({
         </AnimatePresence>
       </div>
       {error && !value && (
-        <p className="mt-2 text-sm text-destructive" data-testid="model-selector-error">{errorMessage}</p>
+        <p className="mt-2 text-destructive text-sm" data-testid="model-selector-error">
+          {errorMessage}
+        </p>
       )}
     </div>
   );

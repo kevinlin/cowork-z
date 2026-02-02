@@ -1,11 +1,5 @@
-import { EventEmitter } from 'events';
 import { OpenCodeAdapter } from '../adapter';
-import type {
-  OpenCodeTextMessage,
-  OpenCodeStepFinishMessage,
-  PartialMessageUpdate,
-  CompleteMessageUpdate,
-} from '../types';
+import type { CompleteMessageUpdate, OpenCodeStepFinishMessage, OpenCodeTextMessage, PartialMessageUpdate } from '../types';
 
 // Mock node-pty
 jest.mock('node-pty', () => ({
@@ -136,7 +130,7 @@ describe('OpenCodeAdapter - Message Accumulation', () => {
       expect(lastTextSoFar).toBe('Hello world!');
       done();
     }, 200);
-  }, 10000);
+  }, 10_000);
 
   test('should throttle partial updates to 100ms', (done) => {
     jest.useFakeTimers();

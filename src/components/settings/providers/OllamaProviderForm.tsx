@@ -1,20 +1,13 @@
 // apps/desktop/src/renderer/components/settings/providers/OllamaProviderForm.tsx
 
-import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useState } from 'react';
 import { getAccomplish } from '@/lib/accomplish';
-import { settingsVariants, settingsTransitions } from '@/lib/animations';
+import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import type { ConnectedProvider, OllamaCredentials } from '@/shared';
-import {
-  ModelSelector,
-  ConnectButton,
-  ConnectedControls,
-  ProviderFormHeader,
-  FormError,
-} from '../shared';
-
 // Import Ollama logo
 import ollamaLogo from '/assets/ai-logos/ollama.svg';
+import { ConnectButton, ConnectedControls, FormError, ModelSelector, ProviderFormHeader } from '../shared';
 
 interface OllamaProviderFormProps {
   connectedProvider?: ConnectedProvider;
@@ -24,13 +17,7 @@ interface OllamaProviderFormProps {
   showModelError: boolean;
 }
 
-export function OllamaProviderForm({
-  connectedProvider,
-  onConnect,
-  onDisconnect,
-  onModelChange,
-  showModelError,
-}: OllamaProviderFormProps) {
+export function OllamaProviderForm({ connectedProvider, onConnect, onDisconnect, onModelChange, showModelError }: OllamaProviderFormProps) {
   const [serverUrl, setServerUrl] = useState('http://localhost:11434');
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +39,11 @@ export function OllamaProviderForm({
         return;
       }
 
-      const models = result.models?.map(m => ({
-        id: `ollama/${m.id}`,
-        name: m.displayName,
-      })) || [];
+      const models =
+        result.models?.map((m) => ({
+          id: `ollama/${m.id}`,
+          name: m.displayName,
+        })) || [];
       setAvailableModels(models);
 
       const provider: ConnectedProvider = {
@@ -86,49 +74,24 @@ export function OllamaProviderForm({
 
       <div className="space-y-3">
         <AnimatePresence mode="wait">
-          {!isConnected ? (
+          {isConnected ? (
             <motion.div
-              key="disconnected"
-              variants={settingsVariants.fadeSlide}
-              initial="initial"
               animate="animate"
-              exit="exit"
-              transition={settingsTransitions.enter}
               className="space-y-3"
-            >
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">Ollama Server URL</label>
-                <input
-                  type="text"
-                  value={serverUrl}
-                  onChange={(e) => setServerUrl(e.target.value)}
-                  placeholder="http://localhost:11434"
-                  data-testid="ollama-server-url"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
-                />
-              </div>
-
-              <FormError error={error} />
-              <ConnectButton onClick={handleConnect} connecting={connecting} />
-            </motion.div>
-          ) : (
-            <motion.div
+              exit="exit"
+              initial="initial"
               key="connected"
-              variants={settingsVariants.fadeSlide}
-              initial="initial"
-              animate="animate"
-              exit="exit"
               transition={settingsTransitions.enter}
-              className="space-y-3"
+              variants={settingsVariants.fadeSlide}
             >
               {/* Display saved server URL */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">Ollama Server URL</label>
+                <label className="mb-2 block font-medium text-foreground text-sm">Ollama Server URL</label>
                 <input
+                  className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-muted-foreground text-sm"
+                  disabled
                   type="text"
                   value={(connectedProvider?.credentials as OllamaCredentials)?.serverUrl || 'http://localhost:11434'}
-                  disabled
-                  className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground"
                 />
               </div>
 
@@ -136,11 +99,36 @@ export function OllamaProviderForm({
 
               {/* Model Selector */}
               <ModelSelector
-                models={models}
-                value={connectedProvider?.selectedModelId || null}
-                onChange={onModelChange}
                 error={showModelError && !connectedProvider?.selectedModelId}
+                models={models}
+                onChange={onModelChange}
+                value={connectedProvider?.selectedModelId || null}
               />
+            </motion.div>
+          ) : (
+            <motion.div
+              animate="animate"
+              className="space-y-3"
+              exit="exit"
+              initial="initial"
+              key="disconnected"
+              transition={settingsTransitions.enter}
+              variants={settingsVariants.fadeSlide}
+            >
+              <div>
+                <label className="mb-2 block font-medium text-foreground text-sm">Ollama Server URL</label>
+                <input
+                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
+                  data-testid="ollama-server-url"
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  placeholder="http://localhost:11434"
+                  type="text"
+                  value={serverUrl}
+                />
+              </div>
+
+              <FormError error={error} />
+              <ConnectButton connecting={connecting} onClick={handleConnect} />
             </motion.div>
           )}
         </AnimatePresence>

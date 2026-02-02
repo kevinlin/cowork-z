@@ -26,9 +26,9 @@
  */
 
 import * as readline from 'readline';
+import { getOpenCodeVersion, isOpenCodeAvailable } from './cli-path';
 import { TaskManager } from './task-manager';
-import { isOpenCodeAvailable, getOpenCodeVersion } from './cli-path';
-import type { TaskConfig, ApiKeys, SidecarMessage, SidecarCommand } from './types';
+import type { ApiKeys, SidecarCommand, SidecarMessage, TaskConfig } from './types';
 
 // Initialize task manager
 const taskManager = new TaskManager();
@@ -119,8 +119,7 @@ async function startTask(config: TaskConfig & { apiKeys?: ApiKeys }): Promise<vo
     send(
       'task_error',
       {
-        error:
-          'OpenCode CLI not found. Please install opencode-ai globally: npm install -g opencode-ai',
+        error: 'OpenCode CLI not found. Please install opencode-ai globally: npm install -g opencode-ai',
       },
       taskId
     );

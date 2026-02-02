@@ -2,15 +2,7 @@
  * Task-related types for execution management
  */
 
-export type TaskStatus =
-  | 'pending'
-  | 'queued'
-  | 'running'
-  | 'waiting_permission'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-  | 'interrupted';
+export type TaskStatus = 'pending' | 'queued' | 'running' | 'waiting_permission' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
 
 export interface TaskConfig {
   /** The task prompt/description */
@@ -71,12 +63,12 @@ export interface TaskResult {
  * Startup stages shown during task initialization (before first tool runs)
  */
 export type StartupStage =
-  | 'starting'      // Task created
-  | 'browser'       // Preparing browser (cold start only)
-  | 'environment'   // Setting up environment (config + API keys)
-  | 'loading'       // Loading agent (CLI spawning)
-  | 'connecting'    // Connecting to model (step_start received)
-  | 'waiting';      // Waiting for response (timed transition)
+  | 'starting' // Task created
+  | 'browser' // Preparing browser (cold start only)
+  | 'environment' // Setting up environment (config + API keys)
+  | 'loading' // Loading agent (CLI spawning)
+  | 'connecting' // Connecting to model (step_start received)
+  | 'waiting'; // Waiting for response (timed transition)
 
 export interface TaskProgress {
   taskId: string;

@@ -5,27 +5,27 @@ export default function Header() {
   const pathname = location.pathname;
 
   return (
-    <header className="drag-region sticky top-0 z-50 border-b border-border bg-background-card/80 backdrop-blur-md">
+    <header className="drag-region sticky top-0 z-50 border-border border-b bg-background-card/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
         {/* Logo */}
-        <Link to="/" className="no-drag flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        <Link className="no-drag flex items-center gap-2.5" to="/">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
+            <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
             </svg>
           </div>
-          <span className="text-base font-medium text-text">Openwork</span>
+          <span className="font-medium text-base text-text">Openwork</span>
         </Link>
 
         {/* Navigation */}
         <nav className="no-drag flex items-center gap-1">
-          <NavLink to="/" active={pathname === '/'}>
+          <NavLink active={pathname === '/'} to="/">
             Home
           </NavLink>
-          <NavLink to="/history" active={pathname === '/history'}>
+          <NavLink active={pathname === '/history'} to="/history">
             History
           </NavLink>
-          <NavLink to="/settings" active={pathname === '/settings'}>
+          <NavLink active={pathname === '/settings'} to="/settings">
             Settings
           </NavLink>
         </nav>
@@ -37,20 +37,9 @@ export default function Header() {
   );
 }
 
-function NavLink({
-  to,
-  active,
-  children,
-}: {
-  to: string;
-  active: boolean;
-  children: React.ReactNode;
-}) {
+function NavLink({ to, active, children }: { to: string; active: boolean; children: React.ReactNode }) {
   return (
-    <Link
-      to={to}
-      className={`nav-link ${active ? 'nav-link-active' : ''}`}
-    >
+    <Link className={`nav-link ${active ? 'nav-link-active' : ''}`} to={to}>
       {children}
     </Link>
   );

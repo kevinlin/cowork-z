@@ -1,21 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { isRunningInTauri, setOnboardingComplete } from './lib/tauri-api';
-import { springs, variants } from './lib/animations';
-import { analytics } from './lib/analytics';
-
-// Pages
-import HomePage from './pages/Home';
-import ExecutionPage from './pages/Execution';
-
+import { AlertTriangle, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 // Components
 import Sidebar from './components/layout/Sidebar';
 import { TaskLauncher } from './components/TaskLauncher';
+import { analytics } from './lib/analytics';
+import { springs, variants } from './lib/animations';
+import { isRunningInTauri, setOnboardingComplete } from './lib/tauri-api';
+import ExecutionPage from './pages/Execution';
+// Pages
+import HomePage from './pages/Home';
 import { useTaskStore } from './stores/taskStore';
-import { Loader2, AlertTriangle } from 'lucide-react';
 
 type AppStatus = 'loading' | 'ready' | 'error';
 
@@ -87,7 +85,7 @@ export default function App() {
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
           </div>
-          <h1 className="mb-2 text-xl font-semibold text-foreground">Unable to Start</h1>
+          <h1 className="mb-2 font-semibold text-foreground text-xl">Unable to Start</h1>
           <p className="text-muted-foreground">{errorMessage}</p>
         </div>
       </div>
@@ -98,42 +96,42 @@ export default function App() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Invisible drag region for window dragging (macOS hiddenInset titlebar) */}
-      <div className="drag-region fixed top-0 left-0 right-0 h-10 z-50 pointer-events-none" />
+      <div className="drag-region pointer-events-none fixed top-0 right-0 left-0 z-50 h-10" />
       <Sidebar />
       <main className="flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname}>
+          <Routes key={location.pathname} location={location}>
             <Route
-              path="/"
               element={
                 <motion.div
-                  className="h-full"
-                  initial="initial"
                   animate="animate"
+                  className="h-full"
                   exit="exit"
-                  variants={variants.fadeUp}
+                  initial="initial"
                   transition={springs.gentle}
+                  variants={variants.fadeUp}
                 >
                   <HomePage />
                 </motion.div>
               }
+              path="/"
             />
             <Route
-              path="/execution/:id"
               element={
                 <motion.div
-                  className="h-full"
-                  initial="initial"
                   animate="animate"
+                  className="h-full"
                   exit="exit"
-                  variants={variants.fadeUp}
+                  initial="initial"
                   transition={springs.gentle}
+                  variants={variants.fadeUp}
                 >
                   <ExecutionPage />
                 </motion.div>
               }
+              path="/execution/:id"
             />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route element={<Navigate replace to="/" />} path="*" />
           </Routes>
         </AnimatePresence>
       </main>

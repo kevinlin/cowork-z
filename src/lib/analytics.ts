@@ -25,10 +25,7 @@ export function trackPageView(pagePath: string, pageTitle?: string): void {
 /**
  * Track a custom event
  */
-export function trackEvent(
-  eventName: string,
-  params?: Record<string, string | number | boolean>
-): void {
+export function trackEvent(eventName: string, params?: Record<string, string | number | boolean>): void {
   if (typeof window.gtag !== 'function') return;
 
   window.gtag('event', eventName, params);

@@ -1,28 +1,23 @@
-import * as pty from 'node-pty';
+import { type ChildProcessWithoutNullStreams, spawn, spawnSync } from 'child_process';
 import { EventEmitter } from 'events';
 import fs from 'fs';
-import path from 'path';
-import { spawnSync, spawn, type ChildProcessWithoutNullStreams } from 'child_process';
+import * as pty from 'node-pty';
 import os from 'os';
-import { StreamParser } from './stream-parser';
+import path from 'path';
 import { getOpenCodeCliPath, isOpenCodeAvailable, OpenCodeCliNotFoundError } from './cli-path';
-import {
-  generateOpenCodeConfig,
-  buildOpenCodeEnvironment,
-  getOpenCodeConfigDir,
-  ACCOMPLISH_AGENT_NAME,
-} from './config-generator';
+import { ACCOMPLISH_AGENT_NAME, buildOpenCodeEnvironment, generateOpenCodeConfig, getOpenCodeConfigDir } from './config-generator';
+import { StreamParser } from './stream-parser';
 import type {
-  TaskConfig,
-  TaskResult,
-  TaskProgress,
-  OpenCodeMessage,
-  PermissionRequest,
   ApiKeys,
-  OpenCodeToolUseMessage,
-  MessageAccumulator,
-  PartialMessageUpdate,
   CompleteMessageUpdate,
+  MessageAccumulator,
+  OpenCodeMessage,
+  OpenCodeToolUseMessage,
+  PartialMessageUpdate,
+  PermissionRequest,
+  TaskConfig,
+  TaskProgress,
+  TaskResult,
 } from './types';
 
 export interface OpenCodeAdapterEvents {
@@ -51,9 +46,9 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
   private streamParser: StreamParser;
   private currentSessionId: string | null = null;
   private currentTaskId: string | null = null;
-  private hasCompleted: boolean = false;
-  private isDisposed: boolean = false;
-  private wasInterrupted: boolean = false;
+  private hasCompleted = false;
+  private isDisposed = false;
+  private wasInterrupted = false;
   private lastWorkingDirectory: string | undefined;
   private currentModelId: string | null = null;
   private apiKeys: ApiKeys = {};
@@ -249,8 +244,7 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
       this.emit('error', err);
     });
 
-    this.childProcess.on('spawn', () => {
-    });
+    this.childProcess.on('spawn', () => {});
 
     this.childProcess.on('exit', (code, signal) => {
       this.handleProcessExit(code ?? null);
@@ -431,7 +425,9 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
     };
 
     // Debug: log partial emission
-    console.error(`[streaming] emitting partial: messageId=${messageId}, textLength=${textSoFar.length}, chunks=${accumulator.textChunks.length}`);
+    console.error(
+      `[streaming] emitting partial: messageId=${messageId}, textLength=${textSoFar.length}, chunks=${accumulator.textChunks.length}`
+    );
 
     this.emit('message-partial', update);
   }
@@ -637,10 +633,7 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
               error: 'Task failed',
             });
           }
-        } else if (
-          (message.part.reason === 'stop' || message.part.reason === 'end_turn') &&
-          !this.hasCompleted
-        ) {
+        } else if ((message.part.reason === 'stop' || message.part.reason === 'end_turn') && !this.hasCompleted) {
           this.hasCompleted = true;
           this.emit('complete', {
             status: 'success',
@@ -723,15 +716,12 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
         return `"${arg.replace(/"/g, '""')}"`;
       }
       return arg;
-    } else {
-      const needsEscaping = ["'", ' ', '$', '`', '\\', '"', '\n'].some((c) =>
-        arg.includes(c)
-      );
-      if (needsEscaping) {
-        return `'${arg.replace(/'/g, "'\\''")}'`;
-      }
-      return arg;
     }
+    const needsEscaping = ["'", ' ', '$', '`', '\\', '"', '\n'].some((c) => arg.includes(c));
+    if (needsEscaping) {
+      return `'${arg.replace(/'/g, "'\\''")}'`;
+    }
+    return arg;
   }
 
   private buildShellCommand(command: string, args: string[]): string {
@@ -748,19 +738,17 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
   private getPlatformShell(): string {
     if (process.platform === 'win32') {
       return 'powershell.exe';
-    } else {
-      // Use /bin/sh to avoid loading user shell configs
-      return '/bin/sh';
     }
+    // Use /bin/sh to avoid loading user shell configs
+    return '/bin/sh';
   }
 
   private getShellArgs(command: string): string[] {
     if (process.platform === 'win32') {
       const encodedCommand = Buffer.from(command, 'utf16le').toString('base64');
       return ['-NoProfile', '-EncodedCommand', encodedCommand];
-    } else {
-      return ['-c', command];
     }
+    return ['-c', command];
   }
 
   private generateTaskId(): string {

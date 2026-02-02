@@ -1,21 +1,16 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { useState, useEffect, useCallback } from 'react';
-import { settingsVariants, settingsTransitions } from '@/lib/animations';
-import { analytics } from '@/lib/analytics';
-import { getAccomplish } from '@/lib/accomplish';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import type { ProviderId, ConnectedProvider } from '@/shared';
-import { hasAnyReadyProvider, isProviderReady } from '@/shared';
+import { useCallback, useEffect, useState } from 'react';
 import { useProviderSettings } from '@/components/settings/hooks/useProviderSettings';
 import { ProviderGrid } from '@/components/settings/ProviderGrid';
 import { ProviderSettingsPanel } from '@/components/settings/ProviderSettingsPanel';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { getAccomplish } from '@/lib/accomplish';
+import { analytics } from '@/lib/analytics';
+import { settingsTransitions, settingsVariants } from '@/lib/animations';
+import type { ConnectedProvider, ProviderId } from '@/shared';
+import { hasAnyReadyProvider, isProviderReady } from '@/shared';
 
 // First 4 providers shown in collapsed view (matches PROVIDER_ORDER in ProviderGrid)
 const FIRST_FOUR_PROVIDERS: ProviderId[] = ['anthropic', 'openai', 'google', 'bedrock'];
@@ -32,15 +27,7 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
   const [closeWarning, setCloseWarning] = useState(false);
   const [showModelError, setShowModelError] = useState(false);
 
-  const {
-    settings,
-    loading,
-    setActiveProvider,
-    connectProvider,
-    disconnectProvider,
-    updateModel,
-    refetch,
-  } = useProviderSettings();
+  const { settings, loading, setActiveProvider, connectProvider, disconnectProvider, updateModel, refetch } = useProviderSettings();
 
   // Debug mode state - stored in appSettings, not providerSettings
   const [debugMode, setDebugModeState] = useState(false);
@@ -78,45 +65,54 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
   }, [open]);
 
   // Handle close attempt
-  const handleOpenChange = useCallback((newOpen: boolean) => {
-    if (!newOpen && settings) {
-      // Check if user is trying to close
-      if (!hasAnyReadyProvider(settings)) {
-        // No ready provider - show warning
-        setCloseWarning(true);
-        return;
+  const handleOpenChange = useCallback(
+    (newOpen: boolean) => {
+      if (!newOpen && settings) {
+        // Check if user is trying to close
+        if (!hasAnyReadyProvider(settings)) {
+          // No ready provider - show warning
+          setCloseWarning(true);
+          return;
+        }
       }
-    }
-    setCloseWarning(false);
-    onOpenChange(newOpen);
-  }, [settings, onOpenChange]);
+      setCloseWarning(false);
+      onOpenChange(newOpen);
+    },
+    [settings, onOpenChange]
+  );
 
   // Handle provider selection
-  const handleSelectProvider = useCallback(async (providerId: ProviderId) => {
-    setSelectedProvider(providerId);
-    setCloseWarning(false);
-    setShowModelError(false);
+  const handleSelectProvider = useCallback(
+    async (providerId: ProviderId) => {
+      setSelectedProvider(providerId);
+      setCloseWarning(false);
+      setShowModelError(false);
 
-    // Auto-set as active if the selected provider is ready
-    const provider = settings?.connectedProviders?.[providerId];
-    if (provider && isProviderReady(provider)) {
-      await setActiveProvider(providerId);
-    }
-  }, [settings?.connectedProviders, setActiveProvider]);
+      // Auto-set as active if the selected provider is ready
+      const provider = settings?.connectedProviders?.[providerId];
+      if (provider && isProviderReady(provider)) {
+        await setActiveProvider(providerId);
+      }
+    },
+    [settings?.connectedProviders, setActiveProvider]
+  );
 
   // Handle provider connection
-  const handleConnect = useCallback(async (provider: ConnectedProvider) => {
-    await connectProvider(provider.providerId, provider);
-    analytics.trackSaveApiKey(provider.providerId);
+  const handleConnect = useCallback(
+    async (provider: ConnectedProvider) => {
+      await connectProvider(provider.providerId, provider);
+      analytics.trackSaveApiKey(provider.providerId);
 
-    // Auto-set as active if the new provider is ready (connected + has model selected)
-    // This ensures newly connected ready providers become active, regardless of
-    // whether another provider was already active
-    if (isProviderReady(provider)) {
-      await setActiveProvider(provider.providerId);
-      onApiKeySaved?.();
-    }
-  }, [connectProvider, setActiveProvider, onApiKeySaved]);
+      // Auto-set as active if the new provider is ready (connected + has model selected)
+      // This ensures newly connected ready providers become active, regardless of
+      // whether another provider was already active
+      if (isProviderReady(provider)) {
+        await setActiveProvider(provider.providerId);
+        onApiKeySaved?.();
+      }
+    },
+    [connectProvider, setActiveProvider, onApiKeySaved]
+  );
 
   // Handle provider disconnection
   const handleDisconnect = useCallback(async () => {
@@ -137,22 +133,27 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
   }, [selectedProvider, disconnectProvider, settings?.activeProviderId, settings?.connectedProviders, setActiveProvider]);
 
   // Handle model change
-  const handleModelChange = useCallback(async (modelId: string) => {
-    if (!selectedProvider) return;
-    await updateModel(selectedProvider, modelId);
-    analytics.trackSelectModel(modelId);
+  const handleModelChange = useCallback(
+    async (modelId: string) => {
+      if (!selectedProvider) return;
+      await updateModel(selectedProvider, modelId);
+      analytics.trackSelectModel(modelId);
 
-    // Auto-set as active if this provider is now ready
-    const provider = settings?.connectedProviders[selectedProvider];
-    if (provider && isProviderReady({ ...provider, selectedModelId: modelId })) {
-      if (!settings?.activeProviderId || settings.activeProviderId !== selectedProvider) {
+      // Auto-set as active if this provider is now ready
+      const provider = settings?.connectedProviders[selectedProvider];
+      if (
+        provider &&
+        isProviderReady({ ...provider, selectedModelId: modelId }) &&
+        (!settings?.activeProviderId || settings.activeProviderId !== selectedProvider)
+      ) {
         await setActiveProvider(selectedProvider);
       }
-    }
 
-    setShowModelError(false);
-    onApiKeySaved?.();
-  }, [selectedProvider, updateModel, settings, setActiveProvider, onApiKeySaved]);
+      setShowModelError(false);
+      onApiKeySaved?.();
+    },
+    [selectedProvider, updateModel, settings, setActiveProvider, onApiKeySaved]
+  );
 
   // Handle debug mode toggle - writes to appSettings (correct store)
   const handleDebugToggle = useCallback(async () => {
@@ -187,8 +188,8 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
       const activeProvider = settings.connectedProviders[settings.activeProviderId];
       if (!isProviderReady(activeProvider)) {
         // Active provider is no longer ready - find a ready provider to set as active
-        const readyProviderId = Object.keys(settings.connectedProviders).find(
-          (id) => isProviderReady(settings.connectedProviders[id as ProviderId])
+        const readyProviderId = Object.keys(settings.connectedProviders).find((id) =>
+          isProviderReady(settings.connectedProviders[id as ProviderId])
         ) as ProviderId | undefined;
         if (readyProviderId) {
           setActiveProvider(readyProviderId);
@@ -196,8 +197,8 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
       }
     } else {
       // No active provider set - auto-select first ready provider
-      const readyProviderId = Object.keys(settings.connectedProviders).find(
-        (id) => isProviderReady(settings.connectedProviders[id as ProviderId])
+      const readyProviderId = Object.keys(settings.connectedProviders).find((id) =>
+        isProviderReady(settings.connectedProviders[id as ProviderId])
       ) as ProviderId | undefined;
       if (readyProviderId) {
         setActiveProvider(readyProviderId);
@@ -215,8 +216,8 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
 
   if (loading || !settings) {
     return (
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="settings-dialog">
+      <Dialog onOpenChange={handleOpenChange} open={open}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" data-testid="settings-dialog">
           <DialogHeader>
             <DialogTitle>Set up Openwork</DialogTitle>
           </DialogHeader>
@@ -229,37 +230,42 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="settings-dialog">
+    <Dialog onOpenChange={handleOpenChange} open={open}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" data-testid="settings-dialog">
         <DialogHeader>
           <DialogTitle>Set up Openwork</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 mt-4">
+        <div className="mt-4 space-y-6">
           {/* Close Warning */}
           <AnimatePresence>
             {closeWarning && (
               <motion.div
-                className="rounded-lg border border-warning bg-warning/10 p-4"
-                variants={settingsVariants.fadeSlide}
-                initial="initial"
                 animate="animate"
+                className="rounded-lg border border-warning bg-warning/10 p-4"
                 exit="exit"
+                initial="initial"
                 transition={settingsTransitions.enter}
+                variants={settingsVariants.fadeSlide}
               >
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
                   </svg>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-warning">No provider ready</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="font-medium text-sm text-warning">No provider ready</p>
+                    <p className="mt-1 text-muted-foreground text-sm">
                       You need to connect a provider and select a model before you can run tasks.
                     </p>
                     <div className="mt-3 flex gap-2">
                       <button
+                        className="rounded-md bg-muted px-3 py-1.5 font-medium text-muted-foreground text-sm hover:bg-muted/80"
                         onClick={handleForceClose}
-                        className="rounded-md px-3 py-1.5 text-sm font-medium bg-muted text-muted-foreground hover:bg-muted/80"
                       >
                         Close Anyway
                       </button>
@@ -273,11 +279,11 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
           {/* Provider Grid Section */}
           <section>
             <ProviderGrid
-              settings={settings}
-              selectedProvider={selectedProvider}
-              onSelectProvider={handleSelectProvider}
               expanded={gridExpanded}
+              onSelectProvider={handleSelectProvider}
               onToggleExpanded={() => setGridExpanded(!gridExpanded)}
+              selectedProvider={selectedProvider}
+              settings={settings}
             />
           </section>
 
@@ -285,19 +291,19 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
           <AnimatePresence>
             {selectedProvider && (
               <motion.section
-                variants={settingsVariants.slideDown}
-                initial="initial"
                 animate="animate"
                 exit="exit"
+                initial="initial"
                 transition={settingsTransitions.enter}
+                variants={settingsVariants.slideDown}
               >
                 <ProviderSettingsPanel
-                  key={selectedProvider}
-                  providerId={selectedProvider}
                   connectedProvider={settings?.connectedProviders?.[selectedProvider]}
+                  key={selectedProvider}
                   onConnect={handleConnect}
                   onDisconnect={handleDisconnect}
                   onModelChange={handleModelChange}
+                  providerId={selectedProvider}
                   showModelError={showModelError}
                 />
               </motion.section>
@@ -308,30 +314,30 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
           <AnimatePresence>
             {selectedProvider && (
               <motion.section
-                variants={settingsVariants.slideDown}
-                initial="initial"
                 animate="animate"
                 exit="exit"
+                initial="initial"
                 transition={{ ...settingsTransitions.enter, delay: 0.05 }}
+                variants={settingsVariants.slideDown}
               >
                 <div className="rounded-lg border border-border bg-card p-5">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="font-medium text-foreground">Debug Mode</div>
-                      <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-                        Show detailed backend logs in the task view.
-                      </p>
+                      <p className="mt-1.5 text-muted-foreground text-sm leading-relaxed">Show detailed backend logs in the task view.</p>
                     </div>
                     <div className="ml-4">
                       <button
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-accomplish ${
+                          debugMode ? 'bg-primary' : 'bg-muted'
+                        }`}
                         data-testid="settings-debug-toggle"
                         onClick={handleDebugToggle}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-accomplish ${debugMode ? 'bg-primary' : 'bg-muted'
-                          }`}
                       >
                         <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-accomplish ${debugMode ? 'translate-x-6' : 'translate-x-1'
-                            }`}
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-accomplish ${
+                            debugMode ? 'translate-x-6' : 'translate-x-1'
+                          }`}
                         />
                       </button>
                     </div>
@@ -339,8 +345,7 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
                   {debugMode && (
                     <div className="mt-4 rounded-xl bg-warning/10 p-3.5">
                       <p className="text-sm text-warning">
-                        Debug mode is enabled. Backend logs will appear in the task view
-                        when running tasks.
+                        Debug mode is enabled. Backend logs will appear in the task view when running tasks.
                       </p>
                     </div>
                   )}
@@ -352,12 +357,12 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
           {/* Done Button */}
           <div className="flex justify-end">
             <button
-              onClick={handleDone}
-              className="flex items-center gap-2 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className="flex items-center gap-2 rounded-md bg-primary px-6 py-2 font-medium text-primary-foreground text-sm hover:bg-primary/90"
               data-testid="settings-done-button"
+              onClick={handleDone}
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
               </svg>
               Done
             </button>

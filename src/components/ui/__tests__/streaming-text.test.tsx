@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { StreamingText } from '../streaming-text';
 
 describe('StreamingText - Real Streaming Mode', () => {
@@ -7,7 +7,7 @@ describe('StreamingText - Real Streaming Mode', () => {
     const text = 'Hello world';
 
     const { container } = render(
-      <StreamingText text={text} isRealStreaming={true}>
+      <StreamingText isRealStreaming={true} text={text}>
         {(displayedText) => <div data-testid="content">{displayedText}</div>}
       </StreamingText>
     );
@@ -19,7 +19,7 @@ describe('StreamingText - Real Streaming Mode', () => {
 
   it('should show blinking cursor when isRealStreaming=true and incomplete', () => {
     const { container } = render(
-      <StreamingText text="Hello" isRealStreaming={true} isComplete={false}>
+      <StreamingText isComplete={false} isRealStreaming={true} text="Hello">
         {(displayedText) => <div>{displayedText}</div>}
       </StreamingText>
     );
@@ -31,7 +31,7 @@ describe('StreamingText - Real Streaming Mode', () => {
 
   it('should hide cursor when isRealStreaming=true and complete', () => {
     const { container } = render(
-      <StreamingText text="Hello" isRealStreaming={true} isComplete={true}>
+      <StreamingText isComplete={true} isRealStreaming={true} text="Hello">
         {(displayedText) => <div>{displayedText}</div>}
       </StreamingText>
     );
@@ -45,13 +45,13 @@ describe('StreamingText - Real Streaming Mode', () => {
     const text = 'Hello';
 
     const { container } = render(
-      <StreamingText text={text} isRealStreaming={false} speed={1000}>
+      <StreamingText isRealStreaming={false} speed={1000} text={text}>
         {(displayedText) => <div data-testid="content">{displayedText}</div>}
       </StreamingText>
     );
 
     const content = container.querySelector('[data-testid="content"]');
-    
+
     // Initially shows empty or partial text
     const initialText = content?.textContent || '';
     expect(initialText.length).toBeLessThanOrEqual(text.length);
@@ -67,7 +67,7 @@ describe('StreamingText - Real Streaming Mode', () => {
 
   it('should update displayed text when text prop changes (real streaming)', () => {
     const { container, rerender } = render(
-      <StreamingText text="Hello" isRealStreaming={true}>
+      <StreamingText isRealStreaming={true} text="Hello">
         {(displayedText) => <div data-testid="content">{displayedText}</div>}
       </StreamingText>
     );
@@ -77,7 +77,7 @@ describe('StreamingText - Real Streaming Mode', () => {
 
     // Update text prop
     rerender(
-      <StreamingText text="Hello world" isRealStreaming={true}>
+      <StreamingText isRealStreaming={true} text="Hello world">
         {(displayedText) => <div data-testid="content">{displayedText}</div>}
       </StreamingText>
     );
@@ -91,7 +91,7 @@ describe('StreamingText - Real Streaming Mode', () => {
     const text = 'Hi';
 
     render(
-      <StreamingText text={text} isRealStreaming={false} speed={1000} onComplete={onComplete}>
+      <StreamingText isRealStreaming={false} onComplete={onComplete} speed={1000} text={text}>
         {(displayedText) => <div>{displayedText}</div>}
       </StreamingText>
     );
@@ -109,7 +109,7 @@ describe('StreamingText - Real Streaming Mode', () => {
     const text = 'Complete message';
 
     const { container } = render(
-      <StreamingText text={text} isComplete={true} isRealStreaming={false}>
+      <StreamingText isComplete={true} isRealStreaming={false} text={text}>
         {(displayedText) => <div data-testid="content">{displayedText}</div>}
       </StreamingText>
     );
@@ -120,7 +120,7 @@ describe('StreamingText - Real Streaming Mode', () => {
 
   it('should apply custom className', () => {
     const { container } = render(
-      <StreamingText text="Test" isRealStreaming={true} className="custom-class">
+      <StreamingText className="custom-class" isRealStreaming={true} text="Test">
         {(displayedText) => <div>{displayedText}</div>}
       </StreamingText>
     );
@@ -131,7 +131,7 @@ describe('StreamingText - Real Streaming Mode', () => {
 
   it('should handle empty text', () => {
     const { container } = render(
-      <StreamingText text="" isRealStreaming={true}>
+      <StreamingText isRealStreaming={true} text="">
         {(displayedText) => <div data-testid="content">{displayedText}</div>}
       </StreamingText>
     );
@@ -142,7 +142,7 @@ describe('StreamingText - Real Streaming Mode', () => {
 
   it('should show cursor for real streaming even with empty text', () => {
     const { container } = render(
-      <StreamingText text="" isRealStreaming={true} isComplete={false}>
+      <StreamingText isComplete={false} isRealStreaming={true} text="">
         {(displayedText) => <div>{displayedText}</div>}
       </StreamingText>
     );

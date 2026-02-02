@@ -1,20 +1,13 @@
 'use client';
 
+import { CheckCircle2, Clock, Loader2, PauseCircle, Square, X, XCircle } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import type { Task } from '@/shared';
-import { cn } from '@/lib/utils';
-import { Loader2, CheckCircle2, XCircle, Clock, Square, PauseCircle, X } from 'lucide-react';
-import { useTaskStore } from '@/stores/taskStore';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
+import type { Task } from '@/shared';
+import { useTaskStore } from '@/stores/taskStore';
 
 interface ConversationListItemProps {
   task: Task;
@@ -64,17 +57,17 @@ export default function ConversationListItem({ task }: ConversationListItemProps
   const getStatusIcon = () => {
     switch (task.status) {
       case 'running':
-        return <Loader2 className="h-3 w-3 animate-spin-ccw text-primary shrink-0" />;
+        return <Loader2 className="h-3 w-3 shrink-0 animate-spin-ccw text-primary" />;
       case 'completed':
-        return <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />;
+        return <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />;
       case 'failed':
-        return <XCircle className="h-3 w-3 text-red-500 shrink-0" />;
+        return <XCircle className="h-3 w-3 shrink-0 text-red-500" />;
       case 'cancelled':
-        return <Square className="h-3 w-3 text-zinc-400 shrink-0" />;
+        return <Square className="h-3 w-3 shrink-0 text-zinc-400" />;
       case 'interrupted':
-        return <PauseCircle className="h-3 w-3 text-amber-500 shrink-0" />;
+        return <PauseCircle className="h-3 w-3 shrink-0 text-amber-500" />;
       case 'queued':
-        return <Clock className="h-3 w-3 text-amber-500 shrink-0" />;
+        return <Clock className="h-3 w-3 shrink-0 text-amber-500" />;
       default:
         return null;
     }
@@ -83,8 +76,12 @@ export default function ConversationListItem({ task }: ConversationListItemProps
   return (
     <>
       <div
-        role="button"
-        tabIndex={0}
+        className={cn(
+          'w-full rounded-md px-3 py-2 text-left text-sm transition-colors duration-200',
+          'text-zinc-700 hover:bg-accent hover:text-accent-foreground',
+          'group relative flex cursor-pointer items-center gap-2',
+          isActive && 'bg-accent text-accent-foreground'
+        )}
         onClick={handleClick}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -92,43 +89,37 @@ export default function ConversationListItem({ task }: ConversationListItemProps
             handleClick();
           }
         }}
+        role="button"
+        tabIndex={0}
         title={task.summary || task.prompt}
-        className={cn(
-          'w-full text-left px-3 py-2 rounded-md text-sm transition-colors duration-200',
-          'text-zinc-700 hover:bg-accent hover:text-accent-foreground',
-          'flex items-center gap-2 group relative cursor-pointer',
-          isActive && 'bg-accent text-accent-foreground'
-        )}
       >
         {getStatusIcon()}
-        <span className="block truncate flex-1">{task.summary || task.prompt}</span>
+        <span className="block flex-1 truncate">{task.summary || task.prompt}</span>
         <button
-          type="button"
-          onClick={handleDeleteClick}
+          aria-label="Delete task"
           className={cn(
-            'opacity-0 group-hover:opacity-100 transition-opacity duration-200',
-            'p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20',
+            'opacity-0 transition-opacity duration-200 group-hover:opacity-100',
+            'rounded p-1 hover:bg-red-100 dark:hover:bg-red-900/20',
             'text-zinc-400 hover:text-red-600 dark:hover:text-red-400',
             'shrink-0'
           )}
-          aria-label="Delete task"
+          onClick={handleDeleteClick}
+          type="button"
         >
           <X className="h-3 w-3" />
         </button>
       </div>
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <Dialog onOpenChange={setIsDeleteDialogOpen} open={isDeleteDialogOpen}>
         <DialogContent className="max-w-sm" data-testid="delete-task-dialog">
           <DialogHeader>
             <DialogTitle>Delete task</DialogTitle>
-            <DialogDescription>
-              This will remove the task and its messages from your history.
-            </DialogDescription>
+            <DialogDescription>This will remove the task and its messages from your history.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button onClick={() => setIsDeleteDialogOpen(false)} variant="outline">
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button onClick={confirmDelete} variant="destructive">
               Delete
             </Button>
           </DialogFooter>

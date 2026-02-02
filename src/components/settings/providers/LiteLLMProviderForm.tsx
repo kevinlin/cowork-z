@@ -1,20 +1,13 @@
 // apps/desktop/src/renderer/components/settings/providers/LiteLLMProviderForm.tsx
 
-import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { ConnectedProvider, LiteLLMCredentials } from '@/shared';
-import {
-  ModelSelector,
-  ConnectButton,
-  ConnectedControls,
-  ProviderFormHeader,
-  FormError,
-} from '../shared';
-import { settingsVariants, settingsTransitions } from '@/lib/animations';
+import { useState } from 'react';
 import { getAccomplish } from '@/lib/accomplish';
-
+import { settingsTransitions, settingsVariants } from '@/lib/animations';
+import type { ConnectedProvider, LiteLLMCredentials } from '@/shared';
 // Import LiteLLM logo
 import litellmLogo from '/assets/ai-logos/litellm.svg';
+import { ConnectButton, ConnectedControls, FormError, ModelSelector, ProviderFormHeader } from '../shared';
 
 interface LiteLLMProviderFormProps {
   connectedProvider?: ConnectedProvider;
@@ -63,10 +56,11 @@ export function LiteLLMProviderForm({
       }
 
       // Map models to the expected format
-      const models = result.models?.map(m => ({
-        id: m.id,
-        name: m.name,
-      })) || [];
+      const models =
+        result.models?.map((m) => ({
+          id: m.id,
+          name: m.name,
+        })) || [];
 
       const provider: ConnectedProvider = {
         providerId: 'litellm',
@@ -99,86 +93,35 @@ export function LiteLLMProviderForm({
 
       <div className="space-y-3">
         <AnimatePresence mode="wait">
-          {!isConnected ? (
+          {isConnected ? (
             <motion.div
-              key="disconnected"
-              variants={settingsVariants.fadeSlide}
-              initial="initial"
               animate="animate"
-              exit="exit"
-              transition={settingsTransitions.enter}
               className="space-y-3"
-            >
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">Server URL</label>
-                <input
-                  type="text"
-                  value={serverUrl}
-                  onChange={(e) => setServerUrl(e.target.value)}
-                  placeholder="http://localhost:4000"
-                  data-testid="litellm-server-url"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  API Key <span className="text-muted-foreground">(Optional)</span>
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Optional API key"
-                    data-testid="litellm-api-key"
-                    className="flex-1 rounded-md border border-input bg-background px-3 py-2.5 text-sm"
-                  />
-                  <button
-                    onClick={() => setApiKey('')}
-                    className="rounded-md border border-border p-2.5 text-muted-foreground hover:text-foreground transition-colors"
-                    type="button"
-                    disabled={!apiKey}
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <FormError error={error} />
-              <ConnectButton onClick={handleConnect} connecting={connecting} />
-            </motion.div>
-          ) : (
-            <motion.div
+              exit="exit"
+              initial="initial"
               key="connected"
-              variants={settingsVariants.fadeSlide}
-              initial="initial"
-              animate="animate"
-              exit="exit"
               transition={settingsTransitions.enter}
-              className="space-y-3"
+              variants={settingsVariants.fadeSlide}
             >
               {/* Display saved connection details */}
               <div className="space-y-3">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">Server URL</label>
+                  <label className="mb-2 block font-medium text-foreground text-sm">Server URL</label>
                   <input
+                    className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-muted-foreground text-sm"
+                    disabled
                     type="text"
                     value={(connectedProvider?.credentials as LiteLLMCredentials)?.serverUrl || 'http://localhost:4000'}
-                    disabled
-                    className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground"
                   />
                 </div>
                 {(connectedProvider?.credentials as LiteLLMCredentials)?.hasApiKey && (
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-foreground">API Key</label>
+                    <label className="mb-2 block font-medium text-foreground text-sm">API Key</label>
                     <input
+                      className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-muted-foreground text-sm"
+                      disabled
                       type="text"
                       value={(connectedProvider?.credentials as LiteLLMCredentials)?.keyPrefix || 'API key saved'}
-                      disabled
-                      className="w-full rounded-md border border-input bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground"
                     />
                   </div>
                 )}
@@ -188,11 +131,67 @@ export function LiteLLMProviderForm({
 
               {/* Model Selector */}
               <ModelSelector
-                models={models}
-                value={connectedProvider?.selectedModelId || null}
-                onChange={onModelChange}
                 error={showModelError && !connectedProvider?.selectedModelId}
+                models={models}
+                onChange={onModelChange}
+                value={connectedProvider?.selectedModelId || null}
               />
+            </motion.div>
+          ) : (
+            <motion.div
+              animate="animate"
+              className="space-y-3"
+              exit="exit"
+              initial="initial"
+              key="disconnected"
+              transition={settingsTransitions.enter}
+              variants={settingsVariants.fadeSlide}
+            >
+              <div>
+                <label className="mb-2 block font-medium text-foreground text-sm">Server URL</label>
+                <input
+                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
+                  data-testid="litellm-server-url"
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  placeholder="http://localhost:4000"
+                  type="text"
+                  value={serverUrl}
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block font-medium text-foreground text-sm">
+                  API Key <span className="text-muted-foreground">(Optional)</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 rounded-md border border-input bg-background px-3 py-2.5 text-sm"
+                    data-testid="litellm-api-key"
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="Optional API key"
+                    type="password"
+                    value={apiKey}
+                  />
+                  <button
+                    className="rounded-md border border-border p-2.5 text-muted-foreground transition-colors hover:text-foreground"
+                    disabled={!apiKey}
+                    onClick={() => setApiKey('')}
+                    type="button"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <FormError error={error} />
+              <ConnectButton connecting={connecting} onClick={handleConnect} />
             </motion.div>
           )}
         </AnimatePresence>

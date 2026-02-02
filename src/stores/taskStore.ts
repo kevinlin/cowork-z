@@ -1,17 +1,17 @@
 import { create } from 'zustand';
+import * as api from '@/lib/tauri-api';
 import type {
-  Task,
-  TaskConfig,
-  TaskStatus,
-  TaskUpdateEvent,
-  PermissionRequest,
-  PermissionResponse,
-  TaskMessage,
+  CompleteMessageEvent,
   PartialMessage,
   PartialMessageEvent,
-  CompleteMessageEvent,
+  PermissionRequest,
+  PermissionResponse,
+  Task,
+  TaskConfig,
+  TaskMessage,
+  TaskStatus,
+  TaskUpdateEvent,
 } from '@/shared';
-import * as api from '@/lib/tauri-api';
 
 // Batch update event type for performance optimization
 interface TaskUpdateBatchEvent {
@@ -94,10 +94,13 @@ function createMessageId(): string {
 }
 
 // Module-level cache to track last logged events for deduplication
-const lastLoggedEvents = new Map<string, {
-  type: string;
-  normalizedContent: string;
-}>();
+const lastLoggedEvents = new Map<
+  string,
+  {
+    type: string;
+    normalizedContent: string;
+  }
+>();
 
 /**
  * Normalizes progress messages by removing timestamp variations
@@ -136,20 +139,23 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         step = 1;
       }
     }
-    set({ setupProgress: message, setupProgressTaskId: taskId, setupDownloadStep: step });
+    set({
+      setupProgress: message,
+      setupProgressTaskId: taskId,
+      setupDownloadStep: step,
+    });
   },
 
   setStartupStage: (taskId: string | null, stage: string | null, message?: string, modelName?: string, isFirstTask?: boolean) => {
-    if (!taskId || !stage) {
+    if (!(taskId && stage)) {
       set({ startupStage: null, startupStageTaskId: null });
       return;
     }
 
     const currentState = get();
     // Preserve startTime if this is the same task, otherwise start fresh
-    const startTime = currentState.startupStageTaskId === taskId && currentState.startupStage
-      ? currentState.startupStage.startTime
-      : Date.now();
+    const startTime =
+      currentState.startupStageTaskId === taskId && currentState.startupStage ? currentState.startupStage.startTime : Date.now();
 
     set({
       startupStage: {
@@ -171,7 +177,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   startTask: async (config: TaskConfig) => {
-        set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null });
     try {
       void api.logEvent({
         level: 'info',
@@ -194,7 +200,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         void api.logEvent({
           level: 'error',
           message: 'Failed to persist initial user message',
-          context: { taskId: task.id, messageId: initialUserMessage.id, error: String(err) },
+          context: {
+            taskId: task.id,
+            messageId: initialUserMessage.id,
+            error: String(err),
+          },
         });
       });
 
@@ -231,7 +241,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   sendFollowUp: async (message: string) => {
-        const { currentTask, startTask } = get();
+    const { currentTask, startTask } = get();
     if (!currentTask) {
       set({ error: 'No active task to continue' });
       void api.logEvent({
@@ -284,9 +294,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             messages: [...state.currentTask.messages, userMessage],
           }
         : null,
-      tasks: state.tasks.map((t) =>
-        t.id === taskId ? { ...t, status: 'running' as TaskStatus } : t
-      ),
+      tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, status: 'running' as TaskStatus } : t)),
     }));
 
     // Persist user message to database (fire-and-forget for performance)
@@ -309,35 +317,30 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
       // Update status based on response (could be 'running' or 'queued')
       set((state) => ({
-        currentTask: state.currentTask
-          ? { ...state.currentTask, status: task.status }
-          : null,
+        currentTask: state.currentTask ? { ...state.currentTask, status: task.status } : null,
         isLoading: task.status === 'queued',
-        tasks: state.tasks.map((t) =>
-          t.id === taskId ? { ...t, status: task.status } : t
-        ),
+        tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, status: task.status } : t)),
       }));
     } catch (err) {
       set((state) => ({
         error: err instanceof Error ? err.message : 'Failed to send message',
         isLoading: false,
-        currentTask: state.currentTask
-          ? { ...state.currentTask, status: 'failed' }
-          : null,
-        tasks: state.tasks.map((t) =>
-          t.id === taskId ? { ...t, status: 'failed' as TaskStatus } : t
-        ),
+        currentTask: state.currentTask ? { ...state.currentTask, status: 'failed' } : null,
+        tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, status: 'failed' as TaskStatus } : t)),
       }));
       void api.logEvent({
         level: 'error',
         message: 'UI follow-up failed',
-        context: { taskId: currentTask.id, error: err instanceof Error ? err.message : String(err) },
+        context: {
+          taskId: currentTask.id,
+          error: err instanceof Error ? err.message : String(err),
+        },
       });
     }
   },
 
   cancelTask: async () => {
-        const { currentTask } = get();
+    const { currentTask } = get();
     if (currentTask) {
       void api.logEvent({
         level: 'info',
@@ -346,18 +349,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       });
       await api.cancelTask(currentTask.id);
       set((state) => ({
-        currentTask: state.currentTask
-          ? { ...state.currentTask, status: 'cancelled' }
-          : null,
-        tasks: state.tasks.map((t) =>
-          t.id === currentTask.id ? { ...t, status: 'cancelled' as TaskStatus } : t
-        ),
+        currentTask: state.currentTask ? { ...state.currentTask, status: 'cancelled' } : null,
+        tasks: state.tasks.map((t) => (t.id === currentTask.id ? { ...t, status: 'cancelled' as TaskStatus } : t)),
       }));
     }
   },
 
   interruptTask: async () => {
-        const { currentTask } = get();
+    const { currentTask } = get();
     if (currentTask && currentTask.status === 'running') {
       void api.logEvent({
         level: 'info',
@@ -374,7 +373,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   respondToPermission: async (response: PermissionResponse) => {
-        void api.logEvent({
+    void api.logEvent({
       level: 'info',
       message: 'UI permission response',
       context: { ...response },
@@ -399,7 +398,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (lastLogged?.normalizedContent === normalizedContent) {
       return; // Skip duplicate event
     }
-    lastLoggedEvents.set(eventKey, { type: event.type as string, normalizedContent });
+    lastLoggedEvents.set(eventKey, {
+      type: event.type as string,
+      normalizedContent,
+    });
 
     // Log the event
     void api.logEvent({
@@ -417,8 +419,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     // Persist complete event to database
     if (event.type === 'complete' && event.result) {
-      const status = event.result.status === 'success' ? 'completed' :
-                    event.result.status === 'interrupted' ? 'interrupted' : 'failed';
+      const status = event.result.status === 'success' ? 'completed' : event.result.status === 'interrupted' ? 'interrupted' : 'failed';
       api.completeTask(event.taskId, status, event.result.sessionId).catch((err) => {
         console.error('Failed to save task completion:', err);
       });
@@ -439,7 +440,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           keysToDelete.push(key);
         }
       });
-      keysToDelete.forEach(key => lastLoggedEvents.delete(key));
+      keysToDelete.forEach((key) => lastLoggedEvents.delete(key));
     }
 
     set((state) => {
@@ -454,9 +455,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       // Handle message events - only if viewing this task
       if (event.type === 'message' && event.message && isCurrentTask && state.currentTask) {
         const existingIndex = state.currentTask.messages.findIndex((m) => m.id === event.message!.id);
-        const nextMessages = existingIndex === -1
-          ? [...state.currentTask.messages, event.message]
-          : state.currentTask.messages.map((m, idx) => (idx === existingIndex ? event.message! : m));
+        const nextMessages =
+          existingIndex === -1
+            ? [...state.currentTask.messages, event.message]
+            : state.currentTask.messages.map((m, idx) => (idx === existingIndex ? event.message! : m));
         updatedCurrentTask = {
           ...state.currentTask,
           messages: nextMessages,
@@ -498,7 +500,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           updatedCurrentTask = {
             ...state.currentTask,
             status: newStatus,
-            result: { status: 'error', error: event.error, sessionId: preservedSessionId },
+            result: {
+              status: 'error',
+              error: event.error,
+              sessionId: preservedSessionId,
+            },
             sessionId: preservedSessionId,
           };
         }
@@ -507,9 +513,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       // Always update sidebar tasks list if status changed
       if (newStatus) {
         const finalStatus = newStatus;
-        updatedTasks = state.tasks.map((t) =>
-          t.id === event.taskId ? { ...t, status: finalStatus } : t
-        );
+        updatedTasks = state.tasks.map((t) => (t.id === event.taskId ? { ...t, status: finalStatus } : t));
       }
 
       return {
@@ -522,7 +526,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   // Batch update handler for performance - processes multiple messages in single state update
   addTaskUpdateBatch: (event: TaskUpdateBatchEvent) => {
-        void api.logEvent({
+    void api.logEvent({
       level: 'debug',
       message: 'UI task batch update received',
       context: { taskId: event.taskId, messageCount: event.messages.length },
@@ -604,9 +608,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
       // Check if message already exists in messages array
       const existingIndex = state.currentTask.messages.findIndex((m) => m.id === event.messageId);
-      const updatedMessages = existingIndex === -1
-        ? [...state.currentTask.messages, completeMessage]
-        : state.currentTask.messages.map((m, idx) => (idx === existingIndex ? completeMessage : m));
+      const updatedMessages =
+        existingIndex === -1
+          ? [...state.currentTask.messages, completeMessage]
+          : state.currentTask.messages.map((m, idx) => (idx === existingIndex ? completeMessage : m));
 
       // Persist to database
       api.saveTaskMessage(event.taskId, completeMessage).catch((err) => {
@@ -633,15 +638,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set((state) => {
       // Update in tasks list
       const updatedTasks = state.tasks.map((task) =>
-        task.id === taskId
-          ? { ...task, status, updatedAt: new Date().toISOString() }
-          : task
+        task.id === taskId ? { ...task, status, updatedAt: new Date().toISOString() } : task
       );
 
       // Update currentTask if it matches
       const updatedCurrentTask =
         state.currentTask?.id === taskId
-          ? { ...state.currentTask, status, updatedAt: new Date().toISOString() }
+          ? {
+              ...state.currentTask,
+              status,
+              updatedAt: new Date().toISOString(),
+            }
           : state.currentTask;
 
       return {
@@ -660,15 +667,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     set((state) => {
       // Update in tasks list
-      const updatedTasks = state.tasks.map((task) =>
-        task.id === taskId ? { ...task, summary } : task
-      );
+      const updatedTasks = state.tasks.map((task) => (task.id === taskId ? { ...task, summary } : task));
 
       // Update currentTask if it matches
-      const updatedCurrentTask =
-        state.currentTask?.id === taskId
-          ? { ...state.currentTask, summary }
-          : state.currentTask;
+      const updatedCurrentTask = state.currentTask?.id === taskId ? { ...state.currentTask, summary } : state.currentTask;
 
       return {
         tasks: updatedTasks,
@@ -678,12 +680,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   loadTasks: async () => {
-        const tasks = await api.listTasks();
+    const tasks = await api.listTasks();
     set({ tasks });
   },
 
   loadTaskById: async (taskId: string) => {
-        const task = await api.getTask(taskId);
+    const task = await api.getTask(taskId);
     set({ currentTask: task, error: task ? null : 'Task not found' });
   },
 
@@ -697,7 +699,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   clearHistory: async () => {
-        await api.clearTaskHistory();
+    await api.clearTaskHistory();
     set({ tasks: [] });
   },
 

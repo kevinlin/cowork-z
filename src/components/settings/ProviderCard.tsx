@@ -1,23 +1,23 @@
 // apps/desktop/src/renderer/components/settings/ProviderCard.tsx
 
-import { memo, useCallback } from 'react';
-import type { ProviderId, ConnectedProvider } from '@/shared';
-import { PROVIDER_META, isProviderReady } from '@/shared';
 import { AnimatePresence, motion } from 'framer-motion';
-import { settingsVariants, settingsTransitions } from '@/lib/animations';
+import { memo, useCallback } from 'react';
+import { settingsTransitions, settingsVariants } from '@/lib/animations';
+import type { ConnectedProvider, ProviderId } from '@/shared';
+import { isProviderReady, PROVIDER_META } from '@/shared';
 
 // Import provider logos
 import anthropicLogo from '/assets/ai-logos/anthropic.svg';
-import openaiLogo from '/assets/ai-logos/openai.svg';
-import googleLogo from '/assets/ai-logos/google.svg';
-import xaiLogo from '/assets/ai-logos/xai.svg';
-import deepseekLogo from '/assets/ai-logos/deepseek.svg';
-import zaiLogo from '/assets/ai-logos/zai.svg';
-import bedrockLogo from '/assets/ai-logos/bedrock.svg';
 import azureLogo from '/assets/ai-logos/azure.svg';
-import ollamaLogo from '/assets/ai-logos/ollama.svg';
-import openrouterLogo from '/assets/ai-logos/openrouter.svg';
+import bedrockLogo from '/assets/ai-logos/bedrock.svg';
+import deepseekLogo from '/assets/ai-logos/deepseek.svg';
+import googleLogo from '/assets/ai-logos/google.svg';
 import litellmLogo from '/assets/ai-logos/litellm.svg';
+import ollamaLogo from '/assets/ai-logos/ollama.svg';
+import openaiLogo from '/assets/ai-logos/openai.svg';
+import openrouterLogo from '/assets/ai-logos/openrouter.svg';
+import xaiLogo from '/assets/ai-logos/xai.svg';
+import zaiLogo from '/assets/ai-logos/zai.svg';
 
 // Import connected badge icon
 import connectedKeyIcon from '/assets/icons/connected-key.svg';
@@ -69,56 +69,48 @@ export const ProviderCard = memo(function ProviderCard({
 
   return (
     <button
-      onClick={handleClick}
-      data-testid={`provider-card-${providerId}`}
-      className={`relative flex flex-col items-center justify-center rounded-xl border p-4 w-[130px] h-[110px] transition-[background-color,border-color] duration-150 ${
+      className={`relative flex h-[110px] w-[130px] flex-col items-center justify-center rounded-xl border p-4 transition-[background-color,border-color] duration-150 ${
         showGreenBackground
-          ? 'border-[#4a4330] border-2 bg-[#e9f7e7]'
+          ? 'border-2 border-[#4a4330] bg-[#e9f7e7]'
           : isSelected
-            ? 'border-[#4a4330] border-2 bg-[#f9f8f6]'
+            ? 'border-2 border-[#4a4330] bg-[#f9f8f6]'
             : 'border-border bg-[#f9f8f6] hover:border-ring'
       }`}
+      data-testid={`provider-card-${providerId}`}
+      onClick={handleClick}
     >
       {/* Connection status badge - always green when connected */}
       <AnimatePresence>
         {isConnected && (
           <motion.div
+            animate="animate"
             className="absolute top-2 right-2"
             data-testid={`provider-connected-badge-${providerId}`}
-            variants={settingsVariants.fadeSlide}
-            initial="initial"
-            animate="animate"
             exit="exit"
+            initial="initial"
             transition={settingsTransitions.enter}
+            variants={settingsVariants.fadeSlide}
           >
             <img
-              src={connectedKeyIcon}
-              alt={providerReady ? "Ready" : "Connected"}
+              alt={providerReady ? 'Ready' : 'Connected'}
               className="h-5 w-5"
-              title={providerReady ? undefined : "Select a model to complete setup"}
+              src={connectedKeyIcon}
+              title={providerReady ? undefined : 'Select a model to complete setup'}
             />
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Provider Logo */}
-      <div className="mb-2 h-10 w-10 flex items-center justify-center">
-        <img
-          src={logoSrc}
-          alt={`${meta.name} logo`}
-          className="h-8 w-8 object-contain"
-        />
+      <div className="mb-2 flex h-10 w-10 items-center justify-center">
+        <img alt={`${meta.name} logo`} className="h-8 w-8 object-contain" src={logoSrc} />
       </div>
 
       {/* Name */}
-      <span className="text-sm font-medium text-foreground">
-        {meta.name}
-      </span>
+      <span className="font-medium text-foreground text-sm">{meta.name}</span>
 
       {/* Label */}
-      <span className="text-xs text-muted-foreground">
-        {meta.label}
-      </span>
+      <span className="text-muted-foreground text-xs">{meta.label}</span>
     </button>
   );
 });

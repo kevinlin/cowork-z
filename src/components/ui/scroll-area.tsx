@@ -5,17 +5,11 @@ interface ScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
 
-const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(
-  ({ className, children, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn('overflow-y-auto', className)}
-      {...props}
-    >
-      {children}
-    </div>
-  )
-);
+const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(({ className, children, ...props }, ref) => (
+  <div className={cn('overflow-y-auto', className)} ref={ref} {...props}>
+    {children}
+  </div>
+));
 ScrollArea.displayName = 'ScrollArea';
 
 export { ScrollArea };

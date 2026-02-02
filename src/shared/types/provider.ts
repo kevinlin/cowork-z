@@ -2,7 +2,19 @@
  * Provider and model configuration types for multi-provider support
  */
 
-export type ProviderType = 'anthropic' | 'openai' | 'openrouter' | 'google' | 'xai' | 'ollama' | 'deepseek' | 'zai' | 'azure-foundry' | 'custom' | 'bedrock' | 'litellm';
+export type ProviderType =
+  | 'anthropic'
+  | 'openai'
+  | 'openrouter'
+  | 'google'
+  | 'xai'
+  | 'ollama'
+  | 'deepseek'
+  | 'zai'
+  | 'azure-foundry'
+  | 'custom'
+  | 'bedrock'
+  | 'litellm';
 
 export interface ProviderConfig {
   id: ProviderType;
@@ -26,15 +38,15 @@ export interface ModelConfig {
 export interface SelectedModel {
   provider: ProviderType;
   model: string; // Full ID: "anthropic/claude-sonnet-4-5"
-  baseUrl?: string;  // For Ollama: the server URL, for Azure Foundry: the endpoint URL
-  deploymentName?: string;  // For Azure Foundry: the deployment name
+  baseUrl?: string; // For Ollama: the server URL, for Azure Foundry: the endpoint URL
+  deploymentName?: string; // For Azure Foundry: the deployment name
 }
 
 /**
  * Ollama model info from API
  */
 export interface OllamaModelInfo {
-  id: string;        // e.g., "qwen3:latest"
+  id: string; // e.g., "qwen3:latest"
   displayName: string;
   size: number;
 }
@@ -46,7 +58,7 @@ export interface OllamaConfig {
   baseUrl: string;
   enabled: boolean;
   lastValidated?: number;
-  models?: OllamaModelInfo[];  // Discovered models from Ollama API
+  models?: OllamaModelInfo[]; // Discovered models from Ollama API
 }
 
 /**
@@ -54,9 +66,9 @@ export interface OllamaConfig {
  * Azure Foundry configuration
  */
 export interface AzureFoundryConfig {
-  baseUrl: string;  // Azure Foundry endpoint URL
-  deploymentName: string;  // Deployment name
-  authType: 'api-key' | 'entra-id';  // Authentication type
+  baseUrl: string; // Azure Foundry endpoint URL
+  deploymentName: string; // Deployment name
+  authType: 'api-key' | 'entra-id'; // Authentication type
   enabled: boolean;
   lastValidated?: number;
 }
@@ -65,9 +77,9 @@ export interface AzureFoundryConfig {
  * OpenRouter model info from API
  */
 export interface OpenRouterModel {
-  id: string;           // e.g., "anthropic/claude-3.5-sonnet"
-  name: string;         // e.g., "Claude 3.5 Sonnet"
-  provider: string;     // e.g., "anthropic" (extracted from id)
+  id: string; // e.g., "anthropic/claude-3.5-sonnet"
+  name: string; // e.g., "Claude 3.5 Sonnet"
+  provider: string; // e.g., "anthropic" (extracted from id)
   contextLength: number;
 }
 
@@ -83,9 +95,9 @@ export interface OpenRouterConfig {
  * LiteLLM model info from API
  */
 export interface LiteLLMModel {
-  id: string;           // e.g., "openai/gpt-4"
-  name: string;         // Display name (same as id for LiteLLM)
-  provider: string;     // Extracted from model ID
+  id: string; // e.g., "openai/gpt-4"
+  name: string; // Display name (same as id for LiteLLM)
+  provider: string; // Extracted from model ID
   contextLength: number;
 }
 
@@ -93,7 +105,7 @@ export interface LiteLLMModel {
  * LiteLLM configuration
  */
 export interface LiteLLMConfig {
-  baseUrl: string;      // e.g., "http://localhost:4000"
+  baseUrl: string; // e.g., "http://localhost:4000"
   enabled: boolean;
   lastValidated?: number;
   models?: LiteLLMModel[];
@@ -114,7 +126,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'Claude Haiku 4.5',
         provider: 'anthropic',
         fullId: 'anthropic/claude-haiku-4-5',
-        contextWindow: 200000,
+        contextWindow: 200_000,
         supportsVision: true,
       },
       {
@@ -122,7 +134,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'Claude Sonnet 4.5',
         provider: 'anthropic',
         fullId: 'anthropic/claude-sonnet-4-5',
-        contextWindow: 200000,
+        contextWindow: 200_000,
         supportsVision: true,
       },
       {
@@ -130,7 +142,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'Claude Opus 4.5',
         provider: 'anthropic',
         fullId: 'anthropic/claude-opus-4-5',
-        contextWindow: 200000,
+        contextWindow: 200_000,
         supportsVision: true,
       },
     ],
@@ -146,7 +158,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'GPT 5.2 Codex',
         provider: 'openai',
         fullId: 'openai/gpt-5.2-codex',
-        contextWindow: 4000000,
+        contextWindow: 4_000_000,
         supportsVision: true,
       },
       {
@@ -154,7 +166,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'GPT 5.2',
         provider: 'openai',
         fullId: 'openai/gpt-5.2',
-        contextWindow: 4000000,
+        contextWindow: 4_000_000,
         supportsVision: true,
       },
       {
@@ -162,7 +174,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'GPT 5 Mini',
         provider: 'openai',
         fullId: 'openai/gpt-5-mini',
-        contextWindow: 4000000,
+        contextWindow: 4_000_000,
         supportsVision: true,
       },
       {
@@ -170,7 +182,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'GPT 5 Codex',
         provider: 'openai',
         fullId: 'openai/gpt-5-codex',
-        contextWindow: 400000,
+        contextWindow: 400_000,
         supportsVision: true,
       },
     ],
@@ -186,7 +198,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'Gemini 3 Pro',
         provider: 'google',
         fullId: 'google/gemini-3-pro-preview',
-        contextWindow: 2000000,
+        contextWindow: 2_000_000,
         supportsVision: true,
       },
       {
@@ -194,7 +206,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'Gemini 3 Flash',
         provider: 'google',
         fullId: 'google/gemini-3-flash-preview',
-        contextWindow: 1000000,
+        contextWindow: 1_000_000,
         supportsVision: true,
       },
     ],
@@ -211,7 +223,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'Grok 4',
         provider: 'xai',
         fullId: 'xai/grok-4',
-        contextWindow: 256000,
+        contextWindow: 256_000,
         supportsVision: true,
       },
       {
@@ -219,7 +231,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'Grok 3',
         provider: 'xai',
         fullId: 'xai/grok-3',
-        contextWindow: 131000,
+        contextWindow: 131_000,
         supportsVision: false,
       },
     ],
@@ -236,7 +248,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'DeepSeek Chat (V3)',
         provider: 'deepseek',
         fullId: 'deepseek/deepseek-chat',
-        contextWindow: 64000,
+        contextWindow: 64_000,
         supportsVision: false,
       },
       {
@@ -244,7 +256,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'DeepSeek Reasoner (R1)',
         provider: 'deepseek',
         fullId: 'deepseek/deepseek-reasoner',
-        contextWindow: 64000,
+        contextWindow: 64_000,
         supportsVision: false,
       },
     ],
@@ -261,7 +273,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'GLM-4.7 FlashX (Latest)',
         provider: 'zai',
         fullId: 'zai/glm-4.7-flashx',
-        contextWindow: 200000,
+        contextWindow: 200_000,
         supportsVision: false,
       },
       {
@@ -269,7 +281,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'GLM-4.7',
         provider: 'zai',
         fullId: 'zai/glm-4.7',
-        contextWindow: 200000,
+        contextWindow: 200_000,
         supportsVision: false,
       },
       {
@@ -277,7 +289,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'GLM-4.7 Flash',
         provider: 'zai',
         fullId: 'zai/glm-4.7-flash',
-        contextWindow: 200000,
+        contextWindow: 200_000,
         supportsVision: false,
       },
       {
@@ -285,7 +297,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'GLM-4.6',
         provider: 'zai',
         fullId: 'zai/glm-4.6',
-        contextWindow: 200000,
+        contextWindow: 200_000,
         supportsVision: false,
       },
       {
@@ -293,7 +305,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
         displayName: 'GLM-4.5 Flash',
         provider: 'zai',
         fullId: 'zai/glm-4.5-flash',
-        contextWindow: 128000,
+        contextWindow: 128_000,
         supportsVision: false,
       },
     ],

@@ -165,14 +165,7 @@ export interface TaskConfig {
 }
 
 /** Task progress stages */
-export type TaskProgressStage =
-  | 'starting'
-  | 'loading'
-  | 'connecting'
-  | 'waiting'
-  | 'executing'
-  | 'tool-use'
-  | 'completing';
+export type TaskProgressStage = 'starting' | 'loading' | 'connecting' | 'waiting' | 'executing' | 'tool-use' | 'completing';
 
 /** Task progress event */
 export interface TaskProgress {

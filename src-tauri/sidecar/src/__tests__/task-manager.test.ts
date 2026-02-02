@@ -1,14 +1,5 @@
 import { TaskManager } from '../task-manager';
-import { OpenCodeAdapter } from '../adapter';
-import type {
-  TaskConfig,
-  TaskCallbacks,
-  PartialMessageUpdate,
-  CompleteMessageUpdate,
-  TaskProgress,
-  PermissionRequest,
-  TaskResult,
-} from '../types';
+import type { CompleteMessageUpdate, PartialMessageUpdate, TaskCallbacks, TaskConfig, TaskProgress, TaskResult } from '../types';
 
 // Mock the adapter module
 jest.mock('../adapter', () => {
@@ -311,9 +302,7 @@ describe('TaskManager - Partial Message Handling', () => {
     await taskManager.startTask(config, callbacks);
 
     // Try to start same task ID again
-    await expect(taskManager.startTask(config, callbacks)).rejects.toThrow(
-      'Task task-123 is already running'
-    );
+    await expect(taskManager.startTask(config, callbacks)).rejects.toThrow('Task task-123 is already running');
   });
 
   test('should respect max concurrent tasks limit', async () => {
@@ -332,9 +321,9 @@ describe('TaskManager - Partial Message Handling', () => {
     await limitedManager.startTask({ taskId: 'task-2', prompt: 'Task 2' }, callbacks);
 
     // Try to start a third task
-    await expect(
-      limitedManager.startTask({ taskId: 'task-3', prompt: 'Task 3' }, callbacks)
-    ).rejects.toThrow('Maximum concurrent tasks (2) reached');
+    await expect(limitedManager.startTask({ taskId: 'task-3', prompt: 'Task 3' }, callbacks)).rejects.toThrow(
+      'Maximum concurrent tasks (2) reached'
+    );
 
     limitedManager.dispose();
   });
@@ -348,10 +337,7 @@ describe('TaskManager - Partial Message Handling', () => {
       onError: jest.fn(),
     };
 
-    await taskManager.startTask(
-      { taskId: 'task-123', prompt: 'Test', sessionId: 'session-456' },
-      callbacks
-    );
+    await taskManager.startTask({ taskId: 'task-123', prompt: 'Test', sessionId: 'session-456' }, callbacks);
 
     const sessionId = taskManager.getSessionId('task-123');
     // Mock adapter returns the sessionId from config if provided

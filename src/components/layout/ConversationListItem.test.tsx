@@ -1,15 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, it, vi } from 'vitest';
 import type { Task } from '@/shared';
 import ConversationListItem from './ConversationListItem';
 
 const deleteTask = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/stores/taskStore', () => ({
-  useTaskStore: (selector: (state: { deleteTask: typeof deleteTask }) => unknown) =>
-    selector({ deleteTask }),
+  useTaskStore: (selector: (state: { deleteTask: typeof deleteTask }) => unknown) => selector({ deleteTask }),
 }));
 
 describe('ConversationListItem', () => {

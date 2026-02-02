@@ -1,8 +1,8 @@
 'use client';
 
-import type { Task } from '@/shared';
+import { AlertCircle, CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import type { Task } from '@/shared';
 
 interface TaskLauncherItemProps {
   task: Task;
@@ -26,14 +26,14 @@ function formatRelativeDate(dateString: string): string {
 function getStatusIcon(status: Task['status']) {
   switch (status) {
     case 'running':
-      return <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />;
+      return <Loader2 className="h-3 w-3 shrink-0 animate-spin text-primary" />;
     case 'completed':
-      return <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />;
+      return <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />;
     case 'failed':
-      return <XCircle className="h-3 w-3 text-destructive shrink-0" />;
+      return <XCircle className="h-3 w-3 shrink-0 text-destructive" />;
     case 'cancelled':
     case 'interrupted':
-      return <AlertCircle className="h-3 w-3 text-yellow-500 shrink-0" />;
+      return <AlertCircle className="h-3 w-3 shrink-0 text-yellow-500" />;
     default:
       return null;
   }
@@ -42,21 +42,16 @@ function getStatusIcon(status: Task['status']) {
 export default function TaskLauncherItem({ task, isSelected, onClick }: TaskLauncherItemProps) {
   return (
     <button
-      onClick={onClick}
       className={cn(
-        'w-full text-left px-3 py-2 rounded-md text-sm transition-colors duration-100',
+        'w-full rounded-md px-3 py-2 text-left text-sm transition-colors duration-100',
         'flex items-center gap-2',
-        isSelected
-          ? 'bg-primary text-primary-foreground'
-          : 'text-foreground hover:bg-accent'
+        isSelected ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-accent'
       )}
+      onClick={onClick}
     >
       {getStatusIcon(task.status)}
-      <span className="truncate flex-1">{task.prompt}</span>
-      <span className={cn(
-        'text-xs shrink-0',
-        isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground'
-      )}>
+      <span className="flex-1 truncate">{task.prompt}</span>
+      <span className={cn('shrink-0 text-xs', isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
         {formatRelativeDate(task.createdAt)}
       </span>
     </button>

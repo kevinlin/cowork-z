@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CompleteMessageEvent, PartialMessageEvent, Task } from '@/shared';
 import { useTaskStore } from '../taskStore';
-import type { PartialMessageEvent, CompleteMessageEvent, Task } from '@/shared';
 
 // Mock the tauri-api module
 vi.mock('@/lib/tauri-api', () => ({
@@ -22,7 +22,7 @@ describe('taskStore - Partial Message Management', () => {
     // Reset store state before each test
     const store = useTaskStore.getState();
     store.reset();
-    
+
     // Set up a mock current task
     const mockTask: Task = {
       id: 'task-123',
@@ -31,7 +31,7 @@ describe('taskStore - Partial Message Management', () => {
       messages: [],
       createdAt: new Date().toISOString(),
     };
-    
+
     useTaskStore.setState({ currentTask: mockTask });
   });
 
@@ -47,7 +47,7 @@ describe('taskStore - Partial Message Management', () => {
 
     // Get fresh state after update
     const store = useTaskStore.getState();
-    
+
     // Verify partial message added to Map
     const partial = store.partialMessages.get('msg-456');
     expect(partial).toBeDefined();
@@ -80,7 +80,7 @@ describe('taskStore - Partial Message Management', () => {
 
     // Get fresh state after updates
     const store = useTaskStore.getState();
-    
+
     // Verify text updated
     const partial = store.partialMessages.get('msg-456');
     expect(partial?.textSoFar).toBe('Hello world');
@@ -125,7 +125,7 @@ describe('taskStore - Partial Message Management', () => {
 
     // Get fresh state after updates
     const store = useTaskStore.getState();
-    
+
     // Verify removed from partialMessages
     expect(store.partialMessages.has('msg-456')).toBe(false);
 
@@ -155,16 +155,31 @@ describe('taskStore - Partial Message Management', () => {
 
   it('should handle multiple partial messages simultaneously', () => {
     const events: PartialMessageEvent[] = [
-      { taskId: 'task-123', messageId: 'msg-1', textSoFar: 'First', isStreaming: true },
-      { taskId: 'task-123', messageId: 'msg-2', textSoFar: 'Second', isStreaming: true },
-      { taskId: 'task-123', messageId: 'msg-3', textSoFar: 'Third', isStreaming: true },
+      {
+        taskId: 'task-123',
+        messageId: 'msg-1',
+        textSoFar: 'First',
+        isStreaming: true,
+      },
+      {
+        taskId: 'task-123',
+        messageId: 'msg-2',
+        textSoFar: 'Second',
+        isStreaming: true,
+      },
+      {
+        taskId: 'task-123',
+        messageId: 'msg-3',
+        textSoFar: 'Third',
+        isStreaming: true,
+      },
     ];
 
     events.forEach((e) => useTaskStore.getState().addPartialMessage(e));
 
     // Get fresh state after updates
     const store = useTaskStore.getState();
-    
+
     // Verify all tracked
     expect(store.partialMessages.size).toBe(3);
     expect(store.partialMessages.get('msg-1')?.textSoFar).toBe('First');
@@ -241,10 +256,10 @@ describe('taskStore - Partial Message Management', () => {
 
     // Get fresh state
     const store = useTaskStore.getState();
-    
+
     // Partial should still exist (not finalized)
     expect(store.partialMessages.has('msg-456')).toBe(true);
-    
+
     // Message should not be added to current task
     const message = store.currentTask?.messages.find((m) => m.id === 'msg-456');
     expect(message).toBeUndefined();
@@ -316,7 +331,7 @@ describe('taskStore - User Message Persistence', () => {
     await useTaskStore.getState().sendFollowUp('Test message');
 
     const state = useTaskStore.getState();
-    const userMessages = state.currentTask?.messages.filter(m => m.type === 'user');
+    const userMessages = state.currentTask?.messages.filter((m) => m.type === 'user');
 
     expect(userMessages).toHaveLength(1);
     expect(userMessages?.[0].content).toBe('Test message');
@@ -326,9 +341,7 @@ describe('taskStore - User Message Persistence', () => {
     mockSaveTaskMessage.mockRejectedValueOnce(new Error('DB error'));
 
     // Should not throw - error is caught and logged
-    await expect(
-      useTaskStore.getState().sendFollowUp('Test')
-    ).resolves.not.toThrow();
+    await expect(useTaskStore.getState().sendFollowUp('Test')).resolves.not.toThrow();
 
     // Verify error was logged
     expect(mockLogEvent).toHaveBeenCalledWith(
@@ -340,7 +353,7 @@ describe('taskStore - User Message Persistence', () => {
 
     // UI should still show the message (optimistic update)
     const state = useTaskStore.getState();
-    expect(state.currentTask?.messages.some(m => m.content === 'Test')).toBe(true);
+    expect(state.currentTask?.messages.some((m) => m.content === 'Test')).toBe(true);
   });
 
   it('should persist before attempting to resume session', async () => {
@@ -425,7 +438,7 @@ describe('taskStore - Initial Prompt Persistence', () => {
     await useTaskStore.getState().startTask({ prompt: 'Test prompt' });
 
     const state = useTaskStore.getState();
-    const userMessages = state.currentTask?.messages.filter(m => m.type === 'user');
+    const userMessages = state.currentTask?.messages.filter((m) => m.type === 'user');
 
     expect(userMessages).toHaveLength(1);
     expect(userMessages?.[0].content).toBe('Test prompt');
@@ -455,9 +468,7 @@ describe('taskStore - Initial Prompt Persistence', () => {
     mockSaveTaskMessage.mockRejectedValueOnce(new Error('DB error'));
 
     // Should not throw - error is caught and logged
-    await expect(
-      useTaskStore.getState().startTask({ prompt: 'Test' })
-    ).resolves.not.toBeNull();
+    await expect(useTaskStore.getState().startTask({ prompt: 'Test' })).resolves.not.toBeNull();
 
     // Verify error was logged
     expect(mockLogEvent).toHaveBeenCalledWith(
@@ -469,7 +480,7 @@ describe('taskStore - Initial Prompt Persistence', () => {
 
     // UI should still show the message (in state)
     const state = useTaskStore.getState();
-    expect(state.currentTask?.messages.some(m => m.content === 'Test')).toBe(true);
+    expect(state.currentTask?.messages.some((m) => m.content === 'Test')).toBe(true);
   });
 
   it('should handle task start failure without persisting message', async () => {

@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { CornerDownLeft, Loader2 } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { getAccomplish } from '../../lib/accomplish';
 import { analytics } from '../../lib/analytics';
-import { CornerDownLeft, Loader2 } from 'lucide-react';
 
 interface TaskInputBarProps {
   value: string;
@@ -59,21 +59,22 @@ export default function TaskInputBar({
     <div className="relative flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 shadow-sm transition-all duration-200 ease-accomplish focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
       {/* Text input */}
       <textarea
+        className={`max-h-[200px] flex-1 resize-none bg-transparent text-foreground placeholder:text-gray-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${large ? 'text-[20px]' : 'text-sm'}`}
         data-testid="task-input-textarea"
-        ref={textareaRef}
-        value={value}
+        disabled={isDisabled}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        disabled={isDisabled}
+        ref={textareaRef}
         rows={1}
-        className={`max-h-[200px] flex-1 resize-none bg-transparent text-foreground placeholder:text-gray-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${large ? 'text-[20px]' : 'text-sm'}`}
+        value={value}
       />
 
       {/* Submit button */}
       <button
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all duration-200 ease-accomplish hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
         data-testid="task-input-submit"
-        type="button"
+        disabled={!value.trim() || isDisabled}
         onClick={() => {
           analytics.trackSubmitTask();
           accomplish.logEvent({
@@ -83,15 +84,10 @@ export default function TaskInputBar({
           });
           onSubmit();
         }}
-        disabled={!value.trim() || isDisabled}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all duration-200 ease-accomplish hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
         title="Submit"
+        type="button"
       >
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <CornerDownLeft className="h-4 w-4" />
-        )}
+        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CornerDownLeft className="h-4 w-4" />}
       </button>
     </div>
   );

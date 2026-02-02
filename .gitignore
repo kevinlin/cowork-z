@@ -30,5 +30,8 @@ coverage/
 .history/
 .vscode/
 
+# Claude Code
+.claude/
+
 # Build binaries
 src-tauri/binaries/

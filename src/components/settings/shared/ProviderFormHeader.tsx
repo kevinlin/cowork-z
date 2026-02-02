@@ -7,16 +7,12 @@ interface ProviderFormHeaderProps {
 
 export function ProviderFormHeader({ logoSrc, providerName }: ProviderFormHeaderProps) {
   return (
-    <div className="flex items-center gap-3 mb-5">
+    <div className="mb-5 flex items-center gap-3">
       {/* Fixed-size container to prevent layout shift when switching providers */}
-      <div className="h-8 w-8 flex items-center justify-center flex-shrink-0">
-        <img
-          src={logoSrc}
-          alt={`${providerName} logo`}
-          className="h-6 w-6 object-contain"
-        />
+      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+        <img alt={`${providerName} logo`} className="h-6 w-6 object-contain" src={logoSrc} />
       </div>
-      <span className="text-base font-medium text-foreground">{providerName} Settings</span>
+      <span className="font-medium text-base text-foreground">{providerName} Settings</span>
     </div>
   );
 }

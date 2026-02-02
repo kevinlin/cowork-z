@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { extractUserFacingContent } from '../message-utils';
 
 describe('extractUserFacingContent', () => {
@@ -161,7 +161,7 @@ The actual content here.
 
 **Next steps:** First action, second action, run second testing round, pilot with high-quality entries.`;
 
-    const expected = `The actual content here.`;
+    const expected = 'The actual content here.';
 
     expect(extractUserFacingContent(input)).toBe(expected);
   });

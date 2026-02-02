@@ -1,6 +1,6 @@
-import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import path from 'path';
 import type { ApiKeys } from './types';
 
 /**
@@ -20,11 +20,10 @@ function getPlatformEnvironmentInstructions(): string {
 - Use semicolon (;) for PATH separator (not colon)
 - Use \`$env:VAR\` for environment variables (not $VAR)
 </environment>`;
-  } else {
-    return `<environment>
+  }
+  return `<environment>
 You are running on ${process.platform === 'darwin' ? 'macOS' : 'Linux'}.
 </environment>`;
-  }
 }
 
 /**
@@ -268,9 +267,7 @@ export function getDefaultSkillsPath(): string {
   // Check common locations
   const possiblePaths = [
     // Tauri bundled resources (passed via TAURI_RESOURCES_PATH env var)
-    ...(process.env.TAURI_RESOURCES_PATH
-      ? [path.join(process.env.TAURI_RESOURCES_PATH, 'skills')]
-      : []),
+    ...(process.env.TAURI_RESOURCES_PATH ? [path.join(process.env.TAURI_RESOURCES_PATH, 'skills')] : []),
     // Development mode - relative to sidecar
     path.join(__dirname, '../../apps/desktop/skills'),
     // Development mode - workspace root
@@ -299,11 +296,11 @@ export function getOpenCodeConfigDir(): string {
   const homeDir = os.homedir();
   if (process.platform === 'win32') {
     return path.join(process.env.APPDATA || path.join(homeDir, 'AppData', 'Roaming'), 'cowork-z', 'opencode');
-  } else if (process.platform === 'darwin') {
-    return path.join(homeDir, 'Library', 'Application Support', 'cowork-z', 'opencode');
-  } else {
-    return path.join(process.env.XDG_CONFIG_HOME || path.join(homeDir, '.config'), 'cowork-z', 'opencode');
   }
+  if (process.platform === 'darwin') {
+    return path.join(homeDir, 'Library', 'Application Support', 'cowork-z', 'opencode');
+  }
+  return path.join(process.env.XDG_CONFIG_HOME || path.join(homeDir, '.config'), 'cowork-z', 'opencode');
 }
 
 /**
@@ -324,22 +321,10 @@ export function generateOpenCodeConfig(options: ConfigGeneratorOptions = {}): st
   const skillsPath = options.skillsPath || getDefaultSkillsPath();
 
   // Build platform-specific system prompt
-  const systemPrompt = ACCOMPLISH_SYSTEM_PROMPT_TEMPLATE.replace(
-    /\{\{ENVIRONMENT_INSTRUCTIONS\}\}/g,
-    getPlatformEnvironmentInstructions()
-  );
+  const systemPrompt = ACCOMPLISH_SYSTEM_PROMPT_TEMPLATE.replace(/\{\{ENVIRONMENT_INSTRUCTIONS\}\}/g, getPlatformEnvironmentInstructions());
 
   // Base enabled providers
-  const enabledProviders = [
-    'anthropic',
-    'openai',
-    'openrouter',
-    'google',
-    'xai',
-    'deepseek',
-    'zai-coding-plan',
-    'amazon-bedrock',
-  ];
+  const enabledProviders = ['anthropic', 'openai', 'openrouter', 'google', 'xai', 'deepseek', 'zai-coding-plan', 'amazon-bedrock'];
 
   // Build provider configurations based on available API keys
   const providerConfig: Record<string, GenericProviderConfig> = {};
@@ -366,7 +351,7 @@ export function generateOpenCodeConfig(options: ConfigGeneratorOptions = {}): st
       environment: {
         PERMISSION_API_PORT: String(options.permissionApiPort || 3100),
       },
-      timeout: 10000,
+      timeout: 10_000,
     };
   }
 
@@ -380,7 +365,7 @@ export function generateOpenCodeConfig(options: ConfigGeneratorOptions = {}): st
       environment: {
         QUESTION_API_PORT: String(options.questionApiPort || 3101),
       },
-      timeout: 10000,
+      timeout: 10_000,
     };
   }
 
@@ -391,7 +376,7 @@ export function generateOpenCodeConfig(options: ConfigGeneratorOptions = {}): st
       type: 'local',
       command: ['npx', 'tsx', devBrowserPath],
       enabled: true,
-      timeout: 30000,
+      timeout: 30_000,
     };
   }
 

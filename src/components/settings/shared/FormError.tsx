@@ -1,7 +1,7 @@
 // apps/desktop/src/renderer/components/settings/shared/FormError.tsx
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { settingsVariants, settingsTransitions } from '@/lib/animations';
+import { settingsTransitions, settingsVariants } from '@/lib/animations';
 
 interface FormErrorProps {
   error: string | null;
@@ -12,12 +12,12 @@ export function FormError({ error }: FormErrorProps) {
     <AnimatePresence>
       {error && (
         <motion.p
-          className="text-sm text-destructive"
-          variants={settingsVariants.fadeSlide}
-          initial="initial"
           animate="animate"
+          className="text-destructive text-sm"
           exit="exit"
+          initial="initial"
           transition={settingsTransitions.enter}
+          variants={settingsVariants.fadeSlide}
         >
           {error}
         </motion.p>

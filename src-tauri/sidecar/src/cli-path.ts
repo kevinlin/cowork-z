@@ -1,6 +1,6 @@
-import path from 'path';
-import fs from 'fs';
 import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Get OpenCode package name and platform-specific binary name.
@@ -135,10 +135,7 @@ export function isOpenCodeAvailable(): boolean {
     // Check global installations (platform-specific)
     const globalOpenCodePaths =
       process.platform === 'win32'
-        ? [
-            path.join(process.env.APPDATA || '', 'npm', 'opencode.cmd'),
-            path.join(process.env.LOCALAPPDATA || '', 'npm', 'opencode.cmd'),
-          ]
+        ? [path.join(process.env.APPDATA || '', 'npm', 'opencode.cmd'), path.join(process.env.LOCALAPPDATA || '', 'npm', 'opencode.cmd')]
         : ['/usr/local/bin/opencode', '/opt/homebrew/bin/opencode'];
 
     for (const opencodePath of globalOpenCodePaths) {
@@ -171,10 +168,7 @@ export function isOpenCodeAvailable(): boolean {
 export function getOpenCodeVersion(): string | null {
   try {
     const { command, args } = getOpenCodeCliPath();
-    const fullCommand =
-      args.length > 0
-        ? `"${command}" ${args.map((a) => `"${a}"`).join(' ')} --version`
-        : `"${command}" --version`;
+    const fullCommand = args.length > 0 ? `"${command}" ${args.map((a) => `"${a}"`).join(' ')} --version` : `"${command}" --version`;
 
     const output = execSync(fullCommand, {
       encoding: 'utf-8',
@@ -195,9 +189,7 @@ export function getOpenCodeVersion(): string | null {
  */
 export class OpenCodeCliNotFoundError extends Error {
   constructor() {
-    super(
-      'OpenCode CLI not found. Please install it with: npm install -g opencode-ai'
-    );
+    super('OpenCode CLI not found. Please install it with: npm install -g opencode-ai');
     this.name = 'OpenCodeCliNotFoundError';
   }
 }

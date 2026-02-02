@@ -1,5 +1,4 @@
-name: Build and Test
-
+name: Build
 on:
   push:
     branches: [main]
@@ -42,7 +41,7 @@ jobs:
         run: pnpm install
 
       - name: Install sidecar dependencies
-        run: pnpm install
+        run: pnpm install --ignore-workspace
         working-directory: src-tauri/sidecar
 
       - name: Run frontend tests

@@ -384,13 +384,33 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   addTaskUpdate: (event: TaskUpdateEvent) => {
-    // Track progress events for cleanup (prevent memory leaks)
+    // Determine if we should log this event (deduplication for progress events)
+    let shouldLog = true;
+
     if (event.type === 'progress' && event.progress?.message) {
+      // Normalize the progress message to remove timestamp variations
       const normalizedMessage = normalizeProgressMessage(event.progress.message);
       const eventKey = `${event.taskId}:${event.progress.stage}`;
-      lastLoggedEvents.set(eventKey, {
-        type: event.type,
-        normalizedContent: normalizedMessage,
+      const lastLogged = lastLoggedEvents.get(eventKey);
+
+      // Skip logging if the normalized content is the same as last time
+      if (lastLogged?.normalizedContent === normalizedMessage) {
+        shouldLog = false;
+      } else {
+        // Update the last logged event
+        lastLoggedEvents.set(eventKey, {
+          type: event.type,
+          normalizedContent: normalizedMessage,
+        });
+      }
+    }
+
+    // Log only if content has changed or it's not a duplicate progress event
+    if (shouldLog) {
+      void api.logEvent({
+        level: 'debug',
+        message: `UI task update received: ${JSON.stringify(event)}`,
+        context: { ...event },
       });
     }
 
@@ -767,11 +787,21 @@ if (typeof window !== 'undefined' && api.isRunningInTauri()) {
 
   // Subscribe to partial message updates (streaming)
   void api.onTaskMessagePartial((event) => {
+    console.log('[streaming] received partial:', event.messageId, 'textLength:', event.textSoFar.length);
+    void api.logEvent({
+      level: 'debug',
+      message: `[streaming] partial received: messageId=${event.messageId}, textLength=${event.textSoFar.length}`,
+    });
     useTaskStore.getState().addPartialMessage(event);
   });
 
   // Subscribe to complete message updates (streaming finalized)
   void api.onTaskMessageComplete((event) => {
+    console.log('[streaming] received complete:', event.messageId, 'textLength:', event.text.length);
+    void api.logEvent({
+      level: 'debug',
+      message: `[streaming] complete received: messageId=${event.messageId}, textLength=${event.text.length}`,
+    });
     useTaskStore.getState().finalizePartialMessage(event);
   });
 }

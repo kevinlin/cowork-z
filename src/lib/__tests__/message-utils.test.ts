@@ -88,4 +88,95 @@ Line 3`;
 Line 2
 Line 3`);
   });
+
+  // === NEW TESTS FOR BOLD PLAN FORMAT ===
+
+  it('should extract content after Steps in bold Plan format', () => {
+    const input = `**Plan:**
+Goal: List the available tools in markdown format.
+
+Steps:
+1. Identify the tools available in this session → verify: list includes each tool name shown in the tool registry.
+2. Present them in markdown format → verify: output is a markdown list.
+
+## Available tools
+
+- \`functions.question\`
+- \`functions.bash\`
+- \`functions.read\``;
+
+    const expected = `## Available tools
+
+- \`functions.question\`
+- \`functions.bash\`
+- \`functions.read\``;
+
+    expect(extractUserFacingContent(input)).toBe(expected);
+  });
+
+  it('should strip Next steps section from the end', () => {
+    const input = `**Plan:**
+Goal: Locate the PDF and summarize.
+
+Steps:
+1. Search Downloads → verify: file path found.
+2. Read the PDF → verify: text extracted.
+3. Summarize → verify: summary covers key points.
+
+**Summary of the report**
+- **Objective:** Evaluate the prototype.
+
+**Next steps:** Discuss with stakeholders, redesign templates.`;
+
+    const expected = `**Summary of the report**
+- **Objective:** Evaluate the prototype.`;
+
+    expect(extractUserFacingContent(input)).toBe(expected);
+  });
+
+  it('should handle bold Plan format with simple joke response', () => {
+    const input = `**Plan:**
+Goal: Tell a joke.
+
+Steps:
+1. Provide a short, friendly joke → verify: joke delivered clearly in one or two lines.
+
+Why don't programmers like nature?
+It has too many bugs.`;
+
+    const expected = `Why don't programmers like nature?
+It has too many bugs.`;
+
+    expect(extractUserFacingContent(input)).toBe(expected);
+  });
+
+  it('should handle Next steps with multiline content', () => {
+    const input = `**Plan:**
+Goal: Test.
+
+Steps:
+1. Do something → verify: done.
+
+The actual content here.
+
+**Next steps:** First action, second action, run second testing round, pilot with high-quality entries.`;
+
+    const expected = `The actual content here.`;
+
+    expect(extractUserFacingContent(input)).toBe(expected);
+  });
+
+  it('should be case-insensitive for Next steps', () => {
+    const input = `**Plan:**
+Goal: Test.
+
+Steps:
+1. Do something → verify: done.
+
+Result content.
+
+**next steps:** Some actions.`;
+
+    expect(extractUserFacingContent(input)).toBe('Result content.');
+  });
 });

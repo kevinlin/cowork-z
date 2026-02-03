@@ -7,8 +7,8 @@ import path from 'path';
 import { getOpenCodeCliPath, isOpenCodeAvailable, OpenCodeCliNotFoundError } from './cli-path';
 import {
   ACCOMPLISH_AGENT_NAME,
-  buildOpenCodeEnvironment,
   buildOpenCodePermission as buildOpenCodeConfig,
+  buildOpenCodeEnvironment,
   generateOpenCodeConfig,
   getOpenCodeConfigDir,
 } from './config-generator';
@@ -268,13 +268,14 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
   /**
    * Resume an existing session
    */
-  async resumeSession(sessionId: string, prompt: string): Promise<void> {
+  async resumeSession(sessionId: string, prompt: string, folders?: string[]): Promise<void> {
     return this.startTask({
       taskId: this.currentTaskId || this.generateTaskId(),
       prompt,
       sessionId,
       apiKeys: this.apiKeys,
       workingDirectory: this.lastWorkingDirectory,
+      folders,
     });
   }
 

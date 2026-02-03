@@ -2,7 +2,10 @@
 //!
 //! The sidecar communicates via JSON-line messages over stdin/stdout.
 
+use chrono::Local;
 use serde::{Deserialize, Serialize};
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::sync::Arc;
 use tauri::async_runtime::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
@@ -107,10 +110,63 @@ pub struct SidecarEvent {
     pub payload: Option<serde_json::Value>,
 }
 
+/// Creates a log file in ~/.opencode directory
+/// Filename format: {datetime}_{session_id}_{task_id}.log (session_id and task_id are optional)
+/// Returns the log file wrapped in Arc<Mutex> for thread-safe access
+fn create_log_file(
+    session_id: Option<&str>,
+    task_id: Option<&str>,
+) -> Result<Arc<std::sync::Mutex<File>>, String> {
+    let log_dir = dirs::home_dir()
+        .ok_or("Could not determine home directory")?
+        .join(".opencode");
+    std::fs::create_dir_all(&log_dir)
+        .map_err(|e| format!("Failed to create log directory: {}", e))?;
+
+    let timestamp = Local::now().format("%Y-%m-%d_%H-%M-%S");
+
+    // Build filename: {datetime}_{session_id}_{task_id}.log
+    let mut filename = timestamp.to_string();
+    if let Some(sid) = session_id {
+        filename.push('_');
+        filename.push_str(sid);
+    }
+    if let Some(tid) = task_id {
+        filename.push('_');
+        filename.push_str(tid);
+    }
+    filename.push_str(".log");
+
+    let log_path = log_dir.join(&filename);
+    let log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .map_err(|e| format!("Failed to create log file: {}", e))?;
+
+    let log_file = Arc::new(std::sync::Mutex::new(log_file));
+
+    // Write header to log file
+    {
+        let mut file = log_file.lock().unwrap();
+        let _ = writeln!(file, "=== Sidecar Log Started: {} ===", Local::now());
+        let _ = writeln!(file, "Log file: {}", log_path.display());
+        if let Some(sid) = session_id {
+            let _ = writeln!(file, "Session ID: {}", sid);
+        }
+        if let Some(tid) = task_id {
+            let _ = writeln!(file, "Task ID: {}", tid);
+        }
+    }
+
+    Ok(log_file)
+}
+
 /// Manages the sidecar process lifecycle
 pub struct SidecarManager {
     child: Option<CommandChild>,
     is_ready: bool,
+    log_file: Option<Arc<std::sync::Mutex<File>>>,
 }
 
 impl SidecarManager {
@@ -118,6 +174,7 @@ impl SidecarManager {
         Self {
             child: None,
             is_ready: false,
+            log_file: None,
         }
     }
 
@@ -171,6 +228,10 @@ impl SidecarManager {
             }
         }
 
+        // Create log file in ~/.opencode directory
+        let log_file = create_log_file(None, None)?;
+        self.log_file = Some(Arc::clone(&log_file));
+
         let shell = app.shell();
 
         // Spawn the sidecar
@@ -180,8 +241,15 @@ impl SidecarManager {
             .spawn()
             .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
 
-        // Clone app handle for event forwarding
+        // Log spawn success
+        {
+            let mut file = log_file.lock().unwrap();
+            let _ = writeln!(file, "[{}] Sidecar process spawned successfully", Local::now().format("%H:%M:%S%.3f"));
+        }
+
+        // Clone app handle and log file for event forwarding
         let app_handle = app.clone();
+        let log_file_clone = Arc::clone(&log_file);
 
         // Spawn stdout reader task
         tauri::async_runtime::spawn(async move {
@@ -189,6 +257,10 @@ impl SidecarManager {
                 match event {
                     CommandEvent::Stdout(line) => {
                         let line_str = String::from_utf8_lossy(&line);
+                        // Write to log file
+                        if let Ok(mut file) = log_file_clone.lock() {
+                            let _ = writeln!(file, "[{}] [stdout] {}", Local::now().format("%H:%M:%S%.3f"), line_str);
+                        }
                         for json_line in line_str.lines() {
                             if let Ok(event) = serde_json::from_str::<SidecarEvent>(json_line) {
                                 Self::handle_sidecar_event(&app_handle, event);
@@ -198,9 +270,17 @@ impl SidecarManager {
                     CommandEvent::Stderr(line) => {
                         let line_str = String::from_utf8_lossy(&line);
                         eprintln!("[sidecar stderr] {}", line_str);
+                        // Write to log file
+                        if let Ok(mut file) = log_file_clone.lock() {
+                            let _ = writeln!(file, "[{}] [stderr] {}", Local::now().format("%H:%M:%S%.3f"), line_str);
+                        }
                     }
                     CommandEvent::Error(err) => {
                         eprintln!("[sidecar error] {}", err);
+                        // Write to log file
+                        if let Ok(mut file) = log_file_clone.lock() {
+                            let _ = writeln!(file, "[{}] ERROR: {}", Local::now().format("%H:%M:%S%.3f"), err);
+                        }
                         let _ = app_handle.emit("sidecar:error", &err);
                     }
                     CommandEvent::Terminated(payload) => {
@@ -208,6 +288,11 @@ impl SidecarManager {
                             "[sidecar] terminated with code: {:?}",
                             payload.code
                         );
+                        // Write to log file
+                        if let Ok(mut file) = log_file_clone.lock() {
+                            let _ = writeln!(file, "[{}] Sidecar terminated with code: {:?}", Local::now().format("%H:%M:%S%.3f"), payload.code);
+                            let _ = writeln!(file, "=== Sidecar Log Ended: {} ===", Local::now());
+                        }
                         let _ = app_handle.emit("sidecar:terminated", payload.code);
                     }
                     _ => {}

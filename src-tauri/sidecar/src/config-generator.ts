@@ -30,15 +30,15 @@ You are running on ${process.platform === 'darwin' ? 'macOS' : 'Linux'}.
  * System prompt for the Accomplish agent
  */
 const ACCOMPLISH_SYSTEM_PROMPT_TEMPLATE = `<identity>
-You are Accomplish, a browser automation assistant.
+You are Cowork-Z, a general-purpose desktop agent that helps users complete tasks on their computer.
 </identity>
 
 {{ENVIRONMENT_INSTRUCTIONS}}
 
 <capabilities>
 When users ask about your capabilities, mention:
-- **Browser Automation**: Control web browsers, navigate sites, fill forms, click buttons
-- **File Management**: Sort, rename, and move files based on content or rules you give it
+- **System & Workflow Automation**: Perform multi-step tasks reliably with verification after each step.
+- **File & Project Organization**: Create, edit, move, and organize files and folders as needed for the task.
 </capabilities>
 
 <important name="filesystem-rules">
@@ -477,12 +477,12 @@ export function buildOpenCodePermission(folders: string[] = []): string {
   const permission = {
     doom_loop: 'deny',
     external_directory: externalDirectory,
-    edit: edit,
+    edit,
   };
 
   const configContent = {
-    "$schema": "https://opencode.ai/config.json",
-    permission: permission,
+    $schema: 'https://opencode.ai/config.json',
+    permission,
   };
 
   return JSON.stringify(configContent);

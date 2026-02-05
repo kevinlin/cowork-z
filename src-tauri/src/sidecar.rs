@@ -259,7 +259,7 @@ impl SidecarManager {
                         let line_str = String::from_utf8_lossy(&line);
                         // Write to log file
                         if let Ok(mut file) = log_file_clone.lock() {
-                            let _ = writeln!(file, "[{}] [stdout] {}", Local::now().format("%H:%M:%S%.3f"), line_str);
+                            let _ = write!(file, "[{}] [stdout] {}", Local::now().format("%H:%M:%S%.3f"), line_str);
                         }
                         for json_line in line_str.lines() {
                             if let Ok(event) = serde_json::from_str::<SidecarEvent>(json_line) {
@@ -272,7 +272,7 @@ impl SidecarManager {
                         eprintln!("[sidecar stderr] {}", line_str);
                         // Write to log file
                         if let Ok(mut file) = log_file_clone.lock() {
-                            let _ = writeln!(file, "[{}] [stderr] {}", Local::now().format("%H:%M:%S%.3f"), line_str);
+                            let _ = write!(file, "[{}] [stderr] {}", Local::now().format("%H:%M:%S%.3f"), line_str);
                         }
                     }
                     CommandEvent::Error(err) => {

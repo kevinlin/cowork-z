@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.kevinlin.cowork-z",
   "build": {
-    "beforeDevCommand": "cd src-tauri/sidecar && pnpm build:binary && cd ../.. && pnpm dev",
-    "beforeBuildCommand": "cd src-tauri/sidecar && pnpm build:binary && cd ../.. && pnpm build",
+    "beforeDevCommand": "cd src-tauri/sidecar-opencode && pnpm install && pnpm build:binary && cd ../.. && pnpm dev",
+    "beforeBuildCommand": "cd src-tauri/sidecar-opencode && pnpm install && pnpm build:binary && cd ../.. && pnpm build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
@@ -33,8 +33,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/cowork-sidecar"],
-    "resources": ["../skills/"]
+    "externalBin": ["binaries/sidecar-opencode"],
+    "resources": []
   },
   "plugins": {
     "shell": {

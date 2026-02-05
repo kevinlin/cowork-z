@@ -962,11 +962,51 @@ export class ProcessManager {
 }
 ```
 
+#### 3. Update Tauri Configuration
+**File**: `src-tauri/tauri.conf.json`
+
+Update the build commands and external binary reference to use the new sidecar-opencode:
+
+```json
+{
+  "build": {
+    "beforeDevCommand": "cd src-tauri/sidecar-opencode && pnpm install && pnpm build:binary && cd ../.. && pnpm dev",
+    "beforeBuildCommand": "cd src-tauri/sidecar-opencode && pnpm install && pnpm build:binary && cd ../.. && pnpm build"
+  },
+  "bundle": {
+    "externalBin": ["binaries/sidecar-opencode"],
+    "resources": []
+  }
+}
+```
+
+#### 4. Update Rust Sidecar Manager
+**File**: `src-tauri/src/sidecar.rs`
+
+Update the binary candidate names and sidecar reference:
+
+```rust
+// Update candidate names for new sidecar
+let candidate_names = [
+    "sidecar-opencode-aarch64-apple-darwin",
+    "sidecar-opencode-x86_64-apple-darwin",
+    "sidecar-opencode",
+];
+
+// Update sidecar spawn call
+let (mut rx, child) = shell
+    .sidecar("sidecar-opencode")
+    .map_err(|e| format!("Failed to create sidecar command: {}", e))?
+    .spawn()
+    .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
+```
+
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] HTTP client compiles: `pnpm build`
-- [ ] Unit tests pass: `pnpm test`
+- [x] HTTP client compiles: `pnpm build`
+- [x] Unit tests pass: `pnpm test`
+- [x] Rust compiles with new sidecar reference: `cd src-tauri && cargo check`
 
 #### Manual Verification:
 - [ ] Can detect running OpenCode server via health endpoint

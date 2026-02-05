@@ -193,9 +193,9 @@ impl SidecarManager {
         let _current_exe = std::env::current_exe().ok();
         let current_dir = std::env::current_dir().ok();
         let candidate_names = [
-            "cowork-sidecar-aarch64-apple-darwin",
-            "cowork-sidecar-x86_64-apple-darwin",
-            "cowork-sidecar",
+            "sidecar-opencode-aarch64-apple-darwin",
+            "sidecar-opencode-x86_64-apple-darwin",
+            "sidecar-opencode",
         ];
         let mut candidates = serde_json::Map::new();
 
@@ -236,7 +236,7 @@ impl SidecarManager {
 
         // Spawn the sidecar
         let (mut rx, child) = shell
-            .sidecar("cowork-sidecar")
+            .sidecar("sidecar-opencode")
             .map_err(|e| format!("Failed to create sidecar command: {}", e))?
             .spawn()
             .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;

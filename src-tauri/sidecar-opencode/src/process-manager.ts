@@ -1,7 +1,7 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { logger } from './logger.js';
-import { OpenCodeClient } from './opencode-client.js';
-import type { ApiKeys } from './types.js';
+import { logger } from './logger';
+import { OpenCodeClient } from './opencode-client';
+import type { ApiKeys } from './types';
 
 export interface ProcessManagerOptions {
   port?: number;

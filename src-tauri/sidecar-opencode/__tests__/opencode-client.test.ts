@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { OpenCodeClient } from '../src/opencode-client.js';
+import { OpenCodeClient } from '../src/opencode-client';
 
 // Mock fetch
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 global.fetch = mockFetch;
 
 // Mock logger to prevent file I/O during tests
-jest.mock('../src/logger.js', () => ({
+jest.mock('../src/logger', () => ({
   logger: {
     httpResponse: jest.fn(),
     info: jest.fn(),

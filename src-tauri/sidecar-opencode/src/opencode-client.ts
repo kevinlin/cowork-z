@@ -1,5 +1,5 @@
-import { logger } from './logger.js';
-import type { Config, HealthResponse, Message, Part, PermissionRequest, QuestionAnswer, QuestionRequest, Session } from './types.js';
+import { logger } from './logger';
+import type { Config, HealthResponse, Message, Part, PermissionRequest, QuestionAnswer, QuestionRequest, Session } from './types';
 
 export interface OpenCodeClientOptions {
   baseUrl?: string;

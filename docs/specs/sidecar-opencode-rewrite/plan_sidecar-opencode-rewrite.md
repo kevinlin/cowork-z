@@ -107,17 +107,20 @@ src-tauri/sidecar-opencode/
 #### 2. Package Configuration
 **File**: `src-tauri/sidecar-opencode/package.json`
 
+> **Important**: Do NOT use `"type": "module"` (ESM). The `pkg` bundler has limited ESM support and will fail with `Cannot find module '/snapshot/dist/index.js'` errors. Use CommonJS instead.
+
 ```json
 {
   "name": "sidecar-opencode",
   "version": "0.1.0",
   "description": "OpenCode server sidecar for Cowork Z",
-  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "build:binary": "pnpm build && pkg dist/index.js --targets node20-macos-arm64 --output ../binaries/sidecar-opencode-aarch64-apple-darwin"
   },
   "dependencies": {
@@ -131,10 +134,57 @@ src-tauri/sidecar-opencode/
     "@yao-pkg/pkg": "^5.15.0",
     "jest": "^29.0.0",
     "@types/jest": "^29.0.0",
+    "@jest/globals": "^30.2.0",
     "ts-jest": "^29.0.0"
   }
 }
 ```
+
+**File**: `src-tauri/sidecar-opencode/tsconfig.json`
+
+> **Important**: Use `"module": "CommonJS"` for `pkg` compatibility. ESM modules (`NodeNext`) will cause the bundled binary to fail.
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "__tests__"]
+}
+```
+
+**File**: `src-tauri/sidecar-opencode/jest.config.cjs`
+
+```javascript
+/** @type {import('jest').Config} */
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        isolatedModules: true,
+      },
+    ],
+  },
+  testMatch: ['**/__tests__/**/*.test.ts'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+};
+```
+
+> **Note on imports**: When using CommonJS, do NOT include `.js` extensions in TypeScript imports. Use `import { foo } from './bar'` instead of `import { foo } from './bar.js'`.
 
 #### 3. TypeScript Types
 **File**: `src-tauri/sidecar-opencode/src/types.ts`

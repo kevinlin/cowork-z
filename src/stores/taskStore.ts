@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as api from '@/lib/tauri-api';
 import type {
   CompleteMessageEvent,
+  FolderPermission,
   PartialMessage,
   PartialMessageEvent,
   PermissionRequest,
@@ -66,10 +67,11 @@ interface TaskState {
   openLauncher: () => void;
   closeLauncher: () => void;
 
-  // Working folders (session-only, not persisted)
-  folders: string[];
-  addFolder: (path: string) => void;
-  removeFolder: (path: string) => void;
+  // Working folder permissions (per-conversation, persisted in DB)
+  folderPermissions: FolderPermission[];
+  addFolderPermission: (path: string, accessLevel: string) => void;
+  removeFolderPermission: (path: string) => void;
+  loadFolderPermissions: (taskId: string) => Promise<void>;
 
   // Actions
   startTask: (config: TaskConfig) => Promise<Task | null>;
@@ -130,35 +132,44 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   startupStage: null,
   startupStageTaskId: null,
   isLauncherOpen: false,
-  folders: [],
+  folderPermissions: [],
 
-  addFolder: (path: string) => {
-    const { folders, currentTask } = get();
+  addFolderPermission: (path: string, accessLevel: string) => {
+    const { folderPermissions, currentTask } = get();
     // Avoid duplicates
-    if (folders.includes(path)) {
+    if (folderPermissions.some((fp) => fp.folderPath === path)) {
       return;
     }
-    const newFolders = [...folders, path];
-    set({ folders: newFolders });
+    const newPerms = [...folderPermissions, { folderPath: path, accessLevel: accessLevel as FolderPermission['accessLevel'] }];
+    set({ folderPermissions: newPerms });
 
-    // Persist to database if there's an active task with a session
-    if (currentTask?.sessionId) {
-      api.saveTaskFolders(currentTask.id, newFolders).catch((err) => {
-        console.error('Failed to persist folders:', err);
+    // Persist to database if there's an active task
+    if (currentTask) {
+      api.saveFolderPermission(currentTask.id, path, accessLevel).catch((err) => {
+        console.error('Failed to persist folder permission:', err);
       });
     }
   },
 
-  removeFolder: (path: string) => {
-    const { folders, currentTask } = get();
-    const newFolders = folders.filter((f) => f !== path);
-    set({ folders: newFolders });
+  removeFolderPermission: (path: string) => {
+    const { folderPermissions, currentTask } = get();
+    const newPerms = folderPermissions.filter((fp) => fp.folderPath !== path);
+    set({ folderPermissions: newPerms });
 
-    // Persist to database if there's an active task with a session
-    if (currentTask?.sessionId) {
-      api.saveTaskFolders(currentTask.id, newFolders).catch((err) => {
-        console.error('Failed to persist folders:', err);
+    // Remove from database if there's an active task
+    if (currentTask) {
+      api.removeFolderPermission(currentTask.id, path).catch((err) => {
+        console.error('Failed to remove folder permission:', err);
       });
+    }
+  },
+
+  loadFolderPermissions: async (taskId: string) => {
+    try {
+      const perms = await api.getFolderPermissions(taskId);
+      set({ folderPermissions: perms });
+    } catch (err) {
+      console.error('Failed to load folder permissions:', err);
     }
   },
 
@@ -213,20 +224,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   startTask: async (config: TaskConfig) => {
-    const { folders } = get();
     set({ isLoading: true, error: null });
     try {
-      // Include current folders in the task config
-      const taskConfig: TaskConfig = {
-        ...config,
-        folders: config.folders ?? (folders.length > 0 ? folders : undefined),
-      };
       void api.logEvent({
         level: 'info',
         message: 'UI start task',
-        context: { prompt: config.prompt, taskId: config.taskId, folders: taskConfig.folders },
+        context: { prompt: config.prompt, taskId: config.taskId },
       });
-      const task = await api.startTask(taskConfig);
+      const task = await api.startTask(config);
 
       // Create initial user message for the prompt
       const initialUserMessage: TaskMessage = {
@@ -283,7 +288,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   sendFollowUp: async (message: string) => {
-    const { currentTask, startTask, folders } = get();
+    const { currentTask, startTask } = get();
     if (!currentTask) {
       set({ error: 'No active task to continue' });
       void api.logEvent({
@@ -353,11 +358,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       void api.logEvent({
         level: 'info',
         message: 'UI follow-up sent',
-        context: { taskId: currentTask.id, message, folders },
+        context: { taskId: currentTask.id, message },
       });
-      // Pass current folders to the resume session for permission construction
-      const currentFolders = folders.length > 0 ? folders : undefined;
-      const task = await api.resumeSession(sessionId, message, currentTask.id, currentFolders);
+      // Folder permissions are loaded from DB on the Rust side during resume
+      const task = await api.resumeSession(sessionId, message, currentTask.id);
 
       // Update status based on response (could be 'running' or 'queued')
       set((state) => ({
@@ -764,7 +768,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       startupStage: null,
       startupStageTaskId: null,
       isLauncherOpen: false,
-      folders: [],
+      folderPermissions: [],
     });
   },
 

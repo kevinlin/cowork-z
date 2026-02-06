@@ -49,7 +49,7 @@ interface AccomplishAPI {
   replyToQuestion(taskId: string, requestId: string, answers: Array<{ labels: string[]; customText?: string }>): Promise<void>;
 
   // Session management
-  resumeSession(sessionId: string, prompt: string, taskId?: string, folders?: string[]): Promise<Task>;
+  resumeSession(sessionId: string, prompt: string, taskId?: string): Promise<Task>;
 
   // Settings
   getApiKeys(): Promise<ApiKeyConfig[]>;

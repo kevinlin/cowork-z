@@ -232,13 +232,18 @@ export type SidecarCommand =
   | { type: 'ping' }
   | { type: 'check_server' };
 
+export interface FolderPermission {
+  path: string;
+  accessLevel: 'read' | 'read-write';
+}
+
 export interface StartTaskPayload {
   taskId: string;
   prompt: string;
   apiKeys?: ApiKeys;
   workingDirectory?: string;
   modelId?: string;
-  folders?: string[];
+  folderPermissions?: FolderPermission[];
 }
 
 export interface ResumeSessionPayload {
@@ -248,7 +253,7 @@ export interface ResumeSessionPayload {
   apiKeys?: ApiKeys;
   workingDirectory?: string;
   modelId?: string;
-  folders?: string[];
+  folderPermissions?: FolderPermission[];
 }
 
 export interface PermissionReplyPayload {

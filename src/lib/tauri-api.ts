@@ -16,6 +16,7 @@ import type {
   BedrockCredentials,
   CompleteMessageEvent,
   ConnectedProvider,
+  FolderPermission,
   OpenCodeMessage,
   PartialMessageEvent,
   PermissionRequest,
@@ -130,8 +131,24 @@ export async function saveTaskSummary(taskId: string, summary: string): Promise<
   return invoke<void>('save_task_summary', { taskId, summary });
 }
 
-export async function saveTaskFolders(taskId: string, folders: string[]): Promise<void> {
-  return invoke<void>('save_task_folders', { taskId, folders });
+// ============================================================================
+// Folder Permissions
+// ============================================================================
+
+export async function saveFolderPermission(taskId: string, folderPath: string, accessLevel: string): Promise<void> {
+  return invoke<void>('save_folder_permission', { taskId, folderPath, accessLevel });
+}
+
+export async function getFolderPermissions(taskId: string): Promise<FolderPermission[]> {
+  return invoke<FolderPermission[]>('get_folder_permissions', { taskId });
+}
+
+export async function removeFolderPermission(taskId: string, folderPath: string): Promise<void> {
+  return invoke<void>('remove_folder_permission', { taskId, folderPath });
+}
+
+export async function getDefaultFolderPermissions(): Promise<FolderPermission[]> {
+  return invoke<FolderPermission[]>('get_default_folder_permissions');
 }
 
 export async function completeTask(taskId: string, status: TaskStatus, sessionId?: string): Promise<void> {
@@ -162,8 +179,8 @@ export async function replyToQuestion(
 // Session Management
 // ============================================================================
 
-export async function resumeSession(sessionId: string, prompt: string, taskId?: string, folders?: string[]): Promise<Task> {
-  return invoke<Task>('resume_session', { sessionId, prompt, taskId, folders });
+export async function resumeSession(sessionId: string, prompt: string, taskId?: string): Promise<Task> {
+  return invoke<Task>('resume_session', { sessionId, prompt, taskId });
 }
 
 export async function abortSession(taskId: string, sessionId: string): Promise<void> {
@@ -1043,6 +1060,12 @@ export function getTauriApi() {
 
     // Session management
     resumeSession,
+
+    // Folder permissions
+    saveFolderPermission,
+    getFolderPermissions,
+    removeFolderPermission,
+    getDefaultFolderPermissions,
 
     // Settings
     getApiKeys,

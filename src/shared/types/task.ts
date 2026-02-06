@@ -19,8 +19,6 @@ export interface TaskConfig {
   outputSchema?: object;
   /** Session ID for resuming */
   sessionId?: string;
-  /** Allowed folder paths for file operations */
-  folders?: string[];
 }
 
 export interface Task {
@@ -35,8 +33,6 @@ export interface Task {
   startedAt?: string;
   completedAt?: string;
   result?: TaskResult;
-  /** Allowed folder paths for file operations */
-  folders?: string[];
 }
 
 export interface TaskAttachment {

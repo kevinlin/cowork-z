@@ -167,12 +167,12 @@ export class SessionManager extends EventEmitter {
   }
 
   async startTask(payload: StartTaskPayload): Promise<void> {
-    const { taskId, prompt, workingDirectory, modelId, folders } = payload;
+    const { taskId, prompt, workingDirectory, modelId, folderPermissions } = payload;
 
     logger.info('Starting task', { taskId, prompt: prompt.slice(0, 100) });
 
     // Push session-specific config via PATCH /config
-    const config = buildSessionConfig({ modelId, folders });
+    const config = buildSessionConfig({ modelId, folderPermissions });
     await this.client.updateConfig(config, workingDirectory);
     logger.info('Config updated for session', config);
 
@@ -209,12 +209,12 @@ export class SessionManager extends EventEmitter {
   }
 
   async resumeSession(payload: ResumeSessionPayload): Promise<void> {
-    const { taskId, sessionId, prompt, workingDirectory, modelId, folders } = payload;
+    const { taskId, sessionId, prompt, workingDirectory, modelId, folderPermissions } = payload;
 
     logger.info('Resuming session', { taskId, sessionId });
 
     // Push session-specific config via PATCH /config
-    const config = buildSessionConfig({ modelId, folders });
+    const config = buildSessionConfig({ modelId, folderPermissions });
     await this.client.updateConfig(config, workingDirectory);
 
     this.emit('progress', { taskId, stage: 'configuring' });

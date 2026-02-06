@@ -1,4 +1,4 @@
-import type { AgentConfig, Config, PermissionAction, PermissionConfig } from './types';
+import type { AgentConfig, Config, FolderPermission, PermissionAction, PermissionConfig } from './types';
 
 /**
  * Platform-specific environment instructions for the agent
@@ -67,24 +67,39 @@ If the user gave you a task with specific criteria:
 
 export interface ConfigBuilderOptions {
   modelId?: string;
-  folders?: string[];
+  folderPermissions?: FolderPermission[];
   enabledProviders?: string[];
 }
 
 export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<Config> {
-  // Build permission config based on allowed folders
+  // Build permission config with deny-by-default for external directories
   const permissionConfig: PermissionConfig = {
     doom_loop: 'deny' as PermissionAction,
   };
 
-  if (options.folders && options.folders.length > 0) {
-    const folderPermissions: Record<string, PermissionAction> = {};
-    for (const folder of options.folders) {
-      folderPermissions[folder] = 'allow';
+  if (options.folderPermissions && options.folderPermissions.length > 0) {
+    const externalDirRules: Record<string, PermissionAction> = {};
+    const editRules: Record<string, PermissionAction> = {};
+    const readRules: Record<string, PermissionAction> = {};
+
+    for (const fp of options.folderPermissions) {
+      // Allow external directory access for all permitted folders
+      externalDirRules[fp.path] = 'allow';
+      // Always allow read access for permitted folders
+      readRules[fp.path] = 'allow';
+
+      if (fp.accessLevel === 'read-write') {
+        // For read-write folders: ask before any edit/delete operation
+        editRules[fp.path] = 'ask';
+      } else {
+        // For read-only folders: deny all edits
+        editRules[fp.path] = 'deny';
+      }
     }
-    permissionConfig.external_directory = folderPermissions;
-    permissionConfig.edit = folderPermissions;
-    permissionConfig.read = folderPermissions;
+
+    permissionConfig.external_directory = externalDirRules;
+    permissionConfig.read = readRules;
+    permissionConfig.edit = editRules;
   }
 
   // Build agent config

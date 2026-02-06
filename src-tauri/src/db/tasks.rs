@@ -23,8 +23,6 @@ pub struct StoredTask {
     pub started_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub folders: Option<Vec<String>>,
 }
 
 /// Stored task message representation
@@ -68,7 +66,6 @@ pub struct TaskInput {
     pub created_at: String,
     pub started_at: Option<String>,
     pub completed_at: Option<String>,
-    pub folders: Option<Vec<String>>,
 }
 
 /// Input for task message
@@ -166,7 +163,7 @@ fn get_attachments_for_message(conn: &Connection, message_id: &str) -> Vec<Store
 pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, folders
+            "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at
              FROM tasks
              ORDER BY created_at DESC
              LIMIT ?1",
@@ -184,7 +181,6 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
                 row.get::<_, String>(5)?,
                 row.get::<_, Option<String>>(6)?,
                 row.get::<_, Option<String>>(7)?,
-                row.get::<_, Option<String>>(8)?,
             ))
         })
         .expect("Failed to query tasks");
@@ -192,9 +188,8 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
     task_iter
         .filter_map(|r| r.ok())
         .map(
-            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at, folders_json)| {
+            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at)| {
                 let messages = get_messages_for_task(conn, &id);
-                let folders = folders_json.and_then(|json| serde_json::from_str(&json).ok());
                 StoredTask {
                     id,
                     prompt,
@@ -205,7 +200,6 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
                     created_at,
                     started_at,
                     completed_at,
-                    folders,
                 }
             },
         )
@@ -215,7 +209,7 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
 /// Get a single task by ID
 pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
     let result = conn.query_row(
-        "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, folders
+        "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at
          FROM tasks WHERE id = ?1",
         [task_id],
         |row| {
@@ -228,15 +222,13 @@ pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
                 row.get::<_, String>(5)?,
                 row.get::<_, Option<String>>(6)?,
                 row.get::<_, Option<String>>(7)?,
-                row.get::<_, Option<String>>(8)?,
             ))
         },
     );
 
     match result {
-        Ok((id, prompt, summary, status, session_id, created_at, started_at, completed_at, folders_json)) => {
+        Ok((id, prompt, summary, status, session_id, created_at, started_at, completed_at)) => {
             let messages = get_messages_for_task(conn, &id);
-            let folders = folders_json.and_then(|json| serde_json::from_str(&json).ok());
             Some(StoredTask {
                 id,
                 prompt,
@@ -247,7 +239,6 @@ pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
                 created_at,
                 started_at,
                 completed_at,
-                folders,
             })
         }
         Err(_) => None,
@@ -256,18 +247,11 @@ pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
 
 /// Save a task (upsert)
 pub fn save_task(conn: &Connection, task: &TaskInput) -> Result<(), String> {
-    // Sort folders alphabetically before saving
-    let folders_json = task.folders.as_ref().map(|f| {
-        let mut sorted = f.clone();
-        sorted.sort();
-        serde_json::to_string(&sorted).unwrap_or_else(|_| "[]".to_string())
-    });
-
     // Use a transaction for atomicity
     conn.execute(
         "INSERT OR REPLACE INTO tasks
-         (id, prompt, summary, status, session_id, created_at, started_at, completed_at, folders)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+         (id, prompt, summary, status, session_id, created_at, started_at, completed_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             task.id,
             task.prompt,
@@ -277,7 +261,6 @@ pub fn save_task(conn: &Connection, task: &TaskInput) -> Result<(), String> {
             task.created_at,
             task.started_at,
             task.completed_at,
-            folders_json,
         ],
     )
     .map_err(|e| format!("Failed to save task: {}", e))?;
@@ -440,34 +423,3 @@ pub fn clear_history(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-/// Update task folders (sorted alphabetically)
-pub fn update_task_folders(
-    conn: &Connection,
-    task_id: &str,
-    folders: &[String],
-) -> Result<(), String> {
-    // Sort folders alphabetically before saving
-    let mut sorted = folders.to_vec();
-    sorted.sort();
-    let folders_json = serde_json::to_string(&sorted)
-        .map_err(|e| format!("Failed to serialize folders: {}", e))?;
-
-    conn.execute(
-        "UPDATE tasks SET folders = ?1 WHERE id = ?2",
-        params![folders_json, task_id],
-    )
-    .map_err(|e| format!("Failed to update folders: {}", e))?;
-    Ok(())
-}
-
-/// Get folders for a task
-pub fn get_task_folders(conn: &Connection, task_id: &str) -> Option<Vec<String>> {
-    conn.query_row(
-        "SELECT folders FROM tasks WHERE id = ?1",
-        [task_id],
-        |row| row.get::<_, Option<String>>(0),
-    )
-    .ok()
-    .flatten()
-    .and_then(|json| serde_json::from_str(&json).ok())
-}

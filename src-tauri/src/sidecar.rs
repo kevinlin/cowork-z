@@ -85,6 +85,14 @@ pub enum SidecarCommand {
     CheckServer,
 }
 
+/// Folder permission payload sent to sidecar
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderPermissionPayload {
+    pub path: String,
+    pub access_level: String,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartTaskPayload {
@@ -97,7 +105,7 @@ pub struct StartTaskPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub folders: Option<Vec<String>>,
+    pub folder_permissions: Option<Vec<FolderPermissionPayload>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -114,7 +122,7 @@ pub struct ResumeSessionPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub folders: Option<Vec<String>>,
+    pub folder_permissions: Option<Vec<FolderPermissionPayload>>,
 }
 
 #[derive(Debug, Serialize)]

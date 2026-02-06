@@ -2,9 +2,10 @@
 //! Database schema migrations
 
 use rusqlite::Connection;
+use serde_json;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 3;
+const CURRENT_VERSION: i32 = 4;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -193,6 +194,71 @@ fn migrate_v3(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v4: Create folder_permissions table, migrate data from tasks.folders, drop tasks.folders column
+fn migrate_v4(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v4 (folder permissions)");
+
+    // 1. Create folder_permissions table
+    conn.execute(
+        "CREATE TABLE folder_permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            folder_path TEXT NOT NULL,
+            access_level TEXT NOT NULL DEFAULT 'read-write',
+            created_at TEXT NOT NULL,
+            UNIQUE(task_id, folder_path)
+        )",
+        [],
+    )
+    .map_err(|e| format!("Failed to create folder_permissions: {}", e))?;
+
+    conn.execute(
+        "CREATE INDEX idx_folder_permissions_task_id ON folder_permissions(task_id)",
+        [],
+    )
+    .map_err(|e| format!("Failed to create folder_permissions index: {}", e))?;
+
+    // 2. Migrate existing data from tasks.folders JSON column
+    // Check if folders column exists before migrating
+    let has_folders_column: bool = conn
+        .prepare("SELECT folders FROM tasks LIMIT 0")
+        .is_ok();
+
+    if has_folders_column {
+        let mut stmt = conn
+            .prepare("SELECT id, folders FROM tasks WHERE folders IS NOT NULL")
+            .map_err(|e| format!("Failed to prepare migration query: {}", e))?;
+
+        let rows: Vec<(String, String)> = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|e| format!("Failed to query tasks for migration: {}", e))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        for (task_id, folders_json) in &rows {
+            if let Ok(folders) = serde_json::from_str::<Vec<String>>(folders_json) {
+                for folder in &folders {
+                    let _ = conn.execute(
+                        "INSERT OR IGNORE INTO folder_permissions (task_id, folder_path, access_level, created_at)
+                         VALUES (?1, ?2, 'read-write', ?3)",
+                        rusqlite::params![task_id, folder, now],
+                    );
+                }
+            }
+        }
+
+        // 3. Drop the folders column from tasks table
+        let _ = conn.execute("ALTER TABLE tasks DROP COLUMN folders", []);
+    }
+
+    set_stored_version(conn, 4)?;
+    println!("[Migrations] Migration v4 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -224,6 +290,9 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
     if stored_version < 3 {
         migrate_v3(conn)?;
+    }
+    if stored_version < 4 {
+        migrate_v4(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

@@ -33,8 +33,6 @@ pub struct Task {
     pub completed_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub started_at: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub folders: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,8 +77,14 @@ pub struct TaskConfig {
     pub prompt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub folders: Option<Vec<String>>,
+}
+
+/// Folder permission for a task
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderPermission {
+    pub folder_path: String,
+    pub access_level: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -365,9 +369,22 @@ async fn start_task(
             created_at: created_at.clone(),
             started_at: Some(started_at.clone()),
             completed_at: None,
-            folders: config.folders.clone(),
         })?;
     }
+
+    // Load folder permissions from database
+    let folder_permissions = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::folder_permissions::get_folder_permissions(&conn, &task_id)
+    };
+    let sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if folder_permissions.is_empty() {
+        None
+    } else {
+        Some(folder_permissions.iter().map(|fp| sidecar::FolderPermissionPayload {
+            path: fp.folder_path.clone(),
+            access_level: fp.access_level.clone(),
+        }).collect())
+    };
 
     // Get API keys from secure storage
     let api_keys = sidecar::get_all_api_keys()?;
@@ -388,7 +405,7 @@ async fn start_task(
                 api_keys: Some(api_keys),
                 working_directory: None,
                 model_id: resolved_model_id,
-                folders: config.folders.clone(),
+                folder_permissions: sidecar_perms,
             },
         })
         .await?;
@@ -406,7 +423,6 @@ async fn start_task(
         updated_at: None,
         completed_at: None,
         started_at: Some(started_at),
-        folders: config.folders,
     })
 }
 
@@ -505,7 +521,6 @@ async fn get_task(task_id: String, state: State<'_, DbState>) -> Result<Option<T
         updated_at: None,
         completed_at: t.completed_at,
         started_at: t.started_at,
-        folders: t.folders,
     }))
 }
 
@@ -548,7 +563,6 @@ async fn list_tasks(state: State<'_, DbState>) -> Result<Vec<Task>, String> {
             updated_at: None,
             completed_at: t.completed_at,
             started_at: t.started_at,
-            folders: t.folders,
         })
         .collect())
 }
@@ -630,14 +644,64 @@ async fn save_task_summary(
     db::tasks::update_task_summary(&conn, &task_id, &summary)
 }
 
+// ============================================================================
+// Folder Permission Commands
+// ============================================================================
+
 #[tauri::command]
-async fn save_task_folders(
+async fn save_folder_permission(
     task_id: String,
-    folders: Vec<String>,
+    folder_path: String,
+    access_level: String,
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    db::tasks::update_task_folders(&conn, &task_id, &folders)
+    db::folder_permissions::save_folder_permission(&conn, &task_id, &folder_path, &access_level)
+}
+
+#[tauri::command]
+async fn get_folder_permissions(
+    task_id: String,
+    state: State<'_, DbState>,
+) -> Result<Vec<FolderPermission>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let perms = db::folder_permissions::get_folder_permissions(&conn, &task_id);
+    Ok(perms.iter().map(|p| FolderPermission {
+        folder_path: p.folder_path.clone(),
+        access_level: p.access_level.clone(),
+    }).collect())
+}
+
+#[tauri::command]
+async fn remove_folder_permission(
+    task_id: String,
+    folder_path: String,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    db::folder_permissions::remove_folder_permission(&conn, &task_id, &folder_path)
+}
+
+#[tauri::command]
+async fn get_default_folder_permissions() -> Result<Vec<FolderPermission>, String> {
+    let home = dirs::home_dir().ok_or("Could not determine home directory")?;
+    let downloads = home.join("Downloads");
+    let desktop = home.join("Desktop");
+
+    let mut defaults = Vec::new();
+    if downloads.exists() {
+        defaults.push(FolderPermission {
+            folder_path: downloads.to_string_lossy().to_string(),
+            access_level: "read".to_string(),
+        });
+    }
+    if desktop.exists() {
+        defaults.push(FolderPermission {
+            folder_path: desktop.to_string_lossy().to_string(),
+            access_level: "read".to_string(),
+        });
+    }
+    Ok(defaults)
 }
 
 #[tauri::command]
@@ -694,7 +758,6 @@ async fn resume_session(
     session_id: String,
     prompt: String,
     task_id: Option<String>,
-    folders: Option<Vec<String>>,
     app: tauri::AppHandle,
     sidecar_state: State<'_, SidecarState>,
     db_state: State<'_, DbState>,
@@ -704,11 +767,19 @@ async fn resume_session(
         format!("task_{}", uuid::Uuid::new_v4())
     });
 
-    // Get folders from the database if not provided (for resuming conversations)
-    let folders = folders.or_else(|| {
-        let conn = db_state.conn.lock().ok()?;
-        db::tasks::get_task_folders(&conn, &task_id)
-    });
+    // Load folder permissions from database
+    let folder_permissions = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::folder_permissions::get_folder_permissions(&conn, &task_id)
+    };
+    let sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if folder_permissions.is_empty() {
+        None
+    } else {
+        Some(folder_permissions.iter().map(|fp| sidecar::FolderPermissionPayload {
+            path: fp.folder_path.clone(),
+            access_level: fp.access_level.clone(),
+        }).collect())
+    };
 
     // Get API keys from secure storage
     let api_keys = sidecar::get_all_api_keys()?;
@@ -730,7 +801,7 @@ async fn resume_session(
                 api_keys: Some(api_keys),
                 working_directory: None,
                 model_id: None,
-                folders: folders.clone(),
+                folder_permissions: sidecar_perms,
             },
         })
         .await?;
@@ -748,7 +819,6 @@ async fn resume_session(
         updated_at: None,
         completed_at: None,
         started_at: Some(chrono::Utc::now().to_rfc3339()),
-        folders,
     })
 }
 
@@ -1560,7 +1630,10 @@ pub fn run() {
             save_task_status,
             save_task_session,
             save_task_summary,
-            save_task_folders,
+            save_folder_permission,
+            get_folder_permissions,
+            remove_folder_permission,
+            get_default_folder_permissions,
             complete_task,
             respond_to_permission,
             reply_to_question,

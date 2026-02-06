@@ -5,6 +5,15 @@
 /** File operation types for RequestFilePermission tool */
 export type FileOperation = 'create' | 'delete' | 'rename' | 'move' | 'modify' | 'overwrite';
 
+/** Access level for folder permissions */
+export type FolderAccessLevel = 'read' | 'read-write';
+
+/** Folder permission for a task */
+export interface FolderPermission {
+  folderPath: string;
+  accessLevel: FolderAccessLevel;
+}
+
 export interface PermissionRequest {
   id: string;
   taskId: string;

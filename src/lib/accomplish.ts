@@ -37,9 +37,6 @@ interface AccomplishAPI {
   abortSession(taskId: string, sessionId: string): Promise<void>;
   /** @deprecated Use abortSession instead */
   interruptTask?(taskId: string): Promise<void>;
-  abortSession(taskId: string, sessionId: string): Promise<void>;
-  /** @deprecated Use abortSession instead */
-  interruptTask?(taskId: string): Promise<void>;
   getTask(taskId: string): Promise<Task | null>;
   listTasks(): Promise<Task[]>;
   deleteTask(taskId: string): Promise<void>;
@@ -52,7 +49,6 @@ interface AccomplishAPI {
   replyToQuestion(taskId: string, requestId: string, answers: Array<{ labels: string[]; customText?: string }>): Promise<void>;
 
   // Session management
-  resumeSession(sessionId: string, prompt: string, taskId?: string, folders?: string[]): Promise<Task>;
   resumeSession(sessionId: string, prompt: string, taskId?: string, folders?: string[]): Promise<Task>;
 
   // Settings

@@ -254,256 +254,32 @@ Modify the Rust sidecar manager to work with the new sidecar-opencode IPC protoc
 
 #### 1. Update SidecarCommand Enum
 **File**: `src-tauri/src/sidecar.rs`
-
 Update the command enum to match new protocol:
-
-```rust
-#[derive(Debug, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum SidecarCommand {
-    StartTask {
-        #[serde(rename = "taskId")]
-        task_id: String,
-        payload: StartTaskPayload,
-    },
-    ResumeSession {
-        #[serde(rename = "taskId")]
-        task_id: String,
-        payload: ResumeSessionPayload,
-    },
-    CancelTask {
-        #[serde(rename = "taskId")]
-        task_id: String,
-    },
-    AbortSession {
-        #[serde(rename = "taskId")]
-        task_id: String,
-        #[serde(rename = "sessionId")]
-        session_id: String,
-    },
-    SendPermissionReply {
-        #[serde(rename = "taskId")]
-        task_id: String,
-        payload: PermissionReplyPayload,
-    },
-    SendQuestionReply {
-        #[serde(rename = "taskId")]
-        task_id: String,
-        payload: QuestionReplyPayload,
-    },
-    #[allow(dead_code)]
-    Ping,
-    CheckServer,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ResumeSessionPayload {
-    #[serde(rename = "taskId")]
-    pub task_id: String,
-    #[serde(rename = "sessionId")]
-    pub session_id: String,
-    pub prompt: Option<String>,
-    #[serde(rename = "apiKeys")]
-    pub api_keys: Option<ApiKeys>,
-    #[serde(rename = "workingDirectory")]
-    pub working_directory: Option<String>,
-    #[serde(rename = "modelId")]
-    pub model_id: Option<String>,
-    pub folders: Option<Vec<String>>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct PermissionReplyPayload {
-    #[serde(rename = "requestId")]
-    pub request_id: String,
-    pub reply: String,  // "once" | "always" | "reject"
-    pub message: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct QuestionReplyPayload {
-    #[serde(rename = "requestId")]
-    pub request_id: String,
-    pub answers: Vec<QuestionAnswer>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct QuestionAnswer {
-    pub labels: Vec<String>,
-    #[serde(rename = "customText")]
-    pub custom_text: Option<String>,
-}
-```
 
 #### 2. Update Event Handling
 **File**: `src-tauri/src/sidecar.rs`
-
 Add new event types:
-
-```rust
-fn handle_sidecar_event(app: &AppHandle, event: SidecarEvent, log_file: Option<Arc<Mutex<File>>>) {
-    let event_name = match event.event_type.as_str() {
-        "ready" => "sidecar:ready",
-        "pong" => "sidecar:pong",
-        "server_status" => "sidecar:server_status",
-        "task_started" => "task:started",
-        "task_message" => "task:message",
-        "task_message_partial" => "task:message:partial",
-        "task_message_complete" => "task:message:complete",
-        "task_progress" => "task:progress",
-        "permission_request" => "task:permission_request",
-        "question_request" => "task:question_request",  // New event
-        "task_complete" => "task:complete",
-        "task_error" => "task:error",
-        "log" => "sidecar:log",
-        "error" => "sidecar:error",
-        _ => {
-            println!("Unknown sidecar event type: {}", event.event_type);
-            return;
-        }
-    };
-    // ... rest of handler
-}
-```
 
 #### 3. Update Tauri Commands
 **File**: `src-tauri/src/lib.rs`
-
 Add new commands for session management:
-
-```rust
-#[tauri::command]
-pub async fn resume_session(
-    state: State<'_, SidecarState>,
-    app: AppHandle,
-    task_id: String,
-    session_id: String,
-    prompt: Option<String>,
-    folders: Option<Vec<String>>,
-) -> Result<Task, String> {
-    // Similar to start_task but uses ResumeSession command
-    let mut manager = state.manager.lock().await;
-
-    if !manager.is_running() {
-        manager.spawn(&app).await?;
-    }
-
-    let api_keys = get_all_api_keys()?;
-
-    let payload = ResumeSessionPayload {
-        task_id: task_id.clone(),
-        session_id: session_id.clone(),
-        prompt,
-        api_keys: Some(api_keys),
-        working_directory: None,
-        model_id: None,
-        folders,
-    };
-
-    manager.send_command(SidecarCommand::ResumeSession {
-        task_id: task_id.clone(),
-        payload,
-    }).await?;
-
-    // Return task info
-    Ok(Task { /* ... */ })
-}
-
-#[tauri::command]
-pub async fn abort_session(
-    state: State<'_, SidecarState>,
-    task_id: String,
-    session_id: String,
-) -> Result<(), String> {
-    let mut manager = state.manager.lock().await;
-
-    if !manager.is_running() {
-        return Err("Sidecar not running".to_string());
-    }
-
-    manager.send_command(SidecarCommand::AbortSession {
-        task_id,
-        session_id,
-    }).await
-}
-
-#[tauri::command]
-pub async fn reply_to_permission(
-    state: State<'_, SidecarState>,
-    task_id: String,
-    request_id: String,
-    reply: String,
-    message: Option<String>,
-) -> Result<(), String> {
-    let mut manager = state.manager.lock().await;
-
-    if !manager.is_running() {
-        return Err("Sidecar not running".to_string());
-    }
-
-    let payload = PermissionReplyPayload {
-        request_id,
-        reply,
-        message,
-    };
-
-    manager.send_command(SidecarCommand::SendPermissionReply {
-        task_id,
-        payload,
-    }).await
-}
-
-#[tauri::command]
-pub async fn reply_to_question(
-    state: State<'_, SidecarState>,
-    task_id: String,
-    request_id: String,
-    answers: Vec<QuestionAnswer>,
-) -> Result<(), String> {
-    let mut manager = state.manager.lock().await;
-
-    if !manager.is_running() {
-        return Err("Sidecar not running".to_string());
-    }
-
-    let payload = QuestionReplyPayload {
-        request_id,
-        answers,
-    };
-
-    manager.send_command(SidecarCommand::SendQuestionReply {
-        task_id,
-        payload,
-    }).await
-}
-```
 
 #### 4. Update tauri.conf.json
 **File**: `src-tauri/tauri.conf.json`
-
 Change the sidecar binary reference:
-
-```json
-{
-  "bundle": {
-    "externalBin": ["binaries/sidecar-opencode"],
-    "resources": []  // Remove skills/ since we no longer bundle MCPs
-  }
-}
-```
 
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] Rust compiles: `cd src-tauri && cargo check`
-- [ ] Rust tests pass: `cargo test`
-- [ ] Tauri builds: `pnpm tauri build`
+- [x] Rust compiles: `cd src-tauri && cargo check`
+- [x] Rust tests pass: `cargo test`
+- [x] Tauri builds: `pnpm tauri build`
 
 #### Manual Verification:
-- [ ] Sidecar spawns correctly with new binary
-- [ ] Commands serialize correctly
-- [ ] Events deserialize and forward correctly
-- [ ] New Tauri commands work end-to-end
+- [x] Sidecar spawns correctly with new binary
+- [x] Commands serialize correctly
+- [x] Events deserialize and forward correctly
+- [x] New Tauri commands work end-to-end
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation before proceeding to the next phase.
 
@@ -518,91 +294,30 @@ Update frontend event listeners and API calls for the new protocol.
 
 #### 1. Update Tauri API Bridge
 **File**: `src/lib/tauri-api.ts`
-
 Add new functions:
-
-```typescript
-export async function resumeSession(
-  taskId: string,
-  sessionId: string,
-  prompt?: string,
-  folders?: string[]
-): Promise<Task> {
-  return invoke<Task>('resume_session', { taskId, sessionId, prompt, folders });
-}
-
-export async function abortSession(taskId: string, sessionId: string): Promise<void> {
-  return invoke<void>('abort_session', { taskId, sessionId });
-}
-
-export async function replyToPermission(
-  taskId: string,
-  requestId: string,
-  reply: 'once' | 'always' | 'reject',
-  message?: string
-): Promise<void> {
-  return invoke<void>('reply_to_permission', { taskId, requestId, reply, message });
-}
-
-export async function replyToQuestion(
-  taskId: string,
-  requestId: string,
-  answers: Array<{ labels: string[]; customText?: string }>
-): Promise<void> {
-  return invoke<void>('reply_to_question', { taskId, requestId, answers });
-}
-
-// Event listener for question requests
-export async function onQuestionRequest(
-  callback: (event: { taskId: string; payload: QuestionRequestPayload }) => void
-): Promise<UnlistenFn> {
-  return listen<{ taskId: string; payload: QuestionRequestPayload }>(
-    'task:question_request',
-    (e) => callback(e.payload)
-  );
-}
-```
 
 #### 2. Update Permission Store/Handler
 **File**: `src/stores/taskStore.ts` (or relevant component)
-
 Update to handle the new permission/question protocol:
 
-```typescript
-// Handle permission requests with new reply format
-const handlePermissionRequest = async (
-  taskId: string,
-  requestId: string,
-  allowed: boolean
-) => {
-  const reply = allowed ? 'once' : 'reject';
-  await replyToPermission(taskId, requestId, reply);
-};
-
-// Handle question requests (new)
-const handleQuestionResponse = async (
-  taskId: string,
-  requestId: string,
-  selectedOptions: string[],
-  customText?: string
-) => {
-  const answers = [{ labels: selectedOptions, customText }];
-  await replyToQuestion(taskId, requestId, answers);
-};
-```
+#### 3. Display Permission Patterns in Dialog
+Pass `patterns` (e.g., requested directory paths) through to the permission dialog UI:
+- **`src/shared/types/permission.ts`**: Added `patterns?: string[]` to `PermissionRequest` interface
+- **`src/lib/tauri-api.ts`**: Included `patterns: payload.patterns` in the `onPermissionRequest` callback
+- **`src/pages/Execution.tsx`**: Updated tool permission UI to display paths from `patterns` in a styled block, with human-readable permission names (underscores replaced with spaces), falling back to the existing tool input display when patterns are absent
 
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] Frontend compiles: `pnpm build`
-- [ ] TypeScript checks pass: `pnpm typecheck`
-- [ ] Frontend tests pass: `pnpm test --run`
+- [x] Frontend compiles: `pnpm build`
+- [x] TypeScript checks pass: `pnpm typecheck`
+- [x] Frontend tests pass: `pnpm test --run`
 
 #### Manual Verification:
-- [ ] Task execution works end-to-end
-- [ ] Streaming messages display correctly
-- [ ] Permission modals appear and responses work
-- [ ] Question modals appear and responses work
+- [x] Task execution works end-to-end
+- [x] Streaming messages display correctly
+- [x] Permission modals appear and responses work
+- [x] Question modals appear and responses work
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation before proceeding to the next phase.
 
@@ -657,14 +372,14 @@ rm src-tauri/binaries/cowork-sidecar-*
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] Full build succeeds: `pnpm tauri build`
-- [ ] No references to old sidecar: `grep -r "cowork-sidecar" --include="*.json" --include="*.rs" --include="*.ts"`
-- [ ] No references to skills directory: `grep -r "skills/" --include="*.json" --include="*.rs" --include="*.ts"`
+- [x] Full build succeeds: `pnpm tauri build`
+- [x] No references to old sidecar: `grep -r "cowork-sidecar" --include="*.json" --include="*.rs" --include="*.ts"`
+- [x] No references to skills directory: `grep -r "skills/" --include="*.json" --include="*.rs" --include="*.ts"`
 
 #### Manual Verification:
-- [ ] App launches and runs correctly
-- [ ] All task functionality works
-- [ ] No orphaned files or configurations
+- [x] App launches and runs correctly
+- [x] All task functionality works
+- [x] No orphaned files or configurations
 
 **Implementation Note**: This is the final phase. After verification, the migration is complete.
 

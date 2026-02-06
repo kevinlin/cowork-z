@@ -126,7 +126,7 @@ fn create_log_file(
     std::fs::create_dir_all(&log_dir)
         .map_err(|e| format!("Failed to create log directory: {}", e))?;
 
-    let timestamp = Local::now().format("%Y-%m-%d_%H-%M-%S");
+    let timestamp = Local::now().format("%Y-%m-%d_%H-%M-%S_RS");
 
     // Build filename: {datetime}_{session_id}_{task_id}.log
     let mut filename = timestamp.to_string();

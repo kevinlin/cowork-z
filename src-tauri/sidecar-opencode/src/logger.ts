@@ -28,7 +28,7 @@ export class Logger {
     if (sessionId) parts.push(sessionId);
     if (taskId) parts.push(taskId);
 
-    const filename = `${parts.join('_')}.log`;
+    const filename = `${parts.join('_')}_TS.log`;
     const filepath = path.join(this.logDir, filename);
 
     this.logFile = fs.createWriteStream(filepath, { flags: 'a' });

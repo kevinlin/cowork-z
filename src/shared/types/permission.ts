@@ -8,10 +8,15 @@ export type FileOperation = 'create' | 'delete' | 'rename' | 'move' | 'modify' |
 /** Access level for folder permissions */
 export type FolderAccessLevel = 'read' | 'read-write';
 
+/** Source of a folder permission */
+export type FolderPermissionSource = 'user' | 'adhoc';
+
 /** Folder permission for a task */
 export interface FolderPermission {
   folderPath: string;
   accessLevel: FolderAccessLevel;
+  /** Source: 'user' (added via FoldersPanel) or 'adhoc' (granted from permission prompt) */
+  source?: FolderPermissionSource;
 }
 
 export interface PermissionRequest {
@@ -63,4 +68,6 @@ export interface PermissionResponse {
   selectedOptions?: string[];
   /** Custom text response for "Other" option */
   customText?: string;
+  /** Permission patterns (e.g., file paths being edited) - passed through for adhoc persistence */
+  patterns?: string[];
 }

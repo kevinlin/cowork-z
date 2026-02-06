@@ -1,11 +1,11 @@
 'use client';
 
-import { FolderPlus, Lock, X } from 'lucide-react';
+import { FolderPlus, Lock, ShieldCheck, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { getDefaultFolderPermissions, getHomeDir, pickFolder } from '@/lib/tauri-api';
 import { cn } from '@/lib/utils';
-import type { FolderAccessLevel, FolderPermission } from '@/shared';
+import type { FolderAccessLevel, FolderPermission, FolderPermissionSource } from '@/shared';
 import { useTaskStore } from '@/stores/taskStore';
 import CollapsibleSection from './CollapsibleSection';
 
@@ -29,6 +29,7 @@ interface FolderItemProps {
   displayPath: string;
   accessLevel: FolderAccessLevel;
   isDefault?: boolean;
+  source?: FolderPermissionSource;
   onRemove: () => void;
 }
 
@@ -47,7 +48,8 @@ function AccessBadge({ level }: { level: FolderAccessLevel }) {
   );
 }
 
-function FolderItem({ path, displayPath, accessLevel, isDefault, onRemove }: FolderItemProps) {
+function FolderItem({ path, displayPath, accessLevel, isDefault, source, onRemove }: FolderItemProps) {
+  const isAdhoc = source === 'adhoc';
   return (
     <div
       className={cn(
@@ -56,9 +58,10 @@ function FolderItem({ path, displayPath, accessLevel, isDefault, onRemove }: Fol
         'transition-colors duration-200',
         isDefault && 'opacity-75'
       )}
-      title={`${path} (${accessLevel})`}
+      title={`${path} (${accessLevel}${isAdhoc ? ', auto-granted' : ''})`}
     >
       {isDefault && <Lock className="h-3 w-3 shrink-0 text-zinc-400" />}
+      {isAdhoc && <ShieldCheck className="h-3 w-3 shrink-0 text-green-500" />}
       <span
         className="min-w-0 flex-1 truncate"
         style={{
@@ -154,9 +157,9 @@ export default function FoldersPanel() {
     </Button>
   );
 
-  // Merge default and user-added permissions for display
+  // Merge default, user-added, and adhoc permissions for display
   const allPermissions = [
-    ...defaultPermissions.map((fp) => ({ ...fp, isDefault: true })),
+    ...defaultPermissions.map((fp) => ({ ...fp, isDefault: true, source: undefined as FolderPermissionSource | undefined })),
     ...folderPermissions.filter(
       (fp) => !defaultPermissions.some((d) => d.folderPath === fp.folderPath)
     ).map((fp) => ({ ...fp, isDefault: false })),
@@ -214,6 +217,7 @@ export default function FoldersPanel() {
               key={fp.folderPath}
               onRemove={() => removeFolderPermission(fp.folderPath)}
               path={fp.folderPath}
+              source={fp.source}
             />
           ))}
         </div>

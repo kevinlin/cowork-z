@@ -89,8 +89,13 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
       readRules[fp.path] = 'allow';
 
       if (fp.accessLevel === 'read-write') {
-        // For read-write folders: ask before any edit/delete operation
-        editRules[fp.path] = 'ask';
+        if (fp.source === 'adhoc') {
+          // For adhoc-granted folders (from accepted permission prompts): auto-allow on resume
+          editRules[fp.path] = 'allow';
+        } else {
+          // For user-added read-write folders: ask before any edit/delete operation
+          editRules[fp.path] = 'ask';
+        }
       } else {
         // For read-only folders: deny all edits
         editRules[fp.path] = 'deny';

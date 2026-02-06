@@ -235,6 +235,8 @@ export type SidecarCommand =
 export interface FolderPermission {
   path: string;
   accessLevel: 'read' | 'read-write';
+  /** Source of the permission: 'user' (added via FoldersPanel) or 'adhoc' (granted from permission prompt) */
+  source?: 'user' | 'adhoc';
 }
 
 export interface StartTaskPayload {

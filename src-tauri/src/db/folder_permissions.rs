@@ -12,6 +12,7 @@ pub struct StoredFolderPermission {
     pub task_id: String,
     pub folder_path: String,
     pub access_level: String,
+    pub source: String,
     pub created_at: String,
 }
 
@@ -21,13 +22,14 @@ pub fn save_folder_permission(
     task_id: &str,
     folder_path: &str,
     access_level: &str,
+    source: &str,
 ) -> Result<(), String> {
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO folder_permissions (task_id, folder_path, access_level, created_at)
-         VALUES (?1, ?2, ?3, ?4)
-         ON CONFLICT(task_id, folder_path) DO UPDATE SET access_level = excluded.access_level",
-        params![task_id, folder_path, access_level, now],
+        "INSERT INTO folder_permissions (task_id, folder_path, access_level, source, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(task_id, folder_path) DO UPDATE SET access_level = excluded.access_level, source = excluded.source",
+        params![task_id, folder_path, access_level, source, now],
     )
     .map_err(|e| format!("Failed to save folder permission: {}", e))?;
     Ok(())
@@ -37,7 +39,7 @@ pub fn save_folder_permission(
 pub fn get_folder_permissions(conn: &Connection, task_id: &str) -> Vec<StoredFolderPermission> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, task_id, folder_path, access_level, created_at
+            "SELECT id, task_id, folder_path, access_level, source, created_at
              FROM folder_permissions
              WHERE task_id = ?1
              ORDER BY folder_path ASC",
@@ -51,7 +53,8 @@ pub fn get_folder_permissions(conn: &Connection, task_id: &str) -> Vec<StoredFol
                 task_id: row.get(1)?,
                 folder_path: row.get(2)?,
                 access_level: row.get(3)?,
-                created_at: row.get(4)?,
+                source: row.get(4)?,
+                created_at: row.get(5)?,
             })
         })
         .expect("Failed to query folder_permissions");

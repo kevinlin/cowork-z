@@ -135,8 +135,8 @@ export async function saveTaskSummary(taskId: string, summary: string): Promise<
 // Folder Permissions
 // ============================================================================
 
-export async function saveFolderPermission(taskId: string, folderPath: string, accessLevel: string): Promise<void> {
-  return invoke<void>('save_folder_permission', { taskId, folderPath, accessLevel });
+export async function saveFolderPermission(taskId: string, folderPath: string, accessLevel: string, source?: string): Promise<void> {
+  return invoke<void>('save_folder_permission', { taskId, folderPath, accessLevel, source });
 }
 
 export async function getFolderPermissions(taskId: string): Promise<FolderPermission[]> {

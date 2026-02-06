@@ -85,6 +85,8 @@ pub struct TaskConfig {
 pub struct FolderPermission {
     pub folder_path: String,
     pub access_level: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,6 +97,9 @@ pub struct PermissionResponse {
     pub decision: String, // "allow" | "deny"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+    /// Permission patterns (e.g., file paths being edited)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub patterns: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -383,6 +388,7 @@ async fn start_task(
         Some(folder_permissions.iter().map(|fp| sidecar::FolderPermissionPayload {
             path: fp.folder_path.clone(),
             access_level: fp.access_level.clone(),
+            source: Some(fp.source.clone()),
         }).collect())
     };
 
@@ -653,10 +659,12 @@ async fn save_folder_permission(
     task_id: String,
     folder_path: String,
     access_level: String,
+    source: Option<String>,
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    db::folder_permissions::save_folder_permission(&conn, &task_id, &folder_path, &access_level)
+    let source = source.as_deref().unwrap_or("user");
+    db::folder_permissions::save_folder_permission(&conn, &task_id, &folder_path, &access_level, source)
 }
 
 #[tauri::command]
@@ -669,6 +677,7 @@ async fn get_folder_permissions(
     Ok(perms.iter().map(|p| FolderPermission {
         folder_path: p.folder_path.clone(),
         access_level: p.access_level.clone(),
+        source: Some(p.source.clone()),
     }).collect())
 }
 
@@ -693,12 +702,14 @@ async fn get_default_folder_permissions() -> Result<Vec<FolderPermission>, Strin
         defaults.push(FolderPermission {
             folder_path: downloads.to_string_lossy().to_string(),
             access_level: "read".to_string(),
+            source: None,
         });
     }
     if desktop.exists() {
         defaults.push(FolderPermission {
             folder_path: desktop.to_string_lossy().to_string(),
             access_level: "read".to_string(),
+            source: None,
         });
     }
     Ok(defaults)
@@ -730,17 +741,41 @@ async fn complete_task(
 async fn respond_to_permission(
     response: PermissionResponse,
     sidecar_state: State<'_, SidecarState>,
+    db_state: State<'_, DbState>,
 ) -> Result<(), String> {
     let mut manager = sidecar_state.manager.lock().await;
     if !manager.is_running() {
         return Err("Sidecar not running".to_string());
     }
 
+    // When the user allows a file permission, persist the parent folder as an adhoc grant
+    if response.decision == "allow" {
+        if let Some(patterns) = &response.patterns {
+            for pattern in patterns {
+                let parent = std::path::Path::new(pattern)
+                    .parent()
+                    .map(|p| p.to_string_lossy().to_string());
+                if let Some(folder_path) = parent {
+                    if !folder_path.is_empty() {
+                        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+                        let _ = db::folder_permissions::save_folder_permission(
+                            &conn,
+                            &response.task_id,
+                            &folder_path,
+                            "read-write",
+                            "adhoc",
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     // Map frontend decision to sidecar reply format
     let reply = if response.decision == "allow" { "once" } else { "reject" };
 
     let payload = sidecar::PermissionReplyPayload {
-        request_id: response.request_id,
+        request_id: response.request_id.clone(),
         reply: reply.to_string(),
         message: response.message,
     };
@@ -778,6 +813,7 @@ async fn resume_session(
         Some(folder_permissions.iter().map(|fp| sidecar::FolderPermissionPayload {
             path: fp.folder_path.clone(),
             access_level: fp.access_level.clone(),
+            source: Some(fp.source.clone()),
         }).collect())
     };
 

@@ -5,7 +5,7 @@ use rusqlite::Connection;
 use serde_json;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 4;
+const CURRENT_VERSION: i32 = 5;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -259,6 +259,21 @@ fn migrate_v4(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v5: Add source column to folder_permissions table
+fn migrate_v5(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v5 (folder permission source)");
+
+    conn.execute(
+        "ALTER TABLE folder_permissions ADD COLUMN source TEXT NOT NULL DEFAULT 'user'",
+        [],
+    )
+    .map_err(|e| format!("Failed to add source column to folder_permissions: {}", e))?;
+
+    set_stored_version(conn, 5)?;
+    println!("[Migrations] Migration v5 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -293,6 +308,9 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
     if stored_version < 4 {
         migrate_v4(conn)?;
+    }
+    if stored_version < 5 {
+        migrate_v5(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

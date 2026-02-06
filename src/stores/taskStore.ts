@@ -425,12 +425,39 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   respondToPermission: async (response: PermissionResponse) => {
+    const { permissionRequest, folderPermissions } = get();
+
+    // Attach patterns from the current permission request so Rust can persist adhoc grants
+    const responseWithPatterns: PermissionResponse = {
+      ...response,
+      patterns: permissionRequest?.patterns,
+    };
+
     void api.logEvent({
       level: 'info',
       message: 'UI permission response',
-      context: { ...response },
+      context: { ...responseWithPatterns },
     });
-    await api.respondToPermission(response);
+    await api.respondToPermission(responseWithPatterns);
+
+    // When user allows a file permission, add the parent folder(s) to local state as adhoc grants
+    if (response.decision === 'allow' && permissionRequest?.patterns) {
+      for (const pattern of permissionRequest.patterns) {
+        const lastSlash = pattern.lastIndexOf('/');
+        if (lastSlash > 0) {
+          const parentFolder = pattern.substring(0, lastSlash);
+          // Only add if not already in the list
+          if (!folderPermissions.some((fp) => fp.folderPath === parentFolder)) {
+            const newPerms: FolderPermission[] = [
+              ...folderPermissions,
+              { folderPath: parentFolder, accessLevel: 'read-write', source: 'adhoc' },
+            ];
+            set({ folderPermissions: newPerms });
+          }
+        }
+      }
+    }
+
     set({ permissionRequest: null });
   },
 

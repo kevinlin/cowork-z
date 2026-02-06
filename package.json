@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "ultracite:fix": "ultracite fix src/ src-tauri/sidecar/",
-    "ultracite:check": "ultracite check src/ src-tauri/sidecar/",
+    "ultracite:fix": "ultracite fix src/ src-tauri/sidecar-opencode/",
+    "ultracite:check": "ultracite check src/ src-tauri/sidecar-opencode/",
     "prepare": "husky"
   },
   "dependencies": {

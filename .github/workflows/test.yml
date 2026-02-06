@@ -42,7 +42,7 @@ jobs:
 
       - name: Install sidecar dependencies
         run: pnpm install --ignore-workspace
-        working-directory: src-tauri/sidecar
+        working-directory: src-tauri/sidecar-opencode
 
       - name: Run frontend lint and tests
         run: pnpm ultracite:check & pnpm test --run

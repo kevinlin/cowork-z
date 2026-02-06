@@ -26,6 +26,7 @@
       "complexity": {
         "noStaticOnlyClass": "off",
         "useLiteralKeys": "off",
+        "noBannedTypes": "off",
         "noExcessiveCognitiveComplexity": {
           "level": "error",
           "options": {

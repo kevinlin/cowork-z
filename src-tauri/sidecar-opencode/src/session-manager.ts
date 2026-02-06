@@ -3,7 +3,7 @@ import { buildSessionConfig } from './config-builder';
 import type { EventStream } from './event-stream';
 import { logger } from './logger';
 import type { OpenCodeClient } from './opencode-client';
-import type { MessageInfo, PartUpdate, PermissionRequest, QuestionRequest, Session } from './types';
+import type { MessageInfo, PartUpdate, PermissionRequest, QuestionRequest, ResumeSessionPayload, Session, StartTaskPayload } from './types';
 
 interface ManagedSession {
   taskId: string;
@@ -32,15 +32,11 @@ export class SessionManager extends EventEmitter {
     // Server sends { sessionID: string, status: { type: string } } not { session: Session }
     this.eventStream.on('session.status', (props: { sessionID: string; status: { type: string } }) => {
       const taskId = this.sessionToTask.get(props.sessionID);
-    // Server sends { sessionID: string, status: { type: string } } not { session: Session }
-    this.eventStream.on('session.status', (props: { sessionID: string; status: { type: string } }) => {
-      const taskId = this.sessionToTask.get(props.sessionID);
       if (!taskId) return;
 
       const managed = this.sessions.get(taskId);
       if (!managed) return;
 
-      logger.debug('Session status update', { sessionId: props.sessionID, status: props.status });
       logger.debug('Session status update', { sessionId: props.sessionID, status: props.status });
 
       if (props.status.type === 'idle') {
@@ -205,7 +201,6 @@ export class SessionManager extends EventEmitter {
     this.emit('progress', { taskId, stage: 'executing' });
 
     // Send the initial message (server uses default_agent from config)
-    // Send the initial message (server uses default_agent from config)
     managed.status = 'active';
     await this.client.sendMessage(session.id, {
       parts: [{ type: 'text', text: prompt }],
@@ -241,7 +236,6 @@ export class SessionManager extends EventEmitter {
     this.emit('started', { taskId, sessionId });
     this.emit('progress', { taskId, stage: 'executing' });
 
-    // Send follow-up message if provided (server uses default_agent from config)
     // Send follow-up message if provided (server uses default_agent from config)
     if (prompt) {
       managed.status = 'active';

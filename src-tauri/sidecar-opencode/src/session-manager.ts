@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { buildSessionConfig } from './config-builder';
+import { buildSessionConfig, SYSTEM_PROMPT } from './config-builder';
 import type { EventStream } from './event-stream';
 import { logger } from './logger';
 import type { OpenCodeClient } from './opencode-client';
@@ -200,11 +200,17 @@ export class SessionManager extends EventEmitter {
     this.emit('started', { taskId, sessionId: session.id });
     this.emit('progress', { taskId, stage: 'executing' });
 
-    // Send the initial message (server uses default_agent from config)
+    // Send the initial message with system prompt injected directly.
+    // OpenCode 1.1.48 ignores custom agents, so we bypass agent resolution
+    // by passing the system prompt via the `system` field on sendMessage.
+    // Send the initial message with system prompt injected directly.
+    // OpenCode 1.1.48 ignores custom agents, so we bypass agent resolution
+    // by passing the system prompt via the `system` field on sendMessage.
     managed.status = 'active';
     await this.client.sendMessage(session.id, {
       parts: [{ type: 'text', text: prompt }],
       directory: workingDirectory,
+      system: SYSTEM_PROMPT,
     });
   }
 
@@ -236,12 +242,14 @@ export class SessionManager extends EventEmitter {
     this.emit('started', { taskId, sessionId });
     this.emit('progress', { taskId, stage: 'executing' });
 
-    // Send follow-up message if provided (server uses default_agent from config)
+    // Send follow-up message if provided, with system prompt injected directly.
+    // Send follow-up message if provided, with system prompt injected directly.
     if (prompt) {
       managed.status = 'active';
       await this.client.sendMessage(sessionId, {
         parts: [{ type: 'text', text: prompt }],
         directory: workingDirectory,
+        system: SYSTEM_PROMPT,
       });
     }
   }

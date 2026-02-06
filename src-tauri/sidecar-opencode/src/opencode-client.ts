@@ -138,6 +138,8 @@ export class OpenCodeClient {
       directory?: string;
       model?: { providerID: string; modelID: string };
       agent?: string;
+      /** System prompt override — injected directly, bypassing agent resolution. */
+      system?: string;
     }
   ): Promise<{ info: Message; parts: Part[] }> {
     const params = options.directory ? { directory: options.directory } : undefined;
@@ -148,6 +150,7 @@ export class OpenCodeClient {
         parts: options.parts,
         model: options.model,
         agent: options.agent,
+        system: options.system,
       },
       params
     );

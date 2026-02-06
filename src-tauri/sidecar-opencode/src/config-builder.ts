@@ -1,4 +1,4 @@
-import type { AgentConfig, Config, FolderPermission, PermissionAction, PermissionConfig } from './types';
+import type { Config, FolderPermission, PermissionAction, PermissionConfig } from './types';
 
 /**
  * Platform-specific environment instructions for the agent
@@ -19,9 +19,14 @@ You are running on ${process.platform === 'darwin' ? 'macOS' : 'Linux'}.
 }
 
 /**
- * System prompt for the Accomplish agent
+ * System prompt injected via the `system` field on sendMessage.
+ *
+ * OpenCode 1.1.48 ignores custom agent names set via PATCH /config
+ * (falls back to the built-in "build" agent). Passing the prompt
+ * directly through the sendMessage `system` parameter bypasses
+ * agent resolution and reliably applies the prompt.
  */
-const ACCOMPLISH_SYSTEM_PROMPT = `<identity>
+export const SYSTEM_PROMPT = `<identity>
 You are Cowork-Z, a general-purpose desktop agent that helps users complete tasks on their computer.
 </identity>
 
@@ -107,19 +112,12 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
     permissionConfig.edit = editRules;
   }
 
-  // Build agent config
-  const agentConfig: Record<string, AgentConfig> = {
-    accomplish: {
-      description: 'General-purpose desktop automation assistant',
-      prompt: ACCOMPLISH_SYSTEM_PROMPT,
-      mode: 'primary',
-    },
-  };
-
+  // Note: agent/default_agent are NOT sent here. OpenCode 1.1.48 ignores
+  // custom agent names and falls back to the built-in "build" agent.
+  // Instead, the system prompt is injected directly via the `system` field
+  // on each sendMessage call (see session-manager.ts).
   const config: Partial<Config> = {
-    default_agent: 'accomplish',
     permission: permissionConfig,
-    agent: agentConfig,
   };
 
   // Set model if provided

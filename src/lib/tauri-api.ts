@@ -856,6 +856,7 @@ export async function onPermissionRequest(callback: (request: PermissionRequest)
         taskId,
         type: 'tool',
         toolName: payload.permission,
+        patterns: payload.patterns,
         question: `Permission requested: ${payload.permission}`,
         createdAt: new Date().toISOString(),
       });

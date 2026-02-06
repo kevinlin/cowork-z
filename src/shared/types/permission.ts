@@ -31,6 +31,8 @@ export interface PermissionRequest {
   targetPath?: string;
   /** Preview of content (truncated) for create/modify/overwrite */
   contentPreview?: string;
+  /** Permission patterns (e.g., directory paths, command patterns) */
+  patterns?: string[];
   /** Timeout in milliseconds */
   timeoutMs?: number;
   createdAt: string;

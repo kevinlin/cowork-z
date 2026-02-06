@@ -1023,13 +1023,35 @@ export default function ExecutionPage() {
                       {/* Standard tool UI (non-file, non-question) */}
                       {permissionRequest.type === 'tool' && (
                         <>
-                          <p className="mb-4 text-muted-foreground text-sm">Allow {permissionRequest.toolName}?</p>
-                          {permissionRequest.toolName && (
-                            <div className="mb-4 overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs">
-                              <p className="mb-1 text-muted-foreground">Tool: {permissionRequest.toolName}</p>
-                              <pre className="text-foreground">{JSON.stringify(permissionRequest.toolInput, null, 2)}</pre>
+                          <p className="mb-4 text-muted-foreground text-sm">
+                            Allow {permissionRequest.toolName?.replace(/_/g, ' ')}?
+                          </p>
+
+                          {/* Display requested paths from patterns */}
+                          {permissionRequest.patterns && permissionRequest.patterns.length > 0 && (
+                            <div className="mb-4 rounded-lg bg-muted p-3">
+                              {permissionRequest.patterns.length === 1 ? (
+                                <p className="break-all font-mono text-foreground text-sm">{permissionRequest.patterns[0]}</p>
+                              ) : (
+                                <ul className="space-y-1">
+                                  {permissionRequest.patterns.map((pattern, idx) => (
+                                    <li className="break-all font-mono text-foreground text-sm" key={idx}>
+                                      {pattern}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </div>
                           )}
+
+                          {/* Tool input fallback when no patterns */}
+                          {(!permissionRequest.patterns || permissionRequest.patterns.length === 0) &&
+                            permissionRequest.toolName && (
+                              <div className="mb-4 overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs">
+                                <p className="mb-1 text-muted-foreground">Tool: {permissionRequest.toolName}</p>
+                                <pre className="text-foreground">{JSON.stringify(permissionRequest.toolInput, null, 2)}</pre>
+                              </div>
+                            )}
                         </>
                       )}
 

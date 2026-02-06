@@ -709,6 +709,42 @@ function normalizeIncomingMessage(message: unknown): TaskMessage | null {
   return null;
 }
 
+function normalizeTaskCompletePayload(payload?: {
+  result?: TaskResult;
+  status?: string;
+  sessionId?: string;
+  error?: string;
+}): TaskResult | null {
+  if (!payload) {
+    return null;
+  }
+  if (payload.result) {
+    return payload.result;
+  }
+  if (!payload.status) {
+    return null;
+  }
+
+  let normalizedStatus: TaskResult['status'];
+  switch (payload.status) {
+    case 'success':
+      normalizedStatus = 'success';
+      break;
+    case 'aborted':
+    case 'cancelled':
+      normalizedStatus = 'interrupted';
+      break;
+    default:
+      normalizedStatus = 'error';
+  }
+
+  return {
+    status: normalizedStatus,
+    sessionId: payload.sessionId,
+    error: payload.error,
+  };
+}
+
 export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): Promise<UnlistenFn> {
   const unlisteners: UnlistenFn[] = [];
   const track = (unlisten: UnlistenFn) => {
@@ -744,9 +780,17 @@ export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): 
         callback({ taskId, type: 'progress', progress });
       }
     }).then(track),
-    listen<{ taskId?: string; payload?: { result?: TaskResult } }>('task:complete', (event) => {
+    listen<{
+      taskId?: string;
+      payload?: {
+        result?: TaskResult;
+        status?: string;
+        sessionId?: string;
+        error?: string;
+      };
+    }>('task:complete', (event) => {
       const taskId = event.payload?.taskId;
-      const result = event.payload?.payload?.result;
+      const result = normalizeTaskCompletePayload(event.payload?.payload);
       if (taskId && result) {
         callback({ taskId, type: 'complete', result });
       }

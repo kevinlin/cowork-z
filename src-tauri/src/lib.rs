@@ -748,14 +748,19 @@ async fn respond_to_permission(
         return Err("Sidecar not running".to_string());
     }
 
-    // When the user allows a file permission, persist the parent folder as an adhoc grant
+    // When the user allows a permission, persist the target folder as an adhoc grant.
+    // For external_directory permissions, patterns are directory paths — use them directly.
+    // For edit/file permissions, patterns are file paths — use the parent directory.
     if response.decision == "allow" {
         if let Some(patterns) = &response.patterns {
             for pattern in patterns {
-                let parent = std::path::Path::new(pattern)
-                    .parent()
-                    .map(|p| p.to_string_lossy().to_string());
-                if let Some(folder_path) = parent {
+                let path = std::path::Path::new(pattern);
+                let folder_path = if path.is_dir() {
+                    Some(pattern.clone())
+                } else {
+                    path.parent().map(|p| p.to_string_lossy().to_string())
+                };
+                if let Some(folder_path) = folder_path {
                     if !folder_path.is_empty() {
                         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
                         let _ = db::folder_permissions::save_folder_permission(

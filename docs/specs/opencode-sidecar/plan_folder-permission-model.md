@@ -18,7 +18,7 @@ Each conversation (task) has its own set of folder permissions:
   - `read` -- read-only access
   - `read-write` -- full access (read + edit + create)
 - **File operations requiring approval:** Any `update` (edit/modify/overwrite) or `delete` operation on files in external folders MUST trigger a permission prompt to the user, regardless of folder access level. Creating new files does NOT require a prompt.
-- **Ad-hoc granted permissions:** When a user accepts a file edit/delete permission prompt during a conversation, the parent folder of the file is automatically persisted as a `read-write` folder permission with `source: 'adhoc'`. On session resume, adhoc-granted folders use `edit: 'allow'` (auto-allow, no re-prompts) instead of `edit: 'ask'`.
+- **Ad-hoc granted permissions:** When a user accepts a permission prompt during a conversation, the target folder is automatically persisted as a `read-write` folder permission with `source: 'adhoc'`. The target folder is derived from the permission `patterns`: for `external_directory` permissions the pattern is the directory itself; for `edit` permissions the pattern is a file path and the parent directory is used. On session resume, adhoc-granted folders use `edit: 'allow'` (auto-allow, no re-prompts) instead of `edit: 'ask'`.
 
 ### Data Model
 
@@ -48,7 +48,7 @@ Unique constraint on `(task_id, folder_path)`.
 6. When agent tries to edit/delete files, OpenCode emits `permission.asked` SSE event
 7. Permission request flows through sidecar -> Rust -> frontend permission modal
 8. User response flows back: frontend -> Rust -> sidecar -> OpenCode server
-9. **Ad-hoc persistence:** When user allows a file permission, Rust extracts the parent folder from `patterns` and persists it as `(task_id, folder_path, "read-write", "adhoc")` in `folder_permissions`
+9. **Ad-hoc persistence:** When user allows a permission, Rust derives the target folder from `patterns` and persists it as `(task_id, folder_path, "read-write", "adhoc")` in `folder_permissions`. Directory detection: if the pattern path exists as a directory on the filesystem, it is used directly; otherwise the parent directory is used (for file paths).
 10. **Resume with auto-allow:** On session resume, sidecar's `buildSessionConfig()` sets `edit: 'allow'` for adhoc-granted folders, so OpenCode does not re-prompt for files in those folders
 
 ## Implementation Summary
@@ -76,7 +76,7 @@ New commands in `lib.rs`:
 
 Updated `start_task` and `resume_session` to load folder permissions from DB and pass `source` field through to sidecar.
 
-**`respond_to_permission`** now accepts `PermissionResponse` with `patterns` field and `db_state`. When `decision == "allow"`, extracts parent folder from `patterns` and persists as adhoc grant via `save_folder_permission(..., "adhoc")`.
+**`respond_to_permission`** now accepts `PermissionResponse` with `patterns` field and `db_state`. When `decision == "allow"`, derives the target folder from each pattern using `Path::is_dir()` — directory patterns (from `external_directory` permissions) are used directly, file patterns use `parent()` — and persists as adhoc grant via `save_folder_permission(..., "adhoc")`.
 
 ### Layer 3: IPC Protocol
 
@@ -101,7 +101,7 @@ Updated `start_task` and `resume_session` to load folder permissions from DB and
 
 Replaced `folders`/`addFolder`/`removeFolder` with `folderPermissions`/`addFolderPermission`/`removeFolderPermission`/`loadFolderPermissions`.
 
-`respondToPermission()` now attaches `patterns` from the current `permissionRequest` to the response, and on `allow` decisions, adds the parent folder(s) from `patterns` to local `folderPermissions` state as adhoc grants.
+`respondToPermission()` now attaches `patterns` from the current `permissionRequest` to the response, and on `allow` decisions, derives the target folder from each pattern and adds it to local `folderPermissions` state as an adhoc grant. For `external_directory` permissions (checked via `permissionRequest.toolName`), the pattern is the directory itself and is used directly. For other permissions (e.g., `edit`), the pattern is a file path and the parent directory is extracted.
 
 ### Layer 7: FoldersPanel UI
 
@@ -121,7 +121,7 @@ Updated `startTask()` and `resumeSession()` to destructure and pass `folderPermi
 - `src-tauri/src/db/folder_permissions.rs` -- New CRUD module (with `source` field)
 - `src-tauri/src/db/mod.rs` -- Module declaration
 - `src-tauri/src/db/tasks.rs` -- Removed `folders` field
-- `src-tauri/src/lib.rs` -- New commands, updated start/resume, respond_to_permission persists adhoc grants
+- `src-tauri/src/lib.rs` -- New commands, updated start/resume, respond_to_permission persists adhoc grants (with directory vs file pattern detection)
 - `src-tauri/src/sidecar.rs` -- Updated payload structs (with `source` field)
 - `src-tauri/sidecar-opencode/src/types.ts` -- Added FolderPermission (with `source`), updated payloads
 - `src-tauri/sidecar-opencode/src/config-builder.ts` -- Differentiated permission rules (adhoc `allow` vs user `ask`)
@@ -130,7 +130,7 @@ Updated `startTask()` and `resumeSession()` to destructure and pass `folderPermi
 - `src/shared/types/task.ts` -- Removed folders
 - `src/lib/tauri-api.ts` -- New API functions
 - `src/lib/accomplish.ts` -- Updated interface
-- `src/stores/taskStore.ts` -- Updated state management, respondToPermission persists adhoc grants locally
+- `src/stores/taskStore.ts` -- Updated state management, respondToPermission persists adhoc grants locally (with directory vs file pattern detection via `toolName`)
 - `src/components/layout/FoldersPanel.tsx` -- UI overhaul, adhoc folders shown with shield-check icon
 
 ## Verification
@@ -148,7 +148,7 @@ Updated `startTask()` and `resumeSession()` to destructure and pass `folderPermi
 - [x] Question modals appear and responses work
 - [x] FoldersPanel shows default folders (Downloads, Desktop) and user-added folders with access badges
 - [x] FoldersPanel is expanded by default
-- [ ] Folder permissions persist across app restarts for resumed conversations
-- [ ] Accepting a file permission prompt adds the parent folder to FoldersPanel with shield-check icon and "adhoc" source
+- [x] Folder permissions persist across app restarts for resumed conversations
+- [x] Accepting a permission prompt adds the correct target folder to FoldersPanel with shield-check icon and "adhoc" source (directory patterns used directly, file patterns use parent)
 - [ ] On session resume, adhoc-granted folders do not trigger edit permission prompts (OpenCode config uses `edit: 'allow'`)
 - [ ] Removing an adhoc folder from FoldersPanel revokes the grant

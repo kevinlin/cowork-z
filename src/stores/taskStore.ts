@@ -440,20 +440,27 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     });
     await api.respondToPermission(responseWithPatterns);
 
-    // When user allows a file permission, add the parent folder(s) to local state as adhoc grants
+    // When user allows a permission, add the target folder(s) to local state as adhoc grants.
+    // For external_directory permissions, patterns are directory paths — use them directly.
+    // For edit/file permissions, patterns are file paths — use the parent directory.
     if (response.decision === 'allow' && permissionRequest?.patterns) {
+      const isDirectoryPermission = permissionRequest.toolName === 'external_directory';
       for (const pattern of permissionRequest.patterns) {
-        const lastSlash = pattern.lastIndexOf('/');
-        if (lastSlash > 0) {
-          const parentFolder = pattern.substring(0, lastSlash);
-          // Only add if not already in the list
-          if (!folderPermissions.some((fp) => fp.folderPath === parentFolder)) {
-            const newPerms: FolderPermission[] = [
-              ...folderPermissions,
-              { folderPath: parentFolder, accessLevel: 'read-write', source: 'adhoc' },
-            ];
-            set({ folderPermissions: newPerms });
-          }
+        let targetFolder: string;
+        if (isDirectoryPermission) {
+          targetFolder = pattern;
+        } else {
+          const lastSlash = pattern.lastIndexOf('/');
+          if (lastSlash <= 0) continue;
+          targetFolder = pattern.substring(0, lastSlash);
+        }
+        // Only add if not already in the list
+        if (!folderPermissions.some((fp) => fp.folderPath === targetFolder)) {
+          const newPerms: FolderPermission[] = [
+            ...folderPermissions,
+            { folderPath: targetFolder, accessLevel: 'read-write', source: 'adhoc' },
+          ];
+          set({ folderPermissions: newPerms });
         }
       }
     }

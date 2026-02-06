@@ -46,7 +46,7 @@ pub struct BedrockCredentials {
     pub region: String,
 }
 
-/// Commands sent to the sidecar
+/// Commands sent to the sidecar (matches sidecar-opencode IPC protocol)
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SidecarCommand {
@@ -55,23 +55,34 @@ pub enum SidecarCommand {
         task_id: String,
         payload: StartTaskPayload,
     },
+    ResumeSession {
+        #[serde(rename = "taskId")]
+        task_id: String,
+        payload: ResumeSessionPayload,
+    },
     CancelTask {
         #[serde(rename = "taskId")]
         task_id: String,
     },
-    InterruptTask {
+    AbortSession {
         #[serde(rename = "taskId")]
         task_id: String,
+        #[serde(rename = "sessionId")]
+        session_id: String,
     },
-    SendResponse {
+    SendPermissionReply {
         #[serde(rename = "taskId")]
         task_id: String,
-        payload: SendResponsePayload,
+        payload: PermissionReplyPayload,
+    },
+    SendQuestionReply {
+        #[serde(rename = "taskId")]
+        task_id: String,
+        payload: QuestionReplyPayload,
     },
     #[allow(dead_code)]
     Ping,
-    #[allow(dead_code)]
-    CheckCli,
+    CheckServer,
 }
 
 #[derive(Debug, Serialize)]
@@ -79,8 +90,6 @@ pub enum SidecarCommand {
 pub struct StartTaskPayload {
     pub task_id: String,
     pub prompt: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_keys: Option<ApiKeys>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -93,10 +102,43 @@ pub struct StartTaskPayload {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SendResponsePayload {
-    pub response: String,
+pub struct ResumeSessionPayload {
+    pub task_id: String,
+    pub session_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_keys: Option<ApiKeys>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folders: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionReplyPayload {
+    pub request_id: String,
+    pub reply: String, // "once" | "always" | "reject"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestionReplyPayload {
+    pub request_id: String,
+    pub answers: Vec<QuestionAnswer>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestionAnswer {
+    pub labels: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_text: Option<String>,
 }
 
 /// Events received from the sidecar
@@ -311,13 +353,15 @@ impl SidecarManager {
 
     /// Send a command to the sidecar
     pub async fn send_command(&mut self, cmd: SidecarCommand) -> Result<(), String> {
-        let (_cmd_type, _has_task_id) = match &cmd {
-            SidecarCommand::StartTask { task_id, .. } => ("start_task", !task_id.is_empty()),
-            SidecarCommand::CancelTask { task_id } => ("cancel_task", !task_id.is_empty()),
-            SidecarCommand::InterruptTask { task_id } => ("interrupt_task", !task_id.is_empty()),
-            SidecarCommand::SendResponse { task_id, .. } => ("send_response", !task_id.is_empty()),
-            SidecarCommand::Ping => ("ping", false),
-            SidecarCommand::CheckCli => ("check_cli", false),
+        let _cmd_type = match &cmd {
+            SidecarCommand::StartTask { .. } => "start_task",
+            SidecarCommand::ResumeSession { .. } => "resume_session",
+            SidecarCommand::CancelTask { .. } => "cancel_task",
+            SidecarCommand::AbortSession { .. } => "abort_session",
+            SidecarCommand::SendPermissionReply { .. } => "send_permission_reply",
+            SidecarCommand::SendQuestionReply { .. } => "send_question_reply",
+            SidecarCommand::Ping => "ping",
+            SidecarCommand::CheckServer => "check_server",
         };
 
         let child = self
@@ -337,21 +381,17 @@ impl SidecarManager {
 
     /// Handle events from the sidecar and forward to frontend
     fn handle_sidecar_event(app: &AppHandle, event: SidecarEvent) {
-        if matches!(
-            event.event_type.as_str(),
-            "task_message" | "task_progress" | "task_complete" | "task_error"
-        ) {
-        }
         let event_name = match event.event_type.as_str() {
             "ready" => "sidecar:ready",
             "pong" => "sidecar:pong",
-            "cli_status" => "sidecar:cli_status",
+            "server_status" => "sidecar:server_status",
             "task_started" => "task:started",
             "task_message" => "task:message",
             "task_message_partial" => "task:message:partial",
             "task_message_complete" => "task:message:complete",
             "task_progress" => "task:progress",
             "permission_request" => "task:permission_request",
+            "question_request" => "task:question_request",
             "task_complete" => "task:complete",
             "task_error" => "task:error",
             "log" => "sidecar:log",

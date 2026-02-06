@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cowork Z is a macOS desktop application built with Tauri 2.x that provides a sandboxed environment for autonomous AI agents. The application integrates with the OpenCode SDK to enable users to interact with AI agents that can safely execute code, manipulate files, and perform multi-step workflows while maintaining strong isolation from the host system.
 
-**Current Status:** Migration from Electron complete. The app is functional for task execution with OpenCode CLI. A sidecar rewrite is in progress — migrating from PTY-based `opencode run` to HTTP/SSE-based `opencode serve` (see Sidecar Modules below).
+**Current Status:** Migration from Electron complete. The app uses the `sidecar-opencode` HTTP/SSE-based sidecar to communicate with the OpenCode server API (`opencode serve`).
 
 ## Technology Stack
 
@@ -19,8 +19,7 @@ Cowork Z is a macOS desktop application built with Tauri 2.x that provides a san
 - **Package Manager:** pnpm
 - **Database:** SQLite (rusqlite)
 - **Secure Storage:** OS Keychain (keyring crate)
-- **Sidecar (legacy):** Node.js + node-pty for OpenCode CLI integration (`src-tauri/sidecar/`)
-- **Sidecar (new, in development):** Node.js + HTTP/SSE for OpenCode server API (`src-tauri/sidecar-opencode/`)
+- **Sidecar:** Node.js + HTTP/SSE for OpenCode server API (`src-tauri/sidecar-opencode/`)
 
 ## Development Commands
 
@@ -44,32 +43,16 @@ This project uses **Ultracite**, Biome (the underlying engine) provides robust l
 
 ```bash
 # Format code
-pnpm dlx ultracite fix src/ src-tauri/sidecar/ src-tauri/sidecar-opencode/
+pnpm dlx ultracite fix src/ src-tauri/sidecar-opencode/
 
 # Check for issues
-pnpm dlx ultracite check src/ src-tauri/sidecar/ src-tauri/sidecar-opencode/
+pnpm dlx ultracite check src/ src-tauri/sidecar-opencode/
 
 # Diagnose setup
 pnpm dlx ultracite doctor
 ```
 
-### Sidecar Development (Legacy — `src-tauri/sidecar/`)
-
-> **Note:** This is the legacy PTY-based sidecar using `opencode run`. It is being replaced by `sidecar-opencode`. Do not add new features here.
-
-```bash
-cd src-tauri/sidecar && pnpm install
-cd src-tauri/sidecar && pnpm build
-cd src-tauri/sidecar && pnpm test
-cd src-tauri/sidecar && pnpm build:binary           # macOS ARM64
-cd src-tauri/sidecar && pnpm build:binary:x64       # macOS Intel
-cd src-tauri/sidecar && pnpm build:binary:win       # Windows
-cd src-tauri/sidecar && pnpm build:binary:linux     # Linux
-```
-
-### Sidecar Development (New — `src-tauri/sidecar-opencode/`)
-
-> **Note:** This is the new HTTP/SSE-based sidecar using `opencode serve`. Under active development — see `docs/specs/sidecar-opencode-rewrite/plan_sidecar-opencode-rewrite.md` for the phased implementation plan.
+### Sidecar Development (`src-tauri/sidecar-opencode/`)
 
 ```bash
 cd src-tauri/sidecar-opencode && pnpm install
@@ -114,17 +97,14 @@ pnpm test:coverage
 # Run frontend tests once (CI mode)
 pnpm test --run
 
-# Run legacy sidecar tests (Jest)
-cd src-tauri/sidecar && pnpm test
-
-# Run new sidecar tests (Jest)
+# Run sidecar tests (Jest)
 cd src-tauri/sidecar-opencode && pnpm test
 
-# Run new sidecar tests in watch mode
+# Run sidecar tests in watch mode
 cd src-tauri/sidecar-opencode && pnpm test:watch
 
-# Run all tests (frontend + both sidecars)
-pnpm test --run && cd src-tauri/sidecar && pnpm test && cd ../sidecar-opencode && pnpm test
+# Run all tests (frontend + sidecar)
+pnpm test --run && cd src-tauri/sidecar-opencode && pnpm test
 ```
 
 ## Project Architecture
@@ -133,13 +113,7 @@ pnpm test --run && cd src-tauri/sidecar && pnpm test && cd ../sidecar-opencode &
 
 The application follows a sidecar pattern where the Tauri app spawns and manages a Node.js subprocess:
 
-**Current architecture (legacy sidecar):**
-```
-Tauri ↔ stdin/stdout (JSON-line) ↔ Node.js Sidecar ↔ PTY (NDJSON) ↔ opencode run
-                                    (src-tauri/sidecar/)
-```
-
-**New architecture (sidecar-opencode, in development):**
+**Architecture:**
 ```
 Tauri ↔ stdin/stdout (JSON-line) ↔ Node.js Sidecar ↔ HTTP/SSE ↔ opencode serve
                                     (src-tauri/sidecar-opencode/)
@@ -150,7 +124,7 @@ Tauri ↔ stdin/stdout (JSON-line) ↔ Node.js Sidecar ↔ HTTP/SSE ↔ opencode
                                     - PATCH /config
 ```
 
-The new sidecar eliminates PTY/NDJSON complexity and enables native permission/question handling through OpenCode's REST API.
+The sidecar uses HTTP/SSE to communicate with the OpenCode server, enabling native permission/question handling through OpenCode's REST API.
 
 ### Directory Structure
 
@@ -179,14 +153,7 @@ The new sidecar eliminates PTY/NDJSON complexity and enables native permission/q
   - `providers.rs` - Provider management
 - `secure_storage.rs` - OS Keychain integration
 
-**Legacy Sidecar (`src-tauri/sidecar/src/`) — being replaced:**
-- `index.ts` - IPC entry point, JSON-line protocol
-- `adapter.ts` - OpenCode CLI adapter (node-pty)
-- `stream-parser.ts` - NDJSON parser with Windows PTY handling
-- `task-manager.ts` - Multi-task lifecycle management
-- `config-generator.ts` - OpenCode config generation
-
-**New Sidecar (`src-tauri/sidecar-opencode/src/`) — under development:**
+**Sidecar (`src-tauri/sidecar-opencode/src/`):**
 - `index.ts` - IPC entry point (stdin/stdout JSON-line)
 - `opencode-client.ts` - HTTP client for OpenCode server REST API
 - `event-stream.ts` - SSE event stream handler with auto-reconnect

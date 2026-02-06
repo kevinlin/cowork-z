@@ -86,8 +86,11 @@ pub struct TaskConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PermissionResponse {
+    pub request_id: String,
     pub task_id: String,
-    pub allowed: bool,
+    pub decision: String, // "allow" | "deny"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -382,7 +385,6 @@ async fn start_task(
             payload: sidecar::StartTaskPayload {
                 task_id: task_id.clone(),
                 prompt: config.prompt.clone(),
-                session_id: None,
                 api_keys: Some(api_keys),
                 working_directory: None,
                 model_id: resolved_model_id,
@@ -423,17 +425,47 @@ async fn cancel_task(
 }
 
 #[tauri::command]
-async fn interrupt_task(
+async fn abort_session(
     task_id: String,
+    session_id: String,
     sidecar_state: State<'_, SidecarState>,
 ) -> Result<(), String> {
     let mut manager = sidecar_state.manager.lock().await;
-    if manager.is_running() {
-        manager
-            .send_command(sidecar::SidecarCommand::InterruptTask { task_id })
-            .await?;
+    if !manager.is_running() {
+        return Err("Sidecar not running".to_string());
     }
-    Ok(())
+
+    manager
+        .send_command(sidecar::SidecarCommand::AbortSession {
+            task_id,
+            session_id,
+        })
+        .await
+}
+
+#[tauri::command]
+async fn reply_to_question(
+    task_id: String,
+    request_id: String,
+    answers: Vec<sidecar::QuestionAnswer>,
+    sidecar_state: State<'_, SidecarState>,
+) -> Result<(), String> {
+    let mut manager = sidecar_state.manager.lock().await;
+    if !manager.is_running() {
+        return Err("Sidecar not running".to_string());
+    }
+
+    let payload = sidecar::QuestionReplyPayload {
+        request_id,
+        answers,
+    };
+
+    manager
+        .send_command(sidecar::SidecarCommand::SendQuestionReply {
+            task_id,
+            payload,
+        })
+        .await
 }
 
 #[tauri::command]
@@ -634,29 +666,27 @@ async fn complete_task(
 async fn respond_to_permission(
     response: PermissionResponse,
     sidecar_state: State<'_, SidecarState>,
-    db_state: State<'_, DbState>,
 ) -> Result<(), String> {
-    // Get folders from the task in the database
-    let folders = {
-        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::tasks::get_task_folders(&conn, &response.task_id)
+    let mut manager = sidecar_state.manager.lock().await;
+    if !manager.is_running() {
+        return Err("Sidecar not running".to_string());
+    }
+
+    // Map frontend decision to sidecar reply format
+    let reply = if response.decision == "allow" { "once" } else { "reject" };
+
+    let payload = sidecar::PermissionReplyPayload {
+        request_id: response.request_id,
+        reply: reply.to_string(),
+        message: response.message,
     };
 
-    let mut manager = sidecar_state.manager.lock().await;
-    if manager.is_running() {
-        // Send the response text to the sidecar
-        let response_text = if response.allowed { "yes" } else { "no" };
-        manager
-            .send_command(sidecar::SidecarCommand::SendResponse {
-                task_id: response.task_id,
-                payload: sidecar::SendResponsePayload {
-                    response: response_text.to_string(),
-                    folders,
-                },
-            })
-            .await?;
-    }
-    Ok(())
+    manager
+        .send_command(sidecar::SidecarCommand::SendPermissionReply {
+            task_id: response.task_id,
+            payload,
+        })
+        .await
 }
 
 #[tauri::command]
@@ -689,14 +719,14 @@ async fn resume_session(
         manager.spawn(&app).await?;
     }
 
-    // Send start task command with session ID for resume
+    // Send resume session command
     manager
-        .send_command(sidecar::SidecarCommand::StartTask {
+        .send_command(sidecar::SidecarCommand::ResumeSession {
             task_id: task_id.clone(),
-            payload: sidecar::StartTaskPayload {
+            payload: sidecar::ResumeSessionPayload {
                 task_id: task_id.clone(),
-                prompt: prompt.clone(),
-                session_id: Some(session_id.clone()),
+                session_id: session_id.clone(),
+                prompt: Some(prompt.clone()),
                 api_keys: Some(api_keys),
                 working_directory: None,
                 model_id: None,
@@ -1521,7 +1551,7 @@ pub fn run() {
             // Task operations
             start_task,
             cancel_task,
-            interrupt_task,
+            abort_session,
             get_task,
             list_tasks,
             delete_task,
@@ -1533,6 +1563,7 @@ pub fn run() {
             save_task_folders,
             complete_task,
             respond_to_permission,
+            reply_to_question,
             resume_session,
             // Settings
             get_api_keys,

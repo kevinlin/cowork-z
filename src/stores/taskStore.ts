@@ -402,13 +402,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   interruptTask: async () => {
     const { currentTask } = get();
     if (currentTask && currentTask.status === 'running') {
+      const sessionId = currentTask.sessionId || currentTask.result?.sessionId;
       void api.logEvent({
         level: 'info',
         message: 'UI interrupt task',
-        context: { taskId: currentTask.id },
+        context: { taskId: currentTask.id, sessionId },
       });
-      await api.interruptTask(currentTask.id);
-      // Note: Don't change task status - task is still running, just interrupted
+      if (sessionId) {
+        await api.abortSession(currentTask.id, sessionId);
+      } else {
+        await api.cancelTask(currentTask.id);
+      }
     }
   },
 

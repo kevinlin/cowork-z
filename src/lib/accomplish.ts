@@ -34,7 +34,12 @@ interface AccomplishAPI {
   // Task operations
   startTask(config: TaskConfig): Promise<Task>;
   cancelTask(taskId: string): Promise<void>;
-  interruptTask(taskId: string): Promise<void>;
+  abortSession(taskId: string, sessionId: string): Promise<void>;
+  /** @deprecated Use abortSession instead */
+  interruptTask?(taskId: string): Promise<void>;
+  abortSession(taskId: string, sessionId: string): Promise<void>;
+  /** @deprecated Use abortSession instead */
+  interruptTask?(taskId: string): Promise<void>;
   getTask(taskId: string): Promise<Task | null>;
   listTasks(): Promise<Task[]>;
   deleteTask(taskId: string): Promise<void>;
@@ -43,8 +48,12 @@ interface AccomplishAPI {
   // Permission responses
   respondToPermission(response: PermissionResponse): Promise<void>;
 
+  // Question responses
+  replyToQuestion(taskId: string, requestId: string, answers: Array<{ labels: string[]; customText?: string }>): Promise<void>;
+
   // Session management
-  resumeSession(sessionId: string, prompt: string, taskId?: string): Promise<Task>;
+  resumeSession(sessionId: string, prompt: string, taskId?: string, folders?: string[]): Promise<Task>;
+  resumeSession(sessionId: string, prompt: string, taskId?: string, folders?: string[]): Promise<Task>;
 
   // Settings
   getApiKeys(): Promise<ApiKeyConfig[]>;

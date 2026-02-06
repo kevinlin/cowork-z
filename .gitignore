@@ -35,3 +35,6 @@ coverage/
 
 # Build binaries
 src-tauri/binaries/
+
+# Sidecar build artifacts
+src-tauri/sidecar-opencode/dist/

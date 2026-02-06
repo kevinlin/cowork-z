@@ -87,8 +87,11 @@ export async function cancelTask(taskId: string): Promise<void> {
   return invoke<void>('cancel_task', { taskId });
 }
 
+/**
+ * @deprecated Use abortSession instead. This now routes through cancel_task as a fallback.
+ */
 export async function interruptTask(taskId: string): Promise<void> {
-  return invoke<void>('interrupt_task', { taskId });
+  return invoke<void>('cancel_task', { taskId });
 }
 
 export async function getTask(taskId: string): Promise<Task | null> {
@@ -144,11 +147,27 @@ export async function respondToPermission(response: PermissionResponse): Promise
 }
 
 // ============================================================================
+// Question Responses
+// ============================================================================
+
+export async function replyToQuestion(
+  taskId: string,
+  requestId: string,
+  answers: Array<{ labels: string[]; customText?: string }>
+): Promise<void> {
+  return invoke<void>('reply_to_question', { taskId, requestId, answers });
+}
+
+// ============================================================================
 // Session Management
 // ============================================================================
 
 export async function resumeSession(sessionId: string, prompt: string, taskId?: string, folders?: string[]): Promise<Task> {
   return invoke<Task>('resume_session', { sessionId, prompt, taskId, folders });
+}
+
+export async function abortSession(taskId: string, sessionId: string): Promise<void> {
+  return invoke<void>('abort_session', { taskId, sessionId });
 }
 
 // ============================================================================
@@ -819,7 +838,68 @@ export async function onTaskUpdateBatch(callback: (event: { taskId: string; mess
 }
 
 export async function onPermissionRequest(callback: (request: PermissionRequest) => void): Promise<UnlistenFn> {
-  return listen<PermissionRequest>('permission:request', (event) => callback(event.payload));
+  return listen<{
+    taskId?: string;
+    payload?: {
+      id?: string;
+      sessionId?: string;
+      permission?: string;
+      patterns?: string[];
+      metadata?: Record<string, unknown>;
+    };
+  }>('task:permission_request', (event) => {
+    const taskId = event.payload?.taskId;
+    const payload = event.payload?.payload;
+    if (taskId && payload?.id) {
+      callback({
+        id: payload.id,
+        taskId,
+        type: 'tool',
+        toolName: payload.permission,
+        question: `Permission requested: ${payload.permission}`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  });
+}
+
+export interface QuestionRequestEvent {
+  taskId: string;
+  requestId: string;
+  sessionId: string;
+  questions: Array<{
+    question: string;
+    header?: string;
+    options?: Array<{ label: string; description?: string }>;
+    multiSelect?: boolean;
+  }>;
+}
+
+export async function onQuestionRequest(callback: (event: QuestionRequestEvent) => void): Promise<UnlistenFn> {
+  return listen<{
+    taskId?: string;
+    payload?: {
+      id?: string;
+      sessionId?: string;
+      questions?: Array<{
+        question: string;
+        header?: string;
+        options?: Array<{ label: string; description?: string }>;
+        multiSelect?: boolean;
+      }>;
+    };
+  }>('task:question_request', (event) => {
+    const taskId = event.payload?.taskId;
+    const payload = event.payload?.payload;
+    if (taskId && payload?.id && payload.questions) {
+      callback({
+        taskId,
+        requestId: payload.id,
+        sessionId: payload.sessionId ?? '',
+        questions: payload.questions,
+      });
+    }
+  });
 }
 
 export async function onTaskProgress(callback: (progress: TaskProgress) => void): Promise<UnlistenFn> {
@@ -948,7 +1028,7 @@ export function getTauriApi() {
     // Task operations
     startTask,
     cancelTask,
-    interruptTask,
+    abortSession,
     getTask,
     listTasks,
     deleteTask,
@@ -956,6 +1036,9 @@ export function getTauriApi() {
 
     // Permission responses
     respondToPermission,
+
+    // Question responses
+    replyToQuestion,
 
     // Session management
     resumeSession,
@@ -1033,6 +1116,7 @@ export function getTauriApi() {
     onTaskUpdate,
     onTaskUpdateBatch,
     onPermissionRequest,
+    onQuestionRequest,
     onTaskProgress,
     onDebugLog,
     onDebugModeChange,

@@ -208,10 +208,10 @@ Implement Server-Sent Events handling for real-time updates and session lifecycl
 - [x] Unit tests pass: `pnpm test`
 
 #### Manual Verification:
-- [ ] SSE events received and parsed correctly
+- [x] SSE events received and parsed correctly
 - [x] Session can be created and messages sent
 - [x] Config pushed via PATCH /config before session start
-- [ ] Permission/question events forwarded correctly
+- [x] Permission/question events forwarded correctly
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation before proceeding to the next phase.
 

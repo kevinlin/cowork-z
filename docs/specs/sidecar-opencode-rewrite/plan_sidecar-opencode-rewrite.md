@@ -47,7 +47,7 @@ Tauri ↔ stdin/stdout (JSON-line) ↔ Node.js Sidecar ↔ HTTP/SSE ↔ opencode
 2. **Native permission/question handling** - OpenCode's `/permission` and `/question` endpoints
 3. **Runtime config updates** - `PATCH /config` for session-specific settings
 4. **Proper server lifecycle** - Health checks, graceful shutdown, process management
-5. **Comprehensive logging** - All server events logged to `~/.opencode/` files
+5. **Comprehensive logging** - All server events logged to `~/.local/share/opencode/log` files
 
 ### Verification Criteria
 - [ ] `opencode serve` process starts on port 4096 (configurable)
@@ -98,7 +98,7 @@ src-tauri/sidecar-opencode/
 │   ├── session-manager.ts    # Session lifecycle management
 │   ├── config-builder.ts     # Runtime config generation for PATCH /config
 │   ├── process-manager.ts    # Spawn/manage opencode serve process
-│   └── logger.ts             # File logging to ~/.opencode/
+│   └── logger.ts             # File logging to ~/.local/share/opencode/log/
 └── __tests__/
     ├── opencode-client.test.ts
     └── session-manager.test.ts
@@ -106,487 +106,19 @@ src-tauri/sidecar-opencode/
 
 #### 2. Package Configuration
 **File**: `src-tauri/sidecar-opencode/package.json`
-
 > **Important**: Do NOT use `"type": "module"` (ESM). The `pkg` bundler has limited ESM support and will fail with `Cannot find module '/snapshot/dist/index.js'` errors. Use CommonJS instead.
 
-```json
-{
-  "name": "sidecar-opencode",
-  "version": "0.1.0",
-  "description": "OpenCode server sidecar for Cowork Z",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsx watch src/index.ts",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "build:binary": "pnpm build && pkg dist/index.js --targets node20-macos-arm64 --output ../binaries/sidecar-opencode-aarch64-apple-darwin"
-  },
-  "dependencies": {
-    "eventsource": "^2.0.2"
-  },
-  "devDependencies": {
-    "@types/eventsource": "^1.1.15",
-    "@types/node": "^20.0.0",
-    "typescript": "^5.8.0",
-    "tsx": "^4.0.0",
-    "@yao-pkg/pkg": "^5.15.0",
-    "jest": "^29.0.0",
-    "@types/jest": "^29.0.0",
-    "@jest/globals": "^30.2.0",
-    "ts-jest": "^29.0.0"
-  }
-}
-```
-
 **File**: `src-tauri/sidecar-opencode/tsconfig.json`
-
 > **Important**: Use `"module": "CommonJS"` for `pkg` compatibility. ESM modules (`NodeNext`) will cause the bundled binary to fail.
 
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "CommonJS",
-    "moduleResolution": "Node",
-    "outDir": "dist",
-    "rootDir": "src",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "declaration": true,
-    "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "__tests__"]
-}
-```
-
 **File**: `src-tauri/sidecar-opencode/jest.config.cjs`
-
-```javascript
-/** @type {import('jest').Config} */
-module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  transform: {
-    '^.+\\.tsx?$': [
-      'ts-jest',
-      {
-        isolatedModules: true,
-      },
-    ],
-  },
-  testMatch: ['**/__tests__/**/*.test.ts'],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-};
-```
-
 > **Note on imports**: When using CommonJS, do NOT include `.js` extensions in TypeScript imports. Use `import { foo } from './bar'` instead of `import { foo } from './bar.js'`.
 
 #### 3. TypeScript Types
 **File**: `src-tauri/sidecar-opencode/src/types.ts`
 
-```typescript
-// ============================================================================
-// OpenCode Server API Types (from opencode-api.json)
-// ============================================================================
-
-export interface Session {
-  id: string;  // Pattern: ^ses.*
-  slug: string;
-  projectID: string;
-  directory: string;
-  parentID?: string;
-  title: string;
-  version: string;
-  time: {
-    created: number;
-    updated: number;
-    compacting?: number;
-    archived?: number;
-  };
-  permission?: PermissionRuleset;
-}
-
-export interface SessionStatus {
-  type: 'idle' | 'busy' | 'retry';
-  attempt?: number;
-  message?: string;
-  next?: number;
-}
-
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  // ... additional fields
-}
-
-export interface Part {
-  type: string;
-  // Union of TextPart, ToolPart, etc.
-}
-
-export interface PermissionRequest {
-  id: string;  // Pattern: ^per.*
-  sessionID: string;
-  permission: string;
-  patterns: string[];
-  metadata: Record<string, unknown>;
-  always: string[];
-  tool?: { messageID: string; callID: string };
-}
-
-export interface QuestionRequest {
-  id: string;  // Pattern: ^que.*
-  sessionID: string;
-  questions: QuestionInfo[];
-  tool?: { messageID: string; callID: string };
-}
-
-export interface QuestionInfo {
-  question: string;
-  header?: string;
-  options?: QuestionOption[];
-  multiSelect?: boolean;
-}
-
-export interface QuestionOption {
-  label: string;
-  description?: string;
-}
-
-export interface QuestionAnswer {
-  labels: string[];
-  customText?: string;
-}
-
-export type PermissionAction = 'ask' | 'allow' | 'deny';
-
-export interface PermissionConfig {
-  read?: PermissionRuleConfig;
-  edit?: PermissionRuleConfig;
-  bash?: PermissionRuleConfig;
-  external_directory?: PermissionRuleConfig;
-  doom_loop?: PermissionAction;
-  // ... other permission types
-}
-
-export type PermissionRuleConfig = PermissionAction | Record<string, PermissionAction>;
-export type PermissionRuleset = PermissionRule[];
-
-export interface PermissionRule {
-  // Rule definition
-}
-
-export interface Config {
-  $schema?: string;
-  model?: string;
-  default_agent?: string;
-  enabled_providers?: string[];
-  permission?: PermissionConfig;
-  agent?: Record<string, AgentConfig>;
-  mcp?: Record<string, McpConfig>;
-  // ... other config fields
-}
-
-export interface AgentConfig {
-  model?: string;
-  prompt?: string;
-  description?: string;
-  mode?: 'primary' | 'subagent' | 'all';
-  permission?: PermissionConfig;
-}
-
-export interface McpConfig {
-  type?: 'local' | 'remote';
-  command?: string[];
-  url?: string;
-  enabled?: boolean;
-  environment?: Record<string, string>;
-  timeout?: number;
-}
-
-export interface HealthResponse {
-  healthy: true;
-  version: string;
-}
-
-// ============================================================================
-// OpenCode Server Events (SSE)
-// ============================================================================
-
-export type OpenCodeEvent =
-  | { type: 'session.status'; properties: { session: Session; status: SessionStatus } }
-  | { type: 'session.idle'; properties: { sessionID: string } }
-  | { type: 'session.created'; properties: { session: Session } }
-  | { type: 'session.updated'; properties: { session: Session } }
-  | { type: 'session.deleted'; properties: { sessionID: string } }
-  | { type: 'session.error'; properties: { sessionID: string; error: string } }
-  | { type: 'message.updated'; properties: { message: Message; sessionID: string } }
-  | { type: 'message.part.updated'; properties: { part: Part; delta?: string; sessionID: string; messageID: string } }
-  | { type: 'permission.asked'; properties: PermissionRequest }
-  | { type: 'permission.replied'; properties: { id: string; reply: string } }
-  | { type: 'question.asked'; properties: QuestionRequest }
-  | { type: 'question.replied'; properties: { id: string; answers: QuestionAnswer[] } }
-  | { type: 'question.rejected'; properties: { id: string } }
-  | { type: 'server.connected'; properties: Record<string, never> }
-  | { type: 'global.disposed'; properties: Record<string, never> };
-
-// ============================================================================
-// IPC Protocol (Tauri ↔ Sidecar)
-// ============================================================================
-
-export interface ApiKeys {
-  anthropic?: string;
-  openai?: string;
-  google?: string;
-  xai?: string;
-  deepseek?: string;
-  openrouter?: string;
-  litellm?: string;
-  ollama?: string;
-  bedrock?: BedrockCredentials;
-}
-
-export interface BedrockCredentials {
-  accessKeyId: string;
-  secretAccessKey: string;
-  region: string;
-}
-
-// Commands from Tauri to Sidecar
-export type SidecarCommand =
-  | { type: 'start_task'; taskId: string; payload: StartTaskPayload }
-  | { type: 'resume_session'; taskId: string; payload: ResumeSessionPayload }
-  | { type: 'cancel_task'; taskId: string }
-  | { type: 'abort_session'; taskId: string; sessionId: string }
-  | { type: 'send_permission_reply'; taskId: string; payload: PermissionReplyPayload }
-  | { type: 'send_question_reply'; taskId: string; payload: QuestionReplyPayload }
-  | { type: 'ping' }
-  | { type: 'check_server' };
-
-export interface StartTaskPayload {
-  taskId: string;
-  prompt: string;
-  apiKeys?: ApiKeys;
-  workingDirectory?: string;
-  modelId?: string;
-  folders?: string[];
-}
-
-export interface ResumeSessionPayload {
-  taskId: string;
-  sessionId: string;
-  prompt?: string;
-  apiKeys?: ApiKeys;
-  workingDirectory?: string;
-  modelId?: string;
-  folders?: string[];
-}
-
-export interface PermissionReplyPayload {
-  requestId: string;
-  reply: 'once' | 'always' | 'reject';
-  message?: string;
-}
-
-export interface QuestionReplyPayload {
-  requestId: string;
-  answers: QuestionAnswer[];
-}
-
-// Events from Sidecar to Tauri
-export type SidecarEvent =
-  | { type: 'ready'; payload: ReadyPayload }
-  | { type: 'pong'; payload: { timestamp: number } }
-  | { type: 'server_status'; payload: ServerStatusPayload }
-  | { type: 'task_started'; taskId: string; payload: TaskStartedPayload }
-  | { type: 'task_message'; taskId: string; payload: TaskMessagePayload }
-  | { type: 'task_message_partial'; taskId: string; payload: TaskMessagePartialPayload }
-  | { type: 'task_message_complete'; taskId: string; payload: TaskMessageCompletePayload }
-  | { type: 'task_progress'; taskId: string; payload: TaskProgressPayload }
-  | { type: 'permission_request'; taskId: string; payload: PermissionRequestPayload }
-  | { type: 'question_request'; taskId: string; payload: QuestionRequestPayload }
-  | { type: 'task_complete'; taskId: string; payload: TaskCompletePayload }
-  | { type: 'task_error'; taskId: string; payload: TaskErrorPayload }
-  | { type: 'log'; payload: LogPayload }
-  | { type: 'error'; payload: ErrorPayload };
-
-export interface ReadyPayload {
-  version: string;
-  serverAvailable: boolean;
-  serverVersion?: string;
-}
-
-export interface ServerStatusPayload {
-  running: boolean;
-  port?: number;
-  version?: string;
-}
-
-export interface TaskStartedPayload {
-  taskId: string;
-  sessionId: string;
-}
-
-export interface TaskMessagePayload {
-  message: Message;
-  parts: Part[];
-}
-
-export interface TaskMessagePartialPayload {
-  messageId: string;
-  partId: string;
-  textSoFar: string;
-  delta?: string;
-  isStreaming: boolean;
-}
-
-export interface TaskMessageCompletePayload {
-  messageId: string;
-  text: string;
-}
-
-export interface TaskProgressPayload {
-  stage: 'starting' | 'connecting' | 'configuring' | 'executing' | 'completing';
-  message?: string;
-}
-
-export interface PermissionRequestPayload {
-  id: string;
-  sessionId: string;
-  permission: string;
-  patterns: string[];
-  metadata: Record<string, unknown>;
-}
-
-export interface QuestionRequestPayload {
-  id: string;
-  sessionId: string;
-  questions: QuestionInfo[];
-}
-
-export interface TaskCompletePayload {
-  status: 'success' | 'error' | 'cancelled' | 'aborted';
-  sessionId?: string;
-  error?: string;
-}
-
-export interface TaskErrorPayload {
-  error: string;
-  sessionId?: string;
-}
-
-export interface LogPayload {
-  level: 'debug' | 'info' | 'warn' | 'error';
-  message: string;
-}
-
-export interface ErrorPayload {
-  message: string;
-}
-```
-
 #### 4. Logger Module
 **File**: `src-tauri/sidecar-opencode/src/logger.ts`
-
-```typescript
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
-
-export class Logger {
-  private logFile: fs.WriteStream | null = null;
-  private logDir: string;
-  private sessionId?: string;
-  private taskId?: string;
-
-  constructor() {
-    this.logDir = path.join(os.homedir(), '.opencode');
-    this.ensureLogDir();
-  }
-
-  private ensureLogDir(): void {
-    if (!fs.existsSync(this.logDir)) {
-      fs.mkdirSync(this.logDir, { recursive: true });
-    }
-  }
-
-  startSession(sessionId?: string, taskId?: string): void {
-    this.sessionId = sessionId;
-    this.taskId = taskId;
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const parts = [timestamp];
-    if (sessionId) parts.push(sessionId);
-    if (taskId) parts.push(taskId);
-
-    const filename = `${parts.join('_')}.log`;
-    const filepath = path.join(this.logDir, filename);
-
-    this.logFile = fs.createWriteStream(filepath, { flags: 'a' });
-    this.info(`Log started: ${filepath}`);
-  }
-
-  private formatTimestamp(): string {
-    const now = new Date();
-    return now.toISOString().slice(11, 23); // HH:MM:SS.mmm
-  }
-
-  private write(level: string, message: string, data?: unknown): void {
-    const timestamp = this.formatTimestamp();
-    const line = data
-      ? `[${timestamp}] [${level}] ${message} ${JSON.stringify(data)}`
-      : `[${timestamp}] [${level}] ${message}`;
-
-    if (this.logFile) {
-      this.logFile.write(line + '\n');
-    }
-
-    // Also write to stderr for debugging
-    console.error(line);
-  }
-
-  debug(message: string, data?: unknown): void {
-    this.write('DEBUG', message, data);
-  }
-
-  info(message: string, data?: unknown): void {
-    this.write('INFO', message, data);
-  }
-
-  warn(message: string, data?: unknown): void {
-    this.write('WARN', message, data);
-  }
-
-  error(message: string, data?: unknown): void {
-    this.write('ERROR', message, data);
-  }
-
-  // Log raw OpenCode server event
-  serverEvent(event: unknown): void {
-    this.write('EVENT', 'OpenCode Server Event', event);
-  }
-
-  // Log raw HTTP response
-  httpResponse(method: string, path: string, status: number, body?: unknown): void {
-    this.write('HTTP', `${method} ${path} -> ${status}`, body);
-  }
-
-  close(): void {
-    if (this.logFile) {
-      this.write('INFO', 'Log closed');
-      this.logFile.end();
-      this.logFile = null;
-    }
-  }
-}
-
-export const logger = new Logger();
-```
 
 ### Success Criteria
 
@@ -596,8 +128,8 @@ export const logger = new Logger();
 - [x] Package.json has correct dependencies and scripts
 
 #### Manual Verification:
-- [ ] Directory structure matches specification
-- [ ] Types accurately reflect OpenCode API spec
+- [x] Directory structure matches specification
+- [x] Types accurately reflect OpenCode API spec
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation before proceeding to the next phase.
 
@@ -613,443 +145,17 @@ Implement the HTTP client for OpenCode server API and process management for spa
 #### 1. OpenCode HTTP Client
 **File**: `src-tauri/sidecar-opencode/src/opencode-client.ts`
 
-```typescript
-import type {
-  Config,
-  HealthResponse,
-  Session,
-  Message,
-  Part,
-  PermissionRequest,
-  QuestionRequest,
-  QuestionAnswer,
-} from './types.js';
-import { logger } from './logger.js';
-
-export interface OpenCodeClientOptions {
-  baseUrl?: string;
-  port?: number;
-  timeout?: number;
-}
-
-export class OpenCodeClient {
-  private baseUrl: string;
-  private timeout: number;
-
-  constructor(options: OpenCodeClientOptions = {}) {
-    const port = options.port || 4096;
-    this.baseUrl = options.baseUrl || `http://127.0.0.1:${port}`;
-    this.timeout = options.timeout || 30000;
-  }
-
-  private async request<T>(
-    method: string,
-    path: string,
-    body?: unknown,
-    queryParams?: Record<string, string>
-  ): Promise<T> {
-    const url = new URL(path, this.baseUrl);
-    if (queryParams) {
-      for (const [key, value] of Object.entries(queryParams)) {
-        url.searchParams.set(key, value);
-      }
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(url.toString(), {
-        method,
-        headers: body ? { 'Content-Type': 'application/json' } : undefined,
-        body: body ? JSON.stringify(body) : undefined,
-        signal: controller.signal,
-      });
-
-      const responseBody = await response.json().catch(() => null);
-      logger.httpResponse(method, path, response.status, responseBody);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${JSON.stringify(responseBody)}`);
-      }
-
-      return responseBody as T;
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-
-  // ============================================================================
-  // Health & Server Management
-  // ============================================================================
-
-  async health(): Promise<HealthResponse> {
-    return this.request<HealthResponse>('GET', '/global/health');
-  }
-
-  async isServerRunning(): Promise<boolean> {
-    try {
-      await this.health();
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  async disposeGlobal(): Promise<boolean> {
-    return this.request<boolean>('POST', '/global/dispose');
-  }
-
-  async disposeInstance(directory?: string): Promise<boolean> {
-    return this.request<boolean>('POST', '/instance/dispose', undefined,
-      directory ? { directory } : undefined);
-  }
-
-  // ============================================================================
-  // Configuration
-  // ============================================================================
-
-  async getConfig(directory?: string): Promise<Config> {
-    return this.request<Config>('GET', '/config', undefined,
-      directory ? { directory } : undefined);
-  }
-
-  async updateConfig(config: Partial<Config>, directory?: string): Promise<Config> {
-    return this.request<Config>('PATCH', '/config', config,
-      directory ? { directory } : undefined);
-  }
-
-  // ============================================================================
-  // Sessions
-  // ============================================================================
-
-  async listSessions(options?: {
-    directory?: string;
-    roots?: boolean;
-    limit?: number;
-  }): Promise<Session[]> {
-    const params: Record<string, string> = {};
-    if (options?.directory) params.directory = options.directory;
-    if (options?.roots) params.roots = 'true';
-    if (options?.limit) params.limit = String(options.limit);
-    return this.request<Session[]>('GET', '/session', undefined, params);
-  }
-
-  async createSession(options?: {
-    directory?: string;
-    parentID?: string;
-    title?: string;
-    permission?: unknown;
-  }): Promise<Session> {
-    const params = options?.directory ? { directory: options.directory } : undefined;
-    const body = {
-      parentID: options?.parentID,
-      title: options?.title,
-      permission: options?.permission,
-    };
-    return this.request<Session>('POST', '/session', body, params);
-  }
-
-  async getSession(sessionId: string, directory?: string): Promise<Session> {
-    return this.request<Session>('GET', `/session/${sessionId}`, undefined,
-      directory ? { directory } : undefined);
-  }
-
-  async deleteSession(sessionId: string, directory?: string): Promise<boolean> {
-    return this.request<boolean>('DELETE', `/session/${sessionId}`, undefined,
-      directory ? { directory } : undefined);
-  }
-
-  async abortSession(sessionId: string, directory?: string): Promise<boolean> {
-    return this.request<boolean>('POST', `/session/${sessionId}/abort`, undefined,
-      directory ? { directory } : undefined);
-  }
-
-  // ============================================================================
-  // Messages
-  // ============================================================================
-
-  async getMessages(
-    sessionId: string,
-    options?: { directory?: string; limit?: number }
-  ): Promise<Array<{ info: Message; parts: Part[] }>> {
-    const params: Record<string, string> = {};
-    if (options?.directory) params.directory = options.directory;
-    if (options?.limit) params.limit = String(options.limit);
-    return this.request('GET', `/session/${sessionId}/message`, undefined, params);
-  }
-
-  async sendMessage(
-    sessionId: string,
-    options: {
-      parts: Array<{ type: 'text'; text: string }>;
-      directory?: string;
-      model?: { providerID: string; modelID: string };
-      agent?: string;
-    }
-  ): Promise<{ info: Message; parts: Part[] }> {
-    const params = options.directory ? { directory: options.directory } : undefined;
-    return this.request('POST', `/session/${sessionId}/message`, {
-      parts: options.parts,
-      model: options.model,
-      agent: options.agent,
-    }, params);
-  }
-
-  // ============================================================================
-  // Permissions
-  // ============================================================================
-
-  async listPermissions(directory?: string): Promise<PermissionRequest[]> {
-    return this.request<PermissionRequest[]>('GET', '/permission', undefined,
-      directory ? { directory } : undefined);
-  }
-
-  async replyToPermission(
-    requestId: string,
-    reply: 'once' | 'always' | 'reject',
-    options?: { directory?: string; message?: string }
-  ): Promise<boolean> {
-    const params = options?.directory ? { directory: options.directory } : undefined;
-    return this.request<boolean>('POST', `/permission/${requestId}/reply`, {
-      reply,
-      message: options?.message,
-    }, params);
-  }
-
-  // ============================================================================
-  // Questions
-  // ============================================================================
-
-  async listQuestions(directory?: string): Promise<QuestionRequest[]> {
-    return this.request<QuestionRequest[]>('GET', '/question', undefined,
-      directory ? { directory } : undefined);
-  }
-
-  async replyToQuestion(
-    requestId: string,
-    answers: QuestionAnswer[],
-    directory?: string
-  ): Promise<boolean> {
-    return this.request<boolean>('POST', `/question/${requestId}/reply`, { answers },
-      directory ? { directory } : undefined);
-  }
-
-  async rejectQuestion(requestId: string, directory?: string): Promise<boolean> {
-    return this.request<boolean>('POST', `/question/${requestId}/reject`, undefined,
-      directory ? { directory } : undefined);
-  }
-}
-```
-
 #### 2. Process Manager
 **File**: `src-tauri/sidecar-opencode/src/process-manager.ts`
-
-```typescript
-import { spawn, type ChildProcess } from 'node:child_process';
-import { OpenCodeClient } from './opencode-client.js';
-import { logger } from './logger.js';
-import type { ApiKeys } from './types.js';
-
-export interface ProcessManagerOptions {
-  port?: number;
-  hostname?: string;
-  cliPath?: string;
-}
-
-export class ProcessManager {
-  private process: ChildProcess | null = null;
-  private client: OpenCodeClient;
-  private port: number;
-  private hostname: string;
-  private cliPath: string;
-
-  constructor(options: ProcessManagerOptions = {}) {
-    this.port = options.port || 4096;
-    this.hostname = options.hostname || '127.0.0.1';
-    this.cliPath = options.cliPath || 'opencode';
-    this.client = new OpenCodeClient({ port: this.port });
-  }
-
-  async ensureServerRunning(apiKeys?: ApiKeys): Promise<void> {
-    // Check if server is already running
-    if (await this.client.isServerRunning()) {
-      logger.info('OpenCode server already running, terminating...');
-      await this.terminateExistingServer();
-    }
-
-    // Start new server
-    await this.startServer(apiKeys);
-  }
-
-  private async terminateExistingServer(): Promise<void> {
-    try {
-      // Try graceful disposal first
-      await this.client.disposeGlobal();
-      logger.info('Existing server disposed gracefully');
-
-      // Wait for server to stop
-      let attempts = 0;
-      while (attempts < 10) {
-        await this.sleep(500);
-        if (!(await this.client.isServerRunning())) {
-          logger.info('Existing server terminated');
-          return;
-        }
-        attempts++;
-      }
-
-      logger.warn('Server did not stop after dispose, will start anyway');
-    } catch (error) {
-      logger.warn('Failed to dispose existing server', error);
-    }
-  }
-
-  private async startServer(apiKeys?: ApiKeys): Promise<void> {
-    logger.info(`Starting opencode serve on port ${this.port}`);
-
-    const env: NodeJS.ProcessEnv = { ...process.env };
-
-    // Set API keys as environment variables
-    if (apiKeys?.anthropic) env.ANTHROPIC_API_KEY = apiKeys.anthropic;
-    if (apiKeys?.openai) env.OPENAI_API_KEY = apiKeys.openai;
-    if (apiKeys?.google) env.GOOGLE_GENERATIVE_AI_API_KEY = apiKeys.google;
-    if (apiKeys?.xai) env.XAI_API_KEY = apiKeys.xai;
-    if (apiKeys?.deepseek) env.DEEPSEEK_API_KEY = apiKeys.deepseek;
-    if (apiKeys?.openrouter) env.OPENROUTER_API_KEY = apiKeys.openrouter;
-    if (apiKeys?.litellm) env.LITELLM_API_KEY = apiKeys.litellm;
-
-    // AWS Bedrock credentials
-    if (apiKeys?.bedrock) {
-      env.AWS_ACCESS_KEY_ID = apiKeys.bedrock.accessKeyId;
-      env.AWS_SECRET_ACCESS_KEY = apiKeys.bedrock.secretAccessKey;
-      env.AWS_REGION = apiKeys.bedrock.region;
-    }
-
-    const args = [
-      'serve',
-      '--port', String(this.port),
-      '--hostname', this.hostname,
-    ];
-
-    this.process = spawn(this.cliPath, args, {
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      detached: false,
-    });
-
-    // Log stdout
-    this.process.stdout?.on('data', (data: Buffer) => {
-      logger.debug(`[opencode stdout] ${data.toString().trim()}`);
-    });
-
-    // Log stderr
-    this.process.stderr?.on('data', (data: Buffer) => {
-      logger.debug(`[opencode stderr] ${data.toString().trim()}`);
-    });
-
-    this.process.on('error', (error) => {
-      logger.error('OpenCode process error', error);
-    });
-
-    this.process.on('exit', (code, signal) => {
-      logger.info(`OpenCode process exited with code ${code}, signal ${signal}`);
-      this.process = null;
-    });
-
-    // Wait for server to be ready
-    await this.waitForServer();
-  }
-
-  private async waitForServer(): Promise<void> {
-    const maxAttempts = 30;
-    const delayMs = 500;
-
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        const health = await this.client.health();
-        logger.info(`OpenCode server ready, version: ${health.version}`);
-        return;
-      } catch {
-        await this.sleep(delayMs);
-      }
-    }
-
-    throw new Error(`OpenCode server failed to start after ${maxAttempts * delayMs}ms`);
-  }
-
-  async stopServer(): Promise<void> {
-    if (this.process) {
-      logger.info('Stopping OpenCode server...');
-
-      try {
-        await this.client.disposeGlobal();
-      } catch (error) {
-        logger.warn('Failed to dispose server gracefully', error);
-      }
-
-      // Force kill if still running after 5 seconds
-      setTimeout(() => {
-        if (this.process) {
-          logger.warn('Force killing OpenCode process');
-          this.process.kill('SIGKILL');
-        }
-      }, 5000);
-    }
-  }
-
-  isRunning(): boolean {
-    return this.process !== null && !this.process.killed;
-  }
-
-  getClient(): OpenCodeClient {
-    return this.client;
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-}
-```
+> **Fix applied during Phase 4 testing**: Added `cwd: OPENCODE_DATA_DIR` (`~/.local/share/opencode/log`) to the `spawn()` call. Without an explicit `cwd`, `opencode serve` inherits the sidecar's working directory (typically `src-tauri/`). When config is pushed via `PATCH /config`, OpenCode persists `config.json` into its CWD — writing `src-tauri/config.json` triggers Tauri's file watcher and causes unnecessary app rebuilds. Setting the CWD to the OpenCode data directory keeps generated files out of the source tree.
 
 #### 3. Update Tauri Configuration
 **File**: `src-tauri/tauri.conf.json`
-
 Update the build commands and external binary reference to use the new sidecar-opencode:
-
-```json
-{
-  "build": {
-    "beforeDevCommand": "cd src-tauri/sidecar-opencode && pnpm install && pnpm build:binary && cd ../.. && pnpm dev",
-    "beforeBuildCommand": "cd src-tauri/sidecar-opencode && pnpm install && pnpm build:binary && cd ../.. && pnpm build"
-  },
-  "bundle": {
-    "externalBin": ["binaries/sidecar-opencode"],
-    "resources": []
-  }
-}
-```
 
 #### 4. Update Rust Sidecar Manager
 **File**: `src-tauri/src/sidecar.rs`
-
 Update the binary candidate names and sidecar reference:
-
-```rust
-// Update candidate names for new sidecar
-let candidate_names = [
-    "sidecar-opencode-aarch64-apple-darwin",
-    "sidecar-opencode-x86_64-apple-darwin",
-    "sidecar-opencode",
-];
-
-// Update sidecar spawn call
-let (mut rx, child) = shell
-    .sidecar("sidecar-opencode")
-    .map_err(|e| format!("Failed to create sidecar command: {}", e))?
-    .spawn()
-    .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
-```
 
 ### Success Criteria
 
@@ -1061,8 +167,8 @@ let (mut rx, child) = shell
 #### Manual Verification:
 - [ ] Can detect running OpenCode server via health endpoint
 - [ ] Can terminate existing server via dispose endpoint
-- [ ] Can start new `opencode serve` process
-- [ ] Server stdout/stderr logged correctly
+- [x] Can start new `opencode serve` process
+- [x] Server stdout/stderr logged correctly
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation before proceeding to the next phase.
 
@@ -1139,7 +245,9 @@ export class EventStream extends EventEmitter {
     this.eventSource.onerror = (error) => {
       logger.error('SSE stream error', error);
       this.isConnected = false;
-      this.emit('error', error);
+      // Use 'stream-error' instead of 'error' to avoid Node.js EventEmitter
+      // throwing ERR_UNHANDLED_ERROR when no listener is attached.
+      this.emit('stream-error', error);
 
       if (this.shouldReconnect) {
         logger.info(`Reconnecting in ${this.reconnectInterval}ms...`);
@@ -1163,6 +271,8 @@ export class EventStream extends EventEmitter {
   }
 }
 ```
+
+> **Fix applied during Phase 4 testing**: Changed `this.emit('error', error)` to `this.emit('stream-error', error)`. In Node.js, `EventEmitter` treats `'error'` as a special event — if emitted with no listener attached, it throws `ERR_UNHANDLED_ERROR` and crashes the process. The SSE connection drops transiently (e.g. when `server.instance.disposed` fires), so this must be non-fatal.
 
 #### 2. Config Builder
 **File**: `src-tauri/sidecar-opencode/src/config-builder.ts`
@@ -1496,12 +606,11 @@ export class SessionManager extends EventEmitter {
     this.emit('started', { taskId, sessionId: session.id });
     this.emit('progress', { taskId, stage: 'executing' });
 
-    // Send the initial message
+    // Send the initial message (server uses default_agent from config)
     managed.status = 'active';
     await this.client.sendMessage(session.id, {
       parts: [{ type: 'text', text: prompt }],
       directory: workingDirectory,
-      agent: 'accomplish',
     });
   }
 
@@ -1533,13 +642,12 @@ export class SessionManager extends EventEmitter {
     this.emit('started', { taskId, sessionId });
     this.emit('progress', { taskId, stage: 'executing' });
 
-    // Send follow-up message if provided
+    // Send follow-up message if provided (server uses default_agent from config)
     if (prompt) {
       managed.status = 'active';
       await this.client.sendMessage(sessionId, {
         parts: [{ type: 'text', text: prompt }],
         directory: workingDirectory,
-        agent: 'accomplish',
       });
     }
   }
@@ -1598,6 +706,8 @@ export class SessionManager extends EventEmitter {
 }
 ```
 
+> **Fix applied during Phase 4 testing**: Removed `agent: 'accomplish'` from both `sendMessage` calls. OpenCode 1.1.48's `sendMessage` API fails to resolve custom agent names passed via the `agent` parameter — the internal agent lookup returns `undefined`, causing `TypeError: undefined is not an object (evaluating 'agent.name')` in `createUserMessage`. Since we already set `default_agent: 'accomplish'` via `PATCH /config`, the server uses the correct agent automatically without needing the explicit parameter.
+
 ### Success Criteria
 
 #### Automated Verification:
@@ -1631,13 +741,14 @@ import { EventStream } from './event-stream.js';
 import { SessionManager } from './session-manager.js';
 import { logger } from './logger.js';
 import type {
+  ApiKeys,
+  PermissionReplyPayload,
+  QuestionInfo,
+  QuestionReplyPayload,
+  ResumeSessionPayload,
   SidecarCommand,
   SidecarEvent,
   StartTaskPayload,
-  ResumeSessionPayload,
-  PermissionReplyPayload,
-  QuestionReplyPayload,
-  ApiKeys,
 } from './types.js';
 
 const SIDECAR_VERSION = '0.2.0';
@@ -1662,7 +773,6 @@ function sendLog(level: 'debug' | 'info' | 'warn' | 'error', message: string): v
 let processManager: ProcessManager | null = null;
 let eventStream: EventStream | null = null;
 let sessionManager: SessionManager | null = null;
-let currentApiKeys: ApiKeys | undefined;
 
 // ============================================================================
 // Initialization
@@ -1672,8 +782,6 @@ async function initialize(apiKeys?: ApiKeys): Promise<void> {
   if (processManager) {
     return; // Already initialized
   }
-
-  currentApiKeys = apiKeys;
 
   // Start process manager
   processManager = new ProcessManager({ port: OPENCODE_PORT });
@@ -1703,7 +811,10 @@ async function initialize(apiKeys?: ApiKeys): Promise<void> {
     send({
       type: 'task_progress',
       taskId: data.taskId,
-      payload: { stage: data.stage as any, message: data.message },
+      payload: {
+        stage: data.stage as 'starting' | 'connecting' | 'configuring' | 'executing' | 'completing',
+        message: data.message,
+      },
     });
   });
 
@@ -1743,24 +854,27 @@ async function initialize(apiKeys?: ApiKeys): Promise<void> {
     });
   });
 
-  sessionManager.on('question-request', (data: { taskId: string; id: string; sessionId: string; questions: any[] }) => {
-    send({
-      type: 'question_request',
-      taskId: data.taskId,
-      payload: {
-        id: data.id,
-        sessionId: data.sessionId,
-        questions: data.questions,
-      },
-    });
-  });
+  sessionManager.on(
+    'question-request',
+    (data: { taskId: string; id: string; sessionId: string; questions: QuestionInfo[] }) => {
+      send({
+        type: 'question_request',
+        taskId: data.taskId,
+        payload: {
+          id: data.id,
+          sessionId: data.sessionId,
+          questions: data.questions,
+        },
+      });
+    }
+  );
 
   sessionManager.on('complete', (data: { taskId: string; sessionId: string; status: string }) => {
     send({
       type: 'task_complete',
       taskId: data.taskId,
       payload: {
-        status: data.status as any,
+        status: data.status as 'success' | 'error' | 'cancelled' | 'aborted',
         sessionId: data.sessionId,
       },
     });
@@ -1772,6 +886,12 @@ async function initialize(apiKeys?: ApiKeys): Promise<void> {
       taskId: data.taskId,
       payload: { error: data.error, sessionId: data.sessionId },
     });
+  });
+
+  // Handle event stream errors (connection drops, reconnects, etc.)
+  eventStream.on('stream-error', (error: unknown) => {
+    logger.warn('Event stream error (will reconnect)', error);
+    sendLog('warn', 'SSE connection lost, reconnecting...');
   });
 
   // Connect event stream
@@ -2033,16 +1153,16 @@ main().catch((error) => {
 ### Success Criteria
 
 #### Automated Verification:
-- [ ] Full package builds: `cd src-tauri/sidecar-opencode && pnpm build`
-- [ ] Can create binary: `pnpm build:binary`
-- [ ] Unit tests pass: `pnpm test`
+- [x] Full package builds: `cd src-tauri/sidecar-opencode && pnpm build`
+- [x] Can create binary: `pnpm build:binary`
+- [x] Unit tests pass: `pnpm test`
 
 #### Manual Verification:
 - [ ] Sidecar starts and sends `ready` event
 - [ ] Can handle `start_task` command
 - [ ] Events stream correctly from server to Tauri
 - [ ] Permission/question replies work
-- [ ] Logs written to `~/.opencode/` directory
+- [ ] Logs written to `~/.local/share/opencode/log/` directory
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation before proceeding to the next phase.
 
@@ -2494,7 +1614,7 @@ rm src-tauri/binaries/cowork-sidecar-*
 6. Test question request flow
 7. Test session resume
 8. Test session abort
-9. Check log files in `~/.opencode/`
+9. Check log files in `~/.local/share/opencode/log/`
 
 ## Performance Considerations
 

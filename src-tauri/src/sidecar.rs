@@ -119,7 +119,10 @@ fn create_log_file(
 ) -> Result<Arc<std::sync::Mutex<File>>, String> {
     let log_dir = dirs::home_dir()
         .ok_or("Could not determine home directory")?
-        .join(".opencode");
+        .join(".local")
+        .join("share")
+        .join("opencode")
+        .join("log");
     std::fs::create_dir_all(&log_dir)
         .map_err(|e| format!("Failed to create log directory: {}", e))?;
 

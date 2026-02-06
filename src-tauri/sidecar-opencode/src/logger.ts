@@ -9,7 +9,7 @@ export class Logger {
   private taskId?: string;
 
   constructor() {
-    this.logDir = path.join(os.homedir(), '.opencode');
+    this.logDir = path.join(os.homedir(), '.local', 'share', 'opencode', 'log');
     this.ensureLogDir();
   }
 

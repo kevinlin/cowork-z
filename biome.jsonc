@@ -42,6 +42,7 @@
         "noUndeclaredVariables": "off",
         "noUnusedFunctionParameters": "off",
         "noUnusedVariables": "off",
+        "noUnusedPrivateClassMembers": "off",
         "useExhaustiveDependencies": "off",
         "useHookAtTopLevel": "off",
         "useImageSize": "off"

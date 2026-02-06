@@ -38,6 +38,37 @@ export interface Part {
   // Union of TextPart, ToolPart, etc.
 }
 
+// Extended part shape as returned in SSE message.part.updated events.
+// The server nests sessionID and messageID inside the part object itself.
+export interface PartUpdate extends Part {
+  id: string;
+  sessionID: string;
+  messageID: string;
+  metadata?: Record<string, unknown>;
+  time?: { start?: number; end?: number };
+  reason?: string;
+  cost?: number;
+  tokens?: Record<string, number>;
+}
+
+// Message info shape as returned in SSE message.updated events.
+export interface MessageInfo {
+  id: string;
+  sessionID: string;
+  role: 'user' | 'assistant';
+  time: { created: number; completed?: number };
+  parentID?: string;
+  modelID?: string;
+  providerID?: string;
+  mode?: string;
+  agent?: string;
+  path?: { cwd: string; root: string };
+  cost?: number;
+  tokens?: Record<string, number>;
+  finish?: string;
+  summary?: Record<string, unknown>;
+}
+
 export interface PermissionRequest {
   id: string; // Pattern: ^per.*
   sessionID: string;
@@ -128,24 +159,23 @@ export interface HealthResponse {
 export type OpenCodeEvent =
   | {
       type: 'session.status';
-      properties: { session: Session; status: SessionStatus };
+      properties: { sessionID: string; status: SessionStatus };
     }
   | { type: 'session.idle'; properties: { sessionID: string } }
-  | { type: 'session.created'; properties: { session: Session } }
-  | { type: 'session.updated'; properties: { session: Session } }
+  | { type: 'session.created'; properties: { info: Session } }
+  | { type: 'session.updated'; properties: { info: Session } }
   | { type: 'session.deleted'; properties: { sessionID: string } }
   | { type: 'session.error'; properties: { sessionID: string; error: string } }
+  | { type: 'session.diff'; properties: { sessionID: string; diff: unknown[] } }
   | {
       type: 'message.updated';
-      properties: { message: Message; sessionID: string };
+      properties: { info: MessageInfo };
     }
   | {
       type: 'message.part.updated';
       properties: {
-        part: Part;
+        part: PartUpdate;
         delta?: string;
-        sessionID: string;
-        messageID: string;
       };
     }
   | { type: 'permission.asked'; properties: PermissionRequest }
@@ -157,6 +187,8 @@ export type OpenCodeEvent =
     }
   | { type: 'question.rejected'; properties: { id: string } }
   | { type: 'server.connected'; properties: Record<string, never> }
+  | { type: 'server.instance.disposed'; properties: { directory: string } }
+  | { type: 'server.heartbeat'; properties: Record<string, never> }
   | { type: 'global.disposed'; properties: Record<string, never> };
 
 // ============================================================================

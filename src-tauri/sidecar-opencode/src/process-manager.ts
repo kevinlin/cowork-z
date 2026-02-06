@@ -1,7 +1,13 @@
 import { type ChildProcess, spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { logger } from './logger';
 import { OpenCodeClient } from './opencode-client';
 import type { ApiKeys } from './types';
+
+/** Default working directory for `opencode serve` to avoid writing config.json into the source tree. */
+const OPENCODE_DATA_DIR = path.join(os.homedir(), '.local', 'share', 'opencode', 'log');
 
 export interface ProcessManagerOptions {
   port?: number;
@@ -80,8 +86,15 @@ export class ProcessManager {
 
     const args = ['serve', '--port', String(this.port), '--hostname', this.hostname];
 
+    // Ensure the data directory exists so opencode writes config.json there
+    // instead of into the source tree (which would trigger Tauri rebuilds).
+    if (!fs.existsSync(OPENCODE_DATA_DIR)) {
+      fs.mkdirSync(OPENCODE_DATA_DIR, { recursive: true });
+    }
+
     this.process = spawn(this.cliPath, args, {
       env,
+      cwd: OPENCODE_DATA_DIR,
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
     });

@@ -47,24 +47,37 @@ export class EventStream extends EventEmitter {
     };
 
     this.eventSource.onmessage = (event) => {
+      let data: OpenCodeEvent;
       try {
-        const data = JSON.parse(event.data) as OpenCodeEvent;
+        data = JSON.parse(event.data) as OpenCodeEvent;
+      } catch (error) {
+        logger.error('Failed to parse SSE event data', { data: event.data, error });
+        return;
+      }
+
+      try {
         logger.serverEvent(data);
         this.emit('event', data);
         this.emit(data.type, data.properties);
       } catch (error) {
-        logger.error('Failed to parse SSE event', { data: event.data, error });
+        logger.error('Error in SSE event handler', { type: data.type, error });
       }
     };
 
     this.eventSource.onerror = (error) => {
-      logger.error('SSE stream error', error);
       this.isConnected = false;
-      this.emit('error', error);
+      // Use 'stream-error' instead of 'error' to avoid Node.js EventEmitter
+      // throwing ERR_UNHANDLED_ERROR when no listener is attached.
+      this.emit('stream-error', error);
 
-      if (this.shouldReconnect) {
-        logger.info(`Reconnecting in ${this.reconnectInterval}ms...`);
+      // Only manually reconnect if EventSource has given up (readyState CLOSED).
+      // When readyState is CONNECTING, EventSource auto-reconnects on its own
+      // and we should not create a competing second connection.
+      if (this.eventSource?.readyState === EventSource.CLOSED && this.shouldReconnect) {
+        logger.warn('SSE connection closed permanently, reconnecting manually...', error);
         setTimeout(() => this.connect(), this.reconnectInterval);
+      } else {
+        logger.debug('SSE stream error (EventSource will auto-reconnect)', error);
       }
     };
   }

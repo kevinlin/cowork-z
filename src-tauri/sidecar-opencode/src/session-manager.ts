@@ -3,7 +3,7 @@ import { buildSessionConfig } from './config-builder';
 import type { EventStream } from './event-stream';
 import { logger } from './logger';
 import type { OpenCodeClient } from './opencode-client';
-import type { PermissionRequest, QuestionRequest, ResumeSessionPayload, Session, StartTaskPayload } from './types';
+import type { MessageInfo, PartUpdate, PermissionRequest, QuestionRequest, Session } from './types';
 
 interface ManagedSession {
   taskId: string;
@@ -29,14 +29,19 @@ export class SessionManager extends EventEmitter {
 
   private setupEventListeners(): void {
     // Session status updates
-    this.eventStream.on('session.status', (props: { session: Session; status: { type: string } }) => {
-      const taskId = this.sessionToTask.get(props.session.id);
+    // Server sends { sessionID: string, status: { type: string } } not { session: Session }
+    this.eventStream.on('session.status', (props: { sessionID: string; status: { type: string } }) => {
+      const taskId = this.sessionToTask.get(props.sessionID);
+    // Server sends { sessionID: string, status: { type: string } } not { session: Session }
+    this.eventStream.on('session.status', (props: { sessionID: string; status: { type: string } }) => {
+      const taskId = this.sessionToTask.get(props.sessionID);
       if (!taskId) return;
 
       const managed = this.sessions.get(taskId);
       if (!managed) return;
 
-      logger.debug('Session status update', { sessionId: props.session.id, status: props.status });
+      logger.debug('Session status update', { sessionId: props.sessionID, status: props.status });
+      logger.debug('Session status update', { sessionId: props.sessionID, status: props.status });
 
       if (props.status.type === 'idle') {
         this.handleSessionIdle(managed);
@@ -50,50 +55,49 @@ export class SessionManager extends EventEmitter {
     });
 
     // Message updates
-    this.eventStream.on('message.updated', (props: { message: { id: string; role: string }; sessionID: string }) => {
-      const taskId = this.sessionToTask.get(props.sessionID);
+    // Server sends { info: MessageInfo } — sessionID is nested inside info
+    this.eventStream.on('message.updated', (props: { info: MessageInfo }) => {
+      const taskId = this.sessionToTask.get(props.info.sessionID);
       if (!taskId) return;
 
       const managed = this.sessions.get(taskId);
       if (!managed) return;
 
-      if (props.message.role === 'assistant') {
-        managed.currentMessageId = props.message.id;
+      if (props.info.role === 'assistant') {
+        managed.currentMessageId = props.info.id;
         this.emit('message', {
           taskId,
-          message: props.message,
+          message: props.info,
         });
       }
     });
 
     // Message part updates (streaming)
-    this.eventStream.on(
-      'message.part.updated',
-      (props: { part: { type: string; text?: string }; delta?: string; sessionID: string; messageID: string }) => {
-        const taskId = this.sessionToTask.get(props.sessionID);
-        if (!taskId) return;
+    // Server nests sessionID and messageID inside the part object itself
+    this.eventStream.on('message.part.updated', (props: { part: PartUpdate; delta?: string }) => {
+      const taskId = this.sessionToTask.get(props.part.sessionID);
+      if (!taskId) return;
 
-        const managed = this.sessions.get(taskId);
-        if (!managed) return;
+      const managed = this.sessions.get(taskId);
+      if (!managed) return;
 
-        if (props.part.type === 'text' && props.delta) {
-          managed.textAccumulator += props.delta;
-          this.emit('message-partial', {
-            taskId,
-            messageId: props.messageID,
-            textSoFar: managed.textAccumulator,
-            delta: props.delta,
-            isStreaming: true,
-          });
-        } else if (props.part.type === 'tool') {
-          this.emit('tool-use', {
-            taskId,
-            messageId: props.messageID,
-            part: props.part,
-          });
-        }
+      if (props.part.type === 'text' && props.delta) {
+        managed.textAccumulator += props.delta;
+        this.emit('message-partial', {
+          taskId,
+          messageId: props.part.messageID,
+          textSoFar: managed.textAccumulator,
+          delta: props.delta,
+          isStreaming: true,
+        });
+      } else if (props.part.type === 'tool') {
+        this.emit('tool-use', {
+          taskId,
+          messageId: props.part.messageID,
+          part: props.part,
+        });
       }
-    );
+    });
 
     // Permission requests
     this.eventStream.on('permission.asked', (props: PermissionRequest) => {
@@ -200,12 +204,12 @@ export class SessionManager extends EventEmitter {
     this.emit('started', { taskId, sessionId: session.id });
     this.emit('progress', { taskId, stage: 'executing' });
 
-    // Send the initial message
+    // Send the initial message (server uses default_agent from config)
+    // Send the initial message (server uses default_agent from config)
     managed.status = 'active';
     await this.client.sendMessage(session.id, {
       parts: [{ type: 'text', text: prompt }],
       directory: workingDirectory,
-      agent: 'accomplish',
     });
   }
 
@@ -237,13 +241,13 @@ export class SessionManager extends EventEmitter {
     this.emit('started', { taskId, sessionId });
     this.emit('progress', { taskId, stage: 'executing' });
 
-    // Send follow-up message if provided
+    // Send follow-up message if provided (server uses default_agent from config)
+    // Send follow-up message if provided (server uses default_agent from config)
     if (prompt) {
       managed.status = 'active';
       await this.client.sendMessage(sessionId, {
         parts: [{ type: 'text', text: prompt }],
         directory: workingDirectory,
-        agent: 'accomplish',
       });
     }
   }

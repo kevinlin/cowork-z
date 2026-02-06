@@ -102,7 +102,6 @@ describe('SessionManager', () => {
       expect(client.sendMessage).toHaveBeenCalledWith('ses_123', {
         parts: [{ type: 'text', text: 'Do something' }],
         directory: '/test',
-        agent: 'accomplish',
       });
       expect(events).toEqual(['progress:configuring', 'started', 'progress:executing']);
     });
@@ -141,7 +140,6 @@ describe('SessionManager', () => {
       expect(client.sendMessage).toHaveBeenCalledWith('ses_456', {
         parts: [{ type: 'text', text: 'Continue working' }],
         directory: '/test',
-        agent: 'accomplish',
       });
       expect(events).toEqual(['progress:configuring', 'started', 'progress:executing']);
     });
@@ -202,9 +200,9 @@ describe('SessionManager', () => {
       const events: Array<{ taskId: string; stage: string }> = [];
       manager.on('progress', (data) => events.push(data));
 
-      // Simulate session.status busy event
+      // Simulate session.status busy event (server sends sessionID, not session object)
       eventStream.emit('session.status', {
-        session: { id: 'ses_123' },
+        sessionID: 'ses_123',
         status: { type: 'busy' },
       });
 
@@ -222,7 +220,7 @@ describe('SessionManager', () => {
 
       // Session goes idle (task is 'active' after startTask completes)
       eventStream.emit('session.status', {
-        session: { id: 'ses_123' },
+        sessionID: 'ses_123',
         status: { type: 'idle' },
       });
 
@@ -238,18 +236,14 @@ describe('SessionManager', () => {
       const partials: Array<{ delta: string; textSoFar: string }> = [];
       manager.on('message-partial', (data) => partials.push(data));
 
-      // Simulate streaming text deltas
+      // Simulate streaming text deltas (server nests sessionID/messageID inside part)
       eventStream.emit('message.part.updated', {
-        part: { type: 'text' },
+        part: { type: 'text', sessionID: 'ses_123', messageID: 'msg_1', id: 'prt_1' },
         delta: 'Hello ',
-        sessionID: 'ses_123',
-        messageID: 'msg_1',
       });
       eventStream.emit('message.part.updated', {
-        part: { type: 'text' },
+        part: { type: 'text', sessionID: 'ses_123', messageID: 'msg_1', id: 'prt_1' },
         delta: 'world!',
-        sessionID: 'ses_123',
-        messageID: 'msg_1',
       });
 
       expect(partials).toHaveLength(2);
@@ -263,18 +257,15 @@ describe('SessionManager', () => {
         prompt: 'Do something',
       });
 
-      // Set a currentMessageId via message.updated
+      // Set a currentMessageId via message.updated (server sends { info: MessageInfo })
       eventStream.emit('message.updated', {
-        message: { id: 'msg_1', role: 'assistant' },
-        sessionID: 'ses_123',
+        info: { id: 'msg_1', role: 'assistant', sessionID: 'ses_123' },
       });
 
-      // Accumulate some text
+      // Accumulate some text (sessionID/messageID inside part)
       eventStream.emit('message.part.updated', {
-        part: { type: 'text' },
+        part: { type: 'text', sessionID: 'ses_123', messageID: 'msg_1', id: 'prt_1' },
         delta: 'Final answer',
-        sessionID: 'ses_123',
-        messageID: 'msg_1',
       });
 
       const completeMessages: Array<{ messageId: string; text: string }> = [];
@@ -282,7 +273,7 @@ describe('SessionManager', () => {
 
       // Session goes idle
       eventStream.emit('session.status', {
-        session: { id: 'ses_123' },
+        sessionID: 'ses_123',
         status: { type: 'idle' },
       });
 
@@ -299,16 +290,14 @@ describe('SessionManager', () => {
       manager.on('tool-use', (data) => toolEvents.push(data));
 
       eventStream.emit('message.part.updated', {
-        part: { type: 'tool', name: 'bash' },
-        sessionID: 'ses_123',
-        messageID: 'msg_1',
+        part: { type: 'tool', name: 'bash', sessionID: 'ses_123', messageID: 'msg_1', id: 'prt_2' },
       });
 
       expect(toolEvents).toHaveLength(1);
       expect(toolEvents[0]).toEqual(
         expect.objectContaining({
           taskId: 'task_1',
-          part: { type: 'tool', name: 'bash' },
+          part: expect.objectContaining({ type: 'tool', name: 'bash' }),
         })
       );
     });
@@ -396,12 +385,11 @@ describe('SessionManager', () => {
 
       // These should be silently ignored (no managed session for this ID)
       eventStream.emit('session.status', {
-        session: { id: 'unknown_session' },
+        sessionID: 'unknown_session',
         status: { type: 'busy' },
       });
       eventStream.emit('message.updated', {
-        message: { id: 'msg_1', role: 'assistant' },
-        sessionID: 'unknown_session',
+        info: { id: 'msg_1', role: 'assistant', sessionID: 'unknown_session' },
       });
 
       expect(events).toHaveLength(0);
@@ -422,7 +410,7 @@ describe('SessionManager', () => {
       manager.on('progress', (data) => events.push(data));
 
       eventStream.emit('session.status', {
-        session: { id: 'ses_123' },
+        sessionID: 'ses_123',
         status: { type: 'busy' },
       });
 

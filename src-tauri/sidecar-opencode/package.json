@@ -9,8 +9,12 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "build:binary": "pnpm build && pkg dist/index.js --targets node20-macos-arm64 --output ../binaries/sidecar-opencode-aarch64-apple-darwin"
-  },
+    "build:binary": "pnpm build && pkg dist/index.js --targets node20-macos-arm64 --output ../binaries/sidecar-opencode-aarch64-apple-darwin",
+    "build:binary:x64": "pnpm build && pkg dist/index.js --targets node20-macos-x64 --output ../binaries/sidecar-opencode-x86_64-apple-darwin",
+    "build:binary:win": "pnpm build && pkg dist/index.js --targets node20-win-x64 --output ../binaries/sidecar-opencode-x86_64-pc-windows-msvc.exe",
+    "build:binary:linux": "pnpm build && pkg dist/index.js --targets node20-linux-x64 --output ../binaries/sidecar-opencode-x86_64-unknown-linux-gnu",
+    "build:binary:linux-arm64": "pnpm build && pkg dist/index.js --targets node20-linux-arm64 --output ../binaries/csidecar-opencode-aarch64-unknown-linux-gnu"
+},
   "dependencies": {
     "eventsource": "^2.0.2"
   },

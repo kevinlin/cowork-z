@@ -52,7 +52,7 @@ jobs:
         working-directory: src-tauri/sidecar-opencode
 
       - name: Build sidecar binary for Linux ARM64
-        run: pnpm build:binary
+        run: pnpm build:binary:linux-arm64
         working-directory: src-tauri/sidecar-opencode
 
       - name: Run Rust tests

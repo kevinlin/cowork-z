@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cowork Z is a macOS desktop application built with Tauri 2.x that provides a sandboxed environment for autonomous AI agents. The application integrates with the OpenCode SDK to enable users to interact with AI agents that can safely execute code, manipulate files, and perform multi-step workflows while maintaining strong isolation from the host system.
 
-**Current Status:** Migration from Electron complete. Frontend, backend, and sidecar are all implemented. The app is functional for task execution with OpenCode CLI.
+**Current Status:** Migration from Electron complete. The app is functional for task execution with OpenCode CLI. A sidecar rewrite is in progress — migrating from PTY-based `opencode run` to HTTP/SSE-based `opencode serve` (see Sidecar Modules below).
 
 ## Technology Stack
 
@@ -19,7 +19,8 @@ Cowork Z is a macOS desktop application built with Tauri 2.x that provides a san
 - **Package Manager:** pnpm
 - **Database:** SQLite (rusqlite)
 - **Secure Storage:** OS Keychain (keyring crate)
-- **Sidecar:** Node.js + node-pty for OpenCode CLI integration
+- **Sidecar (legacy):** Node.js + node-pty for OpenCode CLI integration (`src-tauri/sidecar/`)
+- **Sidecar (new, in development):** Node.js + HTTP/SSE for OpenCode server API (`src-tauri/sidecar-opencode/`)
 
 ## Development Commands
 
@@ -43,36 +44,39 @@ This project uses **Ultracite**, Biome (the underlying engine) provides robust l
 
 ```bash
 # Format code
-pnpm dlx ultracite fix src/ src-tauri/sidecar/
+pnpm dlx ultracite fix src/ src-tauri/sidecar/ src-tauri/sidecar-opencode/
 
 # Check for issues
-pnpm dlx ultracite check src/ src-tauri/sidecar/
+pnpm dlx ultracite check src/ src-tauri/sidecar/ src-tauri/sidecar-opencode/
 
 # Diagnose setup
 pnpm dlx ultracite doctor
 ```
 
-### Sidecar Development
+### Sidecar Development (Legacy — `src-tauri/sidecar/`)
+
+> **Note:** This is the legacy PTY-based sidecar using `opencode run`. It is being replaced by `sidecar-opencode`. Do not add new features here.
+
 ```bash
-# Install sidecar dependencies
 cd src-tauri/sidecar && pnpm install
-
-# Build sidecar TypeScript
 cd src-tauri/sidecar && pnpm build
-
-# Run sidecar in dev mode (with watch)
-cd src-tauri/sidecar && pnpm dev
-
-# Run sidecar tests (Jest)
 cd src-tauri/sidecar && pnpm test
+cd src-tauri/sidecar && pnpm build:binary           # macOS ARM64
+cd src-tauri/sidecar && pnpm build:binary:x64       # macOS Intel
+cd src-tauri/sidecar && pnpm build:binary:win       # Windows
+cd src-tauri/sidecar && pnpm build:binary:linux     # Linux
+```
 
-# Build standalone binary for current platform (macOS ARM64)
-cd src-tauri/sidecar && pnpm build:binary
+### Sidecar Development (New — `src-tauri/sidecar-opencode/`)
 
-# Build binaries for other platforms
-cd src-tauri/sidecar && pnpm build:binary:x64      # macOS Intel
-cd src-tauri/sidecar && pnpm build:binary:win      # Windows
-cd src-tauri/sidecar && pnpm build:binary:linux    # Linux
+> **Note:** This is the new HTTP/SSE-based sidecar using `opencode serve`. Under active development — see `docs/specs/sidecar-opencode-rewrite/plan_sidecar-opencode-rewrite.md` for the phased implementation plan.
+
+```bash
+cd src-tauri/sidecar-opencode && pnpm install
+cd src-tauri/sidecar-opencode && pnpm build          # TypeScript compile
+cd src-tauri/sidecar-opencode && pnpm test           # Jest tests
+cd src-tauri/sidecar-opencode && pnpm test:watch     # Watch mode
+cd src-tauri/sidecar-opencode && pnpm build:binary   # macOS ARM64 standalone binary
 ```
 
 ### Tauri/Rust Development
@@ -110,17 +114,17 @@ pnpm test:coverage
 # Run frontend tests once (CI mode)
 pnpm test --run
 
-# Run sidecar tests (Jest)
+# Run legacy sidecar tests (Jest)
 cd src-tauri/sidecar && pnpm test
 
-# Run sidecar tests in watch mode
-cd src-tauri/sidecar && pnpm test:watch
+# Run new sidecar tests (Jest)
+cd src-tauri/sidecar-opencode && pnpm test
 
-# Run sidecar tests with coverage
-cd src-tauri/sidecar && pnpm test:coverage
+# Run new sidecar tests in watch mode
+cd src-tauri/sidecar-opencode && pnpm test:watch
 
-# Run all tests (frontend + sidecar)
-pnpm test --run && cd src-tauri/sidecar && pnpm test
+# Run all tests (frontend + both sidecars)
+pnpm test --run && cd src-tauri/sidecar && pnpm test && cd ../sidecar-opencode && pnpm test
 ```
 
 ## Project Architecture
@@ -129,35 +133,24 @@ pnpm test --run && cd src-tauri/sidecar && pnpm test
 
 The application follows a sidecar pattern where the Tauri app spawns and manages a Node.js subprocess:
 
+**Current architecture (legacy sidecar):**
 ```
-┌─────────────────────────────────────────────────────────────┐
-│   Tauri Desktop App                                          │
-│   ┌──────────────┐  ┌─────────────────────────────────────┐ │
-│   │   React UI   │  │  Rust Backend (lib.rs)               │ │
-│   │  (WebView)   │←→│  - 60+ Tauri commands                │ │
-│   │              │  │  - SQLite database (rusqlite)        │ │
-│   │              │  │  - OS Keychain (keyring)             │ │
-│   │              │  │  - Sidecar manager (tauri-plugin-shell)│
-│   └──────────────┘  └─────────────────────────────────────┘ │
-└─────────────────────────────┬───────────────────────────────┘
-                              │ stdin/stdout (JSON-line)
-                              ↓
-         ┌────────────────────────────────────────────────────┐
-         │  Node.js Sidecar Process (src-tauri/sidecar/)       │
-         │  ├── index.ts        # IPC entry point             │
-         │  ├── task-manager.ts # Multi-task management       │
-         │  ├── adapter.ts      # OpenCode CLI adapter        │
-         │  ├── stream-parser.ts# NDJSON parsing              │
-         │  ├── config-generator.ts # OpenCode config         │
-         │  └── cli-path.ts     # CLI binary resolution       │
-         └────────────────────────────────────────────────────┘
-                              │ PTY (node-pty)
-                              ↓
-         ┌────────────────────────────────────────────────────┐
-         │  OpenCode CLI                                      │
-         │  opencode run --format json --agent accomplish     │
-         └────────────────────────────────────────────────────┘
+Tauri ↔ stdin/stdout (JSON-line) ↔ Node.js Sidecar ↔ PTY (NDJSON) ↔ opencode run
+                                    (src-tauri/sidecar/)
 ```
+
+**New architecture (sidecar-opencode, in development):**
+```
+Tauri ↔ stdin/stdout (JSON-line) ↔ Node.js Sidecar ↔ HTTP/SSE ↔ opencode serve
+                                    (src-tauri/sidecar-opencode/)
+                                    - GET /event (SSE stream)
+                                    - POST /session/{id}/message
+                                    - POST /permission/{id}/reply
+                                    - POST /question/{id}/reply
+                                    - PATCH /config
+```
+
+The new sidecar eliminates PTY/NDJSON complexity and enables native permission/question handling through OpenCode's REST API.
 
 ### Directory Structure
 
@@ -186,14 +179,22 @@ The application follows a sidecar pattern where the Tauri app spawns and manages
   - `providers.rs` - Provider management
 - `secure_storage.rs` - OS Keychain integration
 
-**Sidecar (`src-tauri/sidecar/src/`):**
+**Legacy Sidecar (`src-tauri/sidecar/src/`) — being replaced:**
 - `index.ts` - IPC entry point, JSON-line protocol
-- `types.ts` - OpenCode types, IPC protocol definitions
-- `stream-parser.ts` - NDJSON parser with Windows PTY handling
 - `adapter.ts` - OpenCode CLI adapter (node-pty)
+- `stream-parser.ts` - NDJSON parser with Windows PTY handling
 - `task-manager.ts` - Multi-task lifecycle management
 - `config-generator.ts` - OpenCode config generation
-- `cli-path.ts` - CLI binary resolution
+
+**New Sidecar (`src-tauri/sidecar-opencode/src/`) — under development:**
+- `index.ts` - IPC entry point (stdin/stdout JSON-line)
+- `opencode-client.ts` - HTTP client for OpenCode server REST API
+- `event-stream.ts` - SSE event stream handler with auto-reconnect
+- `session-manager.ts` - Session lifecycle management (start, resume, abort)
+- `config-builder.ts` - Runtime config generation for PATCH /config
+- `process-manager.ts` - Spawn/manage `opencode serve` process
+- `logger.ts` - File logging to `~/.local/share/opencode/log/`
+- `types.ts` - OpenCode API types + IPC protocol definitions
 
 **Configuration:**
 - `vite.config.ts` - Vite configuration with path aliases
@@ -231,26 +232,9 @@ export async function onTaskUpdate(cb: (e: TaskUpdateEvent) => void) {
 
 ### Sidecar Communication
 
-The Rust backend manages the sidecar via `tauri-plugin-shell`:
+The Rust backend manages the sidecar via `tauri-plugin-shell` using JSON-line IPC over stdin/stdout. The sidecar binary name is configured in `src-tauri/tauri.conf.json` under `bundle.externalBin`.
 
-```rust
-// src-tauri/src/sidecar.rs
-let (rx, child) = shell.sidecar("cowork-sidecar").spawn()?;
-
-// Send command
-child.write(json_command.as_bytes())?;
-
-// Receive events
-while let Some(event) = rx.recv().await {
-    match event {
-        CommandEvent::Stdout(line) => {
-            let event: SidecarEvent = serde_json::from_str(&line)?;
-            app.emit(event_name, payload)?;
-        }
-        // ...
-    }
-}
-```
+Currently uses the legacy sidecar (`cowork-sidecar`). Will switch to `sidecar-opencode` once the rewrite is complete.
 
 ### IPC Protocol
 
@@ -277,11 +261,12 @@ Uses Zustand for global state with the store at `src/stores/taskStore.ts`:
 ### Sidecar Binary Management
 
 - **Development**: Sidecar runs from TypeScript source via `tsx watch`
-- **Production**: Compiled to standalone binary using `pkg`
-- **Binary location**: `src-tauri/binaries/cowork-sidecar-<target-triple>`
-- **Configuration**: Referenced in `tauri.conf.json` as `externalBin`
+- **Production**: Compiled to standalone binary using `pkg` (`@yao-pkg/pkg`)
+- **Legacy binary**: `src-tauri/binaries/cowork-sidecar-<target-triple>`
+- **New binary**: `src-tauri/binaries/sidecar-opencode-<target-triple>`
+- **Configuration**: Referenced in `tauri.conf.json` under `bundle.externalBin`
 - **Current binary**: Only macOS ARM64 (`aarch64-apple-darwin`) is committed
-- **Build new targets**: Use the `build:binary:*` commands to generate other platform binaries
+- **Important**: Both sidecars use CommonJS (`"module": "CommonJS"`) — `pkg` has limited ESM support
 
 ## Provider Integrations
 
@@ -303,6 +288,7 @@ See documentation in `docs/specs/`:
 - `open-cowork/requirements.md` - Detailed feature requirements
 - `open-cowork/design.md` - Technical design document
 - `electron-to-tauri-migration/` - Migration documentation
+- `sidecar-opencode-rewrite/plan_sidecar-opencode-rewrite.md` - Phased plan for sidecar rewrite (Phases 1-2 complete, Phase 3+ in progress)
 
 ## Vite Configuration
 

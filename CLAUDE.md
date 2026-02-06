@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cowork Z is a macOS desktop application built with Tauri 2.x that provides a sandboxed environment for autonomous AI agents. It integrates with the OpenCode SDK to enable users to interact with AI agents that can execute code, manipulate files, and perform multi-step workflows.
 
+**Quick reference — key commands:**
+- Frontend: `pnpm build` / `pnpm test`
+- Rust: `cd src-tauri && cargo build` / `cd src-tauri && cargo check`
+- Sidecar: `cd src-tauri/sidecar-opencode && pnpm build` / `pnpm test`
+- Full app: `pnpm tauri dev`
+
 ## Technology Stack
 
 - **Desktop Framework:** Tauri 2.x (Rust backend + React/TypeScript frontend)
@@ -52,6 +58,10 @@ pnpm tauri build
 ```
 
 **Important:** `pnpm tauri dev` auto-builds the sidecar binary before starting (configured in `tauri.conf.json` `beforeDevCommand`). Rust changes require app restart; frontend changes are hot-reloaded.
+
+## Build & Validation
+
+After making TypeScript edits, always run `pnpm typecheck` (or `tsc --noEmit`) before reporting completion. After Rust edits, run `cd src-tauri && cargo check`. Do not report success until compilation passes.
 
 ## Architecture
 

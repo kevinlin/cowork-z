@@ -86,8 +86,8 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
   };
 
   if (options.folderPermissions && options.folderPermissions.length > 0) {
-    const externalDirRules: Record<string, PermissionAction> = {};
-    const editRules: Record<string, PermissionAction> = {};
+    const externalDirRules: Record<string, PermissionAction> = { '*': 'ask' };
+    const editRules: Record<string, PermissionAction> = { '*': 'ask' };
     const readRules: Record<string, PermissionAction> = {};
 
     for (const fp of options.folderPermissions) {

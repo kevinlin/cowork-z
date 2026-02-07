@@ -7,7 +7,7 @@ import { getDefaultFolderPermissions, getHomeDir, pickFolder } from '@/lib/tauri
 import { cn } from '@/lib/utils';
 import type { FolderAccessLevel, FolderPermission, FolderPermissionSource } from '@/shared';
 import { useTaskStore } from '@/stores/taskStore';
-import CollapsibleSection from './CollapsibleSection';
+import CollapsibleSection from '@/components/layout/CollapsibleSection';
 
 /**
  * Format a folder path for display:

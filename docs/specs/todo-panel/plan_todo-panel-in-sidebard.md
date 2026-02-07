@@ -82,7 +82,7 @@ export interface Todo {
 
 ### Step 9: Create TodoPanel component
 
-**File: `src/components/execution/TodoPanel.tsx`**
+**File: `src/components/sidebar/TodoPanel.tsx`**
 
 A compact, memoized component designed for sidebar width:
 - Thin progress bar with completed/total count
@@ -97,10 +97,12 @@ A compact, memoized component designed for sidebar width:
 
 **File: `src/components/layout/Sidebar.tsx`**
 
-- Import `TodoPanel` and read todos from store: `useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? [])`
+- Import `TodoPanel` and read todos from store: `useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? EMPTY_TODOS)` (stable empty array to prevent unnecessary re-renders)
 - Replace the "Coming soon..." placeholder in the Tasks CollapsibleSection
-- Auto-expand when todos appear via `key={String(hasTodos)}` (forces remount)
-- Disable collapsing when no todos
+- Use controlled open state (`tasksOpen` + `useEffect`) to auto-expand when todos arrive — avoids component remounting
+- Pass `open={tasksOpen}` and `onOpenChange={setTasksOpen}` to `CollapsibleSection`
+
+> **Bug fix (2026-02-08):** The original implementation used `key={String(hasTodos)}` to force a remount of `CollapsibleSection` when todos appeared. This caused the component to be destroyed and recreated, relying on `defaultOpen` (mount-time only) rather than reacting to live prop changes. If the user manually collapsed the section, subsequent todo updates would not re-expand it. Fixed by adding controlled mode support (`open` / `onOpenChange` props) to `CollapsibleSection` and using a `useEffect` in Sidebar that sets `tasksOpen = true` when `hasTodos` transitions to `true`.
 
 ### Step 10b: Initial fetch in Execution page
 
@@ -123,8 +125,10 @@ A compact, memoized component designed for sidebar width:
 | `src-tauri/src/lib.rs` | Edit — add Tauri command |
 | `src/lib/tauri-api.ts` | Edit — add 2 functions |
 | `src/stores/taskStore.ts` | Edit — add todos state + action |
-| `src/components/execution/TodoPanel.tsx` | Edit — compact sidebar-friendly layout |
-| `src/components/layout/Sidebar.tsx` | Edit — integrate TodoPanel in Tasks section |
+| `src/components/sidebar/TodoPanel.tsx` | New — compact sidebar-friendly layout (moved from `execution/`) |
+| `src/components/sidebar/FoldersPanel.tsx` | Moved from `layout/` — no logic changes |
+| `src/components/layout/CollapsibleSection.tsx` | Edit — add controlled `open` / `onOpenChange` props |
+| `src/components/layout/Sidebar.tsx` | Edit — integrate TodoPanel, controlled open state |
 | `src/pages/Execution.tsx` | Edit — remove TodoPanel JSX, keep initial fetch |
 
 ## Verification

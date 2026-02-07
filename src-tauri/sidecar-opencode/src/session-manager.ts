@@ -162,18 +162,6 @@ export class SessionManager extends EventEmitter {
         todos: props.todos,
       });
     });
-
-    // Todo updates
-    this.eventStream.on('todo.updated', (props: { sessionID: string; todos: Todo[] }) => {
-      const taskId = this.sessionToTask.get(props.sessionID);
-      if (!taskId) return;
-
-      logger.debug('Todo update received', { sessionId: props.sessionID, todoCount: props.todos.length });
-      this.emit('todo-updated', {
-        taskId,
-        todos: props.todos,
-      });
-    });
   }
 
   private handleSessionIdle(managed: ManagedSession): void {

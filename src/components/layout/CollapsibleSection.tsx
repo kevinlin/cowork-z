@@ -2,13 +2,17 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface CollapsibleSectionProps {
   title: string;
   children: ReactNode;
   defaultOpen?: boolean;
+  /** Controlled open state — when provided, overrides internal state */
+  open?: boolean;
+  /** Callback when open state changes (for controlled mode) */
+  onOpenChange?: (open: boolean) => void;
   disabled?: boolean;
   action?: ReactNode;
   className?: string;
@@ -18,30 +22,53 @@ export default function CollapsibleSection({
   title,
   children,
   defaultOpen = false,
+  open,
+  onOpenChange,
   disabled = false,
   action,
   className,
 }: CollapsibleSectionProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? open : internalOpen;
+
+  // Sync internal state when controlled `open` prop changes
+  useEffect(() => {
+    if (isControlled) {
+      setInternalOpen(open);
+    }
+  }, [isControlled, open]);
 
   const toggleOpen = () => {
     if (!disabled) {
-      setIsOpen(!isOpen);
+      const next = !isOpen;
+      if (!isControlled) {
+        setInternalOpen(next);
+      }
+      onOpenChange?.(next);
     }
   };
 
   return (
     <div className={cn('border-border border-t', className)}>
       {/* Header */}
-      <button
+      <div
         className={cn(
           'flex w-full items-center justify-between px-3 py-2 text-left text-muted-foreground text-xs font-medium uppercase tracking-wide',
           'hover:bg-accent/50 transition-colors',
-          disabled && 'cursor-not-allowed opacity-50'
+          disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
         )}
-        disabled={disabled}
         onClick={toggleOpen}
-        type="button"
+        onKeyDown={(e) => {
+          if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            toggleOpen();
+          }
+        }}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-expanded={isOpen}
+        aria-disabled={disabled}
       >
         <div className="flex items-center gap-1">
           {isOpen ? (
@@ -59,7 +86,7 @@ export default function CollapsibleSection({
             {action}
           </div>
         )}
-      </button>
+      </div>
 
       {/* Collapsible Content */}
       <AnimatePresence initial={false}>

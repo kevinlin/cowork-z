@@ -4,18 +4,22 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquarePlus, Search, Settings } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TodoPanel } from '@/components/execution/TodoPanel';
+import { TodoPanel } from '@/components/sidebar/TodoPanel';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getAccomplish } from '@/lib/accomplish';
 import { analytics } from '@/lib/analytics';
 import { staggerContainer } from '@/lib/animations';
 import { useTaskStore } from '@/stores/taskStore';
+import type { Todo } from '@/shared';
 import logoImage from '/assets/logo-1.png';
 import CollapsibleSection from './CollapsibleSection';
 import ConversationListItem from './ConversationListItem';
-import FoldersPanel from './FoldersPanel';
+import FoldersPanel from '@/components/sidebar/FoldersPanel';
 import SettingsDialog from './SettingsDialog';
+
+// Stable empty array to avoid creating new references in selectors
+const EMPTY_TODOS: Todo[] = [];
 
 // Resize constraints
 const MIN_WIDTH = 200; // pixels
@@ -27,8 +31,16 @@ export default function Sidebar() {
   const [showSettings, setShowSettings] = useState(false);
   const { tasks, loadTasks, updateTaskStatus, addTaskUpdate, openLauncher } = useTaskStore();
   const accomplish = getAccomplish();
-  const currentTaskTodos = useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? []);
+  const currentTaskTodos = useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? EMPTY_TODOS);
   const hasTodos = currentTaskTodos.length > 0;
+
+  // Controlled open state for Tasks section — auto-expand when todos arrive
+  const [tasksOpen, setTasksOpen] = useState(hasTodos);
+  useEffect(() => {
+    if (hasTodos) {
+      setTasksOpen(true);
+    }
+  }, [hasTodos]);
 
   // Resize state
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
@@ -172,7 +184,7 @@ export default function Sidebar() {
           <FoldersPanel />
 
           {/* Tasks Panel - Shows current task's todos, auto-expands when todos appear */}
-          <CollapsibleSection defaultOpen={hasTodos} disabled={!hasTodos} key={String(hasTodos)} title="Tasks">
+          <CollapsibleSection open={tasksOpen} onOpenChange={setTasksOpen} title="Tasks">
             {hasTodos ? (
               <TodoPanel todos={currentTaskTodos} />
             ) : (

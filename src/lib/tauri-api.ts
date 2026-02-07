@@ -926,7 +926,21 @@ export async function onTaskProgress(callback: (progress: TaskProgress) => void)
 }
 
 export async function onDebugLog(callback: (log: unknown) => void): Promise<UnlistenFn> {
-  return listen<unknown>('debug:log', (event) => callback(event.payload));
+  // Listen on sidecar:log — Rust maps sidecar "log" events to "sidecar:log"
+  // Payload shape from Rust: { taskId?, payload: { level, message } }
+  // Transform to DebugLogEntry shape: { taskId, timestamp, type, message }
+  return listen<{ taskId?: string; payload?: { level?: string; message?: string } }>('sidecar:log', (event) => {
+    const raw = event.payload;
+    const logPayload = raw?.payload;
+    if (logPayload) {
+      callback({
+        taskId: raw?.taskId ?? 'system',
+        timestamp: new Date().toISOString(),
+        type: logPayload.level ?? 'info',
+        message: logPayload.message ?? '',
+      });
+    }
+  });
 }
 
 export async function onDebugModeChange(callback: (data: { enabled: boolean }) => void): Promise<UnlistenFn> {

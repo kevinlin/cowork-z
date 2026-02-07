@@ -292,12 +292,12 @@ export default function ExecutionPage() {
       .then((unsub) => unlisteners.push(unsub));
 
     // Subscribe to debug logs
+    // Sidecar logs may not always have a taskId, so accept all logs
+    // (they are already scoped to the sidecar process for this app instance)
     api
       .onDebugLog((log) => {
         const entry = log as DebugLogEntry;
-        if (entry.taskId === id) {
-          setDebugLogs((prev) => [...prev, entry]);
-        }
+        setDebugLogs((prev) => [...prev, entry]);
       })
       .then((unsub) => unlisteners.push(unsub));
 

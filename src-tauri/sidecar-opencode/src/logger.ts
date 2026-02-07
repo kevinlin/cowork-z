@@ -2,15 +2,23 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+export type IpcLogEmitter = (level: 'debug' | 'info' | 'warn' | 'error', message: string) => void;
+
 export class Logger {
   private logFile: fs.WriteStream | null = null;
   private logDir: string;
   private sessionId?: string;
   private taskId?: string;
+  private ipcEmitter: IpcLogEmitter | null = null;
 
   constructor() {
     this.logDir = path.join(os.homedir(), '.local', 'share', 'opencode', 'log');
     this.ensureLogDir();
+  }
+
+  /** Wire up an IPC emitter so log messages are also sent to the frontend debug panel. */
+  setIpcEmitter(emitter: IpcLogEmitter): void {
+    this.ipcEmitter = emitter;
   }
 
   private ensureLogDir(): void {
@@ -50,6 +58,16 @@ export class Logger {
 
     // Also write to stderr for debugging
     console.error(line);
+
+    // Send to frontend debug panel via IPC
+    if (this.ipcEmitter) {
+      const levelLower = level.toLowerCase();
+      const ipcLevel: 'debug' | 'info' | 'warn' | 'error' =
+        levelLower === 'debug' || levelLower === 'info' || levelLower === 'warn' || levelLower === 'error' ? levelLower : 'debug'; // Map EVENT, HTTP, etc. to debug
+      const prefix = levelLower !== ipcLevel ? `[${level}] ` : '';
+      const ipcMessage = data ? `${prefix}${message} ${JSON.stringify(data)}` : `${prefix}${message}`;
+      this.ipcEmitter(ipcLevel, ipcMessage);
+    }
   }
 
   debug(message: string, data?: unknown): void {

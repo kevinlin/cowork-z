@@ -30,6 +30,9 @@ function sendLog(level: 'debug' | 'info' | 'warn' | 'error', message: string): v
   send({ type: 'log', payload: { level, message } });
 }
 
+// Wire logger to IPC so all logger.* calls also appear in the frontend debug panel
+logger.setIpcEmitter(sendLog);
+
 // ============================================================================
 // State
 // ============================================================================

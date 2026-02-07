@@ -159,9 +159,6 @@ export default function ExecutionPage() {
     respondToPermission,
     sendFollowUp,
     interruptTask,
-    setupProgress,
-    setupProgressTaskId,
-    setupDownloadStep,
     startupStage,
     startupStageTaskId,
     partialMessages,
@@ -586,82 +583,6 @@ export default function ExecutionPage() {
             </div>
           </div>
         </div>
-
-        {/* Browser installation modal - only shown during Playwright download */}
-        <AnimatePresence>
-          {setupProgress &&
-            setupProgressTaskId === id &&
-            (setupProgress.toLowerCase().includes('download') || setupProgress.includes('% of')) && (
-              <motion.div
-                animate={{ opacity: 1 }}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-                exit={{ opacity: 0 }}
-                initial={{ opacity: 0 }}
-              >
-                <motion.div
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  transition={springs.bouncy}
-                >
-                  <Card className="w-[480px] p-6">
-                    <div className="flex flex-col items-center gap-4 text-center">
-                      <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                        <Download className="h-7 w-7 text-primary" />
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          className="absolute inset-0 rounded-full border-2 border-primary/30 border-t-primary"
-                          transition={{
-                            duration: 1,
-                            repeat: Number.POSITIVE_INFINITY,
-                            ease: 'linear',
-                          }}
-                        />
-                      </div>
-                      <div className="w-full">
-                        <h3 className="mb-1 font-semibold text-foreground text-lg">Chrome not installed</h3>
-                        <p className="mb-4 text-muted-foreground">Installing browser for automation...</p>
-                        {/* Progress bar - combines all downloads into single 0-100% */}
-                        {(() => {
-                          const percentMatch = setupProgress?.match(/(\d+)%/);
-                          const currentPercent = percentMatch ? Number.parseInt(percentMatch[1], 10) : 0;
-
-                          // Weight each download by size: Chromium ~160MB (64%), FFMPEG ~1MB (0%), Headless ~90MB (36%)
-                          // Step 1: 0-64%, Step 2: 64-64%, Step 3: 64-100%
-                          let overallPercent = 0;
-                          if (setupDownloadStep === 1) {
-                            overallPercent = Math.round(currentPercent * 0.64);
-                          } else if (setupDownloadStep === 2) {
-                            overallPercent = 64 + Math.round(currentPercent * 0.01);
-                          } else {
-                            overallPercent = 65 + Math.round(currentPercent * 0.35);
-                          }
-
-                          return (
-                            <div className="w-full">
-                              <div className="mb-2 flex justify-between text-sm">
-                                <span className="text-muted-foreground">Downloading...</span>
-                                <span className="font-medium text-foreground">{overallPercent}%</span>
-                              </div>
-                              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                                <motion.div
-                                  animate={{ width: `${overallPercent}%` }}
-                                  className="h-full rounded-full bg-primary"
-                                  initial={{ width: 0 }}
-                                  transition={{ duration: 0.3 }}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })()}
-                        <p className="mt-4 text-center text-muted-foreground text-xs">One-time setup (~250 MB total)</p>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              </motion.div>
-            )}
-        </AnimatePresence>
 
         {/* Queued state - full page (new task, no messages yet) */}
         {currentTask.status === 'queued' && currentTask.messages.length === 0 && (

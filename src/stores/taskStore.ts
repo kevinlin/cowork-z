@@ -58,11 +58,6 @@ interface TaskState {
   todos: Map<string, Todo[]>;
   setTodos: (taskId: string, todos: Todo[]) => void;
 
-  // Setup progress (e.g., browser download)
-  setupProgress: string | null;
-  setupProgressTaskId: string | null;
-  setupDownloadStep: number; // 1=Chromium, 2=FFMPEG, 3=Headless Shell
-
   // Startup stage progress (for task initialization indicator)
   startupStage: StartupStageInfo | null;
   startupStageTaskId: string | null;
@@ -84,7 +79,6 @@ interface TaskState {
 
   // Actions
   startTask: (config: TaskConfig) => Promise<Task | null>;
-  setSetupProgress: (taskId: string | null, message: string | null) => void;
   setStartupStage: (taskId: string | null, stage: string | null, message?: string, modelName?: string, isFirstTask?: boolean) => void;
   clearStartupStage: (taskId: string) => void;
   sendFollowUp: (message: string) => Promise<void>;
@@ -145,9 +139,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     });
   },
 
-  setupProgress: null,
-  setupProgressTaskId: null,
-  setupDownloadStep: 1,
   startupStage: null,
   startupStageTaskId: null,
   showSettings: false,
@@ -192,26 +183,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     } catch (err) {
       console.error('Failed to load folder permissions:', err);
     }
-  },
-
-  setSetupProgress: (taskId: string | null, message: string | null) => {
-    // Detect which package is being downloaded from the message
-    let step = useTaskStore.getState().setupDownloadStep;
-    if (message) {
-      const lowerMsg = message.toLowerCase();
-      if (lowerMsg.includes('downloading chromium headless')) {
-        step = 3;
-      } else if (lowerMsg.includes('downloading ffmpeg')) {
-        step = 2;
-      } else if (lowerMsg.includes('downloading chromium')) {
-        step = 1;
-      }
-    }
-    set({
-      setupProgress: message,
-      setupProgressTaskId: taskId,
-      setupDownloadStep: step,
-    });
   },
 
   setStartupStage: (taskId: string | null, stage: string | null, message?: string, modelName?: string, isFirstTask?: boolean) => {
@@ -817,9 +788,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       error: null,
       partialMessages: new Map<string, PartialMessage>(),
       permissionRequest: null,
-      setupProgress: null,
-      setupProgressTaskId: null,
-      setupDownloadStep: 1,
       startupStage: null,
       startupStageTaskId: null,
       showSettings: false,
@@ -855,37 +823,13 @@ if (typeof window !== 'undefined' && api.isRunningInTauri()) {
       state.clearStartupStage(event.taskId);
       return;
     }
-
-    // Handle browser download progress (setup stage)
-    if (event.stage === 'setup' && event.message) {
-      // Clear progress if installation completed
-      if (event.message.toLowerCase().includes('installed successfully')) {
-        state.setSetupProgress(null, null);
-      } else {
-        state.setSetupProgress(event.taskId, event.message);
-      }
-      return;
-    }
-
-    // Legacy fallback for other messages
-    if (event.message) {
-      if (event.message.toLowerCase().includes('installed successfully')) {
-        state.setSetupProgress(null, null);
-      } else if (event.message.toLowerCase().includes('download')) {
-        state.setSetupProgress(event.taskId, event.message);
-      }
-    }
   });
 
-  // Clear progress when task completes or errors
+  // Clear startup stage when task completes or errors
   void api.onTaskUpdate((event) => {
     const updateEvent = event as TaskUpdateEvent;
     if (updateEvent.type === 'complete' || updateEvent.type === 'error') {
-      const state = useTaskStore.getState();
-      if (state.setupProgressTaskId === updateEvent.taskId) {
-        state.setSetupProgress(null, null);
-      }
-      state.clearStartupStage(updateEvent.taskId);
+      useTaskStore.getState().clearStartupStage(updateEvent.taskId);
     }
   });
 

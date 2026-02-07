@@ -44,7 +44,6 @@ const mockTaskStore = {
   isLoading: false,
   error: null,
   permissionRequest: null,
-  setupProgress: null,
   startupStage: null,
   todos: new Map<string, unknown[]>(),
   loadTaskById: vi.fn(),

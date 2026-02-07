@@ -2,11 +2,13 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 // Components
 import Sidebar from './components/layout/Sidebar';
+import SettingsDialog from './components/layout/SettingsDialog';
 import { TaskLauncher } from './components/TaskLauncher';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { analytics } from './lib/analytics';
 import { springs, variants } from './lib/animations';
 import { isRunningInTauri, setOnboardingComplete } from './lib/tauri-api';
@@ -21,27 +23,32 @@ export default function App() {
   const [status, setStatus] = useState<AppStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // Get launcher actions
-  const { openLauncher } = useTaskStore();
+  // Get store actions
+  const { openLauncher, showSettings, setShowSettings } = useTaskStore();
 
   // Track page views on route changes
   useEffect(() => {
     analytics.trackPageView(location.pathname);
   }, [location.pathname]);
 
-  // Cmd+K keyboard shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        openLauncher();
-      }
-    };
+  // App-level keyboard shortcuts: Cmd+, (settings), Cmd+N (new task), Cmd+K (launcher)
+  const handleOpenSettings = useCallback(() => {
+    analytics.trackOpenSettings();
+    setShowSettings(true);
+  }, [setShowSettings]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openLauncher]);
+  const handleNewTask = useCallback(() => {
+    analytics.trackNewTask();
+    navigate('/');
+  }, [navigate]);
+
+  useKeyboardShortcuts({
+    openSettings: handleOpenSettings,
+    newTask: handleNewTask,
+    openLauncher,
+  });
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -136,6 +143,7 @@ export default function App() {
         </AnimatePresence>
       </main>
       <TaskLauncher />
+      <SettingsDialog onOpenChange={setShowSettings} open={showSettings} />
     </div>
   );
 }

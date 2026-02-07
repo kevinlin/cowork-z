@@ -134,13 +134,13 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 **Acceptance Criteria:**
 
-#### 6.1 App-Level Shortcuts
+#### 6.1 App-Level Shortcuts ✅
 1. THE SYSTEM SHALL support the following default shortcuts (macOS / Windows):
    - `Cmd+,` / `Ctrl+,` — Open settings
    - `Cmd+N` / `Ctrl+N` — New task
 2. THE SYSTEM SHALL map modifier keys to platform conventions (`Cmd` on macOS, `Ctrl` on Windows/Linux)
 
-#### 6.2 Chat Shortcuts
+#### 6.2 Chat Shortcuts ✅
 1. THE SYSTEM SHALL support the following shortcuts within the chat view:
    - `Cmd+Enter` / `Ctrl+Enter` — Send message
    - `Escape` — Cancel running task
@@ -225,7 +225,6 @@ The following items remain to be implemented:
 
 - [ ] **MCP Server Configuration UI** — Settings panel to add, edit, remove, enable/disable local and remote MCP servers. Extend `config-builder.ts` to include MCP config in `buildSessionConfig()` and send to OpenCode via `PATCH /config` (Req 5.1.5, 5.2.1)
 - [ ] **MCP Server Persistence** — Persist MCP server configurations to SQLite and load on app startup (Req 5.1.4)
-- [ ] **App-Level Keyboard Shortcuts** — Implement `Cmd+,`/`Ctrl+,` for settings and `Cmd+N`/`Ctrl+N` for new task (Req 6.1)
 - [ ] **Cross-Platform Testing & Installers** — Test on Windows/Linux, build `.msi`/`.exe`/`.deb` installers (Req 7.1, 7.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 8.2)
 - [ ] **User Prompt Customization** — UI for users to customize the system prompt sent to the agent (Req 9.2)

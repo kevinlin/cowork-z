@@ -16,7 +16,6 @@ import logoImage from '/assets/logo-1.png';
 import CollapsibleSection from './CollapsibleSection';
 import ConversationListItem from './ConversationListItem';
 import FoldersPanel from '@/components/sidebar/FoldersPanel';
-import SettingsDialog from './SettingsDialog';
 
 // Stable empty array to avoid creating new references in selectors
 const EMPTY_TODOS: Todo[] = [];
@@ -28,8 +27,7 @@ const DEFAULT_WIDTH = 260;
 
 export default function Sidebar() {
   const navigate = useNavigate();
-  const [showSettings, setShowSettings] = useState(false);
-  const { tasks, loadTasks, updateTaskStatus, addTaskUpdate, openLauncher } = useTaskStore();
+  const { tasks, loadTasks, updateTaskStatus, addTaskUpdate, openLauncher, setShowSettings } = useTaskStore();
   const accomplish = getAccomplish();
   const currentTaskTodos = useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? EMPTY_TODOS);
   const hasTodos = currentTaskTodos.length > 0;
@@ -217,8 +215,6 @@ export default function Sidebar() {
           </Button>
         </div>
       </div>
-
-      <SettingsDialog onOpenChange={setShowSettings} open={showSettings} />
     </>
   );
 }

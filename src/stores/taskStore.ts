@@ -67,6 +67,10 @@ interface TaskState {
   startupStage: StartupStageInfo | null;
   startupStageTaskId: string | null;
 
+  // Settings dialog
+  showSettings: boolean;
+  setShowSettings: (show: boolean) => void;
+
   // Task launcher
   isLauncherOpen: boolean;
   openLauncher: () => void;
@@ -146,6 +150,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   setupDownloadStep: 1,
   startupStage: null,
   startupStageTaskId: null,
+  showSettings: false,
+  setShowSettings: (show: boolean) => set({ showSettings: show }),
   isLauncherOpen: false,
   folderPermissions: [],
 
@@ -816,6 +822,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       setupDownloadStep: 1,
       startupStage: null,
       startupStageTaskId: null,
+      showSettings: false,
       isLauncherOpen: false,
       folderPermissions: [],
       todos: new Map<string, Todo[]>(),

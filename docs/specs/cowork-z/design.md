@@ -227,6 +227,31 @@ Keys are retrieved on-demand during task startup. Only masked prefixes are retur
 
 ---
 
+## Keyboard Shortcuts
+
+Keyboard shortcuts are implemented in two layers: **app-level** (global) and **chat-scoped** (Execution page only).
+
+### App-Level Shortcuts
+
+Handled by a centralized `useKeyboardShortcuts` hook (`src/hooks/useKeyboardShortcuts.ts`) wired into `App.tsx`. The hook attaches a single `window.addEventListener('keydown', ...)` listener and checks for `metaKey` (macOS) or `ctrlKey` (Windows/Linux).
+
+| Shortcut | Action | Implementation |
+|----------|--------|----------------|
+| `Cmd+,` / `Ctrl+,` | Open settings dialog | Calls `setShowSettings(true)` on Zustand store |
+| `Cmd+N` / `Ctrl+N` | New task | Navigates to `/` via React Router |
+| `Cmd+K` / `Ctrl+K` | Open task launcher | Calls `openLauncher()` on Zustand store |
+
+### Chat-Scoped Shortcuts
+
+Handled by a `useEffect` in `src/pages/Execution.tsx` that attaches a `window.addEventListener('keydown', ...)` listener scoped to the chat view lifecycle.
+
+| Shortcut | Action | Guard Conditions |
+|----------|--------|-----------------|
+| `Escape` | Cancel running task (`interruptTask()`) | Task must be running; no permission dialog active |
+| `Cmd+Enter` / `Ctrl+Enter` | Send follow-up message (`handleFollowUp()`) | Task must be in follow-up state (`canFollowUp`) |
+
+---
+
 ## Key Architectural Decisions
 
 1. **OpenCode CLI over embedded agent**: Delegates tool execution, model API calls, and agent orchestration to OpenCode rather than implementing a custom agent runtime

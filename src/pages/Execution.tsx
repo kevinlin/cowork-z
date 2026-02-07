@@ -384,6 +384,32 @@ export default function ExecutionPage() {
     setFollowUp('');
   };
 
+  // Chat-scoped keyboard shortcuts: Escape (cancel task), Cmd+Enter (send follow-up)
+  // Use a ref so the effect doesn't need to re-subscribe when handleFollowUp changes.
+  const handleFollowUpRef = useRef(handleFollowUp);
+  handleFollowUpRef.current = handleFollowUp;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape — cancel running task (only when no permission dialog is showing)
+      if (e.key === 'Escape' && isTaskRunning && !permissionRequest) {
+        e.preventDefault();
+        interruptTask();
+        return;
+      }
+
+      // Cmd+Enter / Ctrl+Enter — send follow-up message
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canFollowUp) {
+        e.preventDefault();
+        handleFollowUpRef.current();
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isTaskRunning, interruptTask, canFollowUp, permissionRequest]);
+
   const handleSettingsDialogClose = (open: boolean) => {
     setShowSettingsDialog(open);
     if (!open) {

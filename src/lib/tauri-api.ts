@@ -30,6 +30,7 @@ import type {
   TaskResult,
   TaskStatus,
   TaskUpdateEvent,
+  Todo,
 } from '@/shared';
 
 // ============================================================================
@@ -971,6 +972,24 @@ export async function onTaskMessageComplete(callback: (event: CompleteMessageEve
         messageId: payload.messageId,
         text: payload.text,
       });
+    }
+  });
+}
+
+// ============================================================================
+// Todos
+// ============================================================================
+
+export async function getSessionTodos(taskId: string, sessionId: string): Promise<void> {
+  return invoke<void>('get_session_todos', { taskId, sessionId });
+}
+
+export async function onTodoUpdated(callback: (event: { taskId: string; todos: Todo[] }) => void): Promise<UnlistenFn> {
+  return listen<{ taskId?: string; payload?: { todos?: Todo[] } }>('task:todo_updated', (event) => {
+    const taskId = event.payload?.taskId;
+    const todos = event.payload?.payload?.todos;
+    if (taskId && todos) {
+      callback({ taskId, todos });
     }
   });
 }

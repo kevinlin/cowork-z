@@ -310,6 +310,14 @@ export default function ExecutionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, loadTaskById, addTaskUpdate, addTaskUpdateBatch, updateTaskStatus, setPermissionRequest]); // api is a stable module
 
+  // Fetch todos when session becomes available
+  useEffect(() => {
+    const sessionId = currentTask?.sessionId || currentTask?.result?.sessionId;
+    if (id && sessionId) {
+      api.getSessionTodos(id, sessionId).catch(console.error);
+    }
+  }, [id, currentTask?.sessionId, currentTask?.result?.sessionId]);
+
   // Increment counter when task starts/resumes
   useEffect(() => {
     if (currentTask?.status === 'running') {

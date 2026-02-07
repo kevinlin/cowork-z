@@ -1,5 +1,5 @@
 import { logger } from './logger';
-import type { Config, HealthResponse, Message, Part, PermissionRequest, QuestionAnswer, QuestionRequest, Session } from './types';
+import type { Config, HealthResponse, Message, Part, PermissionRequest, QuestionAnswer, QuestionRequest, Session, Todo } from './types';
 
 export interface OpenCodeClientOptions {
   baseUrl?: string;
@@ -118,6 +118,14 @@ export class OpenCodeClient {
 
   async abortSession(sessionId: string, directory?: string): Promise<boolean> {
     return this.request<boolean>('POST', `/session/${sessionId}/abort`, undefined, directory ? { directory } : undefined);
+  }
+
+  // ============================================================================
+  // Todos
+  // ============================================================================
+
+  async getSessionTodos(sessionId: string, directory?: string): Promise<Todo[]> {
+    return this.request<Todo[]>('GET', `/session/${sessionId}/todo`, undefined, directory ? { directory } : undefined);
   }
 
   // ============================================================================

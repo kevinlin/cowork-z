@@ -12,6 +12,7 @@ import type {
   SidecarCommand,
   SidecarEvent,
   StartTaskPayload,
+  Todo,
 } from './types';
 
 const SIDECAR_VERSION = '0.2.0';
@@ -155,6 +156,14 @@ async function initialize(apiKeys?: ApiKeys): Promise<void> {
       type: 'task_error',
       taskId: data.taskId,
       payload: { error: data.error, sessionId: data.sessionId },
+    });
+  });
+
+  sessionManager.on('todo-updated', (data: { taskId: string; todos: Todo[] }) => {
+    send({
+      type: 'todo_updated',
+      taskId: data.taskId,
+      payload: { todos: data.todos },
     });
   });
 
@@ -327,6 +336,19 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
     case 'check_server':
       await handleCheckServer();
       break;
+
+    case 'get_session_todos': {
+      try {
+        if (!processManager) throw new Error('Not initialized');
+        const client = processManager.getClient();
+        const todos = await client.getSessionTodos(msg.sessionId);
+        send({ type: 'todo_updated', taskId: msg.taskId, payload: { todos } });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error('Failed to get session todos', { error: message });
+      }
+      break;
+    }
 
     default:
       logger.warn('Unknown command type', msg);

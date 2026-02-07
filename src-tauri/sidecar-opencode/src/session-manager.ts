@@ -3,7 +3,16 @@ import { buildSessionConfig, SYSTEM_PROMPT } from './config-builder';
 import type { EventStream } from './event-stream';
 import { logger } from './logger';
 import type { OpenCodeClient } from './opencode-client';
-import type { MessageInfo, PartUpdate, PermissionRequest, QuestionRequest, ResumeSessionPayload, Session, StartTaskPayload } from './types';
+import type {
+  MessageInfo,
+  PartUpdate,
+  PermissionRequest,
+  QuestionRequest,
+  ResumeSessionPayload,
+  Session,
+  StartTaskPayload,
+  Todo,
+} from './types';
 
 interface ManagedSession {
   taskId: string;
@@ -139,6 +148,30 @@ export class SessionManager extends EventEmitter {
         taskId,
         error: props.error,
         sessionId: props.sessionID,
+      });
+    });
+
+    // Todo updates
+    this.eventStream.on('todo.updated', (props: { sessionID: string; todos: Todo[] }) => {
+      const taskId = this.sessionToTask.get(props.sessionID);
+      if (!taskId) return;
+
+      logger.debug('Todo update received', { sessionId: props.sessionID, todoCount: props.todos.length });
+      this.emit('todo-updated', {
+        taskId,
+        todos: props.todos,
+      });
+    });
+
+    // Todo updates
+    this.eventStream.on('todo.updated', (props: { sessionID: string; todos: Todo[] }) => {
+      const taskId = this.sessionToTask.get(props.sessionID);
+      if (!taskId) return;
+
+      logger.debug('Todo update received', { sessionId: props.sessionID, todoCount: props.todos.length });
+      this.emit('todo-updated', {
+        taskId,
+        todos: props.todos,
       });
     });
   }

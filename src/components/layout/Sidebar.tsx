@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquarePlus, Search, Settings } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { TodoPanel } from '@/components/execution/TodoPanel';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getAccomplish } from '@/lib/accomplish';
@@ -26,6 +27,8 @@ export default function Sidebar() {
   const [showSettings, setShowSettings] = useState(false);
   const { tasks, loadTasks, updateTaskStatus, addTaskUpdate, openLauncher } = useTaskStore();
   const accomplish = getAccomplish();
+  const currentTaskTodos = useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? []);
+  const hasTodos = currentTaskTodos.length > 0;
 
   // Resize state
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
@@ -168,11 +171,15 @@ export default function Sidebar() {
           {/* Folders Panel - Collapsible, Default Collapsed */}
           <FoldersPanel />
 
-          {/* Tasks Panel - Placeholder, Always Collapsed */}
-          <CollapsibleSection defaultOpen={false} disabled title="Tasks">
-            <div className="px-2 py-3 text-center text-muted-foreground text-xs">
-              Coming soon...
-            </div>
+          {/* Tasks Panel - Shows current task's todos, auto-expands when todos appear */}
+          <CollapsibleSection defaultOpen={hasTodos} disabled={!hasTodos} key={String(hasTodos)} title="Tasks">
+            {hasTodos ? (
+              <TodoPanel todos={currentTaskTodos} />
+            ) : (
+              <div className="px-2 py-3 text-center text-muted-foreground text-xs">
+                No active tasks
+              </div>
+            )}
           </CollapsibleSection>
         </ScrollArea>
 

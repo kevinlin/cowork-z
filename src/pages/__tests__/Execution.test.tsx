@@ -22,6 +22,8 @@ vi.mock('@/lib/tauri-api', async (importOriginal) => {
     onDebugModeChange: vi.fn().mockResolvedValue(() => {}),
     onTaskStatusChange: vi.fn().mockResolvedValue(() => {}),
     onDebugLog: vi.fn().mockResolvedValue(() => {}),
+    onTodoUpdated: vi.fn().mockResolvedValue(() => {}),
+    getSessionTodos: vi.fn().mockResolvedValue(undefined),
     getDebugMode: vi.fn().mockResolvedValue(false),
     logEvent: vi.fn().mockResolvedValue(undefined),
   };
@@ -44,6 +46,7 @@ const mockTaskStore = {
   permissionRequest: null,
   setupProgress: null,
   startupStage: null,
+  todos: new Map<string, unknown[]>(),
   loadTaskById: vi.fn(),
   sendFollowUp: vi.fn(),
   cancelTask: vi.fn(),

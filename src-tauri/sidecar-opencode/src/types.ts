@@ -147,6 +147,13 @@ export interface McpConfig {
   timeout?: number;
 }
 
+export interface Todo {
+  id: string;
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'high' | 'medium' | 'low';
+}
+
 export interface HealthResponse {
   healthy: true;
   version: string;
@@ -186,6 +193,7 @@ export type OpenCodeEvent =
       properties: { id: string; answers: QuestionAnswer[] };
     }
   | { type: 'question.rejected'; properties: { id: string } }
+  | { type: 'todo.updated'; properties: { sessionID: string; todos: Todo[] } }
   | { type: 'server.connected'; properties: Record<string, never> }
   | { type: 'server.instance.disposed'; properties: { directory: string } }
   | { type: 'server.heartbeat'; properties: Record<string, never> }
@@ -229,6 +237,7 @@ export type SidecarCommand =
       taskId: string;
       payload: QuestionReplyPayload;
     }
+  | { type: 'get_session_todos'; taskId: string; sessionId: string }
   | { type: 'ping' }
   | { type: 'check_server' };
 
@@ -299,6 +308,7 @@ export type SidecarEvent =
     }
   | { type: 'task_complete'; taskId: string; payload: TaskCompletePayload }
   | { type: 'task_error'; taskId: string; payload: TaskErrorPayload }
+  | { type: 'todo_updated'; taskId: string; payload: TodoUpdatedPayload }
   | { type: 'log'; payload: LogPayload }
   | { type: 'error'; payload: ErrorPayload };
 
@@ -365,6 +375,10 @@ export interface TaskCompletePayload {
 export interface TaskErrorPayload {
   error: string;
   sessionId?: string;
+}
+
+export interface TodoUpdatedPayload {
+  todos: Todo[];
 }
 
 export interface LogPayload {

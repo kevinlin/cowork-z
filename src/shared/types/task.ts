@@ -119,3 +119,13 @@ export interface CompleteMessageEvent {
   messageId: string;
   text: string;
 }
+
+// ========== Todo Types ==========
+
+/** A todo item from the OpenCode server's todo list */
+export interface Todo {
+  id: string;
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'high' | 'medium' | 'low';
+}

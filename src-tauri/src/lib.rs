@@ -466,6 +466,25 @@ async fn abort_session(
 }
 
 #[tauri::command]
+async fn get_session_todos(
+    task_id: String,
+    session_id: String,
+    sidecar_state: State<'_, SidecarState>,
+) -> Result<(), String> {
+    let mut manager = sidecar_state.manager.lock().await;
+    if !manager.is_running() {
+        return Err("Sidecar not running".to_string());
+    }
+
+    manager
+        .send_command(sidecar::SidecarCommand::GetSessionTodos {
+            task_id,
+            session_id,
+        })
+        .await
+}
+
+#[tauri::command]
 async fn reply_to_question(
     task_id: String,
     request_id: String,
@@ -1663,6 +1682,7 @@ pub fn run() {
             start_task,
             cancel_task,
             abort_session,
+            get_session_todos,
             get_task,
             list_tasks,
             delete_task,

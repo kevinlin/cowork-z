@@ -12,6 +12,7 @@ import type {
   TaskMessage,
   TaskStatus,
   TaskUpdateEvent,
+  Todo,
 } from '@/shared';
 
 // Batch update event type for performance optimization
@@ -52,6 +53,10 @@ interface TaskState {
 
   // Permission handling
   permissionRequest: PermissionRequest | null;
+
+  // Todos (per task)
+  todos: Map<string, Todo[]>;
+  setTodos: (taskId: string, todos: Todo[]) => void;
 
   // Setup progress (e.g., browser download)
   setupProgress: string | null;
@@ -126,6 +131,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
   partialMessages: new Map<string, PartialMessage>(),
   permissionRequest: null,
+  todos: new Map<string, Todo[]>(),
+
+  setTodos: (taskId: string, todos: Todo[]) => {
+    set((state) => {
+      const newTodos = new Map(state.todos);
+      newTodos.set(taskId, todos);
+      return { todos: newTodos };
+    });
+  },
+
   setupProgress: null,
   setupProgressTaskId: null,
   setupDownloadStep: 1,
@@ -803,6 +818,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       startupStageTaskId: null,
       isLauncherOpen: false,
       folderPermissions: [],
+      todos: new Map<string, Todo[]>(),
     });
   },
 
@@ -889,5 +905,10 @@ if (typeof window !== 'undefined' && api.isRunningInTauri()) {
       message: `[streaming] complete received: messageId=${event.messageId}, textLength=${event.text.length}, text="${event.text}"`,
     });
     useTaskStore.getState().finalizePartialMessage(event);
+  });
+
+  // Subscribe to todo updates
+  void api.onTodoUpdated((event) => {
+    useTaskStore.getState().setTodos(event.taskId, event.todos);
   });
 }

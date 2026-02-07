@@ -80,6 +80,12 @@ pub enum SidecarCommand {
         task_id: String,
         payload: QuestionReplyPayload,
     },
+    GetSessionTodos {
+        #[serde(rename = "taskId")]
+        task_id: String,
+        #[serde(rename = "sessionId")]
+        session_id: String,
+    },
     #[allow(dead_code)]
     Ping,
     CheckServer,
@@ -370,6 +376,7 @@ impl SidecarManager {
             SidecarCommand::AbortSession { .. } => "abort_session",
             SidecarCommand::SendPermissionReply { .. } => "send_permission_reply",
             SidecarCommand::SendQuestionReply { .. } => "send_question_reply",
+            SidecarCommand::GetSessionTodos { .. } => "get_session_todos",
             SidecarCommand::Ping => "ping",
             SidecarCommand::CheckServer => "check_server",
         };
@@ -404,6 +411,7 @@ impl SidecarManager {
             "question_request" => "task:question_request",
             "task_complete" => "task:complete",
             "task_error" => "task:error",
+            "todo_updated" => "task:todo_updated",
             "log" => "sidecar:log",
             "error" => "sidecar:error",
             _ => {

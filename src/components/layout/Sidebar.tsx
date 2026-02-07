@@ -13,7 +13,7 @@ import { staggerContainer } from '@/lib/animations';
 import { useTaskStore } from '@/stores/taskStore';
 import type { Todo } from '@/shared';
 import logoImage from '/assets/logo-1.png';
-import CollapsibleSection from './CollapsibleSection';
+import CollapsibleSection from '../sidebar/CollapsibleSection';
 import ConversationListItem from './ConversationListItem';
 import FoldersPanel from '@/components/sidebar/FoldersPanel';
 

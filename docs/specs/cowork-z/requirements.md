@@ -38,13 +38,13 @@ The following implementation plans document how specific requirements were desig
 
 ### 1. Core Engine
 
-#### 1.1 Multi-Provider Support
+#### 1.1 Multi-Provider Support ✅
 
 **User Story:** As a user, I want to connect to multiple AI providers, so that I can use whichever model best suits my task.
 
 **Acceptance Criteria:**
 
-##### 1.1.1 Provider Management ✅
+##### 1.1.1 Provider Management
 1. THE SYSTEM SHALL support the following provider categories:
    - **Direct API**: Anthropic, OpenAI, Google Gemini, xAI, DeepSeek, Z.AI
    - **Cloud Platforms**: AWS Bedrock, Azure AI Foundry
@@ -53,12 +53,12 @@ The following implementation plans document how specific requirements were desig
 2. WHEN a provider is configured, THE SYSTEM SHALL display its connection status (disconnected, connecting, connected, error)
 3. WHERE multiple providers are configured, THE SYSTEM SHALL allow the user to switch the active provider and model at any time
 
-##### 1.1.2 Credential Storage ✅
+##### 1.1.2 Credential Storage
 1. THE SYSTEM SHALL store all API keys and credentials in the OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 2. THE SYSTEM SHALL never expose full API keys to the frontend — only masked prefixes
 3. WHERE provider-specific auth is needed (e.g., Bedrock access keys, Azure Entra ID), THE SYSTEM SHALL provide dedicated configuration forms
 
-#### 1.2 Session Management
+#### 1.2 Session Management ✅
 
 > **Plan:** [Sidecar OpenCode Rewrite](../opencode-sidecar/plan_sidecar-opencode-rewrite.md)
 
@@ -66,21 +66,21 @@ The following implementation plans document how specific requirements were desig
 
 **Acceptance Criteria:**
 
-##### 1.2.1 Session Lifecycle ✅
+##### 1.2.1 Session Lifecycle
 1. WHEN a user submits a prompt, THE SYSTEM SHALL create a new task and OpenCode session
 2. WHEN a task completes or errors, THE SYSTEM SHALL persist the session ID, messages, and folder permissions to the database
 3. WHEN the application closes, THE SYSTEM SHALL gracefully terminate all running sessions and sidecar processes
 
-##### 1.2.2 Session Resumption ✅
+##### 1.2.2 Session Resumption
 1. THE SYSTEM SHALL allow users to resume a previous session with a new prompt
 2. WHEN a session is resumed, THE SYSTEM SHALL restore all ad-hoc folder permissions from the original session
 3. WHERE a session is resumed, THE SYSTEM SHALL maintain the original conversation context
 
-##### 1.2.3 Task History ✅
+##### 1.2.3 Task History
 1. THE SYSTEM SHALL persist task metadata (prompt, status, summary, timestamps) and messages to SQLite
 2. THE SYSTEM SHALL display previous tasks in a sidebar for quick access
 
-#### 1.3 Permission System
+#### 1.3 Permission System ✅
 
 > **Plan:** [Folder Permission Model](../opencode-sidecar/plan_folder-permission-model.md)
 
@@ -88,20 +88,20 @@ The following implementation plans document how specific requirements were desig
 
 **Acceptance Criteria:**
 
-##### 1.3.1 Folder Permissions ✅
+##### 1.3.1 Folder Permissions
 1. THE SYSTEM SHALL support two access levels: **read** and **read-write**
 2. WHEN a task starts, THE SYSTEM SHALL enforce folder permissions for all file operations
 3. WHERE permissions are granted, THE SYSTEM SHALL persist them per task in the database
 
-##### 1.3.2 Default Access ✅
+##### 1.3.2 Default Access
 1. THE SYSTEM SHALL grant default access to the user's **Desktop** and **Downloads** folders
 2. WHEN the agent requests access to any path outside the default and permitted folders, THE SYSTEM SHALL prompt the user with a permission dialog showing the requested path
 
-##### 1.3.3 Runtime Permission Requests ✅
+##### 1.3.3 Runtime Permission Requests
 1. IF the user approves a permission request, THE SYSTEM SHALL extract the parent folder from the requested path and store it as an ad-hoc grant
 2. WHERE ad-hoc grants exist, THE SYSTEM SHALL restore them when a session is resumed
 
-##### 1.3.4 Permission Sources ✅
+##### 1.3.4 Permission Sources
 1. THE SYSTEM SHALL distinguish between **user** permissions (explicitly configured) and **ad-hoc** permissions (granted from runtime requests)
 2. WHERE the user manages permissions in settings, THE SYSTEM SHALL allow adding, editing, and removing folder permissions
 
@@ -118,7 +118,7 @@ The following implementation plans document how specific requirements were desig
 2. WHEN a custom prompt is set, THE SYSTEM SHALL include it in the session configuration sent to OpenCode via `PATCH /config`
 3. THE SYSTEM SHALL persist the custom prompt to the database
 
-#### 2.2 Skill Discovery (via OpenCode) ✅
+#### 2.2 Agent Skill Support ✅
 
 > **Plan:** [Fix System Prompt Injection](../opencode-sidecar/plan_fix_system_prompt_injection.md) (system prompt delivery for agent configuration)
 
@@ -206,11 +206,11 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 **Acceptance Criteria:**
 
-##### 4.1.1 Settings Storage ✅
+##### 4.1.1 Settings Storage
 1. THE SYSTEM SHALL persist settings to the SQLite database
 2. WHEN settings are modified, THE SYSTEM SHALL apply them immediately without requiring an app restart
 
-##### 4.1.2 Configurable Options ✅
+##### 4.1.2 Configurable Options
 1. THE SYSTEM SHALL allow configuring:
    - Active provider and model selection
    - Per-provider API keys and connection settings
@@ -232,13 +232,13 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 **Acceptance Criteria:**
 
-##### 4.3.1 App-Level Shortcuts ✅
+##### 4.3.1 App-Level Shortcuts
 1. THE SYSTEM SHALL support the following default shortcuts (macOS / Windows):
    - `Cmd+,` / `Ctrl+,` — Open settings
    - `Cmd+N` / `Ctrl+N` — New task
 2. THE SYSTEM SHALL map modifier keys to platform conventions (`Cmd` on macOS, `Ctrl` on Windows/Linux)
 
-##### 4.3.2 Chat Shortcuts ✅
+##### 4.3.2 Chat Shortcuts
 1. THE SYSTEM SHALL support the following shortcuts within the chat view:
    - `Cmd+Enter` / `Ctrl+Enter` — Send message
    - `Escape` — Cancel running task
@@ -299,12 +299,12 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 **Acceptance Criteria:**
 
-##### 5.3.1 Error Display ✅
+##### 5.3.1 Error Display
 1. WHEN API errors occur, THE SYSTEM SHALL display user-friendly error messages
 2. WHERE tool execution fails, THE SYSTEM SHALL show the error inline with actionable context
 3. IF the application encounters an unrecoverable error, THE SYSTEM SHALL allow session restart
 
-##### 5.3.2 Logging ✅
+##### 5.3.2 Logging
 1. WHEN errors occur, THE SYSTEM SHALL log them to the platform-appropriate log directory
 2. WHERE debugging is needed, THE SYSTEM SHALL provide a debug mode with verbose logging
 

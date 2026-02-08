@@ -39,7 +39,8 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
   // Resolve skills folder path on mount
   useEffect(() => {
     getHomeDir().then((home) => {
-      setSkillsFolderPath(`${home}.config/opencode/skills`);
+      const normalizedHome = home.endsWith('/') ? home : `${home}/`;
+      setSkillsFolderPath(`${normalizedHome}.config/opencode/skills`);
     });
   }, []);
 

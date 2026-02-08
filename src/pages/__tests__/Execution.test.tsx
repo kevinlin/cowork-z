@@ -31,9 +31,9 @@ vi.mock('@/lib/tauri-api', async (importOriginal) => {
   };
 });
 
-// Mock the accomplish module
-vi.mock('@/lib/accomplish', () => ({
-  getAccomplish: vi.fn(() => ({
+// Mock the tauri-api-interface module
+vi.mock('@/lib/tauri-api-interface', () => ({
+  getTauriAPI: vi.fn(() => ({
     openUrl: vi.fn(),
     copyToClipboard: vi.fn(),
   })),

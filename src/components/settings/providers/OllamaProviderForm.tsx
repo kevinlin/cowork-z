@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
-import { getAccomplish } from '@/lib/accomplish';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import type { ConnectedProvider, OllamaCredentials } from '@/shared';
 // Import Ollama logo
@@ -30,8 +30,8 @@ export function OllamaProviderForm({ connectedProvider, onConnect, onDisconnect,
     setError(null);
 
     try {
-      const accomplish = getAccomplish();
-      const result = await accomplish.testOllamaConnection(serverUrl);
+      const api = getTauriAPI();
+      const result = await api.testOllamaConnection(serverUrl);
 
       if (!result.success) {
         setError(result.error || 'Connection failed');

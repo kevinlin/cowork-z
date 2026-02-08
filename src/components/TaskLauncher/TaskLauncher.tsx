@@ -6,7 +6,7 @@ import { Plus, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
-import { getAccomplish } from '@/lib/accomplish';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { springs } from '@/lib/animations';
 import { cn } from '@/lib/utils';
 import { hasAnyReadyProvider } from '@/shared';
@@ -19,7 +19,7 @@ export default function TaskLauncher() {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const { isLauncherOpen, closeLauncher, tasks, startTask } = useTaskStore();
-  const accomplish = getAccomplish();
+  const api = getTauriAPI();
 
   // Filter tasks by search query (title only)
   const filteredTasks = useMemo(() => {
@@ -65,7 +65,7 @@ export default function TaskLauncher() {
         // "New task" selected
         if (searchQuery.trim()) {
           // Check if any provider is ready before starting task
-          const settings = await accomplish.getProviderSettings();
+          const settings = await api.getProviderSettings();
           if (!hasAnyReadyProvider(settings)) {
             // No ready provider - navigate to home which will show settings
             closeLauncher();
@@ -92,7 +92,7 @@ export default function TaskLauncher() {
         }
       }
     },
-    [searchQuery, filteredTasks, closeLauncher, navigate, startTask, accomplish]
+    [searchQuery, filteredTasks, closeLauncher, navigate, startTask, api]
   );
 
   const handleKeyDown = useCallback(

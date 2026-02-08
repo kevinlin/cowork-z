@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
-import { getAccomplish } from '@/lib/accomplish';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import type { BedrockProviderCredentials, ConnectedProvider } from '@/shared';
 import { getDefaultModelForProvider } from '@/shared';
@@ -42,7 +42,7 @@ export function BedrockProviderForm({
     setError(null);
 
     try {
-      const accomplish = getAccomplish();
+      const api = getTauriAPI();
 
       const credentials =
         authTab === 'accessKey'
@@ -59,7 +59,7 @@ export function BedrockProviderForm({
               region,
             };
 
-      const validation = await accomplish.validateBedrockCredentials(credentials);
+      const validation = await api.validateBedrockCredentials(credentials);
 
       if (!validation.valid) {
         setError(validation.error || 'Invalid credentials');
@@ -68,11 +68,11 @@ export function BedrockProviderForm({
       }
 
       // Save credentials
-      await accomplish.saveBedrockCredentials(credentials);
+      await api.saveBedrockCredentials(credentials);
 
       // Fetch available models dynamically from AWS
       const credentialsJson = JSON.stringify(credentials);
-      const modelsResult = await accomplish.fetchBedrockModels(credentialsJson);
+      const modelsResult = await api.fetchBedrockModels(credentialsJson);
       const fetchedModels = modelsResult.success ? modelsResult.models : [];
       setAvailableModels(fetchedModels);
 

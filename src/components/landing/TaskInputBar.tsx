@@ -2,7 +2,7 @@
 
 import { CornerDownLeft, Loader2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { getAccomplish } from '../../lib/accomplish';
+import { getTauriAPI } from '../../lib/tauri-api-interface';
 import { analytics } from '../../lib/analytics';
 
 interface TaskInputBarProps {
@@ -28,7 +28,7 @@ export default function TaskInputBar({
 }: TaskInputBarProps) {
   const isDisabled = disabled || isLoading;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const accomplish = getAccomplish();
+  const api = getTauriAPI();
 
   // Auto-focus on mount
   useEffect(() => {
@@ -77,7 +77,7 @@ export default function TaskInputBar({
         disabled={!value.trim() || isDisabled}
         onClick={() => {
           analytics.trackSubmitTask();
-          accomplish.logEvent({
+          api.logEvent({
             level: 'info',
             message: 'Task input submit clicked',
             context: { prompt: value },

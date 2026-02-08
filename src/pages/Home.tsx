@@ -18,7 +18,7 @@ import stagingVsProdVisualImg from '/assets/usecases/staging-vs-prod-visual.png'
 import stockPortfolioAlertsImg from '/assets/usecases/stock-portfolio-alerts.png';
 import TaskInputBar from '../components/landing/TaskInputBar';
 import SettingsDialog from '../components/layout/SettingsDialog';
-import { getAccomplish } from '../lib/accomplish';
+import { getTauriAPI } from '../lib/tauri-api-interface';
 import { springs, staggerContainer, staggerItem } from '../lib/animations';
 import { useTaskStore } from '../stores/taskStore';
 
@@ -86,15 +86,15 @@ export default function HomePage() {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const { startTask, isLoading, addTaskUpdate, setPermissionRequest } = useTaskStore();
   const navigate = useNavigate();
-  const accomplish = getAccomplish();
+  const api = getTauriAPI();
 
   // Subscribe to task events
   useEffect(() => {
-    const unsubscribeTask = accomplish.onTaskUpdate((event) => {
+    const unsubscribeTask = api.onTaskUpdate((event) => {
       addTaskUpdate(event);
     });
 
-    const unsubscribePermission = accomplish.onPermissionRequest((request) => {
+    const unsubscribePermission = api.onPermissionRequest((request) => {
       setPermissionRequest(request);
     });
 
@@ -102,7 +102,7 @@ export default function HomePage() {
       unsubscribeTask();
       unsubscribePermission();
     };
-  }, [addTaskUpdate, setPermissionRequest, accomplish]);
+  }, [addTaskUpdate, setPermissionRequest, api]);
 
   const executeTask = useCallback(async () => {
     if (!prompt.trim() || isLoading) return;
@@ -118,9 +118,9 @@ export default function HomePage() {
     if (!prompt.trim() || isLoading) return;
 
     // Check if any provider is ready before sending (skip in E2E mode)
-    const isE2EMode = await accomplish.isE2EMode();
+    const isE2EMode = await api.isE2EMode();
     if (!isE2EMode) {
-      const settings = await accomplish.getProviderSettings();
+      const settings = await api.getProviderSettings();
       if (!hasAnyReadyProvider(settings)) {
         setShowSettingsDialog(true);
         return;

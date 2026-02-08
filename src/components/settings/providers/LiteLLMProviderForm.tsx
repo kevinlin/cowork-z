@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
-import { getAccomplish } from '@/lib/accomplish';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import type { ConnectedProvider, LiteLLMCredentials } from '@/shared';
 // Import LiteLLM logo
@@ -36,11 +36,11 @@ export function LiteLLMProviderForm({
     setError(null);
 
     try {
-      const accomplish = getAccomplish();
+      const api = getTauriAPI();
       const trimmedKey = apiKey.trim() || undefined;
 
       // Test connection and fetch models
-      const result = await accomplish.testLiteLLMConnection(serverUrl, trimmedKey);
+      const result = await api.testLiteLLMConnection(serverUrl, trimmedKey);
       if (!result.success) {
         setError(result.error || 'Connection failed');
         setConnecting(false);
@@ -49,10 +49,10 @@ export function LiteLLMProviderForm({
 
       // Save or remove API key based on user input
       if (trimmedKey) {
-        await accomplish.addApiKey('litellm', trimmedKey);
+        await api.addApiKey('litellm', trimmedKey);
       } else {
         // Remove any previously stored key when connecting without one
-        await accomplish.removeApiKey('litellm');
+        await api.removeApiKey('litellm');
       }
 
       // Map models to the expected format

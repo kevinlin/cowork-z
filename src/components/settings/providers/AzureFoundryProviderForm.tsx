@@ -1,7 +1,7 @@
 // apps/desktop/src/renderer/components/settings/providers/AzureFoundryProviderForm.tsx
 
 import { useState } from 'react';
-import { getAccomplish } from '@/lib/accomplish';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { AzureFoundryCredentials, ConnectedProvider } from '@/shared';
 // Import Azure logo
 import azureLogo from '/assets/ai-logos/azure.svg';
@@ -46,10 +46,10 @@ export function AzureFoundryProviderForm({
     setError(null);
 
     try {
-      const accomplish = getAccomplish();
+      const api = getTauriAPI();
 
       // Validate connection
-      const validation = await accomplish.testAzureFoundryConnection({
+      const validation = await api.testAzureFoundryConnection({
         endpoint: endpoint.trim(),
         deploymentName: deploymentName.trim(),
         authType,
@@ -63,7 +63,7 @@ export function AzureFoundryProviderForm({
       }
 
       // Save credentials
-      await accomplish.saveAzureFoundryConfig({
+      await api.saveAzureFoundryConfig({
         endpoint: endpoint.trim(),
         deploymentName: deploymentName.trim(),
         authType,

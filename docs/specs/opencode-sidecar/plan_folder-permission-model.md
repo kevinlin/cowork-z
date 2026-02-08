@@ -95,7 +95,7 @@ Updated `start_task` and `resume_session` to load folder permissions from DB and
 - **`permission.ts`**: Added `FolderAccessLevel`, `FolderPermissionSource`, and `FolderPermission` (with `source?`) types. Added `patterns?` field to `PermissionResponse`.
 - **`task.ts`**: Removed `folders` from `Task` and `TaskConfig`
 - **`tauri-api.ts`**: Added `saveFolderPermission` (with optional `source` param), `getFolderPermissions`, `removeFolderPermission`, `getDefaultFolderPermissions`
-- **`accomplish.ts`**: Removed `folders` from `resumeSession` signature
+- **`tauri-api-interface.ts`** (formerly `accomplish.ts`): Removed `folders` from `resumeSession` signature
 
 ### Layer 6: Zustand Store
 
@@ -129,7 +129,7 @@ Updated `startTask()` and `resumeSession()` to destructure and pass `folderPermi
 - `src/shared/types/permission.ts` -- Added FolderPermission type (with `source`), FolderPermissionSource, patterns on PermissionResponse
 - `src/shared/types/task.ts` -- Removed folders
 - `src/lib/tauri-api.ts` -- New API functions
-- `src/lib/accomplish.ts` -- Updated interface
+- `src/lib/tauri-api-interface.ts` (formerly `accomplish.ts`) -- Updated interface
 - `src/stores/taskStore.ts` -- Updated state management, respondToPermission persists adhoc grants locally (with directory vs file pattern detection via `toolName`)
 - `src/components/layout/FoldersPanel.tsx` -- UI overhaul, adhoc folders shown with shield-check icon
 

@@ -37,7 +37,7 @@ start_task / resume_session (lib.rs)
 | Sidecar IPC (TS) | `src-tauri/sidecar-opencode/src/types.ts` | Add `customPrompt?: string` to both payload interfaces |
 | System Prompt | `src-tauri/sidecar-opencode/src/config-builder.ts` | Accept `customPrompt` param; append `<user-instructions>` block |
 | Session Manager | `src-tauri/sidecar-opencode/src/session-manager.ts` | Pass `customPrompt` from payload to `buildSystemPrompt` |
-| TS Bridge | `src/lib/tauri-api.ts`, `src/lib/accomplish.ts` | Add `getUserPrompt`, `setUserPrompt` functions |
+| TS Bridge | `src/lib/tauri-api.ts`, `src/lib/tauri-api-interface.ts` | Add `getUserPrompt`, `setUserPrompt` functions |
 | UI | `src/components/layout/SettingsDialog.tsx` | Add User Prompt section with toggle + debounced textarea |
 
 ## Design Decisions

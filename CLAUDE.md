@@ -80,7 +80,7 @@ OpenCode server endpoints used by sidecar: `GET /event` (SSE), `POST /session/{i
 ### Key Source Locations
 
 - **`src/lib/tauri-api.ts`** — Centralized frontend API bridge. All Tauri `invoke()` calls and `listen()` event subscriptions go through here. This is the contract between frontend and Rust.
-- **`src/lib/accomplish.ts`** — `AccomplishAPI` interface abstracting the backend. `getTauriApi()` implements it via `tauri-api.ts`.
+- **`src/lib/tauri-api-interface.ts`** — `TauriAPI` interface abstracting the backend. Wraps `getTauriApi()` from `tauri-api.ts` with synchronous event unlisteners.
 - **`src/stores/taskStore.ts`** — Zustand store for all app state: tasks, permissions, questions, UI state.
 - **`src-tauri/src/lib.rs`** — All Tauri command handlers (60+). Commands are registered in `invoke_handler`.
 - **`src-tauri/src/sidecar.rs`** — Sidecar process lifecycle, IPC serialization (`SidecarCommand` enum), and event routing.

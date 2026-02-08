@@ -1,7 +1,7 @@
 // apps/desktop/src/renderer/components/settings/hooks/useProviderSettings.ts
 
 import { useCallback, useEffect, useState } from 'react';
-import { getAccomplish } from '@/lib/accomplish';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { ConnectedProvider, ProviderId, ProviderSettings } from '@/shared';
 
 export function useProviderSettings() {
@@ -11,8 +11,8 @@ export function useProviderSettings() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const accomplish = getAccomplish();
-      const data = (await accomplish.getProviderSettings()) as ProviderSettings;
+      const api = getTauriAPI();
+      const data = (await api.getProviderSettings()) as ProviderSettings;
       setSettings(data);
       setError(null);
     } catch (err) {
@@ -27,14 +27,14 @@ export function useProviderSettings() {
   }, [fetchSettings]);
 
   const setActiveProvider = useCallback(async (providerId: ProviderId | null) => {
-    const accomplish = getAccomplish();
-    await accomplish.setActiveProvider(providerId);
+    const api = getTauriAPI();
+    await api.setActiveProvider(providerId);
     setSettings((prev) => (prev ? { ...prev, activeProviderId: providerId } : null));
   }, []);
 
   const connectProvider = useCallback(async (providerId: ProviderId, provider: ConnectedProvider) => {
-    const accomplish = getAccomplish();
-    await accomplish.setConnectedProvider(providerId, provider);
+    const api = getTauriAPI();
+    await api.setConnectedProvider(providerId, provider);
     setSettings((prev) => {
       if (!prev) return null;
       return {
@@ -48,8 +48,8 @@ export function useProviderSettings() {
   }, []);
 
   const disconnectProvider = useCallback(async (providerId: ProviderId) => {
-    const accomplish = getAccomplish();
-    await accomplish.removeConnectedProvider(providerId);
+    const api = getTauriAPI();
+    await api.removeConnectedProvider(providerId);
     setSettings((prev) => {
       if (!prev) return null;
       const { [providerId]: _, ...rest } = prev.connectedProviders;
@@ -62,8 +62,8 @@ export function useProviderSettings() {
   }, []);
 
   const updateModel = useCallback(async (providerId: ProviderId, modelId: string | null) => {
-    const accomplish = getAccomplish();
-    await accomplish.updateProviderModel(providerId, modelId);
+    const api = getTauriAPI();
+    await api.updateProviderModel(providerId, modelId);
     setSettings((prev) => {
       if (!prev) return null;
       const provider = prev.connectedProviders[providerId];
@@ -79,8 +79,8 @@ export function useProviderSettings() {
   }, []);
 
   const setDebugMode = useCallback(async (enabled: boolean) => {
-    const accomplish = getAccomplish();
-    await accomplish.setProviderDebugMode(enabled);
+    const api = getTauriAPI();
+    await api.setProviderDebugMode(enabled);
     setSettings((prev) => (prev ? { ...prev, debugMode: enabled } : null));
   }, []);
 

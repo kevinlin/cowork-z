@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
-import { getAccomplish } from '@/lib/accomplish';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import type { ApiKeyCredentials, ConnectedProvider, ProviderId } from '@/shared';
 import { DEFAULT_PROVIDERS, getDefaultModelForProvider, PROVIDER_META } from '@/shared';
@@ -67,8 +67,8 @@ export function ClassicProviderForm({
     setError(null);
 
     try {
-      const accomplish = getAccomplish();
-      const validation = await accomplish.validateApiKeyForProvider(providerId, trimmedKey);
+      const api = getTauriAPI();
+      const validation = await api.validateApiKeyForProvider(providerId, trimmedKey);
 
       if (!validation.valid) {
         setError(validation.error || 'Invalid API key');
@@ -77,7 +77,7 @@ export function ClassicProviderForm({
       }
 
       // Save the API key
-      await accomplish.addApiKey(providerId as any, trimmedKey);
+      await api.addApiKey(providerId as any, trimmedKey);
 
       // Get default model for this provider (if one exists)
       const defaultModel = getDefaultModelForProvider(providerId);

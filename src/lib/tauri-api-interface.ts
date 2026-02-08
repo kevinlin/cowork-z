@@ -1,8 +1,8 @@
 /**
- * Accomplish API - Interface to the backend process
+ * Tauri API Interface
  *
- * This module provides type-safe access to the accomplish API
- * exposed by the preload script via contextBridge.
+ * This module provides the type-safe interface for the Tauri backend API
+ * and wraps async event listeners into synchronous unlisteners.
  */
 
 import type {
@@ -22,8 +22,7 @@ import type {
 } from '@/shared';
 import { getTauriApi, isRunningInTauri } from './tauri-api';
 
-// Define the API interface
-interface AccomplishAPI {
+export interface TauriAPI {
   // App info
   getVersion(): Promise<string>;
   getPlatform(): Promise<string>;
@@ -262,111 +261,47 @@ interface AccomplishAPI {
   logEvent(payload: { level?: string; message: string; context?: Record<string, unknown> }): Promise<unknown>;
 }
 
-interface AccomplishShell {
-  version: string;
-  platform: string;
-  isElectron: true;
-}
-
-// Extend Window interface
-declare global {
-  interface Window {
-    accomplish?: AccomplishAPI;
-    accomplishShell?: AccomplishShell;
-  }
-}
-
 /**
- * Get the accomplish API
- * Throws if not running in Electron
+ * Get the Tauri API interface.
+ * Wraps async event listeners from getTauriApi() into synchronous unlisteners.
  */
-export function getAccomplish() {
-  if (window.accomplish) {
-    return {
-      ...window.accomplish,
-
-      validateBedrockCredentials: async (credentials: BedrockCredentials): Promise<{ valid: boolean; error?: string }> => {
-        return window.accomplish!.validateBedrockCredentials(credentials);
-      },
-
-      saveBedrockCredentials: async (credentials: BedrockCredentials): Promise<ApiKeyConfig> => {
-        return window.accomplish!.saveBedrockCredentials(credentials);
-      },
-
-      getBedrockCredentials: async (): Promise<BedrockCredentials | null> => {
-        return window.accomplish!.getBedrockCredentials();
-      },
-
-      fetchBedrockModels: (credentials: string) => window.accomplish!.fetchBedrockModels(credentials),
-
-      revealInFinder: async () => {},
-    };
+export function getTauriAPI(): TauriAPI {
+  if (!isRunningInTauri()) {
+    throw new Error('Tauri API not available - not running in Tauri');
   }
 
-  if (isRunningInTauri()) {
-    const tauriApi = getTauriApi();
-    const toSyncUnlisten = (promise: Promise<() => void>) => {
-      let unlisten: (() => void) | null = null;
-      let pendingCancel = false;
-      promise
-        .then((fn) => {
-          unlisten = fn;
-          if (pendingCancel) {
-            fn();
-          }
-        })
-        .catch(() => {});
-      return () => {
-        if (unlisten) {
-          unlisten();
-        } else {
-          pendingCancel = true;
+  const tauriApi = getTauriApi();
+  const toSyncUnlisten = (promise: Promise<() => void>) => {
+    let unlisten: (() => void) | null = null;
+    let pendingCancel = false;
+    promise
+      .then((fn) => {
+        unlisten = fn;
+        if (pendingCancel) {
+          fn();
         }
-      };
+      })
+      .catch(() => {});
+    return () => {
+      if (unlisten) {
+        unlisten();
+      } else {
+        pendingCancel = true;
+      }
     };
+  };
 
-    return {
-      ...tauriApi,
-      onTaskUpdate: (callback: (event: TaskUpdateEvent) => void) => toSyncUnlisten(tauriApi.onTaskUpdate(callback)),
-      onTaskUpdateBatch: (callback: (event: { taskId: string; messages: TaskMessage[] }) => void) =>
-        toSyncUnlisten(tauriApi.onTaskUpdateBatch(callback)),
-      onPermissionRequest: (callback: (request: PermissionRequest) => void) => toSyncUnlisten(tauriApi.onPermissionRequest(callback)),
-      onTaskProgress: (callback: (progress: TaskProgress) => void) => toSyncUnlisten(tauriApi.onTaskProgress(callback)),
-      onDebugLog: (callback: (log: unknown) => void) => toSyncUnlisten(tauriApi.onDebugLog(callback)),
-      onDebugModeChange: (callback: (data: { enabled: boolean }) => void) => toSyncUnlisten(tauriApi.onDebugModeChange(callback)),
-      onTaskStatusChange: (callback: (data: { taskId: string; status: TaskStatus }) => void) =>
-        toSyncUnlisten(tauriApi.onTaskStatusChange(callback)),
-      onTaskSummary: (callback: (data: { taskId: string; summary: string }) => void) => toSyncUnlisten(tauriApi.onTaskSummary(callback)),
-    };
-  }
-
-  throw new Error('Accomplish API not available - not running in Electron or Tauri');
-}
-
-/**
- * Check if running in Electron shell
- */
-export function isRunningInElectron(): boolean {
-  return window.accomplishShell?.isElectron === true;
-}
-
-/**
- * Get shell version if available
- */
-export function getShellVersion(): string | null {
-  return window.accomplishShell?.version ?? null;
-}
-
-/**
- * Get shell platform if available
- */
-export function getShellPlatform(): string | null {
-  return window.accomplishShell?.platform ?? null;
-}
-
-/**
- * React hook to use the accomplish API
- */
-export function useAccomplish(): AccomplishAPI {
-  return getAccomplish();
+  return {
+    ...tauriApi,
+    onTaskUpdate: (callback: (event: TaskUpdateEvent) => void) => toSyncUnlisten(tauriApi.onTaskUpdate(callback)),
+    onTaskUpdateBatch: (callback: (event: { taskId: string; messages: TaskMessage[] }) => void) =>
+      toSyncUnlisten(tauriApi.onTaskUpdateBatch(callback)),
+    onPermissionRequest: (callback: (request: PermissionRequest) => void) => toSyncUnlisten(tauriApi.onPermissionRequest(callback)),
+    onTaskProgress: (callback: (progress: TaskProgress) => void) => toSyncUnlisten(tauriApi.onTaskProgress(callback)),
+    onDebugLog: (callback: (log: unknown) => void) => toSyncUnlisten(tauriApi.onDebugLog(callback)),
+    onDebugModeChange: (callback: (data: { enabled: boolean }) => void) => toSyncUnlisten(tauriApi.onDebugModeChange(callback)),
+    onTaskStatusChange: (callback: (data: { taskId: string; status: TaskStatus }) => void) =>
+      toSyncUnlisten(tauriApi.onTaskStatusChange(callback)),
+    onTaskSummary: (callback: (data: { taskId: string; summary: string }) => void) => toSyncUnlisten(tauriApi.onTaskSummary(callback)),
+  };
 }

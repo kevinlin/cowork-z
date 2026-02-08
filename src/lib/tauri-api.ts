@@ -1076,8 +1076,8 @@ export async function getShellPlatform(): Promise<string | null> {
 // ============================================================================
 
 /**
- * Get the Tauri API object
- * Provides a similar interface to the old accomplish API
+ * Get the Tauri API object — bundles all individual Tauri command functions
+ * into a single object for convenience.
  */
 export function getTauriApi() {
   return {
@@ -1200,18 +1200,4 @@ export function getTauriApi() {
     // Logging
     logEvent,
   };
-}
-
-/**
- * @deprecated Use getTauriApi or import individual functions instead
- */
-export function getAccomplish() {
-  return getTauriApi();
-}
-
-/**
- * @deprecated Use getTauriApi or import individual functions instead
- */
-export function useAccomplish() {
-  return getTauriApi();
 }

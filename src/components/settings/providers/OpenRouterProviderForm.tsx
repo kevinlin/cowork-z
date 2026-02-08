@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
-import { getAccomplish } from '@/lib/accomplish';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import type { ConnectedProvider, OpenRouterCredentials } from '@/shared';
 import { PROVIDER_META } from '@/shared';
@@ -43,10 +43,10 @@ export function OpenRouterProviderForm({
     setError(null);
 
     try {
-      const accomplish = getAccomplish();
+      const api = getTauriAPI();
 
       // Validate key
-      const validation = await accomplish.validateApiKeyForProvider('openrouter', apiKey.trim());
+      const validation = await api.validateApiKeyForProvider('openrouter', apiKey.trim());
       if (!validation.valid) {
         setError(validation.error || 'Invalid API key');
         setConnecting(false);
@@ -54,10 +54,10 @@ export function OpenRouterProviderForm({
       }
 
       // Save key
-      await accomplish.addApiKey('openrouter', apiKey.trim());
+      await api.addApiKey('openrouter', apiKey.trim());
 
       // Fetch models
-      const result = await accomplish.fetchOpenRouterModels();
+      const result = await api.fetchOpenRouterModels();
       if (!result.success) {
         setError(result.error || 'Failed to fetch models');
         setConnecting(false);

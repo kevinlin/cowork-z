@@ -7,7 +7,7 @@ import { useProviderSettings } from '@/components/settings/hooks/useProviderSett
 import { ProviderGrid } from '@/components/settings/ProviderGrid';
 import { ProviderSettingsPanel } from '@/components/settings/ProviderSettingsPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getAccomplish } from '@/lib/accomplish';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { analytics } from '@/lib/analytics';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import { getHomeDir, revealInFinder } from '@/lib/tauri-api';
@@ -38,7 +38,7 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
   const userPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userPromptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [skillsFolderPath, setSkillsFolderPath] = useState<string | null>(null);
-  const accomplish = getAccomplish();
+  const api = getTauriAPI();
 
   // Resolve skills folder path on mount
   useEffect(() => {
@@ -53,13 +53,13 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
     if (!open) return;
     refetch();
     // Load debug mode from appSettings (correct store)
-    accomplish.getDebugMode().then(setDebugModeState);
+    api.getDebugMode().then(setDebugModeState);
     // Load user prompt settings
-    accomplish.getUserPrompt().then(({ enabled, text }) => {
+    api.getUserPrompt().then(({ enabled, text }) => {
       setUserPromptEnabledState(enabled);
       setUserPromptTextState(text ?? '');
     });
-  }, [open, refetch, accomplish]);
+  }, [open, refetch, api]);
 
   // Auto-select active provider and expand grid if needed when dialog opens
   useEffect(() => {
@@ -178,10 +178,10 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
   // Handle debug mode toggle - writes to appSettings (correct store)
   const handleDebugToggle = useCallback(async () => {
     const newValue = !debugMode;
-    await accomplish.setDebugMode(newValue);
+    await api.setDebugMode(newValue);
     setDebugModeState(newValue);
     analytics.trackToggleDebugMode(newValue);
-  }, [debugMode, accomplish]);
+  }, [debugMode, api]);
 
   // Handle user prompt toggle — read latest text from the textarea ref to avoid stale state
   const handleUserPromptToggle = useCallback(async () => {
@@ -189,8 +189,8 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
     setUserPromptEnabledState(newEnabled);
     const currentText = userPromptTextareaRef.current?.value ?? userPromptText;
     setUserPromptTextState(currentText);
-    await accomplish.setUserPrompt(newEnabled, currentText || null);
-  }, [userPromptEnabled, userPromptText, accomplish]);
+    await api.setUserPrompt(newEnabled, currentText || null);
+  }, [userPromptEnabled, userPromptText, api]);
 
   // Handle user prompt text change (debounced save — no React state update while typing)
   const handleUserPromptTextChange = useCallback(
@@ -200,10 +200,10 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
       }
       userPromptTimerRef.current = setTimeout(() => {
         setUserPromptTextState(newText);
-        accomplish.setUserPrompt(userPromptEnabled, newText || null);
+        api.setUserPrompt(userPromptEnabled, newText || null);
       }, 500);
     },
-    [userPromptEnabled, accomplish]
+    [userPromptEnabled, api]
   );
 
   // Handle done button (close with validation)

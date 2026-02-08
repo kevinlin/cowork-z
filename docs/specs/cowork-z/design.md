@@ -122,7 +122,7 @@ The sidecar communicates with the OpenCode server via HTTP REST and Server-Sent 
 | Path | Purpose |
 |------|---------|
 | `src/lib/tauri-api.ts` | Frontend API bridge — all Tauri `invoke()` and `listen()` calls |
-| `src/lib/accomplish.ts` | `AccomplishAPI` interface abstracting the backend |
+| `src/lib/tauri-api-interface.ts` | `TauriAPI` interface abstracting the backend |
 | `src/stores/taskStore.ts` | Zustand store for tasks, permissions, questions, UI state |
 | `src-tauri/src/lib.rs` | Tauri command handlers (60+) |
 | `src-tauri/src/sidecar.rs` | Sidecar process lifecycle, IPC serialization, event routing |

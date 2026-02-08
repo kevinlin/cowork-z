@@ -9,7 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { homeDir } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
 
 import type {
   ApiKeyConfig,
@@ -51,6 +51,10 @@ export async function getPlatform(): Promise<string> {
 
 export async function openExternal(url: string): Promise<void> {
   await openUrl(url);
+}
+
+export async function revealInFinder(path: string): Promise<void> {
+  await revealItemInDir(path);
 }
 
 // ============================================================================
@@ -1075,6 +1079,7 @@ export function getTauriApi() {
 
     // Shell
     openExternal,
+    revealInFinder,
 
     // Task operations
     startTask,

@@ -30,6 +30,7 @@ interface AccomplishAPI {
 
   // Shell
   openExternal(url: string): Promise<void>;
+  revealInFinder(path: string): Promise<void>;
 
   // Task operations
   startTask(config: TaskConfig): Promise<Task>;
@@ -295,6 +296,8 @@ export function getAccomplish() {
       },
 
       fetchBedrockModels: (credentials: string) => window.accomplish!.fetchBedrockModels(credentials),
+
+      revealInFinder: async () => {},
     };
   }
 

@@ -126,12 +126,12 @@ Skills follow the [OpenCode Skills specification](https://opencode.ai/docs/skill
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL rely on the OpenCode server's built-in skill discovery, which searches:
-   - Project-local: `.opencode/skills/<name>/SKILL.md`
    - Global: `~/.config/opencode/skills/<name>/SKILL.md`
    - Claude-compatible: `.claude/skills/<name>/SKILL.md` (project and global)
    - Agent-compatible: `.agents/skills/<name>/SKILL.md` (project and global)
 2. THE SYSTEM SHALL expose discovered skills to the agent via the OpenCode `skill` tool, which lists available skills and loads their content on demand
 3. WHERE skill files are added or modified in any discovery path, OpenCode SHALL pick them up without requiring an app restart
+4. THE SYSTEM SHALL display the skills folder path in the Settings panel as a clickable link that opens the directory in the OS file manager (Finder on macOS, Explorer on Windows)
 
 #### 2.3 MCP Server Support
 
@@ -215,6 +215,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
    - Active provider and model selection
    - Per-provider API keys and connection settings
    - Folder permissions
+   - Skills folder path (read-only, clickable link to open in OS file manager)
    - Debug mode toggle
 
 #### 4.2 Theme Support

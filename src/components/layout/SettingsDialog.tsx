@@ -1,6 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
+import { ExternalLink } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useProviderSettings } from '@/components/settings/hooks/useProviderSettings';
 import { ProviderGrid } from '@/components/settings/ProviderGrid';
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { getAccomplish } from '@/lib/accomplish';
 import { analytics } from '@/lib/analytics';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
+import { getHomeDir, revealInFinder } from '@/lib/tauri-api';
 import type { ConnectedProvider, ProviderId } from '@/shared';
 import { hasAnyReadyProvider, isProviderReady } from '@/shared';
 
@@ -31,7 +33,15 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
 
   // Debug mode state - stored in appSettings, not providerSettings
   const [debugMode, setDebugModeState] = useState(false);
+  const [skillsFolderPath, setSkillsFolderPath] = useState<string | null>(null);
   const accomplish = getAccomplish();
+
+  // Resolve skills folder path on mount
+  useEffect(() => {
+    getHomeDir().then((home) => {
+      setSkillsFolderPath(`${home}.config/opencode/skills`);
+    });
+  }, []);
 
   // Refetch settings and debug mode when dialog opens
   useEffect(() => {
@@ -306,6 +316,34 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
                   providerId={selectedProvider}
                   showModelError={showModelError}
                 />
+              </motion.section>
+            )}
+          </AnimatePresence>
+
+          {/* Skills Folder Section - only shown when a provider is selected */}
+          <AnimatePresence>
+            {selectedProvider && skillsFolderPath && (
+              <motion.section
+                animate="animate"
+                exit="exit"
+                initial="initial"
+                transition={{ ...settingsTransitions.enter, delay: 0.1 }}
+                variants={settingsVariants.slideDown}
+              >
+                <div className="rounded-lg border border-border bg-card p-5">
+                  <div className="font-medium text-foreground">Skills Folder</div>
+                  <p className="mt-1.5 text-muted-foreground text-sm leading-relaxed">
+                    Place skills folder containing <code className="rounded bg-muted px-1 py-0.5 text-xs">SKILL.md</code> files here for the agent to discover
+                    automatically.
+                  </p>
+                  <button
+                    className="mt-3 inline-flex items-center gap-1.5 text-primary text-sm hover:underline"
+                    onClick={() => revealInFinder(skillsFolderPath)}
+                  >
+                    <span className="truncate">~/.config/opencode/skills</span>
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  </button>
+                </div>
               </motion.section>
             )}
           </AnimatePresence>

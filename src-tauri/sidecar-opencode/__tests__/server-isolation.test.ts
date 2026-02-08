@@ -59,18 +59,23 @@ describe('Server Isolation', () => {
 
   describe('buildSystemPrompt', () => {
     it('should include the dynamic server port in the skill discovery curl command', () => {
-      const prompt = buildSystemPrompt(12_345);
-      expect(prompt).toContain('curl -s http://localhost:12345/skill');
+      const prompt = buildSystemPrompt(12_345, 'my-secret');
+      expect(prompt).toContain('http://localhost:12345/skill');
+    });
+
+    it('should include basic auth credentials in the curl command', () => {
+      const prompt = buildSystemPrompt(12_345, 'my-secret');
+      expect(prompt).toContain('curl -s -u opencode:my-secret http://localhost:12345/skill');
     });
 
     it('should not contain hardcoded port 4096', () => {
-      const prompt = buildSystemPrompt(9999);
+      const prompt = buildSystemPrompt(9999, 'pw');
       expect(prompt).not.toContain('localhost:4096');
       expect(prompt).toContain('localhost:9999');
     });
 
     it('should contain the Cowork-Z identity section', () => {
-      const prompt = buildSystemPrompt(5000);
+      const prompt = buildSystemPrompt(5000, 'pw');
       expect(prompt).toContain('Cowork-Z');
       expect(prompt).toContain('<identity>');
     });

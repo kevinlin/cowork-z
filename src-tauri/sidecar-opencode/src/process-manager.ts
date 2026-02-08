@@ -80,6 +80,7 @@ export class ProcessManager {
 
     // Enable HTTP basic auth on the OpenCode server
     env.OPENCODE_SERVER_PASSWORD = this.password;
+    logger.debug(`OPENCODE_SERVER_PASSWORD=${this.password}`);
 
     // Set API keys as environment variables
     if (apiKeys?.anthropic) env.ANTHROPIC_API_KEY = apiKeys.anthropic;

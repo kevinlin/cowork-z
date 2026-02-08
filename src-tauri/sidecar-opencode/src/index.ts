@@ -63,8 +63,8 @@ async function initialize(apiKeys?: ApiKeys): Promise<void> {
     password,
   });
 
-  // Initialize session manager with the port (for dynamic system prompt)
-  sessionManager = new SessionManager(processManager.getClient(), eventStream, port);
+  // Initialize session manager with port and password (for dynamic system prompt with auth)
+  sessionManager = new SessionManager(processManager.getClient(), eventStream, port, password);
 
   // Wire up session manager events to IPC
   sessionManager.on('started', (data: { taskId: string; sessionId: string }) => {

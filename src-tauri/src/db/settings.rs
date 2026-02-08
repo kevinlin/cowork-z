@@ -18,6 +18,9 @@ pub struct AppSettings {
     pub litellm_config: Option<LiteLLMConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub azure_foundry_config: Option<AzureFoundryConfig>,
+    pub user_prompt_enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_prompt_text: Option<String>,
 }
 
 /// Selected model configuration
@@ -90,7 +93,7 @@ pub struct AzureFoundryConfig {
 /// Get app settings
 pub fn get_app_settings(conn: &Connection) -> AppSettings {
     let result = conn.query_row(
-        "SELECT debug_mode, onboarding_complete, selected_model, ollama_config, litellm_config, azure_foundry_config
+        "SELECT debug_mode, onboarding_complete, selected_model, ollama_config, litellm_config, azure_foundry_config, user_prompt_enabled, user_prompt_text
          FROM app_settings WHERE id = 1",
         [],
         |row| {
@@ -100,6 +103,8 @@ pub fn get_app_settings(conn: &Connection) -> AppSettings {
             let ollama_config_str: Option<String> = row.get(3)?;
             let litellm_config_str: Option<String> = row.get(4)?;
             let azure_foundry_config_str: Option<String> = row.get(5)?;
+            let user_prompt_enabled: i32 = row.get(6)?;
+            let user_prompt_text: Option<String> = row.get(7)?;
 
             Ok(AppSettings {
                 debug_mode: debug_mode == 1,
@@ -108,6 +113,8 @@ pub fn get_app_settings(conn: &Connection) -> AppSettings {
                 ollama_config: ollama_config_str.and_then(|s| serde_json::from_str(&s).ok()),
                 litellm_config: litellm_config_str.and_then(|s| serde_json::from_str(&s).ok()),
                 azure_foundry_config: azure_foundry_config_str.and_then(|s| serde_json::from_str(&s).ok()),
+                user_prompt_enabled: user_prompt_enabled == 1,
+                user_prompt_text,
             })
         },
     );
@@ -119,6 +126,8 @@ pub fn get_app_settings(conn: &Connection) -> AppSettings {
         ollama_config: None,
         litellm_config: None,
         azure_foundry_config: None,
+        user_prompt_enabled: false,
+        user_prompt_text: None,
     })
 }
 
@@ -272,5 +281,39 @@ pub fn set_azure_foundry_config(
         params![json],
     )
     .map_err(|e| format!("Failed to set Azure Foundry config: {}", e))?;
+    Ok(())
+}
+
+/// Get user prompt enabled flag
+pub fn get_user_prompt_enabled(conn: &Connection) -> bool {
+    conn.query_row(
+        "SELECT user_prompt_enabled FROM app_settings WHERE id = 1",
+        [],
+        |row| {
+            let val: i32 = row.get(0)?;
+            Ok(val == 1)
+        },
+    )
+    .unwrap_or(false)
+}
+
+/// Get user prompt text
+pub fn get_user_prompt_text(conn: &Connection) -> Option<String> {
+    conn.query_row(
+        "SELECT user_prompt_text FROM app_settings WHERE id = 1",
+        [],
+        |row| row.get(0),
+    )
+    .ok()
+    .flatten()
+}
+
+/// Set user prompt settings (enabled flag and text)
+pub fn set_user_prompt(conn: &Connection, enabled: bool, text: Option<&str>) -> Result<(), String> {
+    conn.execute(
+        "UPDATE app_settings SET user_prompt_enabled = ?1, user_prompt_text = ?2 WHERE id = 1",
+        params![if enabled { 1 } else { 0 }, text],
+    )
+    .map_err(|e| format!("Failed to set user prompt: {}", e))?;
     Ok(())
 }

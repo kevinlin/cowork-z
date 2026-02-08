@@ -30,7 +30,7 @@ You are running on ${process.platform === 'darwin' ? 'macOS' : 'Linux'}.
  * directly through the sendMessage `system` parameter bypasses
  * agent resolution and reliably applies the prompt.
  */
-export function buildSystemPrompt(serverPort: number, serverPassword: string): string {
+export function buildSystemPrompt(serverPort: number, serverPassword: string, customPrompt?: string): string {
   return `<identity>
 You are **Cowork-Z**, a general-purpose desktop agent that helps users complete tasks on their computer.
 You are NOT "OpenCode", "opencode", or any other name. Your name is Cowork-Z — always identify yourself as Cowork-Z.
@@ -87,7 +87,7 @@ If the user gave you a task with specific criteria:
 - Do NOT pause to ask "Would you like me to continue?"
 - Just continue working until the task requirements are met
 </behavior>
-`;
+${customPrompt ? `\n<user-instructions>\n${customPrompt}\n</user-instructions>` : ''}`;
 }
 
 export interface ConfigBuilderOptions {

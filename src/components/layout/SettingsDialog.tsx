@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useProviderSettings } from '@/components/settings/hooks/useProviderSettings';
 import { ProviderGrid } from '@/components/settings/ProviderGrid';
 import { ProviderSettingsPanel } from '@/components/settings/ProviderSettingsPanel';
@@ -33,6 +33,10 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
 
   // Debug mode state - stored in appSettings, not providerSettings
   const [debugMode, setDebugModeState] = useState(false);
+  const [userPromptEnabled, setUserPromptEnabledState] = useState(false);
+  const [userPromptText, setUserPromptTextState] = useState('');
+  const userPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userPromptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [skillsFolderPath, setSkillsFolderPath] = useState<string | null>(null);
   const accomplish = getAccomplish();
 
@@ -50,6 +54,11 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
     refetch();
     // Load debug mode from appSettings (correct store)
     accomplish.getDebugMode().then(setDebugModeState);
+    // Load user prompt settings
+    accomplish.getUserPrompt().then(({ enabled, text }) => {
+      setUserPromptEnabledState(enabled);
+      setUserPromptTextState(text ?? '');
+    });
   }, [open, refetch, accomplish]);
 
   // Auto-select active provider and expand grid if needed when dialog opens
@@ -173,6 +182,29 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
     setDebugModeState(newValue);
     analytics.trackToggleDebugMode(newValue);
   }, [debugMode, accomplish]);
+
+  // Handle user prompt toggle — read latest text from the textarea ref to avoid stale state
+  const handleUserPromptToggle = useCallback(async () => {
+    const newEnabled = !userPromptEnabled;
+    setUserPromptEnabledState(newEnabled);
+    const currentText = userPromptTextareaRef.current?.value ?? userPromptText;
+    setUserPromptTextState(currentText);
+    await accomplish.setUserPrompt(newEnabled, currentText || null);
+  }, [userPromptEnabled, userPromptText, accomplish]);
+
+  // Handle user prompt text change (debounced save — no React state update while typing)
+  const handleUserPromptTextChange = useCallback(
+    (newText: string) => {
+      if (userPromptTimerRef.current) {
+        clearTimeout(userPromptTimerRef.current);
+      }
+      userPromptTimerRef.current = setTimeout(() => {
+        setUserPromptTextState(newText);
+        accomplish.setUserPrompt(userPromptEnabled, newText || null);
+      }, 500);
+    },
+    [userPromptEnabled, accomplish]
+  );
 
   // Handle done button (close with validation)
   const handleDone = useCallback(() => {
@@ -321,6 +353,58 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
             )}
           </AnimatePresence>
 
+          {/* User Prompt Section - only shown when a provider is selected */}
+          <AnimatePresence>
+            {selectedProvider && (
+              <motion.section
+                animate="animate"
+                exit="exit"
+                initial="initial"
+                transition={{ ...settingsTransitions.enter, delay: 0.08 }}
+                variants={settingsVariants.slideDown}
+              >
+                <div className="rounded-lg border border-border bg-card p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="font-medium text-foreground">User Prompt</div>
+                      <p className="mt-1.5 text-muted-foreground text-sm leading-relaxed">
+                        Add custom instructions appended to the agent's system prompt.
+                      </p>
+                    </div>
+                    <div className="ml-4">
+                      <button
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-accomplish ${
+                          userPromptEnabled ? 'bg-primary' : 'bg-muted'
+                        }`}
+                        data-testid="settings-user-prompt-toggle"
+                        onClick={handleUserPromptToggle}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-accomplish ${
+                            userPromptEnabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                  {userPromptEnabled && (
+                    <div className="mt-4">
+                      <textarea
+                        ref={userPromptTextareaRef}
+                        className="w-full rounded-lg border border-border bg-background p-3 text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        data-testid="settings-user-prompt-textarea"
+                        defaultValue={userPromptText}
+                        onChange={(e) => handleUserPromptTextChange(e.target.value)}
+                        placeholder="e.g., Always respond in French..."
+                        rows={4}
+                      />
+                    </div>
+                  )}
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
+
           {/* Skills Folder Section - only shown when a provider is selected */}
           <AnimatePresence>
             {selectedProvider && skillsFolderPath && (
@@ -334,8 +418,8 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
                 <div className="rounded-lg border border-border bg-card p-5">
                   <div className="font-medium text-foreground">Skills Folder</div>
                   <p className="mt-1.5 text-muted-foreground text-sm leading-relaxed">
-                    Place skills folder containing <code className="rounded bg-muted px-1 py-0.5 text-xs">SKILL.md</code> files here for the agent to discover
-                    automatically.
+                    Place skills folder containing <code className="rounded bg-muted px-1 py-0.5 text-xs">SKILL.md</code> files here for the
+                    agent to discover automatically.
                   </p>
                   <button
                     className="mt-3 inline-flex items-center gap-1.5 text-primary text-sm hover:underline"

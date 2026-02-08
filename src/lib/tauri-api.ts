@@ -231,6 +231,14 @@ export async function setDebugMode(enabled: boolean): Promise<void> {
   return invoke<void>('set_debug_mode', { enabled });
 }
 
+export async function getUserPrompt(): Promise<{ enabled: boolean; text: string | null }> {
+  return invoke<{ enabled: boolean; text: string | null }>('get_user_prompt');
+}
+
+export async function setUserPrompt(enabled: boolean, text: string | null): Promise<void> {
+  return invoke<void>('set_user_prompt', { enabled, text });
+}
+
 export async function getAppSettings(): Promise<{
   debugMode: boolean;
   onboardingComplete: boolean;
@@ -1111,6 +1119,8 @@ export function getTauriApi() {
     removeApiKey,
     getDebugMode,
     setDebugMode,
+    getUserPrompt,
+    setUserPrompt,
     getAppSettings,
 
     // API Key management

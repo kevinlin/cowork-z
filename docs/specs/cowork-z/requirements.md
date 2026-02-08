@@ -31,6 +31,7 @@ The following implementation plans document how specific requirements were desig
 | Keyboard Shortcuts | [`cowork-z/plan_keyboard-shortcuts.md`](plan_keyboard-shortcuts.md) | 4.3.1, 4.3.2 (keyboard shortcuts) |
 | Server Isolation | [`cowork-z/plan_server-isolation.md`](plan_server-isolation.md) | 5.2.1 (OpenCode server isolation) |
 | Todo Panel in Sidebar | [`cowork-z/plan_todo-panel-in-sidebard.md`](plan_todo-panel-in-sidebard.md) | 3.3 (task todos panel) |
+| User Prompt Customization | [`cowork-z/plan_user-prompt-customization.md`](plan_user-prompt-customization.md) | 2.1 (user prompt customization) |
 
 ---
 
@@ -111,12 +112,15 @@ The following implementation plans document how specific requirements were desig
 
 **User Story:** As a user, I want to extend the agent's capabilities through custom prompts, reusable skills, and external tools, so that I can tailor the agent to my workflows.
 
-#### 2.1 User Prompt Customization
+#### 2.1 User Prompt Customization ✅
+
+> **Plan:** [User Prompt Customization](plan_user-prompt-customization.md)
 
 **Acceptance Criteria:**
-1. THE SYSTEM SHALL provide a UI for users to define a custom system prompt appended to the agent's default prompt
-2. WHEN a custom prompt is set, THE SYSTEM SHALL include it in the session configuration sent to OpenCode via `PATCH /config`
-3. THE SYSTEM SHALL persist the custom prompt to the database
+1. THE SYSTEM SHALL provide a settings panel with an enable toggle and textarea for users to define a custom system prompt
+2. WHEN enabled, THE SYSTEM SHALL append the custom prompt to the agent's system prompt in a `<user-instructions>` XML block, delivered via the `system` field on each `sendMessage` call to the OpenCode server
+3. THE SYSTEM SHALL persist the user prompt (enabled flag and text) to the `app_settings` table in SQLite
+4. THE SYSTEM SHALL pass the user prompt through the sidecar IPC protocol and apply it on every `startTask` and `resumeSession` call
 
 #### 2.2 Agent Skill Support ✅
 
@@ -314,7 +318,6 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
-- [ ] **User Prompt Customization** — UI for users to customize the system prompt sent to the agent (Req 2.1)
 - [ ] **MCP Server Configuration UI** — Settings panel to add, edit, remove, enable/disable local and remote MCP servers. Extend `config-builder.ts` to include MCP config in `buildSessionConfig()` and send to OpenCode via `PATCH /config` (Req 2.3.1–2.3.3)
 - [ ] **MCP Server Persistence** — Persist MCP server configurations to SQLite and load on app startup (Req 2.3.1.4, 2.3.2.1)
 - [ ] **Rich File Display** — Render file paths as clickable links with icons, thumbnail previews for images/video, and modal viewer (Req 3.1)

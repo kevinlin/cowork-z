@@ -255,6 +255,7 @@ export interface StartTaskPayload {
   workingDirectory?: string;
   modelId?: string;
   folderPermissions?: FolderPermission[];
+  customPrompt?: string;
 }
 
 export interface ResumeSessionPayload {
@@ -265,6 +266,7 @@ export interface ResumeSessionPayload {
   workingDirectory?: string;
   modelId?: string;
   folderPermissions?: FolderPermission[];
+  customPrompt?: string;
 }
 
 export interface PermissionReplyPayload {

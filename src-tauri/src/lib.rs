@@ -395,6 +395,16 @@ async fn start_task(
     // Get API keys from secure storage
     let api_keys = sidecar::get_all_api_keys()?;
 
+    // Read user prompt from settings
+    let custom_prompt = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        if db::settings::get_user_prompt_enabled(&conn) {
+            db::settings::get_user_prompt_text(&conn)
+        } else {
+            None
+        }
+    };
+
     // Ensure sidecar is running
     let mut manager = sidecar_state.manager.lock().await;
     if !manager.is_running() {
@@ -412,6 +422,7 @@ async fn start_task(
                 working_directory: None,
                 model_id: resolved_model_id,
                 folder_permissions: sidecar_perms,
+                custom_prompt,
             },
         })
         .await?;
@@ -844,6 +855,16 @@ async fn resume_session(
     // Get API keys from secure storage
     let api_keys = sidecar::get_all_api_keys()?;
 
+    // Read user prompt from settings
+    let custom_prompt = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        if db::settings::get_user_prompt_enabled(&conn) {
+            db::settings::get_user_prompt_text(&conn)
+        } else {
+            None
+        }
+    };
+
     // Ensure sidecar is running
     let mut manager = sidecar_state.manager.lock().await;
     if !manager.is_running() {
@@ -862,6 +883,7 @@ async fn resume_session(
                 working_directory: None,
                 model_id: None,
                 folder_permissions: sidecar_perms,
+                custom_prompt,
             },
         })
         .await?;
@@ -939,6 +961,32 @@ async fn get_debug_mode(state: State<'_, DbState>) -> Result<bool, String> {
 async fn set_debug_mode(enabled: bool, state: State<'_, DbState>) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     db::settings::set_debug_mode(&conn, enabled)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UserPromptResponse {
+    enabled: bool,
+    text: Option<String>,
+}
+
+#[tauri::command]
+async fn get_user_prompt(state: State<'_, DbState>) -> Result<UserPromptResponse, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    Ok(UserPromptResponse {
+        enabled: db::settings::get_user_prompt_enabled(&conn),
+        text: db::settings::get_user_prompt_text(&conn),
+    })
+}
+
+#[tauri::command]
+async fn set_user_prompt(
+    enabled: bool,
+    text: Option<String>,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    db::settings::set_user_prompt(&conn, enabled, text.as_deref())
 }
 
 #[tauri::command]
@@ -1705,6 +1753,8 @@ pub fn run() {
             remove_api_key,
             get_debug_mode,
             set_debug_mode,
+            get_user_prompt,
+            set_user_prompt,
             get_app_settings,
             // API Key management
             has_api_key,

@@ -5,7 +5,7 @@ use rusqlite::Connection;
 use serde_json;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 5;
+const CURRENT_VERSION: i32 = 6;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -274,6 +274,27 @@ fn migrate_v5(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v6: Add user prompt columns to app_settings
+fn migrate_v6(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v6 (user prompt)");
+
+    conn.execute(
+        "ALTER TABLE app_settings ADD COLUMN user_prompt_enabled INTEGER NOT NULL DEFAULT 0",
+        [],
+    )
+    .map_err(|e| format!("Failed to add user_prompt_enabled column: {}", e))?;
+
+    conn.execute(
+        "ALTER TABLE app_settings ADD COLUMN user_prompt_text TEXT",
+        [],
+    )
+    .map_err(|e| format!("Failed to add user_prompt_text column: {}", e))?;
+
+    set_stored_version(conn, 6)?;
+    println!("[Migrations] Migration v6 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -311,6 +332,9 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
     if stored_version < 5 {
         migrate_v5(conn)?;
+    }
+    if stored_version < 6 {
+        migrate_v6(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

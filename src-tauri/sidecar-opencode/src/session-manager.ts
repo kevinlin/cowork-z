@@ -192,7 +192,7 @@ export class SessionManager extends EventEmitter {
   }
 
   async startTask(payload: StartTaskPayload): Promise<void> {
-    const { taskId, prompt, workingDirectory, modelId, folderPermissions } = payload;
+    const { taskId, prompt, workingDirectory, modelId, folderPermissions, customPrompt } = payload;
 
     logger.info('Starting task', { taskId, prompt: prompt.slice(0, 100) });
 
@@ -232,12 +232,12 @@ export class SessionManager extends EventEmitter {
     await this.client.sendMessage(session.id, {
       parts: [{ type: 'text', text: prompt }],
       directory: workingDirectory,
-      system: buildSystemPrompt(this.serverPort, this.serverPassword),
+      system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt),
     });
   }
 
   async resumeSession(payload: ResumeSessionPayload): Promise<void> {
-    const { taskId, sessionId, prompt, workingDirectory, modelId, folderPermissions } = payload;
+    const { taskId, sessionId, prompt, workingDirectory, modelId, folderPermissions, customPrompt } = payload;
 
     logger.info('Resuming session', { taskId, sessionId });
 
@@ -270,7 +270,7 @@ export class SessionManager extends EventEmitter {
       await this.client.sendMessage(sessionId, {
         parts: [{ type: 'text', text: prompt }],
         directory: workingDirectory,
-        system: buildSystemPrompt(this.serverPort, this.serverPassword),
+        system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt),
       });
     }
   }

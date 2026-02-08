@@ -73,6 +73,8 @@ interface AccomplishAPI {
   removeApiKey(id: string): Promise<void>;
   getDebugMode(): Promise<boolean>;
   setDebugMode(enabled: boolean): Promise<void>;
+  getUserPrompt(): Promise<{ enabled: boolean; text: string | null }>;
+  setUserPrompt(enabled: boolean, text: string | null): Promise<void>;
   getAppSettings(): Promise<{
     debugMode: boolean;
     onboardingComplete: boolean;

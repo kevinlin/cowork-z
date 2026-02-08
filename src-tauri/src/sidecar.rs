@@ -114,6 +114,8 @@ pub struct StartTaskPayload {
     pub model_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folder_permissions: Option<Vec<FolderPermissionPayload>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_prompt: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -131,6 +133,8 @@ pub struct ResumeSessionPayload {
     pub model_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folder_permissions: Option<Vec<FolderPermissionPayload>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_prompt: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

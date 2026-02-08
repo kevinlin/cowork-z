@@ -19,6 +19,21 @@ Built with Tauri 2.x (Rust backend + React/TypeScript frontend), the application
 
 ---
 
+## Implementation Plans Index
+
+The following implementation plans document how specific requirements were designed and built:
+
+| Plan | Location | Requirements |
+|------|----------|--------------|
+| Sidecar OpenCode Rewrite | [`opencode-sidecar/plan_sidecar-opencode-rewrite.md`](../opencode-sidecar/plan_sidecar-opencode-rewrite.md) | 3.1, 3.2 (HTTP/SSE-based session management) |
+| Folder Permission Model | [`opencode-sidecar/plan_folder-permission-model.md`](../opencode-sidecar/plan_folder-permission-model.md) | 2.1, 2.2, 2.3, 2.4 (permission system) |
+| Fix System Prompt Injection | [`opencode-sidecar/plan_fix_system_prompt_injection.md`](../opencode-sidecar/plan_fix_system_prompt_injection.md) | 4.1 (system prompt for agent/skills) |
+| Keyboard Shortcuts | [`cowork-z/plan_keyboard-shortcuts.md`](plan_keyboard-shortcuts.md) | 6.1, 6.2 (keyboard shortcuts) |
+| Server Isolation | [`cowork-z/plan_server-isolation.md`](plan_server-isolation.md) | 8.1 (OpenCode server isolation) |
+| Todo Panel in Sidebar | [`cowork-z/plan_todo-panel-in-sidebard.md`](plan_todo-panel-in-sidebard.md) | — (UI enhancement, no numbered requirement) |
+
+---
+
 ## Requirements
 
 ### 1. Multi-Provider Support
@@ -43,6 +58,8 @@ Built with Tauri 2.x (Rust backend + React/TypeScript frontend), the application
 
 ### 2. Permission System
 
+> **Plan:** [Folder Permission Model](../opencode-sidecar/plan_folder-permission-model.md)
+
 **User Story:** As a user, I want to control what files and directories the AI agent can access, so that my system stays protected.
 
 **Acceptance Criteria:**
@@ -66,6 +83,8 @@ Built with Tauri 2.x (Rust backend + React/TypeScript frontend), the application
 
 ### 3. Session Management
 
+> **Plans:** [Sidecar OpenCode Rewrite](../opencode-sidecar/plan_sidecar-opencode-rewrite.md)
+
 **User Story:** As a user, I want to resume previous sessions, so that I can continue work across multiple sittings.
 
 **Acceptance Criteria:**
@@ -85,6 +104,8 @@ Built with Tauri 2.x (Rust backend + React/TypeScript frontend), the application
 2. THE SYSTEM SHALL display previous tasks in a sidebar for quick access
 
 ### 4. Skills Support
+
+> **Plan:** [Fix System Prompt Injection](../opencode-sidecar/plan_fix_system_prompt_injection.md) (system prompt delivery for agent configuration)
 
 **User Story:** As a user, I want the agent to discover and use reusable skill definitions, so that I can extend the agent's behavior for common workflows.
 
@@ -130,6 +151,8 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ### 6. Keyboard Shortcuts
 
+> **Plan:** [Keyboard Shortcuts](plan_keyboard-shortcuts.md)
+
 **User Story:** As a user, I want keyboard shortcuts for common actions, so that I can navigate the app efficiently without reaching for the mouse.
 
 **Acceptance Criteria:**
@@ -167,6 +190,8 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 3. THE SYSTEM SHALL provide platform-appropriate installer formats (`.dmg` for macOS, `.msi`/`.exe` for Windows)
 
 ### 8. Security Hardening
+
+> **Plan:** [Server Isolation](plan_server-isolation.md) (Req 8.1)
 
 **User Story:** As a user on a shared machine, I want the application to protect its internal services and data from other local users.
 

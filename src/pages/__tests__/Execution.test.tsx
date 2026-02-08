@@ -26,6 +26,8 @@ vi.mock('@/lib/tauri-api', async (importOriginal) => {
     getSessionTodos: vi.fn().mockResolvedValue(undefined),
     getDebugMode: vi.fn().mockResolvedValue(false),
     logEvent: vi.fn().mockResolvedValue(undefined),
+    getHomeDir: vi.fn().mockResolvedValue('/mock/home'),
+    revealInFinder: vi.fn().mockResolvedValue(undefined),
   };
 });
 

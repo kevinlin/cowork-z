@@ -1,8 +1,8 @@
-# Cowork Z — Technical Design Document
+# Cowork-Z — Technical Design Document
 
 ## Overview
 
-Cowork Z is a cross-platform desktop application that provides a sandboxed environment for autonomous AI agents. It delegates agent orchestration to the OpenCode CLI, connected via a Node.js sidecar process that communicates with the Rust backend over JSON-line IPC.
+Cowork-Z is a cross-platform desktop application that provides a sandboxed environment for autonomous AI agents. It delegates agent orchestration to the OpenCode CLI, connected via a Node.js sidecar process that communicates with the Rust backend over JSON-line IPC.
 
 ### Design Goals
 
@@ -145,7 +145,7 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 
 ## Database Schema
 
-**Storage:** SQLite at `~/Library/Application Support/Cowork Z/` (macOS) or `%APPDATA%/Cowork Z/` (Windows).
+**Storage:** SQLite at `~/Library/Application Support/cowork-z/` (macOS) or `%APPDATA%/Cowork-Z/` (Windows).
 
 | Table | Key Columns | Purpose |
 |-------|-------------|---------|

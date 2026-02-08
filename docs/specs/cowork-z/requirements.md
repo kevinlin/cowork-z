@@ -1,8 +1,8 @@
-# Feature Requirements: Cowork Z
+# Feature Requirements: Cowork-Z
 
 ## Introduction
 
-Cowork Z is a cross-platform desktop application that provides a sandboxed environment for autonomous AI agents. It integrates with the OpenCode SDK via a sidecar process to enable users to interact with AI agents that can execute code, manipulate files, and perform multi-step workflows.
+Cowork-Z is a cross-platform desktop application that provides a sandboxed environment for autonomous AI agents. It integrates with the OpenCode SDK via a sidecar process to enable users to interact with AI agents that can execute code, manipulate files, and perform multi-step workflows.
 
 Built with Tauri 2.x (Rust backend + React/TypeScript frontend), the application supports 13+ AI providers and runs on macOS, Windows, and Linux.
 
@@ -255,7 +255,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ### 5. Platform & Security
 
-**User Story:** As a user, I want Cowork Z to run on my OS and protect its internal services and data from other local users.
+**User Story:** As a user, I want Cowork-Z to run on my OS and protect its internal services and data from other local users.
 
 #### 5.1 Cross-Platform Support
 

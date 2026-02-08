@@ -25,7 +25,7 @@ Document the current integration between the Tauri app (`src-tauri/src/`) and Si
 
 ## Summary
 
-The Cowork Z application uses a multi-process architecture where:
+The Cowork-Z application uses a multi-process architecture where:
 1. **Tauri App (Rust)** manages the frontend and spawns a sidecar process
 2. **Sidecar (Node.js)** manages OpenCode CLI processes via PTY
 3. **OpenCode CLI** executes AI agent tasks with MCP server support

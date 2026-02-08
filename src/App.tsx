@@ -54,7 +54,7 @@ export default function App() {
     const checkStatus = async () => {
       // Check if running in Tauri
       if (!isRunningInTauri()) {
-        setErrorMessage('This application must be run inside the Cowork Z desktop app.');
+        setErrorMessage('This application must be run inside the Cowork-Z desktop app.');
         setStatus('error');
         return;
       }

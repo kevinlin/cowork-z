@@ -1,5 +1,5 @@
 // src-tauri/src/db/mod.rs
-//! Database module for Cowork Z
+//! Database module for Cowork-Z
 //!
 //! Provides SQLite-based persistence for tasks, settings, and provider configurations.
 

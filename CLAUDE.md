@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Cowork Z is a macOS desktop application built with Tauri 2.x that provides a sandboxed environment for autonomous AI agents. It integrates with the OpenCode SDK to enable users to interact with AI agents that can execute code, manipulate files, and perform multi-step workflows.
+Cowork-Z is a macOS desktop application built with Tauri 2.x that provides a sandboxed environment for autonomous AI agents. It integrates with the OpenCode SDK to enable users to interact with AI agents that can execute code, manipulate files, and perform multi-step workflows.
 
 **Quick reference — key commands:**
 - Frontend: `pnpm build` / `pnpm test`
@@ -115,7 +115,7 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 
 - `pnpm tauri dev` for full-stack dev (not `pnpm dev`, which is frontend-only)
 - Dev server port `1420` must be available (required by Tauri)
-- API keys stored in OS Keychain; task history in SQLite at `~/Library/Application Support/Cowork Z/`
+- API keys stored in OS Keychain; task history in SQLite at `~/Library/Application Support/cowork-z/`
 - Shell permissions for sidecar process management defined in `src-tauri/capabilities/default.json`
 - OpenCode must be installed globally: `npm install -g opencode-ai`
 - Provider configuration forms are in `src/components/settings/` (Anthropic, OpenAI, Google, Bedrock, Azure Foundry, Ollama, OpenRouter, LiteLLM)

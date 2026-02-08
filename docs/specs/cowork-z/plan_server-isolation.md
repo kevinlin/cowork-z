@@ -2,7 +2,7 @@
 
 ## Summary
 
-Implements requirement 8.1 (OpenCode Server Isolation) from the Cowork Z feature requirements. The OpenCode server now binds to a random available port on `127.0.0.1` instead of the fixed port `4096`, and all HTTP/SSE communication is secured with HTTP basic auth using a randomly generated password.
+Implements requirement 8.1 (OpenCode Server Isolation) from the Cowork-Z feature requirements. The OpenCode server now binds to a random available port on `127.0.0.1` instead of the fixed port `4096`, and all HTTP/SSE communication is secured with HTTP basic auth using a randomly generated password.
 
 ## Changes
 

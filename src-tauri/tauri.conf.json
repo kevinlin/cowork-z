@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Cowork Z",
+        "title": "Cowork-Z",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
@@ -33,7 +33,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/sidecar-opencode"],
+    "externalBin": [
+      "binaries/sidecar-opencode"
+    ],
     "resources": []
   },
   "plugins": {

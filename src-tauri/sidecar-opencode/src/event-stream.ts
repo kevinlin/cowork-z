@@ -7,6 +7,8 @@ export interface EventStreamOptions {
   baseUrl: string;
   directory?: string;
   reconnectInterval?: number;
+  /** Server password for HTTP basic auth. When set, SSE connections include an Authorization header. */
+  password?: string;
 }
 
 export class EventStream extends EventEmitter {
@@ -16,12 +18,16 @@ export class EventStream extends EventEmitter {
   private reconnectInterval: number;
   private isConnected = false;
   private shouldReconnect = true;
+  private authHeader?: string;
 
   constructor(options: EventStreamOptions) {
     super();
     this.baseUrl = options.baseUrl;
     this.directory = options.directory;
     this.reconnectInterval = options.reconnectInterval ?? 5000;
+    if (options.password) {
+      this.authHeader = `Basic ${Buffer.from(`opencode:${options.password}`).toString('base64')}`;
+    }
   }
 
   connect(): void {
@@ -38,7 +44,7 @@ export class EventStream extends EventEmitter {
 
     logger.info(`Connecting to SSE stream: ${url.toString()}`);
 
-    this.eventSource = new EventSource(url.toString());
+    this.eventSource = new EventSource(url.toString(), this.authHeader ? { headers: { Authorization: this.authHeader } } : {});
 
     this.eventSource.onopen = () => {
       logger.info('SSE stream connected');

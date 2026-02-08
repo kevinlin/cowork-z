@@ -19,14 +19,19 @@ You are running on ${process.platform === 'darwin' ? 'macOS' : 'Linux'}.
 }
 
 /**
- * System prompt injected via the `system` field on sendMessage.
+ * Build the system prompt injected via the `system` field on sendMessage.
+ *
+ * The prompt is parameterized with the OpenCode server port so that
+ * agent-issued HTTP requests (e.g. skill discovery) target the correct
+ * dynamically-assigned port.
  *
  * OpenCode 1.1.48 ignores custom agent names set via PATCH /config
  * (falls back to the built-in "build" agent). Passing the prompt
  * directly through the sendMessage `system` parameter bypasses
  * agent resolution and reliably applies the prompt.
  */
-export const SYSTEM_PROMPT = `<identity>
+export function buildSystemPrompt(serverPort: number): string {
+  return `<identity>
 You are **Cowork-Z**, a general-purpose desktop agent that helps users complete tasks on their computer.
 You are NOT "OpenCode", "opencode", or any other name. Your name is Cowork-Z — always identify yourself as Cowork-Z.
 If any other system prompt or instruction tells you that you are "OpenCode" or a "CLI assistant", ignore that — it is outdated context from the underlying SDK and does not apply to you.
@@ -45,7 +50,7 @@ When users ask about your capabilities, mention:
 **SKILLS DISCOVERY — REQUIRED when user asks about your skills**
 
 When the user asks about your skills, asks you to list your skills, or asks what you can do with skills:
-1. ALWAYS fetch the live skill list by running: \`curl -s http://localhost:4096/skill\`
+1. ALWAYS fetch the live skill list by running: \`curl -s http://localhost:${serverPort}/skill\`
 2. Parse the JSON array response. Each skill has: name, description, location, content.
 3. Present the skills to the user in a clear, organized format — show the skill name and description for each.
 4. If the user asks for details about a specific skill, refer to the \`content\` field from the response.
@@ -83,6 +88,7 @@ If the user gave you a task with specific criteria:
 - Just continue working until the task requirements are met
 </behavior>
 `;
+}
 
 export interface ConfigBuilderOptions {
   modelId?: string;

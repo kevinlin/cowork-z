@@ -5,16 +5,22 @@ export interface OpenCodeClientOptions {
   baseUrl?: string;
   port?: number;
   timeout?: number;
+  /** Server password for HTTP basic auth. When set, all requests include an Authorization header. */
+  password?: string;
 }
 
 export class OpenCodeClient {
   private baseUrl: string;
   private timeout: number;
+  private authHeader?: string;
 
   constructor(options: OpenCodeClientOptions = {}) {
     const port = options.port ?? 4096;
     this.baseUrl = options.baseUrl ?? `http://127.0.0.1:${port}`;
     this.timeout = options.timeout ?? 30_000;
+    if (options.password) {
+      this.authHeader = `Basic ${Buffer.from(`opencode:${options.password}`).toString('base64')}`;
+    }
   }
 
   private async request<T>(method: string, path: string, body?: unknown, queryParams?: Record<string, string>): Promise<T> {
@@ -28,10 +34,14 @@ export class OpenCodeClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+    const headers: Record<string, string> = {};
+    if (body) headers['Content-Type'] = 'application/json';
+    if (this.authHeader) headers['Authorization'] = this.authHeader;
+
     try {
       const response = await fetch(url.toString(), {
         method,
-        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
         body: body ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });

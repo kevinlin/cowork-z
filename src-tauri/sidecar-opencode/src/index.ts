@@ -16,7 +16,6 @@ import type {
 } from './types';
 
 const SIDECAR_VERSION = '0.2.0';
-const OPENCODE_PORT = 4096;
 
 // ============================================================================
 // IPC Communication
@@ -50,17 +49,22 @@ async function initialize(apiKeys?: ApiKeys): Promise<void> {
     return; // Already initialized
   }
 
-  // Start process manager
-  processManager = new ProcessManager({ port: OPENCODE_PORT });
+  // Start process manager — picks a random available port and generates a password
+  processManager = new ProcessManager();
   await processManager.ensureServerRunning(apiKeys);
 
-  // Start event stream
+  const port = processManager.getPort();
+  const password = processManager.getPassword();
+  logger.info(`OpenCode server bound to port ${port}`);
+
+  // Start event stream with auth
   eventStream = new EventStream({
-    baseUrl: `http://127.0.0.1:${OPENCODE_PORT}`,
+    baseUrl: `http://127.0.0.1:${port}`,
+    password,
   });
 
-  // Initialize session manager
-  sessionManager = new SessionManager(processManager.getClient(), eventStream);
+  // Initialize session manager with the port (for dynamic system prompt)
+  sessionManager = new SessionManager(processManager.getClient(), eventStream, port);
 
   // Wire up session manager events to IPC
   sessionManager.on('started', (data: { taskId: string; sessionId: string }) => {
@@ -288,7 +292,7 @@ async function handleCheckServer(): Promise<void> {
       type: 'server_status',
       payload: {
         running: true,
-        port: OPENCODE_PORT,
+        port: processManager.getPort(),
         version: health.version,
       },
     });

@@ -257,4 +257,56 @@ describe('OpenCodeClient', () => {
       );
     });
   });
+
+  describe('HTTP basic auth', () => {
+    it('should not send Authorization header when no password is set', async () => {
+      const noAuthClient = new OpenCodeClient({ port: 4096 });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ healthy: true, version: '1.0.0' }),
+      } as Response);
+
+      await noAuthClient.health();
+
+      const callArgs = mockFetch.mock.calls[0];
+      const fetchOptions = callArgs[1] as RequestInit;
+      // No headers should be set for GET without auth
+      expect(fetchOptions.headers).toBeUndefined();
+    });
+
+    it('should send Authorization header on GET requests when password is set', async () => {
+      const authClient = new OpenCodeClient({ port: 4096, password: 'test-secret' });
+      const expectedAuth = `Basic ${Buffer.from('opencode:test-secret').toString('base64')}`;
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ healthy: true, version: '1.0.0' }),
+      } as Response);
+
+      await authClient.health();
+
+      const callArgs = mockFetch.mock.calls[0];
+      const fetchOptions = callArgs[1] as RequestInit;
+      expect(fetchOptions.headers).toEqual({ Authorization: expectedAuth });
+    });
+
+    it('should send both Authorization and Content-Type headers on POST requests when password is set', async () => {
+      const authClient = new OpenCodeClient({ port: 4096, password: 'test-secret' });
+      const expectedAuth = `Basic ${Buffer.from('opencode:test-secret').toString('base64')}`;
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({}),
+      } as Response);
+
+      await authClient.updateConfig({ model: 'test-model' });
+
+      const callArgs = mockFetch.mock.calls[0];
+      const fetchOptions = callArgs[1] as RequestInit;
+      expect(fetchOptions.headers).toEqual({
+        'Content-Type': 'application/json',
+        Authorization: expectedAuth,
+      });
+    });
+  });
 });

@@ -1,5 +1,7 @@
 import { type ChildProcess, spawn } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { logger } from './logger';
@@ -9,64 +11,75 @@ import type { ApiKeys } from './types';
 /** Default working directory for `opencode serve` to avoid writing config.json into the source tree. */
 const OPENCODE_DATA_DIR = path.join(os.homedir(), '.local', 'share', 'opencode', 'log');
 
+/**
+ * Find a random available port by binding to port 0 on 127.0.0.1.
+ * The OS assigns an ephemeral port, which is returned after the temporary server is closed.
+ */
+export function getAvailablePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address();
+      if (addr && typeof addr !== 'string') {
+        const port = addr.port;
+        server.close(() => resolve(port));
+      } else {
+        server.close(() => reject(new Error('Failed to get available port')));
+      }
+    });
+    server.on('error', reject);
+  });
+}
+
+/**
+ * Generate a cryptographically random password using base64url encoding.
+ * Default length of 32 random bytes produces a 43-character string.
+ */
+export function generatePassword(length = 32): string {
+  return crypto.randomBytes(length).toString('base64url');
+}
+
 export interface ProcessManagerOptions {
-  port?: number;
   hostname?: string;
   cliPath?: string;
+  /** Override password (useful for testing). Auto-generated if not provided. */
+  password?: string;
 }
 
 export class ProcessManager {
   private process: ChildProcess | null = null;
   private client: OpenCodeClient;
-  private port: number;
+  private port = 0;
   private hostname: string;
   private cliPath: string;
+  private password: string;
 
   constructor(options: ProcessManagerOptions = {}) {
-    this.port = options.port ?? 4096;
     this.hostname = options.hostname ?? '127.0.0.1';
     this.cliPath = options.cliPath ?? 'opencode';
-    this.client = new OpenCodeClient({ port: this.port });
+    this.password = options.password ?? generatePassword();
+    // Client will be recreated in startServer() once the port is known.
+    // Initialize with a placeholder so health checks before first start return false.
+    this.client = new OpenCodeClient({ port: 0 });
   }
 
   async ensureServerRunning(apiKeys?: ApiKeys): Promise<void> {
-    // Check if server is already running
-    if (await this.client.isServerRunning()) {
-      logger.info('OpenCode server already running, terminating...');
-      await this.terminateExistingServer();
-    }
-
-    // Start new server
+    // Start new server on a random port
     await this.startServer(apiKeys);
   }
 
-  private async terminateExistingServer(): Promise<void> {
-    try {
-      // Try graceful disposal first
-      await this.client.disposeGlobal();
-      logger.info('Existing server disposed gracefully');
-
-      // Wait for server to stop
-      let attempts = 0;
-      while (attempts < 10) {
-        await this.sleep(500);
-        if (!(await this.client.isServerRunning())) {
-          logger.info('Existing server terminated');
-          return;
-        }
-        attempts++;
-      }
-
-      logger.warn('Server did not stop after dispose, will start anyway');
-    } catch (error) {
-      logger.warn('Failed to dispose existing server', error);
-    }
-  }
-
   private async startServer(apiKeys?: ApiKeys): Promise<void> {
+    // Pick a random available port
+    this.port = await getAvailablePort();
     logger.info(`Starting opencode serve on port ${this.port}`);
 
+    // Recreate the client with the actual port and password
+    this.client = new OpenCodeClient({ port: this.port, password: this.password });
+
     const env: NodeJS.ProcessEnv = { ...process.env };
+
+    // Enable HTTP basic auth on the OpenCode server
+    env.OPENCODE_SERVER_PASSWORD = this.password;
 
     // Set API keys as environment variables
     if (apiKeys?.anthropic) env.ANTHROPIC_API_KEY = apiKeys.anthropic;
@@ -165,6 +178,14 @@ export class ProcessManager {
 
   getClient(): OpenCodeClient {
     return this.client;
+  }
+
+  getPort(): number {
+    return this.port;
+  }
+
+  getPassword(): string {
+    return this.password;
   }
 
   private sleep(ms: number): Promise<void> {

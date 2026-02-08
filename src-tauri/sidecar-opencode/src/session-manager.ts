@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { buildSessionConfig, SYSTEM_PROMPT } from './config-builder';
+import { buildSessionConfig, buildSystemPrompt } from './config-builder';
 import type { EventStream } from './event-stream';
 import { logger } from './logger';
 import type { OpenCodeClient } from './opencode-client';
@@ -28,11 +28,13 @@ export class SessionManager extends EventEmitter {
   private eventStream: EventStream;
   private sessions: Map<string, ManagedSession> = new Map();
   private sessionToTask: Map<string, string> = new Map();
+  private serverPort: number;
 
-  constructor(client: OpenCodeClient, eventStream: EventStream) {
+  constructor(client: OpenCodeClient, eventStream: EventStream, serverPort: number) {
     super();
     this.client = client;
     this.eventStream = eventStream;
+    this.serverPort = serverPort;
     this.setupEventListeners();
   }
 
@@ -224,14 +226,11 @@ export class SessionManager extends EventEmitter {
     // Send the initial message with system prompt injected directly.
     // OpenCode 1.1.48 ignores custom agents, so we bypass agent resolution
     // by passing the system prompt via the `system` field on sendMessage.
-    // Send the initial message with system prompt injected directly.
-    // OpenCode 1.1.48 ignores custom agents, so we bypass agent resolution
-    // by passing the system prompt via the `system` field on sendMessage.
     managed.status = 'active';
     await this.client.sendMessage(session.id, {
       parts: [{ type: 'text', text: prompt }],
       directory: workingDirectory,
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(this.serverPort),
     });
   }
 
@@ -264,13 +263,12 @@ export class SessionManager extends EventEmitter {
     this.emit('progress', { taskId, stage: 'executing' });
 
     // Send follow-up message if provided, with system prompt injected directly.
-    // Send follow-up message if provided, with system prompt injected directly.
     if (prompt) {
       managed.status = 'active';
       await this.client.sendMessage(sessionId, {
         parts: [{ type: 'text', text: prompt }],
         directory: workingDirectory,
-        system: SYSTEM_PROMPT,
+        system: buildSystemPrompt(this.serverPort),
       });
     }
   }

@@ -141,6 +141,8 @@ Skills follow the [OpenCode Skills specification](https://opencode.ai/docs/skill
 
 MCP server configuration follows the [OpenCode MCP specification](https://opencode.ai/docs/mcp-servers/). The app must support configuring MCP servers via the UI and passing the configuration to OpenCode via `PATCH /config`.
 
+> **Plan:** [MCP Server Support](plan_mcp-server-support.md)
+
 **Acceptance Criteria:**
 
 ##### 2.3.1 MCP Server Configuration
@@ -318,8 +320,8 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
-- [ ] **Rich File Display** — Render file paths as clickable links with icons, thumbnail previews for images/video, and modal viewer (Req 3.1)
-- [ ] **Rich URL Display** — Render URLs as clickable links that open in the default browser (Req 3.2)
+- [x] **Rich File Display** — Render file paths as clickable links with icons, thumbnail previews for images/video, and modal viewer (Req 3.1)
+- [x] **Rich URL Display** — Render URLs as clickable links that open in the default browser (Req 3.2)
 - [ ] **Artefacts Panel** — Sidebar panel listing files created/modified during a session (Req 3.4)
 - [ ] **Theme Support** — Multiple predefined themes with dark mode, runtime switching, OS preference detection (Req 4.2)
 - [ ] **About Panel** — App info panel with version and changelog (Req 4.4)

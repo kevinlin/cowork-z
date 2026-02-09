@@ -33,8 +33,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { enrichContentWithLinks, extractMediaPaths } from '@/lib/content-enrichment';
 import { extractUserFacingContent } from '@/lib/message-utils';
 import { cn } from '@/lib/utils';
+import { createMarkdownComponents } from '@/components/markdown/EnhancedLink';
+import { MediaGallery } from '@/components/media/MediaGallery';
 import type { PartialMessage, TaskMessage } from '@/shared';
 import { hasAnyReadyProvider } from '@/shared';
 import loadingSymbol from '/assets/loading-symbol.svg';
@@ -1265,6 +1268,19 @@ const MessageBubble = memo(
       return message.content;
     }, [isAssistant, message.content]);
 
+    // Create custom markdown components with enhanced links
+    const markdownComponents = useMemo(() => createMarkdownComponents(), []);
+
+    // Enrich plain text URLs and file paths with markdown links
+    const enrichedContent = useMemo(() => {
+      return enrichContentWithLinks(displayContent);
+    }, [displayContent]);
+
+    // Extract media paths for thumbnail gallery
+    const mediaPaths = useMemo(() => {
+      return extractMediaPaths(displayContent);
+    }, [displayContent]);
+
     // Get tool icon from mapping
     const toolName = message.toolName || message.content?.match(/Using tool: (\w+)/)?.[1];
     const ToolIcon = toolName && TOOL_PROGRESS_MAP[toolName]?.icon;
@@ -1364,25 +1380,29 @@ const MessageBubble = memo(
                 <p className={cn('whitespace-pre-wrap break-words text-sm', 'text-primary-foreground')}>{displayContent}</p>
               ) : isAssistant && isRealStreaming ? (
                 // Real streaming mode - show text immediately with cursor
-                <StreamingText isComplete={false} isRealStreaming={true} speed={120} text={displayContent}>
+                <StreamingText isComplete={false} isRealStreaming={true} speed={120} text={enrichedContent}>
                   {(displayedText) => (
                     <div className={proseClasses}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayedText}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{displayedText}</ReactMarkdown>
                     </div>
                   )}
                 </StreamingText>
               ) : isAssistant && shouldStream && !streamComplete ? (
-                <StreamingText isComplete={streamComplete} onComplete={() => setStreamComplete(true)} speed={120} text={displayContent}>
+                <StreamingText isComplete={streamComplete} onComplete={() => setStreamComplete(true)} speed={120} text={enrichedContent}>
                   {(streamedText) => (
                     <div className={proseClasses}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamedText}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{streamedText}</ReactMarkdown>
                     </div>
                   )}
                 </StreamingText>
               ) : (
                 <div className={proseClasses}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{enrichedContent}</ReactMarkdown>
                 </div>
+              )}
+              {/* Media thumbnail gallery */}
+              {isAssistant && mediaPaths.length > 0 && (
+                <MediaGallery filePaths={mediaPaths} />
               )}
               <p className={cn('mt-1.5 text-xs', isUser ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
                 {new Date(message.timestamp).toLocaleTimeString()}

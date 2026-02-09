@@ -5,7 +5,7 @@
  * and event system, replacing the Electron preload script.
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc as tauriConvertFileSrc } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { homeDir } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -56,6 +56,18 @@ export async function openExternal(url: string): Promise<void> {
 
 export async function revealInFinder(path: string): Promise<void> {
   await revealItemInDir(path);
+}
+
+// ============================================================================
+// Asset Protocol
+// ============================================================================
+
+/**
+ * Convert a local file path to a URL that can be used by the webview
+ * to load the file via Tauri's asset protocol.
+ */
+export function convertFileSrc(filePath: string): string {
+  return tauriConvertFileSrc(filePath);
 }
 
 // ============================================================================

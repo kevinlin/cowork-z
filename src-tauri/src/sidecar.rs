@@ -91,6 +91,8 @@ pub enum SidecarCommand {
     },
     #[allow(dead_code)]
     Ping,
+    /// Health check command sent to sidecar
+    #[allow(dead_code)] // Used in sidecar IPC (TypeScript), not constructed in Rust
     CheckServer,
 }
 

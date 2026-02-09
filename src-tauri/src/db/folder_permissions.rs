@@ -75,13 +75,3 @@ pub fn remove_folder_permission(
     .map_err(|e| format!("Failed to remove folder permission: {}", e))?;
     Ok(())
 }
-
-/// Clear all folder permissions for a task
-pub fn clear_folder_permissions(conn: &Connection, task_id: &str) -> Result<(), String> {
-    conn.execute(
-        "DELETE FROM folder_permissions WHERE task_id = ?1",
-        [task_id],
-    )
-    .map_err(|e| format!("Failed to clear folder permissions: {}", e))?;
-    Ok(())
-}

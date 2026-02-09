@@ -129,6 +129,10 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 - Provider configuration forms are in `src/components/settings/` (Anthropic, OpenAI, Google, Bedrock, Azure Foundry, Ollama, OpenRouter, LiteLLM)
 - Reference Electron app source preserved at `apps/desktop/` for reference
 
+## Expected Build Warnings
+
+**pnpm esbuild build script warning**: This is a security feature, not a bug. The warning appears because pnpm prevents automatic execution of build scripts to protect against supply chain attacks. The esbuild binary is already installed and functional - everything works correctly. This warning can be safely ignored. If you prefer to suppress it, run `pnpm approve-builds` in the sidecar directory.
+
 ## Design Documentation
 
 See `docs/specs/`:

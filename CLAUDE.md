@@ -63,6 +63,41 @@ pnpm tauri build
 
 After making TypeScript edits, always run `pnpm typecheck` (or `tsc --noEmit`) before reporting completion. After Rust edits, run `cd src-tauri && cargo check`. Do not report success until compilation passes.
 
+## Testing
+
+### Frontend Tests (Vitest)
+- **Test runner:** Vitest with jsdom environment
+- **Location:** `src/**/*.{test,spec}.{ts,tsx}` (collocated with source files)
+- **Setup file:** `src/test/setup.ts` — mocks `matchMedia` and `ResizeObserver` for jsdom
+- **Libraries:** @testing-library/react, @testing-library/jest-dom, @testing-library/user-event
+
+**Running tests:**
+```bash
+pnpm test                # Watch mode (default)
+pnpm test --run          # Single run (CI mode)
+pnpm test:coverage       # Coverage report
+pnpm test path/to/file   # Run specific test file
+```
+
+**Example test locations:**
+- UI components: `src/components/ui/__tests__/`
+- Layout components: `src/components/layout/*.test.tsx`
+- Pages: `src/pages/__tests__/`
+- Store: `src/stores/*.test.ts`
+
+### Sidecar Tests (Jest)
+```bash
+cd src-tauri/sidecar-opencode
+pnpm test               # Single run
+pnpm test:watch         # Watch mode
+pnpm test:coverage      # Coverage report
+```
+
+### Rust Tests
+```bash
+cd src-tauri && cargo test
+```
+
 ## Architecture
 
 ### Multi-Process Architecture
@@ -98,11 +133,20 @@ Rust emits Tauri events (e.g., `task:update`, `task:permission_request`, `task:q
 
 ### Sidecar Binary
 
-- **Development:** `pnpm tauri dev` builds and bundles the sidecar binary automatically
+- **Development:** `pnpm tauri dev` auto-builds the ARM64 binary (via `beforeDevCommand` in `tauri.conf.json`)
 - **Production:** Compiled to standalone binary using `pkg` (`@yao-pkg/pkg`)
 - **Binary path:** `src-tauri/binaries/sidecar-opencode-<target-triple>`
 - **Config:** Referenced in `tauri.conf.json` under `bundle.externalBin`
 - **Constraint:** Sidecar must use CommonJS — `pkg` has limited ESM support
+
+**Manual binary builds** (from `src-tauri/sidecar-opencode/`):
+```bash
+pnpm build:binary              # macOS ARM64 (default)
+pnpm build:binary:x64          # macOS x64
+pnpm build:binary:win          # Windows x64
+pnpm build:binary:linux        # Linux x64
+pnpm build:binary:linux-arm64  # Linux ARM64
+```
 
 ### Path Aliases
 
@@ -111,13 +155,38 @@ Rust emits Tauri events (e.g., `task:update`, `task:permission_request`, `task:q
 
 Configured in both `tsconfig.json` and `vite.config.ts`.
 
+### Frontend Structure
+
+**Pages** (react-router-dom)
+- `/` — `src/pages/Home.tsx` — Task launcher and empty state
+- `/task/:taskId` — `src/pages/Execution.tsx` — Active task chat view
+
+**State Management** (Zustand)
+- `src/stores/taskStore.ts` — Single global store for all app state
+  - Tasks, permissions, questions
+  - Active task tracking
+  - UI state (settings dialog, launcher modal)
+
+**Component Organization**
+- `src/components/layout/` — App shell (Sidebar, SettingsDialog)
+- `src/components/ui/` — Radix UI + shadcn/ui primitives
+- `src/components/sidebar/` — Sidebar panels (TodoPanel, ArtifactsPanel, FolderPanel)
+- `src/components/settings/` — Provider configuration forms
+- `src/components/markdown/` — Rich message rendering (EnhancedLink, file/URL detection)
+- `src/components/media/` — Image/video thumbnails and modals
+
+**Shared Types**
+- `src/shared/types/task.ts` — Core task types
+  - `Task`, `TaskMessage`, `TaskStatus`, `TaskProgress`
+  - `Todo`, `Artifact` (session-scoped entities)
+  - `PartialMessage` (streaming support)
+
 ## Settings UI Patterns
 
-- **Textarea inputs** (User Prompt, MCP Servers JSON) must use `defaultValue` + `useRef` to avoid UI re-renders during user typing. Never use controlled `value` on settings textareas.
-  - Use `textareaRef.current?.value` to read the latest text (avoids stale state in callbacks)
-  - Debounce saves with `setTimeout` (500ms) — update React state only inside the debounce callback, not on every keystroke
-  - On toggle, read from `ref.current?.value ?? stateValue` to get the latest content
-  - See `src/components/settings/McpServersSettings.tsx` and `SettingsDialog.tsx` (User Prompt section) for reference
+**Textarea inputs** (User Prompt, MCP Servers JSON) must use `defaultValue` + `useRef` to avoid UI re-renders during typing. Never use controlled `value` on settings textareas.
+- Read latest value with `textareaRef.current?.value`
+- Debounce saves with `setTimeout` (500ms)
+- See `src/components/settings/McpServersSettings.tsx` for reference implementation
 
 ## Important Notes
 
@@ -128,6 +197,9 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 - OpenCode must be installed globally: `npm install -g opencode-ai`
 - Provider configuration forms are in `src/components/settings/` (Anthropic, OpenAI, Google, Bedrock, Azure Foundry, Ollama, OpenRouter, LiteLLM)
 - Reference Electron app source preserved at `apps/desktop/` for reference
+- Keyboard shortcuts implemented via `src/hooks/useKeyboardShortcuts.tsx`:
+  - App-level: `Cmd+,` (settings), `Cmd+N` (new task), `Cmd+K` (launcher)
+  - Chat-level: `Cmd+Enter` (send), `Escape` (cancel)
 
 ## Expected Build Warnings
 

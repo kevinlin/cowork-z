@@ -9,6 +9,7 @@ import type {
   ApiKeyConfig,
   BedrockCredentials,
   ConnectedProvider,
+  McpServersConfig,
   PermissionRequest,
   PermissionResponse,
   ProviderId,
@@ -234,6 +235,10 @@ export interface TauriAPI {
     error?: string;
   }>;
 
+  // MCP Servers
+  getMcpServersConfig(): Promise<McpServersConfig | null>;
+  setMcpServersConfig(config: McpServersConfig | null): Promise<void>;
+
   // E2E Testing
   isE2EMode(): Promise<boolean>;
 
@@ -261,37 +266,44 @@ export interface TauriAPI {
   logEvent(payload: { level?: string; message: string; context?: Record<string, unknown> }): Promise<unknown>;
 }
 
+const toSyncUnlisten = (promise: Promise<() => void>) => {
+  let unlisten: (() => void) | null = null;
+  let pendingCancel = false;
+  promise
+    .then((fn) => {
+      unlisten = fn;
+      if (pendingCancel) {
+        fn();
+      }
+    })
+    .catch(() => {});
+  return () => {
+    if (unlisten) {
+      unlisten();
+    } else {
+      pendingCancel = true;
+    }
+  };
+};
+
+/** Cached singleton so callers always receive a referentially stable object. */
+let cachedTauriAPI: TauriAPI | null = null;
+
 /**
  * Get the Tauri API interface.
  * Wraps async event listeners from getTauriApi() into synchronous unlisteners.
+ * Returns a singleton so the reference is stable across React renders.
  */
 export function getTauriAPI(): TauriAPI {
+  if (cachedTauriAPI) return cachedTauriAPI;
+
   if (!isRunningInTauri()) {
     throw new Error('Tauri API not available - not running in Tauri');
   }
 
   const tauriApi = getTauriApi();
-  const toSyncUnlisten = (promise: Promise<() => void>) => {
-    let unlisten: (() => void) | null = null;
-    let pendingCancel = false;
-    promise
-      .then((fn) => {
-        unlisten = fn;
-        if (pendingCancel) {
-          fn();
-        }
-      })
-      .catch(() => {});
-    return () => {
-      if (unlisten) {
-        unlisten();
-      } else {
-        pendingCancel = true;
-      }
-    };
-  };
 
-  return {
+  cachedTauriAPI = {
     ...tauriApi,
     onTaskUpdate: (callback: (event: TaskUpdateEvent) => void) => toSyncUnlisten(tauriApi.onTaskUpdate(callback)),
     onTaskUpdateBatch: (callback: (event: { taskId: string; messages: TaskMessage[] }) => void) =>
@@ -304,4 +316,6 @@ export function getTauriAPI(): TauriAPI {
       toSyncUnlisten(tauriApi.onTaskStatusChange(callback)),
     onTaskSummary: (callback: (data: { taskId: string; summary: string }) => void) => toSyncUnlisten(tauriApi.onTaskSummary(callback)),
   };
+
+  return cachedTauriAPI;
 }

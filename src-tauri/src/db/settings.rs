@@ -1,6 +1,8 @@
 // src-tauri/src/db/settings.rs
 //! App settings repository
 
+use std::collections::HashMap;
+
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +23,8 @@ pub struct AppSettings {
     pub user_prompt_enabled: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_prompt_text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mcp_servers_config: Option<McpServersConfig>,
 }
 
 /// Selected model configuration
@@ -90,10 +94,35 @@ pub struct AzureFoundryConfig {
     pub last_validated: Option<u64>,
 }
 
+/// MCP server configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpServerConfig {
+    #[serde(rename = "type")]
+    pub server_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub oauth: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<u32>,
+}
+
+/// MCP servers configuration (map of server name to config)
+pub type McpServersConfig = HashMap<String, McpServerConfig>;
+
 /// Get app settings
 pub fn get_app_settings(conn: &Connection) -> AppSettings {
     let result = conn.query_row(
-        "SELECT debug_mode, onboarding_complete, selected_model, ollama_config, litellm_config, azure_foundry_config, user_prompt_enabled, user_prompt_text
+        "SELECT debug_mode, onboarding_complete, selected_model, ollama_config, litellm_config, azure_foundry_config, user_prompt_enabled, user_prompt_text, mcp_servers_config
          FROM app_settings WHERE id = 1",
         [],
         |row| {
@@ -105,6 +134,7 @@ pub fn get_app_settings(conn: &Connection) -> AppSettings {
             let azure_foundry_config_str: Option<String> = row.get(5)?;
             let user_prompt_enabled: i32 = row.get(6)?;
             let user_prompt_text: Option<String> = row.get(7)?;
+            let mcp_servers_config_str: Option<String> = row.get(8)?;
 
             Ok(AppSettings {
                 debug_mode: debug_mode == 1,
@@ -115,6 +145,7 @@ pub fn get_app_settings(conn: &Connection) -> AppSettings {
                 azure_foundry_config: azure_foundry_config_str.and_then(|s| serde_json::from_str(&s).ok()),
                 user_prompt_enabled: user_prompt_enabled == 1,
                 user_prompt_text,
+                mcp_servers_config: mcp_servers_config_str.and_then(|s| serde_json::from_str(&s).ok()),
             })
         },
     );
@@ -128,6 +159,7 @@ pub fn get_app_settings(conn: &Connection) -> AppSettings {
         azure_foundry_config: None,
         user_prompt_enabled: false,
         user_prompt_text: None,
+        mcp_servers_config: None,
     })
 }
 
@@ -315,5 +347,34 @@ pub fn set_user_prompt(conn: &Connection, enabled: bool, text: Option<&str>) -> 
         params![if enabled { 1 } else { 0 }, text],
     )
     .map_err(|e| format!("Failed to set user prompt: {}", e))?;
+    Ok(())
+}
+
+/// Get MCP servers configuration
+pub fn get_mcp_servers_config(conn: &Connection) -> Option<McpServersConfig> {
+    conn.query_row(
+        "SELECT mcp_servers_config FROM app_settings WHERE id = 1",
+        [],
+        |row| {
+            let json: Option<String> = row.get(0)?;
+            Ok(json)
+        },
+    )
+    .ok()
+    .flatten()
+    .and_then(|s| serde_json::from_str(&s).ok())
+}
+
+/// Set MCP servers configuration
+pub fn set_mcp_servers_config(
+    conn: &Connection,
+    config: Option<&McpServersConfig>,
+) -> Result<(), String> {
+    let json = config.map(|c| serde_json::to_string(c).unwrap());
+    conn.execute(
+        "UPDATE app_settings SET mcp_servers_config = ?1 WHERE id = 1",
+        params![json],
+    )
+    .map_err(|e| format!("Failed to set MCP servers config: {}", e))?;
     Ok(())
 }

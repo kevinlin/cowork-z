@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useProviderSettings } from '@/components/settings/hooks/useProviderSettings';
+import { McpServersSettings } from '@/components/settings/McpServersSettings';
 import { ProviderGrid } from '@/components/settings/ProviderGrid';
 import { ProviderSettingsPanel } from '@/components/settings/ProviderSettingsPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -433,6 +434,21 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
             )}
           </AnimatePresence>
 
+          {/* MCP Servers Section - only shown when a provider is selected */}
+          <AnimatePresence>
+            {selectedProvider && (
+              <motion.section
+                animate="animate"
+                exit="exit"
+                initial="initial"
+                transition={{ ...settingsTransitions.enter, delay: 0.12 }}
+                variants={settingsVariants.slideDown}
+              >
+                <McpServersSettings />
+              </motion.section>
+            )}
+          </AnimatePresence>
+
           {/* Debug Mode Section - only shown when a provider is selected */}
           <AnimatePresence>
             {selectedProvider && (
@@ -440,7 +456,7 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
                 animate="animate"
                 exit="exit"
                 initial="initial"
-                transition={{ ...settingsTransitions.enter, delay: 0.05 }}
+                transition={{ ...settingsTransitions.enter, delay: 0.14 }}
                 variants={settingsVariants.slideDown}
               >
                 <div className="rounded-lg border border-border bg-card p-5">

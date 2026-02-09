@@ -111,6 +111,14 @@ Rust emits Tauri events (e.g., `task:update`, `task:permission_request`, `task:q
 
 Configured in both `tsconfig.json` and `vite.config.ts`.
 
+## Settings UI Patterns
+
+- **Textarea inputs** (User Prompt, MCP Servers JSON) must use `defaultValue` + `useRef` to avoid UI re-renders during user typing. Never use controlled `value` on settings textareas.
+  - Use `textareaRef.current?.value` to read the latest text (avoids stale state in callbacks)
+  - Debounce saves with `setTimeout` (500ms) — update React state only inside the debounce callback, not on every keystroke
+  - On toggle, read from `ref.current?.value ?? stateValue` to get the latest content
+  - See `src/components/settings/McpServersSettings.tsx` and `SettingsDialog.tsx` (User Prompt section) for reference
+
 ## Important Notes
 
 - `pnpm tauri dev` for full-stack dev (not `pnpm dev`, which is frontend-only)

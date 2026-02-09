@@ -17,6 +17,7 @@ import type {
   CompleteMessageEvent,
   ConnectedProvider,
   FolderPermission,
+  McpServersConfig,
   OpenCodeMessage,
   PartialMessageEvent,
   PermissionRequest,
@@ -237,6 +238,18 @@ export async function getUserPrompt(): Promise<{ enabled: boolean; text: string 
 
 export async function setUserPrompt(enabled: boolean, text: string | null): Promise<void> {
   return invoke<void>('set_user_prompt', { enabled, text });
+}
+
+// ============================================================================
+// MCP Servers
+// ============================================================================
+
+export async function getMcpServersConfig(): Promise<McpServersConfig | null> {
+  return invoke<McpServersConfig | null>('get_mcp_servers_config');
+}
+
+export async function setMcpServersConfig(config: McpServersConfig | null): Promise<void> {
+  return invoke<void>('set_mcp_servers_config', { config });
 }
 
 export async function getAppSettings(): Promise<{
@@ -1170,6 +1183,10 @@ export function getTauriApi() {
     saveBedrockCredentials,
     getBedrockCredentials,
     fetchBedrockModels,
+
+    // MCP Servers
+    getMcpServersConfig,
+    setMcpServersConfig,
 
     // E2E Testing
     isE2EMode,

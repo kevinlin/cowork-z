@@ -405,6 +405,13 @@ async fn start_task(
         }
     };
 
+    // Load MCP servers config
+    let mcp_servers = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::settings::get_mcp_servers_config(&conn)
+            .map(|c| serde_json::to_value(c).unwrap())
+    };
+
     // Ensure sidecar is running
     let mut manager = sidecar_state.manager.lock().await;
     if !manager.is_running() {
@@ -423,6 +430,7 @@ async fn start_task(
                 model_id: resolved_model_id,
                 folder_permissions: sidecar_perms,
                 custom_prompt,
+                mcp_servers,
             },
         })
         .await?;
@@ -865,6 +873,13 @@ async fn resume_session(
         }
     };
 
+    // Load MCP servers config
+    let mcp_servers = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::settings::get_mcp_servers_config(&conn)
+            .map(|c| serde_json::to_value(c).unwrap())
+    };
+
     // Ensure sidecar is running
     let mut manager = sidecar_state.manager.lock().await;
     if !manager.is_running() {
@@ -884,6 +899,7 @@ async fn resume_session(
                 model_id: None,
                 folder_permissions: sidecar_perms,
                 custom_prompt,
+                mcp_servers,
             },
         })
         .await?;
@@ -987,6 +1003,52 @@ async fn set_user_prompt(
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     db::settings::set_user_prompt(&conn, enabled, text.as_deref())
+}
+
+#[tauri::command]
+async fn get_mcp_servers_config(
+    state: State<'_, DbState>,
+) -> Result<Option<serde_json::Value>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let config = db::settings::get_mcp_servers_config(&conn);
+    Ok(config.map(|c| serde_json::to_value(c).unwrap()))
+}
+
+#[tauri::command]
+async fn set_mcp_servers_config(
+    config: Option<serde_json::Value>,
+    sidecar_state: State<'_, SidecarState>,
+    db_state: State<'_, DbState>,
+) -> Result<(), String> {
+    // Parse and validate config
+    let parsed_config: Option<db::settings::McpServersConfig> = match config.clone() {
+        Some(val) => Some(
+            serde_json::from_value(val)
+                .map_err(|e| format!("Invalid MCP config: {}", e))?,
+        ),
+        None => None,
+    };
+
+    // Write to database
+    {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::settings::set_mcp_servers_config(&conn, parsed_config.as_ref())?;
+    }
+
+    // Apply to OpenCode server immediately if sidecar is running
+    let mut manager = sidecar_state.manager.lock().await;
+    if manager.is_running() {
+        let mcp_value = config.unwrap_or(serde_json::json!({}));
+        manager
+            .send_command(sidecar::SidecarCommand::UpdateMcpConfig {
+                payload: sidecar::UpdateMcpConfigPayload {
+                    mcp_servers: mcp_value,
+                },
+            })
+            .await?;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -1806,6 +1868,9 @@ pub fn run() {
             update_provider_model,
             set_provider_debug_mode,
             get_provider_debug_mode,
+            // MCP Servers
+            get_mcp_servers_config,
+            set_mcp_servers_config,
             // Logging
             log_event,
         ])

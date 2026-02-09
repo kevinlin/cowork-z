@@ -5,7 +5,7 @@ use rusqlite::Connection;
 use serde_json;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 6;
+const CURRENT_VERSION: i32 = 7;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -295,6 +295,21 @@ fn migrate_v6(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v7: Add MCP servers configuration column
+fn migrate_v7(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v7 (MCP servers config)");
+
+    conn.execute(
+        "ALTER TABLE app_settings ADD COLUMN mcp_servers_config TEXT",
+        [],
+    )
+    .map_err(|e| format!("Failed to add mcp_servers_config column: {}", e))?;
+
+    set_stored_version(conn, 7)?;
+    println!("[Migrations] Migration v7 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -335,6 +350,9 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
     if stored_version < 6 {
         migrate_v6(conn)?;
+    }
+    if stored_version < 7 {
+        migrate_v7(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

@@ -86,6 +86,9 @@ pub enum SidecarCommand {
         #[serde(rename = "sessionId")]
         session_id: String,
     },
+    UpdateMcpConfig {
+        payload: UpdateMcpConfigPayload,
+    },
     #[allow(dead_code)]
     Ping,
     CheckServer,
@@ -116,6 +119,8 @@ pub struct StartTaskPayload {
     pub folder_permissions: Option<Vec<FolderPermissionPayload>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_prompt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mcp_servers: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -135,6 +140,14 @@ pub struct ResumeSessionPayload {
     pub folder_permissions: Option<Vec<FolderPermissionPayload>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_prompt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mcp_servers: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateMcpConfigPayload {
+    pub mcp_servers: serde_json::Value,
 }
 
 #[derive(Debug, Serialize)]
@@ -381,6 +394,7 @@ impl SidecarManager {
             SidecarCommand::SendPermissionReply { .. } => "send_permission_reply",
             SidecarCommand::SendQuestionReply { .. } => "send_question_reply",
             SidecarCommand::GetSessionTodos { .. } => "get_session_todos",
+            SidecarCommand::UpdateMcpConfig { .. } => "update_mcp_config",
             SidecarCommand::Ping => "ping",
             SidecarCommand::CheckServer => "check_server",
         };

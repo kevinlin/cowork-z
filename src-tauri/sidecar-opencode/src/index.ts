@@ -13,6 +13,7 @@ import type {
   SidecarEvent,
   StartTaskPayload,
   Todo,
+  UpdateMcpConfigPayload,
 } from './types';
 
 const SIDECAR_VERSION = '0.2.0';
@@ -232,6 +233,25 @@ async function handleCancelTask(_taskId: string): Promise<void> {
   sendLog('info', 'Cancel not supported in server mode, use abort_session instead');
 }
 
+async function handleUpdateMcpConfig(payload: UpdateMcpConfigPayload): Promise<void> {
+  try {
+    if (!processManager) {
+      throw new Error('Process manager not initialized');
+    }
+
+    const client = processManager.getClient();
+    await client.updateConfig({ mcp: payload.mcpServers }, payload.workingDirectory);
+    logger.info('MCP config updated', { serverCount: Object.keys(payload.mcpServers).length });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to update MCP config', { error: message });
+    send({
+      type: 'error',
+      payload: { message: `Failed to update MCP config: ${message}` },
+    });
+  }
+}
+
 async function handleAbortSession(taskId: string, sessionId: string): Promise<void> {
   try {
     if (!sessionManager) {
@@ -342,6 +362,10 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
 
     case 'check_server':
       await handleCheckServer();
+      break;
+
+    case 'update_mcp_config':
+      await handleUpdateMcpConfig(msg.payload);
       break;
 
     case 'get_session_todos': {

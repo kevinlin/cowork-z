@@ -94,6 +94,7 @@ export interface ConfigBuilderOptions {
   modelId?: string;
   folderPermissions?: FolderPermission[];
   enabledProviders?: string[];
+  mcpServers?: Record<string, import('./types').McpConfig>;
 }
 
 export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<Config> {
@@ -148,6 +149,11 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
   // Set enabled providers
   if (options.enabledProviders) {
     config.enabled_providers = options.enabledProviders;
+  }
+
+  // Set MCP servers
+  if (options.mcpServers) {
+    config.mcp = options.mcpServers;
   }
 
   return config;

@@ -138,12 +138,20 @@ export interface AgentConfig {
   permission?: PermissionConfig;
 }
 
+export interface McpOAuthConfig {
+  clientId: string;
+  clientSecret: string;
+  scope?: string;
+}
+
 export interface McpConfig {
   type?: 'local' | 'remote';
   command?: string[];
   url?: string;
   enabled?: boolean;
   environment?: Record<string, string>;
+  headers?: Record<string, string>;
+  oauth?: McpOAuthConfig | false;
   timeout?: number;
 }
 
@@ -238,6 +246,7 @@ export type SidecarCommand =
       payload: QuestionReplyPayload;
     }
   | { type: 'get_session_todos'; taskId: string; sessionId: string }
+  | { type: 'update_mcp_config'; payload: UpdateMcpConfigPayload }
   | { type: 'ping' }
   | { type: 'check_server' };
 
@@ -256,6 +265,7 @@ export interface StartTaskPayload {
   modelId?: string;
   folderPermissions?: FolderPermission[];
   customPrompt?: string;
+  mcpServers?: Record<string, McpConfig>;
 }
 
 export interface ResumeSessionPayload {
@@ -267,6 +277,12 @@ export interface ResumeSessionPayload {
   modelId?: string;
   folderPermissions?: FolderPermission[];
   customPrompt?: string;
+  mcpServers?: Record<string, McpConfig>;
+}
+
+export interface UpdateMcpConfigPayload {
+  mcpServers: Record<string, McpConfig>;
+  workingDirectory?: string;
 }
 
 export interface PermissionReplyPayload {

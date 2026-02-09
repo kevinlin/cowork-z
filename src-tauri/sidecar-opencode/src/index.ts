@@ -45,14 +45,14 @@ let sessionManager: SessionManager | null = null;
 // Initialization
 // ============================================================================
 
-async function initialize(apiKeys?: ApiKeys): Promise<void> {
+async function initialize(apiKeys?: ApiKeys, mcpServers?: Record<string, unknown>): Promise<void> {
   if (processManager) {
     return; // Already initialized
   }
 
   // Start process manager — picks a random available port and generates a password
   processManager = new ProcessManager();
-  await processManager.ensureServerRunning(apiKeys);
+  await processManager.ensureServerRunning({ apiKeys, mcpServers });
 
   const port = processManager.getPort();
   const password = processManager.getPassword();
@@ -191,7 +191,7 @@ async function initialize(apiKeys?: ApiKeys): Promise<void> {
 
 async function handleStartTask(taskId: string, payload: StartTaskPayload): Promise<void> {
   try {
-    await initialize(payload.apiKeys);
+    await initialize(payload.apiKeys, payload.mcpServers);
 
     if (!sessionManager) {
       throw new Error('Session manager not initialized');
@@ -211,7 +211,7 @@ async function handleStartTask(taskId: string, payload: StartTaskPayload): Promi
 
 async function handleResumeSession(taskId: string, payload: ResumeSessionPayload): Promise<void> {
   try {
-    await initialize(payload.apiKeys);
+    await initialize(payload.apiKeys, payload.mcpServers);
 
     if (!sessionManager) {
       throw new Error('Session manager not initialized');
@@ -239,6 +239,12 @@ async function handleUpdateMcpConfig(payload: UpdateMcpConfigPayload): Promise<v
       throw new Error('Process manager not initialized');
     }
 
+    // Write to config files on disk so the next server start picks up MCP servers.
+    // OpenCode does NOT dynamically initialize MCP servers from PATCH /config;
+    // it only reads them at startup.
+    processManager.updateMcpConfig(payload.mcpServers);
+
+    // Also send PATCH /config to update the in-memory config (model, permissions, etc.)
     const client = processManager.getClient();
     await client.updateConfig({ mcp: payload.mcpServers }, payload.workingDirectory);
     logger.info('MCP config updated', { serverCount: Object.keys(payload.mcpServers).length });

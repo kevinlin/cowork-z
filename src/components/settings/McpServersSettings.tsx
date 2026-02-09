@@ -66,9 +66,6 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
   // Debounced save — no React state update for the text while typing (read from ref)
   const saveConfig = useCallback(
     async (text: string) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/e583ddff-a9c2-4940-89c3-b089935c64d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'McpServersSettings.tsx:saveConfig',message:'saveConfig called',data:{textLength:text.length,textPreview:text.slice(0,80)},timestamp:Date.now(),hypothesisId:'H5-saveConfig'})}).catch(()=>{});
-      // #endregion
       try {
         const parsed = JSON.parse(text);
         validateMcpConfig(parsed);
@@ -93,34 +90,14 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
 
   const handleTextChange = useCallback(
     (newText: string) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/e583ddff-a9c2-4940-89c3-b089935c64d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'McpServersSettings.tsx:handleTextChange',message:'handleTextChange called',data:{newTextLength:newText.length,newTextPreview:newText.slice(0,80)},timestamp:Date.now(),hypothesisId:'H1-textchange'})}).catch(()=>{});
-      // #endregion
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/e583ddff-a9c2-4940-89c3-b089935c64d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'McpServersSettings.tsx:debounce-fire',message:'debounce fired, about to setConfigText + saveConfig',data:{newTextLength:newText.length},timestamp:Date.now(),hypothesisId:'H2-debounce'})}).catch(()=>{});
-        // #endregion
         setConfigText(newText);
         saveConfig(newText);
       }, 500);
     },
     [saveConfig]
   );
-
-  // #region agent log
-  // Track textarea mount/unmount cycles
-  const textareaMountCountRef = useRef(0);
-  const textareaRefCallback = useCallback((node: HTMLTextAreaElement | null) => {
-    textareaRef.current = node;
-    if (node) {
-      textareaMountCountRef.current += 1;
-      fetch('http://127.0.0.1:7244/ingest/e583ddff-a9c2-4940-89c3-b089935c64d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'McpServersSettings.tsx:textareaMount',message:'Textarea MOUNTED',data:{mountCount:textareaMountCountRef.current,defaultValue:node.defaultValue?.slice(0,80),currentValue:node.value?.slice(0,80)},timestamp:Date.now(),hypothesisId:'H4-mount'})}).catch(()=>{});
-    } else {
-      fetch('http://127.0.0.1:7244/ingest/e583ddff-a9c2-4940-89c3-b089935c64d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'McpServersSettings.tsx:textareaUnmount',message:'Textarea UNMOUNTED',data:{mountCount:textareaMountCountRef.current},timestamp:Date.now(),hypothesisId:'H4-mount'})}).catch(()=>{});
-    }
-  }, []);
-  // #endregion
 
   // Read latest text from the textarea ref to avoid stale state
   const handleToggle = useCallback(async () => {
@@ -139,10 +116,6 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
       }
     }
   }, [enabled, configText, api, saveConfig]);
-
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/e583ddff-a9c2-4940-89c3-b089935c64d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'McpServersSettings.tsx:render',message:'McpServersSettings RENDER',data:{enabled,configTextLength:configText.length,configTextPreview:configText.slice(0,80),parseError,serverSummaryLen:serverSummary.length,saving},timestamp:Date.now(),hypothesisId:'H3-render'})}).catch(()=>{});
-  // #endregion
 
   return (
     <div className="rounded-lg border border-border bg-card p-5">
@@ -182,7 +155,7 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
       {enabled && (
         <div className="mt-4 space-y-3">
           <textarea
-            ref={textareaRefCallback}
+            ref={textareaRef}
             className={`w-full rounded-lg border bg-background p-3 font-mono text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 ${
               parseError
                 ? 'border-destructive focus:border-destructive focus:ring-destructive'

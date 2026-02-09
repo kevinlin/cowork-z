@@ -46,6 +46,12 @@ export interface ProcessManagerOptions {
   password?: string;
 }
 
+export interface ServerStartOptions {
+  apiKeys?: ApiKeys;
+  /** MCP servers to write into config.json before starting the server. */
+  mcpServers?: Record<string, unknown>;
+}
+
 export class ProcessManager {
   private process: ChildProcess | null = null;
   private client: OpenCodeClient;
@@ -63,12 +69,62 @@ export class ProcessManager {
     this.client = new OpenCodeClient({ port: 0 });
   }
 
-  async ensureServerRunning(apiKeys?: ApiKeys): Promise<void> {
+  async ensureServerRunning(options?: ServerStartOptions): Promise<void> {
     // Start new server on a random port
-    await this.startServer(apiKeys);
+    await this.startServer(options);
   }
 
-  private async startServer(apiKeys?: ApiKeys): Promise<void> {
+  /**
+   * Write MCP servers (and any other pre-start config) into config.json
+   * in the OpenCode data directory **before** spawning the server.
+   * OpenCode reads MCP config at startup; PATCH /config after start
+   * does NOT cause MCP server processes to be initialized.
+   */
+  private writePreStartConfig(mcpServers?: Record<string, unknown>): void {
+    // Write to BOTH opencode.json (primary) and config.json (legacy).
+    // OpenCode prioritizes opencode.json over config.json.
+    const opencodePath = path.join(OPENCODE_DATA_DIR, 'opencode.json');
+    const legacyPath = path.join(OPENCODE_DATA_DIR, 'config.json');
+
+    // Read existing config from either file (prefer opencode.json)
+    let existing: Record<string, unknown> = {};
+    try {
+      if (fs.existsSync(opencodePath)) {
+        existing = JSON.parse(fs.readFileSync(opencodePath, 'utf-8'));
+      } else if (fs.existsSync(legacyPath)) {
+        existing = JSON.parse(fs.readFileSync(legacyPath, 'utf-8'));
+      }
+    } catch {
+      logger.warn('Failed to read existing config, starting fresh');
+    }
+
+    if (mcpServers && Object.keys(mcpServers).length > 0) {
+      existing.mcp = mcpServers;
+    } else {
+      // Remove MCP key if no servers configured
+      delete existing.mcp;
+    }
+
+    // Write to opencode.json (primary config file)
+    fs.writeFileSync(opencodePath, JSON.stringify(existing, null, 2), 'utf-8');
+    // Also write to config.json (legacy) for backwards compatibility
+    fs.writeFileSync(legacyPath, JSON.stringify(existing, null, 2), 'utf-8');
+    logger.info('Pre-start config written', { opencodePath, legacyPath, hasMcp: !!mcpServers });
+  }
+
+  /**
+   * Update MCP servers in the on-disk config.json while the server is running.
+   * OpenCode does NOT dynamically reload MCP servers from PATCH /config,
+   * so changes only take effect on next server restart (i.e. next task start
+   * after the sidecar is recycled).
+   */
+  updateMcpConfig(mcpServers?: Record<string, unknown>): void {
+    this.writePreStartConfig(mcpServers);
+  }
+
+  private async startServer(options?: ServerStartOptions): Promise<void> {
+    const apiKeys = options?.apiKeys;
+
     // Pick a random available port
     this.port = await getAvailablePort();
     logger.info(`Starting opencode serve on port ${this.port}`);
@@ -104,6 +160,17 @@ export class ProcessManager {
     // instead of into the source tree (which would trigger Tauri rebuilds).
     if (!fs.existsSync(OPENCODE_DATA_DIR)) {
       fs.mkdirSync(OPENCODE_DATA_DIR, { recursive: true });
+    }
+
+    // Write MCP servers (and other pre-start config) into config files
+    // BEFORE spawning the server. OpenCode only initializes MCP at startup.
+    this.writePreStartConfig(options?.mcpServers);
+
+    // Also set OPENCODE_CONFIG_CONTENT env var as a belt-and-suspenders approach.
+    // This is the highest-priority config source for OpenCode and ensures MCP
+    // servers are present even if file-based config isn't read correctly.
+    if (options?.mcpServers && Object.keys(options.mcpServers).length > 0) {
+      env.OPENCODE_CONFIG_CONTENT = JSON.stringify({ mcp: options.mcpServers });
     }
 
     this.process = spawn(this.cliPath, args, {

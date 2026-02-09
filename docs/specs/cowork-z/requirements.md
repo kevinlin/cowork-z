@@ -137,7 +137,7 @@ Skills follow the [OpenCode Skills specification](https://opencode.ai/docs/skill
 3. WHERE skill files are added or modified in any discovery path, OpenCode SHALL pick them up without requiring an app restart
 4. THE SYSTEM SHALL display the skills folder path in the Settings panel as a clickable link that opens the directory in the OS file manager (Finder on macOS, Explorer on Windows)
 
-#### 2.3 MCP Server Support
+#### 2.3 MCP Server Support ✅
 
 MCP server configuration follows the [OpenCode MCP specification](https://opencode.ai/docs/mcp-servers/). The app must support configuring MCP servers via the UI and passing the configuration to OpenCode via `PATCH /config`.
 

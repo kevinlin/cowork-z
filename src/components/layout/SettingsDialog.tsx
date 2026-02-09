@@ -8,10 +8,10 @@ import { McpServersSettings } from '@/components/settings/McpServersSettings';
 import { ProviderGrid } from '@/components/settings/ProviderGrid';
 import { ProviderSettingsPanel } from '@/components/settings/ProviderSettingsPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { analytics } from '@/lib/analytics';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import { getHomeDir, revealInFinder } from '@/lib/tauri-api';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { ConnectedProvider, ProviderId } from '@/shared';
 import { hasAnyReadyProvider, isProviderReady } from '@/shared';
 
@@ -391,12 +391,12 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
                   {userPromptEnabled && (
                     <div className="mt-4">
                       <textarea
-                        ref={userPromptTextareaRef}
                         className="w-full rounded-lg border border-border bg-background p-3 text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                         data-testid="settings-user-prompt-textarea"
                         defaultValue={userPromptText}
                         onChange={(e) => handleUserPromptTextChange(e.target.value)}
                         placeholder="e.g., Always respond in French..."
+                        ref={userPromptTextareaRef}
                         rows={4}
                       />
                     </div>

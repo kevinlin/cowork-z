@@ -22,7 +22,7 @@ function validateMcpConfig(parsed: unknown): asserts parsed is McpServersConfig 
     }
 
     if (cfg.type === 'local') {
-      if (!cfg.command || !Array.isArray(cfg.command) || cfg.command.length === 0) {
+      if (!(cfg.command && Array.isArray(cfg.command)) || cfg.command.length === 0) {
         throw new Error(`Server "${name}": local servers require a non-empty command array`);
       }
     }
@@ -55,9 +55,7 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
       if (config && Object.keys(config).length > 0) {
         setEnabled(true);
         setConfigText(JSON.stringify(config, null, 2));
-        setServerSummary(
-          Object.entries(config).map(([name, cfg]) => `${name} (${cfg.type})`)
-        );
+        setServerSummary(Object.entries(config).map(([name, cfg]) => `${name} (${cfg.type})`));
       }
       onLoad?.();
     });
@@ -103,17 +101,17 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
   const handleToggle = useCallback(async () => {
     const newEnabled = !enabled;
     setEnabled(newEnabled);
-    if (!newEnabled) {
-      await api.setMcpServersConfig(null);
-      setServerSummary([]);
-      setParseError(null);
-      setConfigText('');
-    } else {
+    if (newEnabled) {
       const currentText = textareaRef.current?.value ?? configText;
       if (currentText) {
         setConfigText(currentText);
         saveConfig(currentText);
       }
+    } else {
+      await api.setMcpServersConfig(null);
+      setServerSummary([]);
+      setParseError(null);
+      setConfigText('');
     }
   }, [enabled, configText, api, saveConfig]);
 
@@ -155,7 +153,6 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
       {enabled && (
         <div className="mt-4 space-y-3">
           <textarea
-            ref={textareaRef}
             className={`w-full rounded-lg border bg-background p-3 font-mono text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 ${
               parseError
                 ? 'border-destructive focus:border-destructive focus:ring-destructive'
@@ -165,6 +162,7 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
             defaultValue={configText}
             onChange={(e) => handleTextChange(e.target.value)}
             placeholder={`{\n  "filesystem": {\n    "type": "local",\n    "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/path"]\n  }\n}`}
+            ref={textareaRef}
             rows={8}
             spellCheck={false}
           />
@@ -178,16 +176,11 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
           {!parseError && serverSummary.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {serverSummary.map((s) => (
-                <span
-                  className="rounded-md bg-muted px-2 py-1 text-muted-foreground text-xs"
-                  key={s}
-                >
+                <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground text-xs" key={s}>
                   {s}
                 </span>
               ))}
-              {saving && (
-                <span className="text-muted-foreground text-xs">Saving...</span>
-              )}
+              {saving && <span className="text-muted-foreground text-xs">Saving...</span>}
             </div>
           )}
         </div>

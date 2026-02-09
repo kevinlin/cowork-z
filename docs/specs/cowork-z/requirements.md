@@ -32,6 +32,8 @@ The following implementation plans document how specific requirements were desig
 | Server Isolation | [`cowork-z/plan_server-isolation.md`](plan_server-isolation.md) | 5.2.1 (OpenCode server isolation) |
 | Todo Panel in Sidebar | [`cowork-z/plan_todo-panel-in-sidebard.md`](plan_todo-panel-in-sidebard.md) | 3.3 (task todos panel) |
 | User Prompt Customization | [`cowork-z/plan_user-prompt-customization.md`](plan_user-prompt-customization.md) | 2.1 (user prompt customization) |
+| MCP Server Support | [cowork-z/plan_mcp-server-support.md](plan_mcp-server-support.md) | 2.3 (MCP support) |
+| Artefacts Panel | [`cowork-z/plan_artefacts-panel.md`](plan_artefacts-panel.md) | 3.4 (artefacts panel) |
 
 ---
 
@@ -169,7 +171,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 **User Story:** As a user, I want agent responses and session context presented in a rich, interactive way so that I can quickly access and preview relevant content.
 
-#### 3.1 Rich File Display
+#### 3.1 Rich File Display ✅
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL render file paths in agent messages as clickable links with a mini icon based on the file extension
@@ -177,7 +179,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 3. WHERE the file is an image or video, THE SYSTEM SHALL display a thumbnail preview at the bottom of the message bubble
 4. WHEN a user clicks an image or video thumbnail, THE SYSTEM SHALL open a modal preview within the app
 
-#### 3.2 Rich URL Display
+#### 3.2 Rich URL Display ✅
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL render URLs in agent messages as clickable links with an icon
@@ -194,7 +196,9 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 4. THE SYSTEM SHALL sort todos by status: in-progress first, then pending, completed, cancelled
 5. THE SYSTEM SHALL auto-expand the panel when new todos arrive during a task
 
-#### 3.4 Artefacts Panel
+#### 3.4 Artefacts Panel ✅
+
+> **Plan:** [Artefacts Panel](plan_artefacts-panel.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL collect all files the agent creates or modifies during a session
@@ -320,9 +324,6 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
-- [x] **Rich File Display** — Render file paths as clickable links with icons, thumbnail previews for images/video, and modal viewer (Req 3.1)
-- [x] **Rich URL Display** — Render URLs as clickable links that open in the default browser (Req 3.2)
-- [ ] **Artefacts Panel** — Sidebar panel listing files created/modified during a session (Req 3.4)
 - [ ] **Theme Support** — Multiple predefined themes with dark mode, runtime switching, OS preference detection (Req 4.2)
 - [ ] **About Panel** — App info panel with version and changelog (Req 4.4)
 - [ ] **Cross-Platform Testing & Installers** — Test on Windows/Linux, build `.msi`/`.exe`/`.deb` installers (Req 5.1.1, 5.1.3)

@@ -18,8 +18,8 @@ import stagingVsProdVisualImg from '/assets/usecases/staging-vs-prod-visual.png'
 import stockPortfolioAlertsImg from '/assets/usecases/stock-portfolio-alerts.png';
 import TaskInputBar from '../components/landing/TaskInputBar';
 import SettingsDialog from '../components/layout/SettingsDialog';
-import { getTauriAPI } from '../lib/tauri-api-interface';
 import { springs, staggerContainer, staggerItem } from '../lib/animations';
+import { getTauriAPI } from '../lib/tauri-api-interface';
 import { useTaskStore } from '../stores/taskStore';
 
 const USE_CASE_EXAMPLES = [

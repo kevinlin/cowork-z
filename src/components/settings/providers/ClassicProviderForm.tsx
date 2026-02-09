@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
-import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { ApiKeyCredentials, ConnectedProvider, ProviderId } from '@/shared';
 import { DEFAULT_PROVIDERS, getDefaultModelForProvider, PROVIDER_META } from '@/shared';
 // Import provider logos

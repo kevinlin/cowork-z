@@ -25,10 +25,7 @@ const STATUS_ORDER: Record<Todo['status'], number> = {
 };
 
 export const TodoPanel = memo(function TodoPanel({ todos, className }: TodoPanelProps) {
-  const sortedTodos = useMemo(
-    () => [...todos].sort((a, b) => (STATUS_ORDER[a.status] ?? 4) - (STATUS_ORDER[b.status] ?? 4)),
-    [todos]
-  );
+  const sortedTodos = useMemo(() => [...todos].sort((a, b) => (STATUS_ORDER[a.status] ?? 4) - (STATUS_ORDER[b.status] ?? 4)), [todos]);
 
   const completedCount = todos.filter((t) => t.status === 'completed').length;
   const totalCount = todos.length;
@@ -45,7 +42,9 @@ export const TodoPanel = memo(function TodoPanel({ todos, className }: TodoPanel
             style={{ width: `${(completedCount / totalCount) * 100}%` }}
           />
         </div>
-        <span className="shrink-0 text-muted-foreground text-xs">{completedCount}/{totalCount}</span>
+        <span className="shrink-0 text-muted-foreground text-xs">
+          {completedCount}/{totalCount}
+        </span>
       </div>
       {/* Todo items */}
       {sortedTodos.map((todo) => {
@@ -57,11 +56,11 @@ export const TodoPanel = memo(function TodoPanel({ todos, className }: TodoPanel
             key={todo.id}
           >
             <Icon className={cn('h-3 w-3 shrink-0', config.color, config.animate && 'animate-spin')} />
-            <span className={cn('flex-1 truncate', todo.status === 'completed' && 'line-through text-muted-foreground')}>
+            <span className={cn('flex-1 truncate', todo.status === 'completed' && 'text-muted-foreground line-through')}>
               {todo.content}
             </span>
             {todo.priority === 'high' && (
-              <span className="shrink-0 rounded-full bg-red-500/10 px-1 py-0.5 text-red-600 text-[10px] leading-none">!</span>
+              <span className="shrink-0 rounded-full bg-red-500/10 px-1 py-0.5 text-[10px] text-red-600 leading-none">!</span>
             )}
           </div>
         );

@@ -112,6 +112,23 @@ async function initialize(apiKeys?: ApiKeys, mcpServers?: Record<string, unknown
     });
   });
 
+  // Forward tool-use events as task_message so artifacts panel can track write_file calls.
+  // The message is sent in OpenCode format (type: 'tool_use') which the frontend's
+  // normalizeIncomingMessage handles via normalizeOpenCodeMessage.
+  sessionManager.on('tool-use', (data: { taskId: string; messageId: string; part: Record<string, unknown> }) => {
+    // Build OpenCode-format tool message for the frontend normalizer
+    const toolMessage = {
+      type: 'tool_use' as const,
+      timestamp: ((data.part.time as Record<string, unknown> | undefined)?.start as number | undefined) ?? Date.now(),
+      part: data.part,
+    };
+    send({
+      type: 'task_message',
+      taskId: data.taskId,
+      payload: { message: toolMessage },
+    } as unknown as SidecarEvent);
+  });
+
   sessionManager.on(
     'permission-request',
     (data: {

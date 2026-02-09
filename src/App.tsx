@@ -4,9 +4,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import SettingsDialog from './components/layout/SettingsDialog';
 // Components
 import Sidebar from './components/layout/Sidebar';
-import SettingsDialog from './components/layout/SettingsDialog';
 import { TaskLauncher } from './components/TaskLauncher';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { analytics } from './lib/analytics';

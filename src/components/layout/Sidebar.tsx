@@ -4,21 +4,23 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquarePlus, Search, Settings } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArtifactsPanel } from '@/components/sidebar/ArtifactsPanel';
+import FoldersPanel from '@/components/sidebar/FoldersPanel';
 import { TodoPanel } from '@/components/sidebar/TodoPanel';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { analytics } from '@/lib/analytics';
 import { staggerContainer } from '@/lib/animations';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
+import type { Artifact, Todo } from '@/shared';
 import { useTaskStore } from '@/stores/taskStore';
-import type { Todo } from '@/shared';
 import logoImage from '/assets/logo-1.png';
 import CollapsibleSection from '../sidebar/CollapsibleSection';
 import ConversationListItem from './ConversationListItem';
-import FoldersPanel from '@/components/sidebar/FoldersPanel';
 
-// Stable empty array to avoid creating new references in selectors
+// Stable empty arrays to avoid creating new references in selectors
 const EMPTY_TODOS: Todo[] = [];
+const EMPTY_ARTIFACTS: Artifact[] = [];
 
 // Resize constraints
 const MIN_WIDTH = 200; // pixels
@@ -31,6 +33,16 @@ export default function Sidebar() {
   const api = getTauriAPI();
   const currentTaskTodos = useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? EMPTY_TODOS);
   const hasTodos = currentTaskTodos.length > 0;
+  const currentTaskArtifacts = useTaskStore((s) => s.artifacts.get(s.currentTask?.id ?? '') ?? EMPTY_ARTIFACTS);
+  const hasArtifacts = currentTaskArtifacts.length > 0;
+
+  // Controlled open state for Artefacts section — auto-expand when artifacts arrive
+  const [artefactsOpen, setArtefactsOpen] = useState(hasArtifacts);
+  useEffect(() => {
+    if (hasArtifacts) {
+      setArtefactsOpen(true);
+    }
+  }, [hasArtifacts]);
 
   // Controlled open state for Tasks section — auto-expand when todos arrive
   const [tasksOpen, setTasksOpen] = useState(hasTodos);
@@ -46,13 +58,16 @@ export default function Sidebar() {
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Handle mouse move during resize
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return;
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing) return;
 
-    const maxWidth = window.innerWidth * MAX_WIDTH_PERCENT;
-    const newWidth = Math.min(Math.max(e.clientX, MIN_WIDTH), maxWidth);
-    setSidebarWidth(newWidth);
-  }, [isResizing]);
+      const maxWidth = window.innerWidth * MAX_WIDTH_PERCENT;
+      const newWidth = Math.min(Math.max(e.clientX, MIN_WIDTH), maxWidth);
+      setSidebarWidth(newWidth);
+    },
+    [isResizing]
+  );
 
   // Handle mouse up to stop resizing
   const handleMouseUp = useCallback(() => {
@@ -125,15 +140,12 @@ export default function Sidebar() {
   return (
     <>
       <div
-        ref={sidebarRef}
         className="relative flex h-screen flex-col border-border border-r bg-card pt-12"
+        ref={sidebarRef}
         style={{ width: sidebarWidth }}
       >
         {/* Resize Handle */}
-        <div
-          className={`sidebar-resize-handle ${isResizing ? 'active' : ''}`}
-          onMouseDown={handleResizeStart}
-        />
+        <div className={`sidebar-resize-handle ${isResizing ? 'active' : ''}`} onMouseDown={handleResizeStart} />
 
         {/* Action Buttons */}
         <div className="flex gap-2 border-border border-b px-3 py-3">
@@ -181,14 +193,21 @@ export default function Sidebar() {
           {/* Folders Panel - Collapsible, Default Collapsed */}
           <FoldersPanel />
 
+          {/* Artefacts Panel - Shows files created/modified by agent, auto-expands when artifacts appear */}
+          <CollapsibleSection defaultOpen={hasArtifacts} onOpenChange={setArtefactsOpen} open={artefactsOpen} title="Artefacts">
+            {hasArtifacts ? (
+              <ArtifactsPanel artifacts={currentTaskArtifacts} />
+            ) : (
+              <div className="px-2 py-3 text-center text-muted-foreground text-xs">No files modified yet</div>
+            )}
+          </CollapsibleSection>
+
           {/* Tasks Panel - Shows current task's todos, auto-expands when todos appear */}
-          <CollapsibleSection open={tasksOpen} onOpenChange={setTasksOpen} title="Tasks">
+          <CollapsibleSection onOpenChange={setTasksOpen} open={tasksOpen} title="Tasks">
             {hasTodos ? (
               <TodoPanel todos={currentTaskTodos} />
             ) : (
-              <div className="px-2 py-3 text-center text-muted-foreground text-xs">
-                No active tasks
-              </div>
+              <div className="px-2 py-3 text-center text-muted-foreground text-xs">No active tasks</div>
             )}
           </CollapsibleSection>
         </ScrollArea>

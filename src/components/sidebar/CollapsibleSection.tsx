@@ -53,9 +53,11 @@ export default function CollapsibleSection({
     <div className={cn('border-border border-t', className)}>
       {/* Header */}
       <div
+        aria-disabled={disabled}
+        aria-expanded={isOpen}
         className={cn(
-          'flex w-full items-center justify-between px-3 py-2 text-left text-muted-foreground text-xs font-medium uppercase tracking-wide',
-          'hover:bg-accent/50 transition-colors',
+          'flex w-full items-center justify-between px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide',
+          'transition-colors hover:bg-accent/50',
           disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
         )}
         onClick={toggleOpen}
@@ -67,22 +69,13 @@ export default function CollapsibleSection({
         }}
         role="button"
         tabIndex={disabled ? -1 : 0}
-        aria-expanded={isOpen}
-        aria-disabled={disabled}
       >
         <div className="flex items-center gap-1">
-          {isOpen ? (
-            <ChevronDown className="h-3 w-3" />
-          ) : (
-            <ChevronRight className="h-3 w-3" />
-          )}
+          {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           <span>{title}</span>
         </div>
         {action && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
+          <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
             {action}
           </div>
         )}
@@ -98,9 +91,7 @@ export default function CollapsibleSection({
             initial={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
-            <div className="px-2 pb-2">
-              {children}
-            </div>
+            <div className="px-2 pb-2">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>

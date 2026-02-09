@@ -1,12 +1,13 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { EnhancedLink, createMarkdownComponents } from '../EnhancedLink';
+import { createMarkdownComponents, EnhancedLink } from '../EnhancedLink';
 
 // Mock the tauri-api module
 vi.mock('@/lib/tauri-api', () => ({
   revealInFinder: vi.fn(() => Promise.resolve()),
   openExternal: vi.fn(() => Promise.resolve()),
   convertFileSrc: vi.fn((path: string) => `asset://${path}`),
+  getHomeDir: vi.fn(() => Promise.resolve('/Users/testuser')),
 }));
 
 import * as api from '@/lib/tauri-api';
@@ -21,11 +22,7 @@ describe('EnhancedLink', () => {
   });
 
   it('should render with file icon for file:// URLs', () => {
-    render(
-      <EnhancedLink href="file:///Users/name/photo.jpg">
-        /Users/name/photo.jpg
-      </EnhancedLink>
-    );
+    render(<EnhancedLink href="file:///Users/name/photo.jpg">/Users/name/photo.jpg</EnhancedLink>);
     expect(screen.getByText('/Users/name/photo.jpg')).toBeInTheDocument();
   });
 
@@ -37,37 +34,29 @@ describe('EnhancedLink', () => {
   });
 
   it('should call revealInFinder for file paths on click', async () => {
-    render(
-      <EnhancedLink href="file:///Users/name/file.txt">
-        /Users/name/file.txt
-      </EnhancedLink>
-    );
+    render(<EnhancedLink href="file:///Users/name/file.txt">/Users/name/file.txt</EnhancedLink>);
     const link = screen.getByRole('link');
     fireEvent.click(link);
-    expect(api.revealInFinder).toHaveBeenCalledWith('/Users/name/file.txt');
+    await waitFor(() => {
+      expect(api.revealInFinder).toHaveBeenCalledWith('/Users/name/file.txt');
+    });
   });
 
-  it('should block unsafe paths', () => {
+  it('should block unsafe paths', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    render(
-      <EnhancedLink href="file:///Users/name/../../etc/passwd">
-        unsafe path
-      </EnhancedLink>
-    );
+    render(<EnhancedLink href="file:///Users/name/../../etc/passwd">unsafe path</EnhancedLink>);
     const link = screen.getByRole('link');
     fireEvent.click(link);
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalled();
+    });
     expect(api.revealInFinder).not.toHaveBeenCalledWith('/Users/name/../../etc/passwd');
-    expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
 
   it('should truncate very long display text', () => {
     const longPath = '/Users/name/very/long/deeply/nested/directory/structure/with/many/segments/photo.jpg';
-    render(
-      <EnhancedLink href={`file://${longPath}`}>
-        {longPath}
-      </EnhancedLink>
-    );
+    render(<EnhancedLink href={`file://${longPath}`}>{longPath}</EnhancedLink>);
     // Should be truncated (original is > 60 chars)
     const link = screen.getByRole('link');
     expect(link.textContent).toContain('…');

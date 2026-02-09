@@ -47,6 +47,8 @@ export interface TaskMessage {
   content: string;
   toolName?: string;
   toolInput?: unknown;
+  /** Tool execution output (e.g. bash stdout) — used to resolve runtime paths */
+  toolOutput?: string;
   timestamp: string;
   /** Attachments like screenshots captured during browser automation */
   attachments?: TaskAttachment[];
@@ -128,4 +130,22 @@ export interface Todo {
   content: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'high' | 'medium' | 'low';
+}
+
+// ========== Artifact Types ==========
+
+/** A file created or modified by the agent during a task session */
+export interface Artifact {
+  /** Source message ID that created this artifact */
+  id: string;
+  /** Absolute path to the file */
+  filePath: string;
+  /** Filename extracted from path (for display) */
+  fileName: string;
+  /** File extension without dot (for icon mapping) */
+  fileExt: string;
+  /** ISO timestamp when the file was written */
+  timestamp: string;
+  /** Operation type (currently only 'write', future: 'create', 'modify') */
+  operation: 'write';
 }

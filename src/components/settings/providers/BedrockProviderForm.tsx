@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
-import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { BedrockProviderCredentials, ConnectedProvider } from '@/shared';
 import { getDefaultModelForProvider } from '@/shared';
 // Import Bedrock logo

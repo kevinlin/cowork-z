@@ -53,7 +53,6 @@ const MediaThumbnail = memo(function MediaThumbnail({ filePath, onClick }: Media
       {info.category === 'video' ? (
         <video className="h-full w-full object-cover" muted onError={() => setError(true)} preload="metadata" src={assetUrl} />
       ) : (
-        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: onError is a lifecycle event, not a user interaction
         <img alt={info.filename} className="h-full w-full object-cover" onError={() => setError(true)} src={assetUrl} />
       )}
 

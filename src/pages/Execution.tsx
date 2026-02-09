@@ -29,6 +29,8 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate, useParams } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
+import { createMarkdownComponents } from '@/components/markdown/EnhancedLink';
+import { MediaGallery } from '@/components/media/MediaGallery';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -36,8 +38,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { enrichContentWithLinks, extractMediaPaths } from '@/lib/content-enrichment';
 import { extractUserFacingContent } from '@/lib/message-utils';
 import { cn } from '@/lib/utils';
-import { createMarkdownComponents } from '@/components/markdown/EnhancedLink';
-import { MediaGallery } from '@/components/media/MediaGallery';
 import type { PartialMessage, TaskMessage } from '@/shared';
 import { hasAnyReadyProvider } from '@/shared';
 import loadingSymbol from '/assets/loading-symbol.svg';
@@ -981,9 +981,7 @@ export default function ExecutionPage() {
                       {/* Standard tool UI (non-file, non-question) */}
                       {permissionRequest.type === 'tool' && (
                         <>
-                          <p className="mb-4 text-muted-foreground text-sm">
-                            Allow {permissionRequest.toolName?.replace(/_/g, ' ')}?
-                          </p>
+                          <p className="mb-4 text-muted-foreground text-sm">Allow {permissionRequest.toolName?.replace(/_/g, ' ')}?</p>
 
                           {/* Display requested paths from patterns */}
                           {permissionRequest.patterns && permissionRequest.patterns.length > 0 && (
@@ -1003,13 +1001,12 @@ export default function ExecutionPage() {
                           )}
 
                           {/* Tool input fallback when no patterns */}
-                          {(!permissionRequest.patterns || permissionRequest.patterns.length === 0) &&
-                            permissionRequest.toolName && (
-                              <div className="mb-4 overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs">
-                                <p className="mb-1 text-muted-foreground">Tool: {permissionRequest.toolName}</p>
-                                <pre className="text-foreground">{JSON.stringify(permissionRequest.toolInput, null, 2)}</pre>
-                              </div>
-                            )}
+                          {(!permissionRequest.patterns || permissionRequest.patterns.length === 0) && permissionRequest.toolName && (
+                            <div className="mb-4 overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs">
+                              <p className="mb-1 text-muted-foreground">Tool: {permissionRequest.toolName}</p>
+                              <pre className="text-foreground">{JSON.stringify(permissionRequest.toolInput, null, 2)}</pre>
+                            </div>
+                          )}
                         </>
                       )}
 
@@ -1383,7 +1380,9 @@ const MessageBubble = memo(
                 <StreamingText isComplete={false} isRealStreaming={true} speed={120} text={enrichedContent}>
                   {(displayedText) => (
                     <div className={proseClasses}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{displayedText}</ReactMarkdown>
+                      <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                        {displayedText}
+                      </ReactMarkdown>
                     </div>
                   )}
                 </StreamingText>
@@ -1391,19 +1390,21 @@ const MessageBubble = memo(
                 <StreamingText isComplete={streamComplete} onComplete={() => setStreamComplete(true)} speed={120} text={enrichedContent}>
                   {(streamedText) => (
                     <div className={proseClasses}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{streamedText}</ReactMarkdown>
+                      <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                        {streamedText}
+                      </ReactMarkdown>
                     </div>
                   )}
                 </StreamingText>
               ) : (
                 <div className={proseClasses}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{enrichedContent}</ReactMarkdown>
+                  <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                    {enrichedContent}
+                  </ReactMarkdown>
                 </div>
               )}
               {/* Media thumbnail gallery */}
-              {isAssistant && mediaPaths.length > 0 && (
-                <MediaGallery filePaths={mediaPaths} />
-              )}
+              {isAssistant && mediaPaths.length > 0 && <MediaGallery filePaths={mediaPaths} />}
               <p className={cn('mt-1.5 text-xs', isUser ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
                 {new Date(message.timestamp).toLocaleTimeString()}
               </p>

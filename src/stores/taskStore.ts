@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as api from '@/lib/tauri-api';
 import type {
+  Artifact,
   CompleteMessageEvent,
   FolderPermission,
   PartialMessage,
@@ -58,6 +59,10 @@ interface TaskState {
   todos: Map<string, Todo[]>;
   setTodos: (taskId: string, todos: Todo[]) => void;
 
+  // Artifacts (per task)
+  artifacts: Map<string, Artifact[]>;
+  setArtifacts: (taskId: string, artifacts: Artifact[]) => void;
+
   // Startup stage progress (for task initialization indicator)
   startupStage: StartupStageInfo | null;
   startupStageTaskId: string | null;
@@ -99,6 +104,179 @@ interface TaskState {
   reset: () => void;
 }
 
+/**
+ * Tool names from OpenCode that modify/create files.
+ * - write: Create new files or overwrite existing ones
+ * - edit: Modify existing files via string replacement
+ * - patch: Apply patches to files
+ * - multiedit: Multi-file edits
+ */
+const FILE_WRITING_TOOLS = new Set(['write', 'edit', 'patch', 'multiedit']);
+
+/**
+ * Extract file path from a tool input object.
+ * OpenCode tools use various field names for file paths.
+ */
+function extractFilePathFromToolInput(toolInput: unknown): string | null {
+  if (!toolInput || typeof toolInput !== 'object') return null;
+  const input = toolInput as Record<string, unknown>;
+  // OpenCode tools use 'file_path' or 'path' for the target file
+  const path = input.file_path ?? input.filePath ?? input.path;
+  return typeof path === 'string' && path.length > 0 ? path : null;
+}
+
+/**
+ * Extract file paths from a bash command string by matching common
+ * file-writing patterns. Returns all unique absolute paths found.
+ *
+ * Patterns matched:
+ * - Shell redirects: > /path/to/file, >> /path/to/file
+ * - Node.js: writeFileSync('/path'), writeFile('/path', ...)
+ * - Variable assignments containing output paths
+ * - Python: open('/path', 'w')
+ * - Shell commands: tee /path, cp ... /path, mv ... /path
+ */
+/** Path prefix pattern: matches /, ~/, $HOME/, ${HOME}/ */
+const ABS_PATH = String.raw`(?:\/[^\s"'>;|&\\]+|~\/[^\s"'>;|&\\]+|\$HOME\/[^\s"'>;|&\\]+|\$\{HOME\}\/[^\s"'>;|&\\]+)`;
+/** Same but also allows shell variable chars inside the path (e.g. $ts in filename) */
+const ABS_PATH_VARS = String.raw`(?:\/[^\s"'>;|&\\]+|~\/[^\s"'>;|&\\]+|\$HOME\/[^\s"'>;|\\]+|\$\{HOME\}\/[^\s"'>;|\\]+|\$\{process\.env\.HOME\}\/[^\s"'>;|\\]+)`;
+
+function extractFilePathsFromBashCommand(command: string): string[] {
+  const paths = new Set<string>();
+
+  // Regex patterns for common file-writing operations
+  const patterns: RegExp[] = [
+    // Shell redirect: > /path, > ~/path, > $HOME/path, > "$HOME/path" (with optional quotes/escapes)
+    new RegExp(String.raw`>>?\s+\\?["']?` + `(${ABS_PATH_VARS})` + String.raw`\\?["']?`, 'g'),
+    // Node.js fs.writeFileSync or fs.writeFile with string path
+    new RegExp(String.raw`writeFileSync\s*\(\s*["'\x60](` + ABS_PATH_VARS + String.raw`)["'\x60]`, 'g'),
+    new RegExp(String.raw`writeFile\s*\(\s*["'\x60](` + ABS_PATH_VARS + String.raw`)["'\x60]`, 'g'),
+    // Variable assignments containing output file paths
+    new RegExp(
+      String.raw`(?:outPath|outputPath|filePath|targetPath|savePath|destPath|dest|target|output)\s*=\s*["\x60'](` +
+        ABS_PATH_VARS +
+        String.raw`)["\x60']`,
+      'g'
+    ),
+    // Python open() with write mode
+    new RegExp(String.raw`open\s*\(\s*["'](` + ABS_PATH + String.raw`)["']\s*,\s*["'][wa]`, 'g'),
+    // tee command
+    new RegExp(String.raw`\btee\s+(?:-a\s+)?\\?["']?(` + ABS_PATH_VARS + String.raw`)\\?["']?`, 'g'),
+  ];
+
+  for (const pattern of patterns) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(command)) !== null) {
+      const rawPath = match[1];
+      if (rawPath) {
+        paths.add(rawPath);
+      }
+    }
+  }
+
+  return Array.from(paths);
+}
+
+/**
+ * Try to resolve shell variables in a bash-extracted path.
+ *
+ * - Replaces `$HOME/` and `${HOME}/` with `~/`
+ * - For remaining `$var` references (e.g. `$ts`), attempts to find the
+ *   resolved filename from the tool's output text or other messages
+ *   by matching the known directory and extension.
+ */
+function resolveShellPath(rawPath: string, toolOutput?: string, allMessages?: TaskMessage[]): string {
+  // Normalize $HOME / ${HOME} → ~
+  const path = rawPath.replace(/^\$HOME\//, '~/').replace(/^\$\{HOME\}\//, '~/');
+
+  // If no remaining shell variables, we're done
+  if (!path.includes('$')) return path;
+
+  // Build a regex from the path template: replace each $varname with (.+)
+  // to match against output text and assistant messages
+  const dir = path.substring(0, path.lastIndexOf('/') + 1); // e.g. "~/Downloads/"
+  const ext = path.includes('.') ? path.substring(path.lastIndexOf('.')) : '';
+
+  // Look for a resolved absolute path in toolOutput or assistant messages
+  const candidates: string[] = [];
+  if (toolOutput) candidates.push(toolOutput);
+  if (allMessages) {
+    for (const m of allMessages) {
+      if (m.type === 'assistant' && m.content) candidates.push(m.content);
+    }
+  }
+
+  // Normalize $HOME in dir for matching
+  const dirForMatch = dir.replace(/^\$HOME\//, '~/').replace(/^\$\{HOME\}\//, '~/');
+
+  for (const text of candidates) {
+    // Match paths like ~/Downloads/20260210-021248-previous-response.md
+    // that share the same directory prefix and extension
+    const escaped = dirForMatch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(escaped + String.raw`([^\s"'\x60:,)]+` + ext.replace('.', '\\.') + ')');
+    const match = pattern.exec(text);
+    if (match) {
+      return dirForMatch + match[1];
+    }
+  }
+
+  return path;
+}
+
+/**
+ * Create an artifact entry from a file path string.
+ */
+function createArtifact(id: string, filePath: string, timestamp: string): Artifact {
+  const fileName = filePath.split('/').pop() || filePath;
+  const ext = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
+  return { id, filePath, fileName, fileExt: ext, timestamp, operation: 'write' };
+}
+
+/**
+ * Extract artifacts from task messages by filtering file-writing tool calls
+ * and parsing their file paths. Deduplicates multiple writes to the same file.
+ *
+ * Tracks:
+ * - write, edit, patch, multiedit tools from the OpenCode SDK (direct file path extraction)
+ * - bash tool calls that contain file-writing patterns in their commands
+ */
+function extractArtifactsFromMessages(messages: TaskMessage[]): Artifact[] {
+  const artifactMap = new Map<string, Artifact>(); // dedupe by path
+
+  for (const m of messages) {
+    if (m.type !== 'tool' || !m.toolName) continue;
+
+    try {
+      // Direct file-writing tools (write, edit, patch, multiedit)
+      if (FILE_WRITING_TOOLS.has(m.toolName)) {
+        const path = extractFilePathFromToolInput(m.toolInput);
+        if (path) {
+          artifactMap.set(path, createArtifact(m.id, path, m.timestamp));
+        }
+        continue;
+      }
+
+      // Bash tool: parse command string for file-writing patterns
+      if (m.toolName === 'bash' && m.toolInput && typeof m.toolInput === 'object') {
+        const input = m.toolInput as Record<string, unknown>;
+        const command = typeof input.command === 'string' ? input.command : '';
+        if (command) {
+          const bashPaths = extractFilePathsFromBashCommand(command);
+          for (const rawPath of bashPaths) {
+            const resolved = resolveShellPath(rawPath, m.toolOutput, messages);
+            artifactMap.set(resolved, createArtifact(m.id, resolved, m.timestamp));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse artifact:', e);
+    }
+  }
+
+  // Sort by timestamp descending (newest first)
+  return Array.from(artifactMap.values()).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+}
+
 function createMessageId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -136,6 +314,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       const newTodos = new Map(state.todos);
       newTodos.set(taskId, todos);
       return { todos: newTodos };
+    });
+  },
+
+  artifacts: new Map<string, Artifact[]>(),
+
+  setArtifacts: (taskId: string, artifacts: Artifact[]) => {
+    set((state) => {
+      const newArtifacts = new Map(state.artifacts);
+      newArtifacts.set(taskId, artifacts);
+      return { artifacts: newArtifacts };
     });
   },
 
@@ -471,6 +659,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       normalizedContent = normalizeProgressMessage(event.progress.message);
     }
 
+    // For message events, include the message ID in the key so different messages
+    // (and updates to the same message like pending→running→completed tool calls)
+    // are not incorrectly deduplicated
+    if (event.type === 'message' && event.message) {
+      eventKey = `${event.taskId}:message:${event.message.id}`;
+      // Include toolInput hash to allow updates to same message (e.g. bash tool
+      // transitioning from pending to completed with actual command content)
+      const toolInputStr = event.message.toolInput ? JSON.stringify(event.message.toolInput) : '';
+      normalizedContent = `${event.message.id}:${toolInputStr.length}`;
+    }
+
     // Check for duplicate AFTER determining the correct key
     const lastLogged = lastLoggedEvents.get(eventKey);
     if (lastLogged?.normalizedContent === normalizedContent) {
@@ -600,6 +799,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         isLoading: false,
       };
     });
+
+    // Extract artifacts after state update (only for message events)
+    if (event.type === 'message' && get().currentTask?.id === event.taskId) {
+      const currentTask = get().currentTask;
+      if (currentTask) {
+        const artifacts = extractArtifactsFromMessages(currentTask.messages);
+        get().setArtifacts(currentTask.id, artifacts);
+      }
+    }
   },
 
   // Batch update handler for performance - processes multiple messages in single state update
@@ -765,6 +973,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   loadTaskById: async (taskId: string) => {
     const task = await api.getTask(taskId);
     set({ currentTask: task, error: task ? null : 'Task not found' });
+
+    // Extract artifacts from task messages
+    if (task) {
+      const artifacts = extractArtifactsFromMessages(task.messages);
+      get().setArtifacts(task.id, artifacts);
+    }
   },
 
   deleteTask: async (taskId: string) => {
@@ -794,6 +1008,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       isLauncherOpen: false,
       folderPermissions: [],
       todos: new Map<string, Todo[]>(),
+      artifacts: new Map<string, Artifact[]>(),
     });
   },
 

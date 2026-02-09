@@ -19,6 +19,21 @@ import { getFileCategory, getFileExtension, isAbsolutePath, isPathSafe } from '@
 import { getFileIcon, getUrlIcon } from '@/lib/icon-utils';
 import * as api from '@/lib/tauri-api';
 
+/** Cache the home directory so we only fetch it once. */
+let cachedHomeDir: string | null = null;
+async function getHomeDir(): Promise<string> {
+  if (cachedHomeDir) return cachedHomeDir;
+  cachedHomeDir = await api.getHomeDir();
+  return cachedHomeDir;
+}
+
+/** Expand leading `~/` to the user's home directory for OS file operations. */
+async function expandTilde(path: string): Promise<string> {
+  if (!path.startsWith('~/')) return path;
+  const home = await getHomeDir();
+  return home + path.slice(1); // ~/foo → /Users/user/foo
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────
 
 function isFileUrl(href: string): boolean {
@@ -65,7 +80,8 @@ const EnhancedLink = memo(function EnhancedLink({ href, children }: EnhancedLink
       if (!href) return;
 
       if (isFile) {
-        const path = extractFilePath(href);
+        const rawPath = extractFilePath(href);
+        const path = await expandTilde(rawPath);
         if (!isPathSafe(path)) {
           console.warn('[EnhancedLink] Blocked unsafe path:', path);
           return;

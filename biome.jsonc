@@ -19,6 +19,8 @@
     "rules": {
       "a11y": {
         "noLabelWithoutControl": "off",
+        "noNoninteractiveElementInteractions": "off",
+        "noStaticElementInteractions": "off",
         "noSvgWithoutTitle": "off",
         "useButtonType": "off",
         "useSemanticElements": "off"
@@ -49,11 +51,13 @@
         "useImageSize": "off"
       },
       "performance": {
+        "noDelete": "off",
         "useTopLevelRegex": "off",
         "noBarrelFile": "off",
         "noNamespaceImport": "off"
       },
       "style": {
+        "useAtIndex": "off",
         "useNodejsImportProtocol": "off",
         "useBlockStatements": "off",
         "useDefaultSwitchClause": "off",
@@ -78,6 +82,7 @@
         "noControlCharactersInRegex": "off",
         "noDuplicateCase": "off",
         "noExplicitAny": "off",
+        "noTemplateCurlyInString": "off",
         "noUnknownAtRules": "off",
         "useAwait": "off",
         "useIterableCallbackReturn": "off"

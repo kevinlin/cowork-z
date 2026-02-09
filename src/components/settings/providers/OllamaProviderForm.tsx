@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
-import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { ConnectedProvider, OllamaCredentials } from '@/shared';
 // Import Ollama logo
 import ollamaLogo from '/assets/ai-logos/ollama.svg';

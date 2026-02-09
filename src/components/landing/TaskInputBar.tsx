@@ -2,8 +2,8 @@
 
 import { CornerDownLeft, Loader2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { getTauriAPI } from '../../lib/tauri-api-interface';
 import { analytics } from '../../lib/analytics';
+import { getTauriAPI } from '../../lib/tauri-api-interface';
 
 interface TaskInputBarProps {
   value: string;

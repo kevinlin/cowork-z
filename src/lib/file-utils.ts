@@ -105,18 +105,20 @@ export function analyzeFile(filePath: string): FileInfo {
   const category = getFileCategory(extension);
   const previewable = category === 'image' || category === 'video';
   const segments = filePath.replace(/\\/g, '/').split('/');
-  const filename = segments[segments.length - 1] || filePath; // biome-ignore lint/style/useAtIndex: tsconfig targets < ES2022
+  const filename = segments[segments.length - 1] || filePath;
 
   return { path: filePath, extension, category, previewable, filename };
 }
 
 /**
  * Returns true if the path looks like an absolute file system path
- * (Unix `/...` or Windows `C:\...`).
+ * (Unix `/...`, `~/...`, or Windows `C:\...`).
  */
 export function isAbsolutePath(path: string): boolean {
   // Unix absolute path
   if (path.startsWith('/')) return true;
+  // Home-relative path (expanded at click time)
+  if (path.startsWith('~/')) return true;
   // Windows absolute path  (e.g. C:\ or D:/)
   if (/^[A-Za-z]:[/\\]/.test(path)) return true;
   return false;

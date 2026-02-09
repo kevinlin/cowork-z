@@ -757,8 +757,9 @@ function normalizeOpenCodeMessage(message: OpenCodeMessage): TaskMessage | null 
     }
     case 'tool_use': {
       const toolUseMessage = message as OpenCodeMessage & {
-        part?: { tool?: string; state?: { input?: unknown } };
+        part?: { tool?: string; state?: { input?: unknown; output?: string; title?: string } };
       };
+      const toolOutput = toolUseMessage.part?.state?.output;
       return {
         id: buildOpenCodeMessageId(message),
         type: 'tool',
@@ -766,6 +767,7 @@ function normalizeOpenCodeMessage(message: OpenCodeMessage): TaskMessage | null 
         timestamp: normalizeTimestamp(message.timestamp),
         toolName: toolUseMessage.part?.tool,
         toolInput: toolUseMessage.part?.state?.input,
+        ...(typeof toolOutput === 'string' && toolOutput ? { toolOutput } : {}),
       };
     }
     default:

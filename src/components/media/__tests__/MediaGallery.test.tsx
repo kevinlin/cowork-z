@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { MediaGallery } from '../MediaGallery';
 
 // Mock Tauri APIs
@@ -11,8 +11,7 @@ vi.mock('@/lib/tauri-api', () => ({
 
 // Mock the Dialog component to avoid Radix portal issues in tests
 vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
-    open ? <div data-testid="dialog">{children}</div> : null,
+  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) => (open ? <div data-testid="dialog">{children}</div> : null),
   DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -35,10 +34,10 @@ describe('MediaGallery', () => {
 
   it('should filter out non-previewable files', () => {
     const paths = [
-      '/Users/name/photo.jpg',    // previewable
-      '/Users/name/readme.pdf',   // not previewable
-      '/Users/name/app.ts',       // not previewable
-      '/Users/name/video.mp4',    // previewable
+      '/Users/name/photo.jpg', // previewable
+      '/Users/name/readme.pdf', // not previewable
+      '/Users/name/app.ts', // not previewable
+      '/Users/name/video.mp4', // previewable
     ];
     render(<MediaGallery filePaths={paths} />);
     const buttons = screen.getAllByRole('button');

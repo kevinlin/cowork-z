@@ -2,12 +2,12 @@
 
 import { FolderPlus, Lock, ShieldCheck, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import CollapsibleSection from '@/components/sidebar/CollapsibleSection';
 import { Button } from '@/components/ui/button';
 import { getDefaultFolderPermissions, getHomeDir, pickFolder } from '@/lib/tauri-api';
 import { cn } from '@/lib/utils';
 import type { FolderAccessLevel, FolderPermission, FolderPermissionSource } from '@/shared';
 import { useTaskStore } from '@/stores/taskStore';
-import CollapsibleSection from '@/components/sidebar/CollapsibleSection';
 
 /**
  * Format a folder path for display:
@@ -37,7 +37,7 @@ function AccessBadge({ level }: { level: FolderAccessLevel }) {
   return (
     <span
       className={cn(
-        'shrink-0 rounded px-1 py-0.5 text-[10px] font-medium leading-none',
+        'shrink-0 rounded px-1 py-0.5 font-medium text-[10px] leading-none',
         level === 'read'
           ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
           : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
@@ -146,13 +146,7 @@ export default function FoldersPanel() {
   };
 
   const addButton = (
-    <Button
-      className="h-5 w-5 p-0"
-      onClick={handleAddFolder}
-      size="icon"
-      title="Add Folder"
-      variant="ghost"
-    >
+    <Button className="h-5 w-5 p-0" onClick={handleAddFolder} size="icon" title="Add Folder" variant="ghost">
       <FolderPlus className="h-3 w-3" />
     </Button>
   );
@@ -160,17 +154,13 @@ export default function FoldersPanel() {
   // Merge default, user-added, and adhoc permissions for display
   const allPermissions = [
     ...defaultPermissions.map((fp) => ({ ...fp, isDefault: true, source: undefined as FolderPermissionSource | undefined })),
-    ...folderPermissions.filter(
-      (fp) => !defaultPermissions.some((d) => d.folderPath === fp.folderPath)
-    ).map((fp) => ({ ...fp, isDefault: false })),
+    ...folderPermissions
+      .filter((fp) => !defaultPermissions.some((d) => d.folderPath === fp.folderPath))
+      .map((fp) => ({ ...fp, isDefault: false })),
   ];
 
   return (
-    <CollapsibleSection
-      action={addButton}
-      defaultOpen={true}
-      title="Folders"
-    >
+    <CollapsibleSection action={addButton} defaultOpen={true} title="Folders">
       {/* Access level picker overlay */}
       {showAccessPicker && pendingFolderPath && (
         <div className="mb-2 rounded-md border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-800">
@@ -179,14 +169,14 @@ export default function FoldersPanel() {
           </div>
           <div className="flex gap-1.5">
             <button
-              className="flex-1 rounded-md border border-zinc-200 px-2 py-1 text-xs transition-colors hover:bg-blue-50 hover:border-blue-300 dark:border-zinc-600 dark:hover:bg-blue-900/20 dark:hover:border-blue-700"
+              className="flex-1 rounded-md border border-zinc-200 px-2 py-1 text-xs transition-colors hover:border-blue-300 hover:bg-blue-50 dark:border-zinc-600 dark:hover:border-blue-700 dark:hover:bg-blue-900/20"
               onClick={() => handleAccessLevelSelect('read')}
               type="button"
             >
               Read Only
             </button>
             <button
-              className="flex-1 rounded-md border border-zinc-200 px-2 py-1 text-xs transition-colors hover:bg-amber-50 hover:border-amber-300 dark:border-zinc-600 dark:hover:bg-amber-900/20 dark:hover:border-amber-700"
+              className="flex-1 rounded-md border border-zinc-200 px-2 py-1 text-xs transition-colors hover:border-amber-300 hover:bg-amber-50 dark:border-zinc-600 dark:hover:border-amber-700 dark:hover:bg-amber-900/20"
               onClick={() => handleAccessLevelSelect('read-write')}
               type="button"
             >
@@ -204,9 +194,7 @@ export default function FoldersPanel() {
       )}
 
       {allPermissions.length === 0 ? (
-        <div className="px-2 py-3 text-center text-muted-foreground text-xs">
-          No folders added
-        </div>
+        <div className="px-2 py-3 text-center text-muted-foreground text-xs">No folders added</div>
       ) : (
         <div className="space-y-0.5">
           {allPermissions.map((fp) => (

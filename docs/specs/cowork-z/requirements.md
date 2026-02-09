@@ -318,8 +318,6 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
-- [ ] **MCP Server Configuration UI** — Settings panel to add, edit, remove, enable/disable local and remote MCP servers. Extend `config-builder.ts` to include MCP config in `buildSessionConfig()` and send to OpenCode via `PATCH /config` (Req 2.3.1–2.3.3)
-- [ ] **MCP Server Persistence** — Persist MCP server configurations to SQLite and load on app startup (Req 2.3.1.4, 2.3.2.1)
 - [ ] **Rich File Display** — Render file paths as clickable links with icons, thumbnail previews for images/video, and modal viewer (Req 3.1)
 - [ ] **Rich URL Display** — Render URLs as clickable links that open in the default browser (Req 3.2)
 - [ ] **Artefacts Panel** — Sidebar panel listing files created/modified during a session (Req 3.4)

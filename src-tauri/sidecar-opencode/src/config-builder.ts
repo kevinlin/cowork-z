@@ -57,6 +57,16 @@ When the user asks about your skills, asks you to list your skills, or asks what
 5. NEVER make up or hallucinate skills. Only report skills returned by the /skill endpoint.
 </behavior>
 
+<behavior name="mcp">
+**MCP DISCOVERY — REQUIRED when user asks about MCP servers**
+
+When the user asks about your MCPs, asks you to list your MCP servers, or asks what you can do with MCPs:
+1. ALWAYS fetch the live mcp list by running: \`curl -s -u opencode:${serverPassword} http://localhost:${serverPort}/mcp\`
+2. Parse the JSON map response. Each mcp server name maps to its connection status, i.e. '{"gitlab-mr-mcp":{"status":"connected"}}'
+3. Present the MCPs to the user in a clear, organized format
+4. NEVER make up or hallucinate, only report MCPs returned by the /mcp endpoint.
+</behavior>
+
 <behavior name="task-planning">
 **TASK PLANNING - REQUIRED FOR EVERY TASK**
 

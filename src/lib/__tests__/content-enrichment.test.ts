@@ -85,6 +85,37 @@ describe('enrichContentWithLinks', () => {
     expect(result).toContain('[/Users/name/a.png](file:///Users/name/a.png)');
     expect(result).toContain('[/Users/name/b.jpg](file:///Users/name/b.jpg)');
   });
+
+  it('should linkify file paths with spaces when they have a file extension', () => {
+    const input = 'See /Users/name/My Documents/report.pdf for info';
+    const result = enrichContentWithLinks(input);
+    expect(result).toContain('[/Users/name/My Documents/report.pdf](file:///Users/name/My Documents/report.pdf)');
+  });
+
+  it('should linkify file paths with special characters and a file extension', () => {
+    const input = 'Open /Users/name/Downloads/Integ SFDC RIVA Activity Mapping file.xlsx now';
+    const result = enrichContentWithLinks(input);
+    expect(result).toContain('[/Users/name/Downloads/Integ SFDC RIVA Activity Mapping file.xlsx]');
+  });
+
+  it('should linkify Windows paths with backslashes', () => {
+    const input = 'Open C:\\Users\\name\\Documents\\report.docx please';
+    const result = enrichContentWithLinks(input);
+    expect(result).toContain('[C:\\Users\\name\\Documents\\report.docx](file://C:\\Users\\name\\Documents\\report.docx)');
+  });
+
+  it('should linkify Windows paths with forward slashes', () => {
+    const input = 'Open C:/Users/name/file.txt please';
+    const result = enrichContentWithLinks(input);
+    expect(result).toContain('[C:/Users/name/file.txt](file://C:/Users/name/file.txt)');
+  });
+
+  it('should not linkify backtick-wrapped file:/// URLs (handled by code component)', () => {
+    const input = 'Here is `file:///Users/name/data.xlsx` for you';
+    const result = enrichContentWithLinks(input);
+    // Should be unchanged — backtick-wrapped content is skipped
+    expect(result).toBe(input);
+  });
 });
 
 describe('extractMediaPaths', () => {
@@ -158,5 +189,17 @@ describe('extractMediaPaths', () => {
 
   it('should return empty array for empty input', () => {
     expect(extractMediaPaths('')).toEqual([]);
+  });
+
+  it('should extract media from file:/// URLs with spaces in path', () => {
+    const content = 'file:///Users/name/My Photos/vacation pic.jpg';
+    const paths = extractMediaPaths(content);
+    expect(paths).toEqual(['/Users/name/My Photos/vacation pic.jpg']);
+  });
+
+  it('should extract media from bare paths with spaces', () => {
+    const content = 'Image at /Users/name/My Photos/vacation pic.jpg here';
+    const paths = extractMediaPaths(content);
+    expect(paths).toEqual(['/Users/name/My Photos/vacation pic.jpg']);
   });
 });

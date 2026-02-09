@@ -112,6 +112,36 @@ export function enrichContentWithLinks(markdown: string): string {
   }
 
   // ── File path detection ──────────────────────────────────────────
+  //
+  // Order matters: broader regexes run first so they capture the
+  // longest possible match.  Narrower regexes run after and skip
+  // positions already covered by earlier matches.
+
+  // 1. Paths with spaces — only match when ending with a file extension
+  //    to avoid false positives in prose.  Segments may contain spaces,
+  //    parens, commas, @, #, etc.  The path must end with .\w+ (extension).
+  //    Mac: /dir/sub dir/file name.ext
+  const spacePathRe = /(?:\/(?:[^\s/][^/\n]*[^\s/]|[^\s/]))(?:\/(?:[^\s/][^/\n]*[^\s/]|[^\s/]))*\.\w+/g;
+  while ((m = spacePathRe.exec(markdown)) !== null) {
+    const start = m.index;
+    const candidate = m[0];
+
+    if (isInsideCode(codeRanges, start)) continue;
+    if (isInsideMarkdownLink(markdown, start)) continue;
+    if (matches.some((x) => start >= x.start && start < x.end)) continue;
+    if (!isAbsolutePath(candidate)) continue;
+    if (!looksLikeFilePath(candidate)) continue;
+    if (start > 0 && markdown[start - 1] === '(') continue;
+
+    matches.push({
+      start,
+      end: start + candidate.length,
+      original: candidate,
+      replacement: `[${candidate}](file://${candidate})`,
+    });
+  }
+
+  // 2. Simple paths (no spaces): /segment/segment/file.ext
   const pathRe = /(?:\/[\w.+-]+)+(?:\/[\w.+-]*)?/g;
   while ((m = pathRe.exec(markdown)) !== null) {
     const start = m.index;
@@ -119,11 +149,31 @@ export function enrichContentWithLinks(markdown: string): string {
 
     if (isInsideCode(codeRanges, start)) continue;
     if (isInsideMarkdownLink(markdown, start)) continue;
-    // Already captured as URL?
+    // Already captured by URL or space-path regex?
     if (matches.some((x) => start >= x.start && start < x.end)) continue;
     if (!isAbsolutePath(candidate)) continue;
     if (!looksLikeFilePath(candidate)) continue;
     // Skip if preceded by `(` — already a markdown link destination
+    if (start > 0 && markdown[start - 1] === '(') continue;
+
+    matches.push({
+      start,
+      end: start + candidate.length,
+      original: candidate,
+      replacement: `[${candidate}](file://${candidate})`,
+    });
+  }
+
+  // 3. Windows paths: C:\dir\file.ext or D:/dir/file.ext
+  const winPathRe = /[A-Za-z]:[/\\](?:[^\s<>)\]*]+[/\\])*[^\s<>)\]*]+\.\w+/g;
+  while ((m = winPathRe.exec(markdown)) !== null) {
+    const start = m.index;
+    const candidate = m[0];
+
+    if (isInsideCode(codeRanges, start)) continue;
+    if (isInsideMarkdownLink(markdown, start)) continue;
+    if (matches.some((x) => start >= x.start && start < x.end)) continue;
+    if (!isAbsolutePath(candidate)) continue;
     if (start > 0 && markdown[start - 1] === '(') continue;
 
     matches.push({
@@ -171,17 +221,31 @@ export function extractMediaPaths(content: string): string[] {
     }
   };
 
-  // 1. Extract paths from file:// URLs (anywhere, including code blocks)
-  const fileUrlRe = /file:\/\/\/([\w.+/-]+)/g;
+  // 1. Extract paths from file:// URLs (anywhere, including code blocks).
+  //    Captures everything after file:/// up to whitespace or common
+  //    delimiters. Handles paths with spaces when backtick-wrapped
+  //    (e.g., `file:///Users/name/My Photos/img.png`).
+  const fileUrlRe = /file:\/\/\/([^\n<>)\]`]+)/g;
   let m: RegExpExecArray | null;
   while ((m = fileUrlRe.exec(content)) !== null) {
-    addIfPreviewable(`/${m[1]}`);
+    // Trim trailing punctuation that is unlikely part of the path
+    const rawPath = m[1].replace(/[.,;:!?]+$/, '');
+    addIfPreviewable(`/${rawPath}`);
   }
 
   // 2. Extract bare absolute paths (outside code blocks only)
   const codeRanges = buildCodeRanges(content);
+
+  // 2a. Simple paths (no spaces)
   const pathRe = /(?:\/[\w.+-]+)+(?:\/[\w.+-]*)?/g;
   while ((m = pathRe.exec(content)) !== null) {
+    if (isInsideCode(codeRanges, m.index)) continue;
+    addIfPreviewable(m[0]);
+  }
+
+  // 2b. Paths with spaces (must end with a file extension)
+  const spacePathRe = /(?:\/(?:[^\s/][^/\n]*[^\s/]|[^\s/]))(?:\/(?:[^\s/][^/\n]*[^\s/]|[^\s/]))*\.\w+/g;
+  while ((m = spacePathRe.exec(content)) !== null) {
     if (isInsideCode(codeRanges, m.index)) continue;
     addIfPreviewable(m[0]);
   }

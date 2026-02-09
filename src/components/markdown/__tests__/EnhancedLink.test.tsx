@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { EnhancedLink } from '../EnhancedLink';
+import { EnhancedLink, createMarkdownComponents } from '../EnhancedLink';
 
 // Mock the tauri-api module
 vi.mock('@/lib/tauri-api', () => ({
@@ -71,5 +71,65 @@ describe('EnhancedLink', () => {
     // Should be truncated (original is > 60 chars)
     const link = screen.getByRole('link');
     expect(link.textContent).toContain('…');
+  });
+});
+
+describe('createMarkdownComponents - code component', () => {
+  it('should render file:/// URL in inline code as a clickable link', () => {
+    const components = createMarkdownComponents();
+    const CodeComponent = components.code!;
+    const { container } = render(<CodeComponent>{'file:///Users/name/data.xlsx'}</CodeComponent>);
+    const link = container.querySelector('a');
+    expect(link).toBeTruthy();
+    expect(link!.getAttribute('href')).toBe('file:///Users/name/data.xlsx');
+  });
+
+  it('should render absolute Mac path in inline code as a clickable link', () => {
+    const components = createMarkdownComponents();
+    const CodeComponent = components.code!;
+    const { container } = render(<CodeComponent>{'/Users/name/Documents/report.pdf'}</CodeComponent>);
+    const link = container.querySelector('a');
+    expect(link).toBeTruthy();
+    expect(link!.getAttribute('href')).toBe('file:///Users/name/Documents/report.pdf');
+  });
+
+  it('should render absolute Windows path in inline code as a clickable link', () => {
+    const components = createMarkdownComponents();
+    const CodeComponent = components.code!;
+    const { container } = render(<CodeComponent>{'C:\\Users\\name\\file.txt'}</CodeComponent>);
+    const link = container.querySelector('a');
+    expect(link).toBeTruthy();
+    expect(link!.getAttribute('href')).toBe('file://C:\\Users\\name\\file.txt');
+  });
+
+  it('should render ordinary inline code as <code> element', () => {
+    const components = createMarkdownComponents();
+    const CodeComponent = components.code!;
+    const { container } = render(<CodeComponent>{'npm install'}</CodeComponent>);
+    const code = container.querySelector('code');
+    expect(code).toBeTruthy();
+    expect(code!.textContent).toBe('npm install');
+    // Should NOT be a link
+    expect(container.querySelector('a')).toBeNull();
+  });
+
+  it('should not intercept fenced code block elements (with className)', () => {
+    const components = createMarkdownComponents();
+    const CodeComponent = components.code!;
+    // react-markdown adds className="language-*" to fenced code blocks
+    const { container } = render(<CodeComponent className="language-bash">{'/usr/local/bin/node'}</CodeComponent>);
+    const code = container.querySelector('code');
+    expect(code).toBeTruthy();
+    expect(code!.className).toBe('language-bash');
+    expect(container.querySelector('a')).toBeNull();
+  });
+
+  it('should render file:/// URL with spaces in inline code as a link', () => {
+    const components = createMarkdownComponents();
+    const CodeComponent = components.code!;
+    const { container } = render(<CodeComponent>{'file:///Users/name/My Documents/file.xlsx'}</CodeComponent>);
+    const link = container.querySelector('a');
+    expect(link).toBeTruthy();
+    expect(link!.getAttribute('href')).toBe('file:///Users/name/My Documents/file.xlsx');
   });
 });

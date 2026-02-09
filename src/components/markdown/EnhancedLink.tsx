@@ -1,16 +1,21 @@
 /**
- * EnhancedLink — custom ReactMarkdown link component.
+ * EnhancedLink — custom ReactMarkdown link and code components.
  *
  * Renders links with appropriate icons (file type or globe) and
  * intercepts click events to use Tauri APIs:
  * - File paths → revealInFinder()
  * - URLs → openExternal()
+ *
+ * Also provides a custom `code` component that detects file:///
+ * URLs and absolute file paths inside inline backtick code and
+ * renders them as clickable EnhancedLink elements instead of
+ * plain `<code>` text.
  */
 
 import { memo, useCallback } from 'react';
 import type { Components } from 'react-markdown';
 
-import { getFileCategory, getFileExtension, isPathSafe } from '@/lib/file-utils';
+import { getFileCategory, getFileExtension, isAbsolutePath, isPathSafe } from '@/lib/file-utils';
 import { getFileIcon, getUrlIcon } from '@/lib/icon-utils';
 import * as api from '@/lib/tauri-api';
 
@@ -97,15 +102,54 @@ const EnhancedLink = memo(function EnhancedLink({ href, children }: EnhancedLink
   );
 });
 
+// ── Inline-code path detection ──────────────────────────────────────
+
+/**
+ * Detect whether an inline code string is a `file:///` URL or an
+ * absolute file path (Mac / Windows).  Returns an href suitable for
+ * EnhancedLink, or `null` if the text is ordinary code.
+ */
+function inlineCodeToHref(text: string): string | null {
+  // file:/// URL
+  if (text.startsWith('file:///')) return text;
+  // Absolute path (Mac or Windows)
+  if (isAbsolutePath(text)) return `file://${text}`;
+  return null;
+}
+
 // ── Factory ─────────────────────────────────────────────────────────
 
 /**
  * Returns a `components` object for ReactMarkdown that uses
- * EnhancedLink for all `<a>` elements.
+ * EnhancedLink for all `<a>` elements, and a custom `code`
+ * component that renders file paths / file:/// URLs as clickable
+ * links instead of plain inline code.
  */
 export function createMarkdownComponents(): Partial<Components> {
   return {
     a: ({ href, children }) => <EnhancedLink href={href ?? undefined}>{children}</EnhancedLink>,
+    code: ({ children, className, ...rest }) => {
+      // Only intercept inline code (no className means no language tag
+      // from a fenced block; react-markdown adds "language-*" classes
+      // to fenced code block <code> elements).
+      if (className) {
+        return (
+          <code className={className} {...rest}>
+            {children}
+          </code>
+        );
+      }
+
+      const text = typeof children === 'string' ? children.trim() : '';
+      if (text) {
+        const href = inlineCodeToHref(text);
+        if (href) {
+          return <EnhancedLink href={href}>{text}</EnhancedLink>;
+        }
+      }
+
+      return <code {...rest}>{children}</code>;
+    },
   };
 }
 

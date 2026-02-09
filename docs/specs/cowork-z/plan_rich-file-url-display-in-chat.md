@@ -87,6 +87,8 @@ This approach avoids modifying the stored message content, preserving original d
 
 > **Implementation Note**: Biome enforces alphabetical import ordering within named imports — `ExternalLink` sorts before `File`, etc. The linter auto-fixes this.
 
+> **Enhancement Note (v2)**: The icon mapping utility itself is unchanged, but icons were not rendering for backtick-wrapped `file:///` URLs because those paths were inside inline code and never reached the `EnhancedLink` component. The fix is in Section 2.1 — a custom `code` component was added to `createMarkdownComponents()` that detects file paths in inline code and renders them via `EnhancedLink`, which in turn uses `getFileIcon()` to display the correct icon.
+
 ---
 
 #### 1.3 Create Content Enrichment Utility
@@ -102,9 +104,11 @@ This approach avoids modifying the stored message content, preserving original d
 
 **Detection Strategy**:
 - **URLs**: Regex `/(?:https?|file):\/\/[^\s<>)\]]+/gi` — matches http(s) and `file:///` URLs not already in markdown links
-- **File Paths**: Regex `/(?:\/[\w.+-]+)+(?:\/[\w.+-]*)?/g` — matches absolute Unix paths
+- **File Paths (simple)**: Regex `/(?:\/[\w.+-]+)+(?:\/[\w.+-]*)?/g` — matches absolute Unix paths without spaces
+- **File Paths (with spaces)**: Regex `/(?:\/(?:[^\s/][^/\n]*[^\s/]|[^\s/]))(?:\/...)*\.\w+/g` — matches paths containing spaces, parens, commas, etc., but only when ending with a file extension (`.xlsx`, `.pdf`, etc.) to avoid false positives in prose
+- **Windows Paths**: Regex `/[A-Za-z]:[/\\](?:[^\s<>)\]*]+[/\\])*[^\s<>)\]*]+\.\w+/g` — matches `C:\dir\file.ext` and `D:/dir/file.ext` style paths
 - **Code Block Handling**: Builds a range map of fenced (` ``` `) and inline (`` ` ``) code spans, then skips any match whose position falls inside one
-- **Processing Order**: Process in reverse order to maintain string indices during replacement
+- **Processing Order**: Broader regexes (space-aware) run before narrower regexes (simple) to capture the longest possible match; replacements applied in reverse order to maintain string indices
 - **Markdown Link Detection**: Looks backwards from each match for `](` to avoid double-wrapping existing links
 
 **Output Format**:
@@ -137,6 +141,11 @@ This approach avoids modifying the stored message content, preserving original d
   - Handle multiple URLs in one message
   - Handle mixed URLs and file paths
   - Trim trailing punctuation from URLs
+  - Linkify file paths with spaces when they have a file extension
+  - Linkify file paths with special characters and a file extension
+  - Linkify Windows paths with backslashes
+  - Linkify Windows paths with forward slashes
+  - Skip backtick-wrapped `file:///` URLs (handled by code component)
 - `extractMediaPaths`:
   - Extract absolute file paths
   - Extract media from `file:///` URLs inside code blocks
@@ -145,8 +154,12 @@ This approach avoids modifying the stored message content, preserving original d
   - Skip bare paths in code blocks
   - Deduplicate repeated paths
   - Return empty array when no paths found
+  - Extract media from `file:///` URLs with spaces in path
+  - Extract media from bare paths with spaces
 
 > **Implementation Note**: The Biome linter enforces `[number, number][]` shorthand over `Array<[number, number]>` for array types. The `file:///` URL regex uses `/file:\/\/\/([\w.+/-]+)/g` — the hyphen is placed last in the character class to avoid a useless escape lint warning. 25 tests.
+
+> **Enhancement Note (v2)**: File path detection was expanded from a single simple-path regex to three regex passes: (1) space-aware paths with file extensions, (2) simple paths without spaces, (3) Windows paths. The broader space-aware regex runs first so it captures the longest possible match (e.g., `/Users/name/My Documents/report.pdf`), and the simple regex skips positions already covered. The `extractMediaPaths` `fileUrlRe` was also broadened from `/file:\/\/\/([\w.+/-]+)/g` to `/file:\/\/\/([^\n<>)\]\`]+)/g` to capture paths with spaces and special characters. Total test count increased from 25 to 31.
 
 ---
 
@@ -181,6 +194,18 @@ This approach avoids modifying the stored message content, preserving original d
 
 **Security**: Validates paths with `isPathSafe()` to prevent directory traversal and access to sensitive system locations
 
+**Custom `code` Component** (Enhancement v2):
+
+AI agents commonly wrap `file:///` URLs and file paths in backticks (e.g., `` `file:///Users/name/data.xlsx` ``). The content enrichment step intentionally skips inline code, so these paths would render as plain `<code>` elements with no icons or click handlers.
+
+`createMarkdownComponents()` now also returns a custom `code` component that:
+- Only intercepts **inline** code (not fenced code blocks — fenced blocks have a `className` like `language-bash` from react-markdown)
+- Detects if the inline code content is a `file:///` URL or an absolute file path (Mac `/...` or Windows `C:\...`)
+- When detected, renders the content as an `EnhancedLink` (with icon, click-to-reveal) instead of `<code>`
+- Falls through to standard `<code>` rendering for ordinary inline code (e.g., `` `npm install` ``)
+
+Helper: `inlineCodeToHref(text: string): string | null` — returns the `file://` href if the text is a file path, or `null` for ordinary code.
+
 **Test File**: `src/components/markdown/__tests__/EnhancedLink.test.tsx`
 **Test Coverage**:
 - Render with file icon for `file://` URLs
@@ -188,6 +213,15 @@ This approach avoids modifying the stored message content, preserving original d
 - Click handler calls `revealInFinder` for files
 - Click handler calls `openExternal` for URLs
 - Security validation blocks unsafe paths
+- Truncate very long display text
+- `code` component: render `file:///` URL as clickable link
+- `code` component: render absolute Mac path as clickable link
+- `code` component: render absolute Windows path as clickable link
+- `code` component: render ordinary inline code as `<code>` element
+- `code` component: pass through fenced code block elements (with className)
+- `code` component: render `file:///` URL with spaces as clickable link
+
+> **Enhancement Note (v2)**: The custom `code` component is the primary fix for the "icons not displaying" issue. The root cause was that backtick-wrapped file URLs were skipped by content enrichment (correctly — modifying code blocks would break rendering), but then rendered as plain `<code>` with no interactivity. The `code` component intercepts at render time instead, reusing the existing `EnhancedLink` for consistent behavior. Total test count for this file increased from 6 to 12.
 
 ---
 
@@ -416,6 +450,8 @@ pnpm dlx ultracite check src/
 
 > **Implementation Note**: All four checks pass. Test count: 110 tests across 9 test files (24 file-utils, 25 content-enrichment, 6 EnhancedLink, 6 MediaGallery, plus pre-existing tests). Biome auto-fix resolved most formatting/import-order issues; manual fixes needed for `Array<T>` → `T[]` syntax (unsafe fix), `.at()` unavailability, and `<img onError>` false positive.
 
+> **Enhancement Note (v2)**: Test count increased to 123 tests across 9 test files (24 file-utils, 31 content-enrichment, 12 EnhancedLink, 6 MediaGallery, plus pre-existing tests). New tests cover: paths with spaces, Windows paths, backtick-wrapped `file:///` URLs via the custom `code` component, and `extractMediaPaths` with space-containing paths.
+
 ---
 
 ### Phase 6: Manual Testing Checklist
@@ -472,6 +508,23 @@ Multiple images:
 - Malicious paths like `../../etc/passwd` - blocked by security validation
 - Mixed case file extensions - should normalize to lowercase
 - Files without extensions - should show generic file icon
+
+**Enhancement v2 — Additional Test Cases**:
+
+Backtick-wrapped `file:///` URLs (the most common agent output format):
+~~~markdown
+- `file:///Users/kevinlin/Downloads/Spreadsheets/Event_registrations.xlsx`
+- `file:///Users/kevinlin/Downloads/Spreadsheets/Integ SFDC RIVA Activity Mapping file.xlsx`
+- `file:///Users/kevinlin/Downloads/Spreadsheets/Vietnam database 2 - ZX EDIT.xlsx`
+~~~
+
+Verification:
+20. Backtick-wrapped `file:///` URLs render as clickable links with document icon (not as plain `<code>`)
+21. Clicking backtick-wrapped file link reveals file in Finder
+22. Ordinary inline code (e.g., `` `npm install` ``) still renders as `<code>` element
+23. File paths with spaces (e.g., `/Users/name/My Documents/report.pdf`) render as clickable links
+24. Windows paths (e.g., `C:\Users\name\file.txt`) render as clickable links
+25. Fenced code block content is NOT converted to links (even if it contains absolute paths)
 
 ---
 
@@ -597,12 +650,14 @@ No direct file system access from frontend JavaScript.
 
 ### Regex Performance
 
-**Single-Pass Processing**:
-- URL regex and file path regex execute once per message
-- Reverse processing order avoids repeated string scanning
+**Multi-Pass Processing**:
+- URL regex executes once per message
+- File path detection uses three sequential regex passes: (1) space-aware paths, (2) simple paths, (3) Windows paths — broader regexes run first to capture longest matches
+- Each pass skips positions already covered by earlier matches (overlap check)
+- Reverse processing order avoids repeated string scanning during replacement
 - Negative lookbehind regex prevents double-processing markdown links
 
-**Expected Performance**: <5ms for typical message (500 chars, 2-3 URLs/paths)
+**Expected Performance**: <5ms for typical message (500 chars, 2-3 URLs/paths). The additional regex passes add negligible overhead since each match is checked against the existing match list (O(n*m) where n=matches and m is small).
 
 ---
 

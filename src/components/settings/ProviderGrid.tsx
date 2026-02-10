@@ -44,7 +44,7 @@ export function ProviderGrid({ settings, selectedProvider, onSelectProvider, exp
   }, [search]);
 
   return (
-    <div className="rounded-xl border border-border bg-[#edebe7] p-4" data-testid="provider-grid">
+    <div className="rounded-xl border border-border bg-muted p-4" data-testid="provider-grid">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <span className="font-medium text-foreground text-sm">Providers</span>

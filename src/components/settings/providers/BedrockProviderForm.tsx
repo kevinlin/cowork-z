@@ -182,7 +182,7 @@ export function BedrockProviderForm({
               <div className="flex gap-2">
                 <button
                   className={`flex-1 rounded-lg px-4 py-2 font-medium text-sm transition-colors ${
-                    authTab === 'accessKey' ? 'bg-[#4A7C59] text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
+                    authTab === 'accessKey' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => setAuthTab('accessKey')}
                 >
@@ -190,7 +190,7 @@ export function BedrockProviderForm({
                 </button>
                 <button
                   className={`flex-1 rounded-lg px-4 py-2 font-medium text-sm transition-colors ${
-                    authTab === 'profile' ? 'bg-[#4A7C59] text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
+                    authTab === 'profile' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => setAuthTab('profile')}
                 >

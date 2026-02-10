@@ -67,6 +67,11 @@
   --radius: 0.5rem;
 }
 
+/* Dark mode: tell the browser to use dark-mode native controls */
+:root.dark {
+  color-scheme: dark;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

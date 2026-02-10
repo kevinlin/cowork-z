@@ -71,10 +71,10 @@ export const ProviderCard = memo(function ProviderCard({
     <button
       className={`relative flex h-[110px] w-[130px] flex-col items-center justify-center rounded-xl border p-4 transition-[background-color,border-color] duration-150 ${
         showGreenBackground
-          ? 'border-2 border-[#4a4330] bg-[#e9f7e7]'
+          ? 'border-2 border-primary bg-primary/10'
           : isSelected
-            ? 'border-2 border-[#4a4330] bg-[#f9f8f6]'
-            : 'border-border bg-[#f9f8f6] hover:border-ring'
+            ? 'border-2 border-primary bg-card'
+            : 'border-border bg-card hover:border-ring'
       }`}
       data-testid={`provider-card-${providerId}`}
       onClick={handleClick}

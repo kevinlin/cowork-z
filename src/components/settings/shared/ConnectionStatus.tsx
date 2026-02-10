@@ -43,7 +43,7 @@ export function ConnectionStatus({ status, onDisconnect }: ConnectionStatusProps
   return (
     <div className="flex items-center gap-2">
       <button
-        className="flex flex-1 items-center justify-center gap-2 rounded-md bg-[#4A7C59] px-4 py-2.5 font-medium text-sm text-white"
+        className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 font-medium text-sm text-primary-foreground"
         disabled
       >
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

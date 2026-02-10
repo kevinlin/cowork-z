@@ -25,6 +25,8 @@ pub struct AppSettings {
     pub user_prompt_text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_servers_config: Option<McpServersConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme_id: Option<String>,
 }
 
 /// Selected model configuration
@@ -122,7 +124,7 @@ pub type McpServersConfig = HashMap<String, McpServerConfig>;
 /// Get app settings
 pub fn get_app_settings(conn: &Connection) -> AppSettings {
     let result = conn.query_row(
-        "SELECT debug_mode, onboarding_complete, selected_model, ollama_config, litellm_config, azure_foundry_config, user_prompt_enabled, user_prompt_text, mcp_servers_config
+        "SELECT debug_mode, onboarding_complete, selected_model, ollama_config, litellm_config, azure_foundry_config, user_prompt_enabled, user_prompt_text, mcp_servers_config, theme_id
          FROM app_settings WHERE id = 1",
         [],
         |row| {
@@ -135,6 +137,7 @@ pub fn get_app_settings(conn: &Connection) -> AppSettings {
             let user_prompt_enabled: i32 = row.get(6)?;
             let user_prompt_text: Option<String> = row.get(7)?;
             let mcp_servers_config_str: Option<String> = row.get(8)?;
+            let theme_id: Option<String> = row.get(9)?;
 
             Ok(AppSettings {
                 debug_mode: debug_mode == 1,
@@ -146,6 +149,7 @@ pub fn get_app_settings(conn: &Connection) -> AppSettings {
                 user_prompt_enabled: user_prompt_enabled == 1,
                 user_prompt_text,
                 mcp_servers_config: mcp_servers_config_str.and_then(|s| serde_json::from_str(&s).ok()),
+                theme_id,
             })
         },
     );
@@ -160,6 +164,7 @@ pub fn get_app_settings(conn: &Connection) -> AppSettings {
         user_prompt_enabled: false,
         user_prompt_text: None,
         mcp_servers_config: None,
+        theme_id: None,
     })
 }
 
@@ -376,5 +381,26 @@ pub fn set_mcp_servers_config(
         params![json],
     )
     .map_err(|e| format!("Failed to set MCP servers config: {}", e))?;
+    Ok(())
+}
+
+/// Get theme ID
+pub fn get_theme_id(conn: &Connection) -> Option<String> {
+    conn.query_row(
+        "SELECT theme_id FROM app_settings WHERE id = 1",
+        [],
+        |row| row.get(0),
+    )
+    .ok()
+    .flatten()
+}
+
+/// Set theme ID
+pub fn set_theme_id(conn: &Connection, theme_id: Option<&str>) -> Result<(), String> {
+    conn.execute(
+        "UPDATE app_settings SET theme_id = ?1 WHERE id = 1",
+        params![theme_id],
+    )
+    .map_err(|e| format!("Failed to set theme_id: {}", e))?;
     Ok(())
 }

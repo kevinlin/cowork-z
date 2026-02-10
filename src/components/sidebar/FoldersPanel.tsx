@@ -54,13 +54,13 @@ function FolderItem({ path, displayPath, accessLevel, isDefault, source, onRemov
     <div
       className={cn(
         'group flex items-center gap-1.5 rounded-md px-2 py-1.5',
-        'text-sm text-zinc-700 hover:bg-accent hover:text-accent-foreground',
+        'text-sm text-foreground hover:bg-accent hover:text-accent-foreground',
         'transition-colors duration-200',
         isDefault && 'opacity-75'
       )}
       title={`${path} (${accessLevel}${isAdhoc ? ', auto-granted' : ''})`}
     >
-      {isDefault && <Lock className="h-3 w-3 shrink-0 text-zinc-400" />}
+      {isDefault && <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />}
       {isAdhoc && <ShieldCheck className="h-3 w-3 shrink-0 text-green-500" />}
       <span
         className="min-w-0 flex-1 truncate"
@@ -79,7 +79,7 @@ function FolderItem({ path, displayPath, accessLevel, isDefault, source, onRemov
           className={cn(
             'opacity-0 transition-opacity duration-200 group-hover:opacity-100',
             'rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-900/20',
-            'text-zinc-400 hover:text-red-600 dark:hover:text-red-400',
+            'text-muted-foreground hover:text-red-600 dark:hover:text-red-400',
             'shrink-0'
           )}
           onClick={onRemove}
@@ -163,20 +163,20 @@ export default function FoldersPanel() {
     <CollapsibleSection action={addButton} defaultOpen={true} title="Folders">
       {/* Access level picker overlay */}
       {showAccessPicker && pendingFolderPath && (
-        <div className="mb-2 rounded-md border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-800">
-          <div className="mb-1.5 truncate text-xs text-zinc-500" title={pendingFolderPath}>
+        <div className="mb-2 rounded-md border border-border bg-muted p-2">
+          <div className="mb-1.5 truncate text-xs text-muted-foreground" title={pendingFolderPath}>
             {formatFolderPath(pendingFolderPath, homeDirectory)}
           </div>
           <div className="flex gap-1.5">
             <button
-              className="flex-1 rounded-md border border-zinc-200 px-2 py-1 text-xs transition-colors hover:border-blue-300 hover:bg-blue-50 dark:border-zinc-600 dark:hover:border-blue-700 dark:hover:bg-blue-900/20"
+              className="flex-1 rounded-md border border-border px-2 py-1 text-xs transition-colors hover:border-blue-300 hover:bg-blue-50 dark:hover:border-blue-700 dark:hover:bg-blue-900/20"
               onClick={() => handleAccessLevelSelect('read')}
               type="button"
             >
               Read Only
             </button>
             <button
-              className="flex-1 rounded-md border border-zinc-200 px-2 py-1 text-xs transition-colors hover:border-amber-300 hover:bg-amber-50 dark:border-zinc-600 dark:hover:border-amber-700 dark:hover:bg-amber-900/20"
+              className="flex-1 rounded-md border border-border px-2 py-1 text-xs transition-colors hover:border-amber-300 hover:bg-amber-50 dark:hover:border-amber-700 dark:hover:bg-amber-900/20"
               onClick={() => handleAccessLevelSelect('read-write')}
               type="button"
             >
@@ -184,7 +184,7 @@ export default function FoldersPanel() {
             </button>
           </div>
           <button
-            className="mt-1.5 w-full text-center text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            className="mt-1.5 w-full text-center text-[10px] text-muted-foreground hover:text-foreground"
             onClick={handleCancelAccessPicker}
             type="button"
           >

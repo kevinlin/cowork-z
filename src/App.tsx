@@ -9,6 +9,7 @@ import SettingsDialog from './components/layout/SettingsDialog';
 import Sidebar from './components/layout/Sidebar';
 import { TaskLauncher } from './components/TaskLauncher';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useTheme } from './hooks/useTheme';
 import { analytics } from './lib/analytics';
 import { springs, variants } from './lib/animations';
 import { isRunningInTauri, setOnboardingComplete } from './lib/tauri-api';
@@ -27,6 +28,9 @@ export default function App() {
 
   // Get store actions
   const { openLauncher, showSettings, setShowSettings } = useTaskStore();
+
+  // Theme — load persisted theme, detect OS dark-mode on first launch
+  const { themeId, switchTheme } = useTheme();
 
   // Track page views on route changes
   useEffect(() => {
@@ -143,7 +147,7 @@ export default function App() {
         </AnimatePresence>
       </main>
       <TaskLauncher />
-      <SettingsDialog onOpenChange={setShowSettings} open={showSettings} />
+      <SettingsDialog onOpenChange={setShowSettings} onSwitchTheme={switchTheme} open={showSettings} themeId={themeId} />
     </div>
   );
 }

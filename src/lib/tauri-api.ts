@@ -256,6 +256,14 @@ export async function setUserPrompt(enabled: boolean, text: string | null): Prom
 // MCP Servers
 // ============================================================================
 
+export async function getTheme(): Promise<string | null> {
+  return invoke<string | null>('get_theme');
+}
+
+export async function setTheme(themeId: string | null): Promise<void> {
+  return invoke<void>('set_theme', { themeId });
+}
+
 export async function getMcpServersConfig(): Promise<McpServersConfig | null> {
   return invoke<McpServersConfig | null>('get_mcp_servers_config');
 }
@@ -1197,6 +1205,10 @@ export function getTauriApi() {
     saveBedrockCredentials,
     getBedrockCredentials,
     fetchBedrockModels,
+
+    // Theme
+    getTheme,
+    setTheme,
 
     // MCP Servers
     getMcpServersConfig,

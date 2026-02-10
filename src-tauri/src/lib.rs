@@ -1061,6 +1061,21 @@ async fn get_app_settings(state: State<'_, DbState>) -> Result<AppSettingsRespon
     })
 }
 
+#[tauri::command]
+async fn get_theme(state: State<'_, DbState>) -> Result<Option<String>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    Ok(db::settings::get_theme_id(&conn))
+}
+
+#[tauri::command]
+async fn set_theme(
+    theme_id: Option<String>,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    db::settings::set_theme_id(&conn, theme_id.as_deref())
+}
+
 // ============================================================================
 // API Key Management Commands
 // ============================================================================
@@ -1871,6 +1886,9 @@ pub fn run() {
             // MCP Servers
             get_mcp_servers_config,
             set_mcp_servers_config,
+            // Theme
+            get_theme,
+            set_theme,
             // Logging
             log_event,
         ])

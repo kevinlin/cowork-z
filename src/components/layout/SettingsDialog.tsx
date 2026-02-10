@@ -12,6 +12,7 @@ import { analytics } from '@/lib/analytics';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import { getHomeDir, revealInFinder } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
+import { THEMES, type ThemeId } from '@/lib/themes';
 import type { ConnectedProvider, ProviderId } from '@/shared';
 import { hasAnyReadyProvider, isProviderReady } from '@/shared';
 
@@ -22,9 +23,11 @@ interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onApiKeySaved?: () => void;
+  themeId?: ThemeId;
+  onSwitchTheme?: (id: ThemeId) => void;
 }
 
-export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: SettingsDialogProps) {
+export default function SettingsDialog({ open, onOpenChange, onApiKeySaved, themeId, onSwitchTheme }: SettingsDialogProps) {
   const [selectedProvider, setSelectedProvider] = useState<ProviderId | null>(null);
   const [gridExpanded, setGridExpanded] = useState(false);
   const [closeWarning, setCloseWarning] = useState(false);
@@ -350,6 +353,53 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved }: Se
                   providerId={selectedProvider}
                   showModelError={showModelError}
                 />
+              </motion.section>
+            )}
+          </AnimatePresence>
+
+          {/* Theme Picker Section - only shown when a provider is selected */}
+          <AnimatePresence>
+            {selectedProvider && (
+              <motion.section
+                animate="animate"
+                exit="exit"
+                initial="initial"
+                transition={{ ...settingsTransitions.enter, delay: 0.06 }}
+                variants={settingsVariants.slideDown}
+              >
+                <div className="rounded-lg border border-border bg-card p-5">
+                  <div className="font-medium text-foreground">Theme</div>
+                  <p className="mt-1.5 text-muted-foreground text-sm leading-relaxed">Choose a color theme for the application.</p>
+                  <div className="mt-4 grid grid-cols-4 gap-3">
+                    {THEMES.map((theme) => {
+                      const isActive = themeId === theme.id;
+                      // Use inline HSL values so each card always previews its own colors
+                      const bg = `hsl(${theme.variables.background})`;
+                      const fg = `hsl(${theme.variables.foreground})`;
+                      const primary = `hsl(${theme.variables.primary})`;
+                      return (
+                        <button
+                          className={`flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all duration-150 ${
+                            isActive ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-ring'
+                          }`}
+                          data-testid={`theme-card-${theme.id}`}
+                          key={theme.id}
+                          onClick={() => onSwitchTheme?.(theme.id)}
+                        >
+                          {/* Color swatch: background + primary split */}
+                          <div
+                            className="h-10 w-full overflow-hidden rounded-md"
+                            style={{ display: 'flex' }}
+                          >
+                            <div style={{ flex: 1, backgroundColor: bg, borderRight: `1px solid ${fg}20` }} />
+                            <div style={{ flex: 1, backgroundColor: primary }} />
+                          </div>
+                          <span className="text-xs font-medium text-foreground">{theme.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </motion.section>
             )}
           </AnimatePresence>

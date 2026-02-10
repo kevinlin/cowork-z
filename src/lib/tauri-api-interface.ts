@@ -235,6 +235,10 @@ export interface TauriAPI {
     error?: string;
   }>;
 
+  // Theme
+  getTheme(): Promise<string | null>;
+  setTheme(themeId: string | null): Promise<void>;
+
   // MCP Servers
   getMcpServersConfig(): Promise<McpServersConfig | null>;
   setMcpServersConfig(config: McpServersConfig | null): Promise<void>;

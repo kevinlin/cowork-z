@@ -78,7 +78,7 @@ export default function ConversationListItem({ task }: ConversationListItemProps
       <div
         className={cn(
           'w-full rounded-md px-3 py-2 text-left text-sm transition-colors duration-200',
-          'text-zinc-700 hover:bg-accent hover:text-accent-foreground',
+          'text-foreground hover:bg-accent hover:text-accent-foreground',
           'group relative flex cursor-pointer items-center gap-2',
           isActive && 'bg-accent text-accent-foreground'
         )}
@@ -100,7 +100,7 @@ export default function ConversationListItem({ task }: ConversationListItemProps
           className={cn(
             'opacity-0 transition-opacity duration-200 group-hover:opacity-100',
             'rounded p-1 hover:bg-red-100 dark:hover:bg-red-900/20',
-            'text-zinc-400 hover:text-red-600 dark:hover:text-red-400',
+            'text-muted-foreground hover:text-red-600 dark:hover:text-red-400',
             'shrink-0'
           )}
           onClick={handleDeleteClick}

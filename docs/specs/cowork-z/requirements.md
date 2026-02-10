@@ -51,6 +51,8 @@ The following implementation plans document how specific requirements were desig
 | User Prompt Customization | [`cowork-z/plan_user-prompt-customization.md`](plan_user-prompt-customization.md) | 2.1 (user prompt customization) |
 | MCP Server Support | [cowork-z/plan_mcp-server-support.md](plan_mcp-server-support.md) | 2.3 (MCP support) |
 | Artefacts Panel | [`cowork-z/plan_artefacts-panel.md`](plan_artefacts-panel.md) | 3.4 (artefacts panel) |
+| Drag and Droop in Chat | [Drag-and-drop Support](plan_drag-and-drop-support.md) | 3.5 (drag and drop) |
+| Theme Support | [`cowork-z/plan_theme-support.md`](plan_theme-support.md) | 4.2 (theme support) |
 
 ---
 
@@ -270,7 +272,9 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
    - Skills folder path (read-only, clickable link to open in OS file manager)
    - Debug mode toggle
 
-#### 4.2 Theme Support
+#### 4.2 Theme Support ✅
+
+> **Plan:** [Theme Support](plan_theme-support.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL provide multiple predefined themes aligned with the Zuhlke style guide, including at least one dark theme
@@ -366,7 +370,6 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
-- [ ] **Theme Support** — Multiple predefined themes with dark mode, runtime switching, OS preference detection (Req 4.2)
 - [ ] **About Panel** — App info panel with version and changelog (Req 4.4)
 - [ ] **Cross-Platform Testing & Installers** — Test on Windows/Linux, build `.msi`/`.exe`/`.deb` installers (Req 5.1.1, 5.1.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

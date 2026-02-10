@@ -10,14 +10,14 @@ export function ConnectedControls({ onDisconnect }: ConnectedControlsProps) {
   return (
     <div className="flex gap-4">
       <button
-        className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#e6e3dd] bg-[#e9f7e7] px-4 py-2.5 font-semibold text-[#244325] text-sm shadow-sm"
+        className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-primary/10 px-4 py-2.5 font-semibold text-primary text-sm shadow-sm"
         disabled
       >
         <img alt="" className="h-4 w-4" src={connectedIcon} />
         Connected
       </button>
       <button
-        className="rounded-lg border border-[#d7d3ca] bg-[#f9f8f6] p-2.5 text-muted-foreground shadow-sm transition-colors hover:bg-destructive/10 hover:text-destructive"
+        className="rounded-lg border border-border bg-card p-2.5 text-muted-foreground shadow-sm transition-colors hover:bg-destructive/10 hover:text-destructive"
         data-testid="disconnect-button"
         onClick={onDisconnect}
         title="Disconnect"

@@ -237,6 +237,17 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 5. WHEN a path contains spaces, THE SYSTEM SHALL wrap it in quotes: `@"path/to/file with spaces.txt"`
 6. THE SYSTEM SHALL display visual feedback (e.g., highlight or border) when a draggable item is hovering over the chat input area
 
+#### 3.6 Multi-Line Text Input ✅
+
+**User Story:** As a user, I want to write multi-line prompts in the chat input, so that I can compose detailed, structured instructions for the AI agent.
+
+**Acceptance Criteria:**
+1. THE SYSTEM SHALL use a multi-line textarea for all chat input areas (task launcher and follow-up input)
+2. THE SYSTEM SHALL allow users to insert newlines with `Shift+Enter`
+3. WHEN the user presses `Enter` (without Shift), THE SYSTEM SHALL submit the message
+4. THE SYSTEM SHALL auto-resize the textarea to fit content, up to a maximum height
+5. THE SYSTEM SHALL support drag-and-drop file references within the multi-line textarea (see 3.5)
+
 ---
 
 ### 4. App Experience

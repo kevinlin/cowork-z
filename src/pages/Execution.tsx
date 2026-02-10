@@ -33,7 +33,7 @@ import { createMarkdownComponents } from '@/components/markdown/EnhancedLink';
 import { MediaGallery } from '@/components/media/MediaGallery';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { DragDropInput } from '@/components/ui/drag-drop-input';
+import { DragDropTextarea } from '@/components/ui/drag-drop-input';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { enrichContentWithLinks, extractMediaPaths } from '@/lib/content-enrichment';
@@ -128,7 +128,7 @@ export default function ExecutionPage() {
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [followUp, setFollowUp] = useState('');
-  const followUpInputRef = useRef<HTMLInputElement>(null);
+  const followUpInputRef = useRef<HTMLTextAreaElement>(null);
   const [, setTaskRunCount] = useState(0);
   const [currentTool, setCurrentTool] = useState<string | null>(null);
   const [currentToolInput, setCurrentToolInput] = useState<unknown>(null);
@@ -1073,7 +1073,7 @@ export default function ExecutionPage() {
             <div className="mx-auto max-w-4xl">
               {/* Input field with Send button */}
               <div className="flex gap-3">
-                <DragDropInput
+                <DragDropTextarea
                   className="flex-1"
                   data-testid="execution-follow-up-input"
                   disabled={isLoading}
@@ -1106,6 +1106,7 @@ export default function ExecutionPage() {
                         : 'Ask for something...'
                   }
                   ref={followUpInputRef}
+                  rows={1}
                   value={followUp}
                 />
                 <Button disabled={!followUp.trim() || isLoading} onClick={handleFollowUp} variant="outline">

@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeFile, getFileCategory, getFileExtension, isAbsolutePath, isPathSafe, looksLikeFilePath } from '../file-utils';
+import {
+  analyzeFile,
+  formatPathForChat,
+  getFileCategory,
+  getFileExtension,
+  insertAtCursor,
+  isAbsolutePath,
+  isPathSafe,
+  looksLikeFilePath,
+  needsQuoting,
+} from '../file-utils';
 
 describe('getFileExtension', () => {
   it('should extract common extensions', () => {
@@ -153,5 +163,96 @@ describe('isPathSafe', () => {
     expect(isPathSafe('/Library/Keychains/login.keychain')).toBe(false);
     expect(isPathSafe('/private/var/db/something')).toBe(false);
     expect(isPathSafe('/Users/name/.Trash/file.txt')).toBe(false);
+  });
+});
+
+// ── Drag-and-drop path formatting ────────────────────────────────────
+
+describe('needsQuoting', () => {
+  it('should return false for simple paths without spaces', () => {
+    expect(needsQuoting('/Users/name/file.txt')).toBe(false);
+    expect(needsQuoting('/usr/local/bin/node')).toBe(false);
+    expect(needsQuoting('C:\\Users\\name\\file.txt')).toBe(false);
+  });
+
+  it('should return true for paths with spaces', () => {
+    expect(needsQuoting('/Users/name/My Documents/file.txt')).toBe(true);
+    expect(needsQuoting('/tmp/my file.txt')).toBe(true);
+  });
+
+  it('should return true for paths with quotes', () => {
+    expect(needsQuoting("/Users/name/it's a file.txt")).toBe(true);
+    expect(needsQuoting('/Users/name/"quoted".txt')).toBe(true);
+  });
+
+  it('should return true for paths with parentheses', () => {
+    expect(needsQuoting('/Users/name/file (1).txt')).toBe(true);
+    expect(needsQuoting('/Users/name/backup(old)')).toBe(true);
+  });
+
+  it('should return false for empty string', () => {
+    expect(needsQuoting('')).toBe(false);
+  });
+});
+
+describe('formatPathForChat', () => {
+  it('should format a Unix absolute path', () => {
+    expect(formatPathForChat('/Users/name/file.txt')).toBe('@/Users/name/file.txt');
+  });
+
+  it('should format a Windows absolute path', () => {
+    expect(formatPathForChat('C:\\Users\\name\\file.txt')).toBe('@C:\\Users\\name\\file.txt');
+  });
+
+  it('should quote a path with spaces', () => {
+    expect(formatPathForChat('/Users/name/My Documents/file.txt')).toBe('@"/Users/name/My Documents/file.txt"');
+  });
+
+  it('should return null for unsafe path with directory traversal', () => {
+    expect(formatPathForChat('/Users/name/../../etc/passwd')).toBeNull();
+  });
+
+  it('should return null for sensitive system paths', () => {
+    expect(formatPathForChat('/System/Library/something')).toBeNull();
+    expect(formatPathForChat('/Library/Keychains/login.keychain')).toBeNull();
+  });
+
+  it('should handle paths with parentheses', () => {
+    expect(formatPathForChat('/Users/name/file (1).txt')).toBe('@"/Users/name/file (1).txt"');
+  });
+});
+
+describe('insertAtCursor', () => {
+  it('should insert at the start (position 0)', () => {
+    const result = insertAtCursor('existing text', '@/path/file', 0);
+    expect(result.newText).toBe('@/path/fileexisting text');
+    expect(result.newCursorPosition).toBe(11);
+  });
+
+  it('should insert at the end', () => {
+    const result = insertAtCursor('Hello ', '@/path/file', 6);
+    expect(result.newText).toBe('Hello @/path/file');
+    expect(result.newCursorPosition).toBe(17);
+  });
+
+  it('should insert in the middle', () => {
+    const result = insertAtCursor('Hello world', ' @/path/file ', 5);
+    expect(result.newText).toBe('Hello @/path/file  world');
+    expect(result.newCursorPosition).toBe(18);
+  });
+
+  it('should insert into empty string', () => {
+    const result = insertAtCursor('', '@/path/file', 0);
+    expect(result.newText).toBe('@/path/file');
+    expect(result.newCursorPosition).toBe(11);
+  });
+
+  it('should handle multiple sequential insertions correctly', () => {
+    const first = insertAtCursor('', '@/first', 0);
+    expect(first.newText).toBe('@/first');
+
+    const second = insertAtCursor(first.newText, ' @/second', first.newCursorPosition);
+    expect(second.newText).toBe('@/first @/second');
+    expect(second.newCursorPosition).toBe(16);
   });
 });

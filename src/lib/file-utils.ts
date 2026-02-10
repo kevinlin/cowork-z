@@ -151,3 +151,43 @@ export function isPathSafe(filePath: string): boolean {
   }
   return true;
 }
+
+// ── Drag-and-drop path formatting ────────────────────────────────────
+
+/**
+ * Determines if a path needs to be wrapped in quotes.
+ * Returns true for paths containing spaces or special chars: ' " ( )
+ */
+export function needsQuoting(path: string): boolean {
+  return /[\s'"()]/.test(path);
+}
+
+/**
+ * Formats a file path for chat input as @path or @"path with spaces".
+ * Returns null if the path fails safety validation.
+ */
+export function formatPathForChat(path: string): string | null {
+  if (!isPathSafe(path)) {
+    return null;
+  }
+
+  const quoted = needsQuoting(path) ? `"${path}"` : path;
+  return `@${quoted}`;
+}
+
+/**
+ * Inserts text at the cursor position in a string.
+ * Returns the new text and the new cursor position.
+ */
+export function insertAtCursor(
+  currentText: string,
+  insertText: string,
+  cursorPosition: number
+): { newText: string; newCursorPosition: number } {
+  const before = currentText.slice(0, cursorPosition);
+  const after = currentText.slice(cursorPosition);
+  const newText = before + insertText + after;
+  const newCursorPosition = cursorPosition + insertText.length;
+
+  return { newText, newCursorPosition };
+}

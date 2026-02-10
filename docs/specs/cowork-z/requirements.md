@@ -223,9 +223,11 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 3. WHEN a user clicks an artefact, THE SYSTEM SHALL open the file with the OS default application for its extension
 4. WHERE a session is resumed, THE SYSTEM SHALL restore the artefact list from the previous session
 
-#### 3.5 Drag-and-Drop File References
+#### 3.5 Drag-and-Drop Support in Chat ✅
 
 **User Story:** As a user, I want to drag files or folders into the chat input, so that I can quickly reference them in my prompts without typing full paths.
+
+> **Plan:** [Drag-and-drop Support](plan_drag-and-drop-support.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL support drag-and-drop of files and folders onto the chat input area

@@ -33,6 +33,7 @@ import { createMarkdownComponents } from '@/components/markdown/EnhancedLink';
 import { MediaGallery } from '@/components/media/MediaGallery';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DragDropInput } from '@/components/ui/drag-drop-input';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { enrichContentWithLinks, extractMediaPaths } from '@/lib/content-enrichment';
@@ -1072,11 +1073,21 @@ export default function ExecutionPage() {
             <div className="mx-auto max-w-4xl">
               {/* Input field with Send button */}
               <div className="flex gap-3">
-                <Input
+                <DragDropInput
                   className="flex-1"
                   data-testid="execution-follow-up-input"
                   disabled={isLoading}
                   onChange={(e) => setFollowUp(e.target.value)}
+                  onFilesDropped={(newValue, newCursorPosition) => {
+                    setFollowUp(newValue);
+                    // Restore cursor position after React renders the new value
+                    setTimeout(() => {
+                      if (followUpInputRef.current) {
+                        followUpInputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+                        followUpInputRef.current.focus();
+                      }
+                    }, 0);
+                  }}
                   onKeyDown={(e) => {
                     // Ignore Enter during IME composition (Chinese/Japanese input)
                     if (e.nativeEvent.isComposing || e.keyCode === 229) return;

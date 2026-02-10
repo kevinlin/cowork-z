@@ -1,7 +1,10 @@
 'use client';
 
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { CornerDownLeft, Loader2 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { formatPathForChat, insertAtCursor } from '@/lib/file-utils';
+import { cn } from '@/lib/utils';
 import { analytics } from '../../lib/analytics';
 import { getTauriAPI } from '../../lib/tauri-api-interface';
 
@@ -29,6 +32,16 @@ export default function TaskInputBar({
   const isDisabled = disabled || isLoading;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const api = getTauriAPI();
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+
+  // Refs to access latest values inside the Tauri event callback
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const cursorPositionRef = useRef(cursorPosition);
+  cursorPositionRef.current = cursorPosition;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   // Auto-focus on mount
   useEffect(() => {
@@ -46,6 +59,80 @@ export default function TaskInputBar({
     }
   }, [value]);
 
+  // ── Tauri native drag-and-drop listener ──────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        if (cancelled) return;
+
+        if (event.payload.type === 'over') {
+          setIsDraggingOver(true);
+        } else if (event.payload.type === 'drop') {
+          setIsDraggingOver(false);
+
+          const paths: string[] = event.payload.paths;
+          if (paths.length === 0) return;
+
+          const formattedPaths = paths
+            .map((p) => formatPathForChat(p))
+            .filter((p): p is string => p !== null);
+
+          if (formattedPaths.length === 0) return;
+
+          const insertText = formattedPaths.join(' ');
+          const { newText, newCursorPosition } = insertAtCursor(
+            valueRef.current,
+            insertText,
+            cursorPositionRef.current
+          );
+
+          onChangeRef.current(newText);
+
+          // Restore cursor position after React renders the new value
+          setTimeout(() => {
+            if (textareaRef.current) {
+              textareaRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+              textareaRef.current.focus();
+            }
+          }, 0);
+        } else {
+          // cancelled
+          setIsDraggingOver(false);
+        }
+      })
+      .then((fn) => {
+        if (cancelled) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
+  // ── Text input handlers ──────────────────────────────────────────
+  const handleTextareaChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setCursorPosition(e.target.selectionStart ?? 0);
+      onChange(e.target.value);
+    },
+    [onChange]
+  );
+
+  const handleSelectionChange = useCallback(
+    (e: React.MouseEvent<HTMLTextAreaElement> | React.KeyboardEvent<HTMLTextAreaElement>) => {
+      setCursorPosition(e.currentTarget.selectionStart ?? 0);
+    },
+    []
+  );
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Ignore Enter during IME composition (Chinese/Japanese input)
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
@@ -56,14 +143,21 @@ export default function TaskInputBar({
   };
 
   return (
-    <div className="relative flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 shadow-sm transition-all duration-200 ease-accomplish focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
+    <div
+      className={cn(
+        'relative flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 shadow-sm transition-all duration-200 ease-accomplish focus-within:border-ring focus-within:ring-1 focus-within:ring-ring',
+        isDraggingOver && 'ring-2 ring-ring ring-offset-2 ring-offset-background'
+      )}
+    >
       {/* Text input */}
       <textarea
         className={`max-h-[200px] flex-1 resize-none bg-transparent text-foreground placeholder:text-gray-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${large ? 'text-[20px]' : 'text-sm'}`}
         data-testid="task-input-textarea"
         disabled={isDisabled}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={handleTextareaChange}
+        onClick={handleSelectionChange}
         onKeyDown={handleKeyDown}
+        onKeyUp={handleSelectionChange}
         placeholder={placeholder}
         ref={textareaRef}
         rows={1}

@@ -1,5 +1,22 @@
 # Feature Requirements: Cowork-Z
 
+## Product Vision
+
+**Cowork-Z is a local-first desktop agent that brings AI assistance to your files and workflows without compromising privacy.**
+
+Most AI tools force an uncomfortable choice: upload your sensitive work to cloud services, or forgo AI assistance entirely. Cowork-Z eliminates this tradeoff by running entirely on your machine. The agent accesses your local files, executes commands in your environment, and integrates with your tools—all while keeping your data under your control.
+
+**Built for privacy-conscious power users and security-minded teams**, Cowork-Z provides a sandboxed environment where AI agents can work autonomously with granular permission controls. You decide exactly what folders the agent can access and what actions it can take.
+
+**Key capabilities:**
+- **Local-first architecture** — All agent execution happens on your machine; no cloud uploads required
+- **Multi-provider flexibility** — Switch between 13+ AI providers (Anthropic, OpenAI, Ollama, etc.) based on task requirements
+- **Extensible workflows** — Add custom skills and MCP server integrations to tailor the agent to your specific needs
+- **Parallel task execution** — Run multiple independent tasks simultaneously to accelerate complex workflows
+- **Transparent & auditable** — Full visibility into agent actions, tool calls, and file access with session history
+
+Whether you're a developer protecting proprietary code, a researcher working with sensitive data, or an organization that needs auditability and control, Cowork-Z delivers AI-powered productivity without the privacy compromise.
+
 ## Introduction
 
 Cowork-Z is a cross-platform desktop application that provides a sandboxed environment for autonomous AI agents. It integrates with the OpenCode SDK via a sidecar process to enable users to interact with AI agents that can execute code, manipulate files, and perform multi-step workflows.
@@ -205,6 +222,18 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. THE SYSTEM SHALL display artefacts in the sidebar, positioned after Folders and Todos, before task history
 3. WHEN a user clicks an artefact, THE SYSTEM SHALL open the file with the OS default application for its extension
 4. WHERE a session is resumed, THE SYSTEM SHALL restore the artefact list from the previous session
+
+#### 3.5 Drag-and-Drop File References
+
+**User Story:** As a user, I want to drag files or folders into the chat input, so that I can quickly reference them in my prompts without typing full paths.
+
+**Acceptance Criteria:**
+1. THE SYSTEM SHALL support drag-and-drop of files and folders onto the chat input area
+2. WHEN a user drags a file or folder into the chat input, THE SYSTEM SHALL insert the path as `@path/to/file` or `@path/to/folder` at the current cursor position
+3. WHERE multiple files are dragged simultaneously, THE SYSTEM SHALL insert each path separated by a space
+4. THE SYSTEM SHALL support dragging from the OS file manager (Finder on macOS, Explorer on Windows, file managers on Linux)
+5. WHEN a path contains spaces, THE SYSTEM SHALL wrap it in quotes: `@"path/to/file with spaces.txt"`
+6. THE SYSTEM SHALL display visual feedback (e.g., highlight or border) when a draggable item is hovering over the chat input area
 
 ---
 

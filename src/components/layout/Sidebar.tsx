@@ -165,9 +165,8 @@ export default function Sidebar() {
           </Button>
         </div>
 
-        {/* Scrollable Content Area */}
-        <ScrollArea className="flex-1">
-          {/* Conversation List - Always Expanded */}
+        {/* Scrollable Conversation List - Expands to fill remaining space */}
+        <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-1 p-2">
             <AnimatePresence mode="wait">
               {tasks.length === 0 ? (
@@ -189,7 +188,10 @@ export default function Sidebar() {
               )}
             </AnimatePresence>
           </div>
+        </ScrollArea>
 
+        {/* Pinned Panels - Always visible, never scroll out of view */}
+        <div className="shrink-0 border-border border-t">
           {/* Folders Panel - Collapsible, Default Collapsed */}
           <FoldersPanel />
 
@@ -210,7 +212,7 @@ export default function Sidebar() {
               <div className="px-2 py-3 text-center text-muted-foreground text-xs">No active tasks</div>
             )}
           </CollapsibleSection>
-        </ScrollArea>
+        </div>
 
         {/* Bottom Section - Logo and Settings */}
         <div className="flex items-center justify-between border-border border-t px-3 py-4">

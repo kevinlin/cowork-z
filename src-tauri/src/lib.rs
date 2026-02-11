@@ -1193,7 +1193,11 @@ async fn set_onboarding_complete(complete: bool, state: State<'_, DbState>) -> R
 #[tauri::command]
 async fn check_claude_cli() -> Result<ClaudeCliStatus, String> {
     // Check if opencode CLI is installed
-    let output = std::process::Command::new("which").arg("opencode").output();
+    let output = if cfg!(target_os = "windows") {
+        std::process::Command::new("where").arg("opencode").output()
+    } else {
+        std::process::Command::new("which").arg("opencode").output()
+    };
 
     match output {
         Ok(out) if out.status.success() => {

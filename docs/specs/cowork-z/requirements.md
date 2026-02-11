@@ -55,6 +55,7 @@ The following implementation plans document how specific requirements were desig
 | Theme Support | [`cowork-z/plan_theme-support.md`](plan_theme-support.md) | 4.2 (theme support) |
 | About Panel | [`cowork-z/plan_about_panel.md`](plan_about_panel.md) | 4.4 (about panel) |
 | User Feedback | [`cowork-z/plan_user-feedback.md`](plan_user-feedback.md) | 4.5 (feedback) |
+| Cross-Platform Fixes | [`cowork-z/plan_cross-platform-support.md`](plan_cross-platform-support.md) | 5.1.1–5.1.3 (cross-platform support) |
 
 ---
 
@@ -339,7 +340,9 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 **User Story:** As a user, I want Cowork-Z to run on my OS and protect its internal services and data from other local users.
 
-#### 5.1 Cross-Platform Support
+#### 5.1 Cross-Platform Support ✅
+
+> **Plan:** [Cross-Platform Fixes](plan_cross-platform-support.md)
 
 **Acceptance Criteria:**
 
@@ -357,18 +360,12 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. THE SYSTEM SHALL use platform-appropriate keyboard modifiers (`Cmd` on macOS, `Ctrl` on Windows/Linux)
 3. THE SYSTEM SHALL provide platform-appropriate installer formats (`.dmg` for macOS, `.msi`/`.exe` for Windows)
 
-##### 5.1.4 PATH Resolution for External CLI Tools ✅
+##### 5.1.4 PATH Resolution for External CLI Tools
 1. WHEN launched from a GUI context (Finder/Dock on macOS, Start Menu/Explorer on Windows), THE SYSTEM SHALL augment the process PATH so that globally-installed CLI tools (e.g., `opencode`) are discoverable
 2. On macOS/Linux, THE SYSTEM SHALL source the user's login shell PATH via `$SHELL -ilc 'echo $PATH'` and merge it with the current process PATH
 3. On macOS/Linux, THE SYSTEM SHALL fall back to well-known directories (`/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin`, `~/.volta/bin`, `~/.nvm/versions/node/*/bin`, `~/.yarn/bin`, `~/.local/share/pnpm`, `~/.local/share/fnm`) when the login shell approach fails
 4. On Windows, THE SYSTEM SHALL include well-known directories (`%APPDATA%\npm`, `%ProgramFiles%\nodejs`, `%LOCALAPPDATA%\Volta\bin`, `~\scoop\shims`, `C:\ProgramData\chocolatey\bin`, `%LOCALAPPDATA%\Yarn\bin`, `%LOCALAPPDATA%\pnpm`, nvm-windows version directories)
 5. THE SYSTEM SHALL deduplicate PATH entries (case-insensitively on Windows) and use the platform-appropriate separator (`:` on Unix, `;` on Windows)
-
-##### 5.1.5 Missing OpenCode CLI Detection
-1. WHEN the `opencode` CLI cannot be found on the augmented PATH, THE SYSTEM SHALL display an error dialog informing the user that OpenCode is required but not installed
-2. THE SYSTEM SHALL include a brief installation instruction in the dialog
-3. THE SYSTEM SHALL NOT attempt to start a task or launch the OpenCode server when the CLI is missing
-4. WHEN the user dismisses the dialog, THE SYSTEM SHALL remain usable for configuration (e.g., setting API keys, provider settings) but SHALL block task execution until OpenCode is detected
 
 #### 5.2 Security Hardening
 
@@ -390,18 +387,24 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL store all API keys and secrets in the OS keychain — never in the database or config files
 2. THE SYSTEM SHALL never log or display full API keys
 
-#### 5.3 Error Handling ✅
+#### 5.3 Error Handling
 
 **Acceptance Criteria:**
 
-##### 5.3.1 Error Display
+##### 5.3.1 Error Display ✅
 1. WHEN API errors occur, THE SYSTEM SHALL display user-friendly error messages
 2. WHERE tool execution fails, THE SYSTEM SHALL show the error inline with actionable context
 3. IF the application encounters an unrecoverable error, THE SYSTEM SHALL allow session restart
 
-##### 5.3.2 Logging
+##### 5.3.2 Logging ✅
 1. WHEN errors occur, THE SYSTEM SHALL log them to the platform-appropriate log directory
 2. WHERE debugging is needed, THE SYSTEM SHALL provide a debug mode with verbose logging
+
+##### 5.3.3 Missing OpenCode CLI Detection
+1. WHEN the `opencode` CLI cannot be found on the augmented PATH, THE SYSTEM SHALL display an error dialog informing the user that OpenCode is required but not installed
+2. THE SYSTEM SHALL include a brief installation instruction in the dialog
+3. THE SYSTEM SHALL NOT attempt to start a task or launch the OpenCode server when the CLI is missing
+4. WHEN the user dismisses the dialog, THE SYSTEM SHALL remain usable for configuration (e.g., setting API keys, provider settings) but SHALL block task execution until OpenCode is detected
 
 ---
 
@@ -409,5 +412,5 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
-- [ ] **Cross-Platform Testing & Installers** — Test on Windows/Linux, build `.msi`/`.exe`/`.deb` installers (Req 5.1.1, 5.1.3)
+- [x] **Cross-Platform Testing & Installers** — Test on Windows/Linux, build `.msi`/`.exe`/`.deb` installers (Req 5.1.1, 5.1.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

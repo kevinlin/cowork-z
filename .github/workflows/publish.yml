@@ -61,32 +61,32 @@ jobs:
 
       - name: Install sidecar dependencies
         run: pnpm install --ignore-workspace
-        working-directory: src-tauri/sidecar
+        working-directory: src-tauri/sidecar-opencode
 
       - name: Build sidecar binary (macOS ARM64)
         if: matrix.platform == 'macos-latest' && contains(matrix.args, 'aarch64')
         run: pnpm build:binary
-        working-directory: src-tauri/sidecar
+        working-directory: src-tauri/sidecar-opencode
 
       - name: Build sidecar binary (macOS x64)
         if: matrix.platform == 'macos-latest' && contains(matrix.args, 'x86_64')
         run: pnpm build:binary:x64
-        working-directory: src-tauri/sidecar
+        working-directory: src-tauri/sidecar-opencode
 
       - name: Build sidecar binary (Linux x64)
         if: matrix.platform == 'ubuntu-24.04'
         run: pnpm build:binary:linux
-        working-directory: src-tauri/sidecar
+        working-directory: src-tauri/sidecar-opencode
 
       - name: Build sidecar binary (Linux ARM64)
         if: matrix.platform == 'ubuntu-24.04-arm'
         run: pnpm build:binary:linux-arm64
-        working-directory: src-tauri/sidecar
+        working-directory: src-tauri/sidecar-opencode
 
       - name: Build sidecar binary (Windows)
         if: matrix.platform == 'windows-latest'
         run: pnpm build:binary:win
-        working-directory: src-tauri/sidecar
+        working-directory: src-tauri/sidecar-opencode
 
       - uses: tauri-apps/tauri-action@v0
         env:

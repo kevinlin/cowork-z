@@ -16,6 +16,7 @@
 - 4.3 Keyboard Shortcuts
 - 4.4 About Panel — App info panel with version and changelog accessible via Help > About menu
 - 4.5 Feedback — In-app bug report and feature request buttons that open pre-filled GitHub Issues with environment metadata
+- 5.1 Cross-Platform Support — Fixed CI/CD sidecar path, added platform-aware binary resolution for Windows/Linux, fixed CLI detection on Windows
 - 5.2 Security Hardening
 
 ## v0.2.0

@@ -272,11 +272,25 @@ impl SidecarManager {
         let resource_dir = app.path().resource_dir().ok();
         let _current_exe = std::env::current_exe().ok();
         let current_dir = std::env::current_dir().ok();
-        let candidate_names = [
-            "sidecar-opencode-aarch64-apple-darwin",
-            "sidecar-opencode-x86_64-apple-darwin",
-            "sidecar-opencode",
-        ];
+        let candidate_names: Vec<&str> = if cfg!(target_os = "macos") {
+            vec![
+                "sidecar-opencode-aarch64-apple-darwin",
+                "sidecar-opencode-x86_64-apple-darwin",
+                "sidecar-opencode",
+            ]
+        } else if cfg!(target_os = "windows") {
+            vec![
+                "sidecar-opencode-x86_64-pc-windows-msvc.exe",
+                "sidecar-opencode.exe",
+            ]
+        } else {
+            // Linux
+            vec![
+                "sidecar-opencode-aarch64-unknown-linux-gnu",
+                "sidecar-opencode-x86_64-unknown-linux-gnu",
+                "sidecar-opencode",
+            ]
+        };
         let mut candidates = serde_json::Map::new();
 
         if let Some(dir) = resource_dir.as_ref() {

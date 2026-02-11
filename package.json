@@ -1,7 +1,7 @@
 {
   "name": "cowork-z",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -47,6 +47,7 @@
     "@biomejs/biome": "2.3.13",
     "@tailwindcss/typography": "^0.5.15",
     "@tauri-apps/cli": "^2",
+    "@tauri-release/cli": "^0.2.5",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

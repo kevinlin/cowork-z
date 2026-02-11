@@ -46,6 +46,10 @@ export async function getPlatform(): Promise<string> {
   return invoke<string>('get_platform');
 }
 
+export async function getArch(): Promise<string> {
+  return invoke<string>('get_arch');
+}
+
 // ============================================================================
 // Shell
 // ============================================================================
@@ -1119,6 +1123,7 @@ export function getTauriApi() {
     // App info
     getVersion,
     getPlatform,
+    getArch,
 
     // Shell
     openExternal,

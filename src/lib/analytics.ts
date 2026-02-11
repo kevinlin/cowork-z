@@ -93,6 +93,22 @@ export const analytics = {
     });
   },
 
+  // Track when user opens feedback - report bug
+  trackFeedbackBug: () => {
+    trackEvent('feedback_bug', {
+      event_category: 'engagement',
+      event_label: 'feedback_report_bug',
+    });
+  },
+
+  // Track when user opens feedback - suggest feature
+  trackFeedbackFeature: () => {
+    trackEvent('feedback_feature', {
+      event_category: 'engagement',
+      event_label: 'feedback_suggest_feature',
+    });
+  },
+
   // Track page views
   trackPageView,
 

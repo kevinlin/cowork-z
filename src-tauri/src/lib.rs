@@ -308,6 +308,11 @@ fn get_platform() -> String {
     std::env::consts::OS.to_string()
 }
 
+#[tauri::command]
+fn get_arch() -> String {
+    std::env::consts::ARCH.to_string()
+}
+
 // ============================================================================
 // Task Commands
 // ============================================================================
@@ -1846,6 +1851,7 @@ pub fn run() {
             // App Info
             get_version,
             get_platform,
+            get_arch,
             // Task operations
             start_task,
             cancel_task,

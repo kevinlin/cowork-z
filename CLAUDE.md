@@ -205,16 +205,16 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 
 **pnpm esbuild build script warning**: This is a security feature, not a bug. The warning appears because pnpm prevents automatic execution of build scripts to protect against supply chain attacks. The esbuild binary is already installed and functional - everything works correctly. This warning can be safely ignored. If you prefer to suppress it, run `pnpm approve-builds` in the sidecar directory.
 
-## Post-Feature Completion Checklist
+## Post-Feature Completion Checklist (MANDATORY)
 
-After completing a feature implementation, always perform these steps:
+**IMPORTANT: After completing ANY feature or plan implementation, you MUST perform ALL of these steps before reporting completion. Do not skip this section — it is as important as passing tests.**
 
 1. **Update requirement status** in `docs/specs/cowork-z/requirements.md`:
    - Add `✅` to the requirement heading (e.g., `#### 4.4 About Panel ✅`)
-   - Add a plan reference link if an implementation plan exists
+   - Add a plan reference link (`> **Plan:** [Name](plan_name.md)`) if an implementation plan exists
    - Check off the item in the "Outstanding Feature TODO" section at the bottom
    - Add the plan to the "Implementation Plans Index" table if applicable
-2. **Add to UPDATE_LOG.md**: Add a new entry (or append to the current version section) describing the completed feature with its requirement number
+2. **Add to UPDATE_LOG.md**: Append to the current version section describing the completed feature with its requirement number (e.g., `- 4.5 Feedback — description`)
 3. **Verify** both `pnpm typecheck` and `cd src-tauri && cargo check` pass before reporting completion
 
 ## Design Documentation

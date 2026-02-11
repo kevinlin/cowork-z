@@ -17,6 +17,7 @@ import { useTaskStore } from '@/stores/taskStore';
 import logoImage from '/assets/logo-1.png';
 import CollapsibleSection from '../sidebar/CollapsibleSection';
 import ConversationListItem from './ConversationListItem';
+import FeedbackButton from './FeedbackButton';
 
 // Stable empty arrays to avoid creating new references in selectors
 const EMPTY_TODOS: Todo[] = [];
@@ -221,19 +222,22 @@ export default function Sidebar() {
             <img alt="Openwork" src={logoImage} style={{ height: '20px', paddingLeft: '6px' }} />
           </div>
 
-          {/* Settings Button - Bottom Right */}
-          <Button
-            data-testid="sidebar-settings-button"
-            onClick={() => {
-              analytics.trackOpenSettings();
-              setShowSettings(true);
-            }}
-            size="icon"
-            title="Settings"
-            variant="ghost"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
+          {/* Feedback & Settings - Bottom Right */}
+          <div className="flex items-center gap-1">
+            <FeedbackButton />
+            <Button
+              data-testid="sidebar-settings-button"
+              onClick={() => {
+                analytics.trackOpenSettings();
+                setShowSettings(true);
+              }}
+              size="icon"
+              title="Settings"
+              variant="ghost"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </>

@@ -27,6 +27,7 @@ export interface TauriAPI {
   // App info
   getVersion(): Promise<string>;
   getPlatform(): Promise<string>;
+  getArch(): Promise<string>;
 
   // Shell
   openExternal(url: string): Promise<void>;

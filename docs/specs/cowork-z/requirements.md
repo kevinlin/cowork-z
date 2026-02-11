@@ -54,6 +54,7 @@ The following implementation plans document how specific requirements were desig
 | Drag and Droop in Chat | [Drag-and-drop Support](plan_drag-and-drop-support.md) | 3.5 (drag and drop) |
 | Theme Support | [`cowork-z/plan_theme-support.md`](plan_theme-support.md) | 4.2 (theme support) |
 | About Panel | [`cowork-z/plan_about_panel.md`](plan_about_panel.md) | 4.4 (about panel) |
+| User Feedback | [`cowork-z/plan_user-feedback.md`](plan_user-feedback.md) | 4.5 (feedback) |
 
 ---
 
@@ -310,7 +311,9 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. THE SYSTEM SHALL display the current app version (from package metadata)
 3. THE SYSTEM SHALL display a changelog derived from [UPDATE_LOG.md](../../../UPDATE_LOG.md)
 
-#### 4.5 Feedback
+#### 4.5 User Feedback ✅
+
+> **Plan:** [User Feedback](plan_user-feedback.md)
 
 **User Story:** As a user, I want to report bugs and suggest features directly from the app, so that I can provide feedback without leaving my workflow.
 
@@ -406,7 +409,5 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
-- [x] **About Panel** — App info panel with version and changelog (Req 4.4)
-- [ ] **Feedback** — In-app bug report and feature request via GitHub Issues (Req 4.5)
 - [ ] **Cross-Platform Testing & Installers** — Test on Windows/Linux, build `.msi`/`.exe`/`.deb` installers (Req 5.1.1, 5.1.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

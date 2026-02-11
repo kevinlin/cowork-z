@@ -1,7 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "cowork-z",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "package": {
+    "version": "0.3.0"
+  },
   "identifier": "com.kevinlin.cowork-z",
   "build": {
     "beforeDevCommand": "cd src-tauri/sidecar-opencode && pnpm install && pnpm build:binary && cd ../.. && pnpm dev",
@@ -23,7 +26,9 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": [
+          "**"
+        ]
       }
     }
   },

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import AboutDialog from './components/layout/AboutDialog';
 import SettingsDialog from './components/layout/SettingsDialog';
 // Components
 import Sidebar from './components/layout/Sidebar';
@@ -12,6 +13,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTheme } from './hooks/useTheme';
 import { analytics } from './lib/analytics';
 import { springs, variants } from './lib/animations';
+import { listen } from '@tauri-apps/api/event';
 import { isRunningInTauri, setOnboardingComplete } from './lib/tauri-api';
 import ExecutionPage from './pages/Execution';
 // Pages
@@ -27,10 +29,23 @@ export default function App() {
   const navigate = useNavigate();
 
   // Get store actions
-  const { openLauncher, showSettings, setShowSettings } = useTaskStore();
+  const { openLauncher, showSettings, setShowSettings, showAbout, setShowAbout } = useTaskStore();
 
   // Theme — load persisted theme, detect OS dark-mode on first launch
   const { themeId, switchTheme } = useTheme();
+
+  // Listen for native "show-about" menu event from Rust
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen('show-about', () => {
+      setShowAbout(true);
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      unlisten?.();
+    };
+  }, [setShowAbout]);
 
   // Track page views on route changes
   useEffect(() => {
@@ -148,6 +163,7 @@ export default function App() {
       </main>
       <TaskLauncher />
       <SettingsDialog onOpenChange={setShowSettings} onSwitchTheme={switchTheme} open={showSettings} themeId={themeId} />
+      <AboutDialog onOpenChange={setShowAbout} open={showAbout} />
     </div>
   );
 }

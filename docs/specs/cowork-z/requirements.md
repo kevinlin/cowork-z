@@ -53,6 +53,7 @@ The following implementation plans document how specific requirements were desig
 | Artefacts Panel | [`cowork-z/plan_artefacts-panel.md`](plan_artefacts-panel.md) | 3.4 (artefacts panel) |
 | Drag and Droop in Chat | [Drag-and-drop Support](plan_drag-and-drop-support.md) | 3.5 (drag and drop) |
 | Theme Support | [`cowork-z/plan_theme-support.md`](plan_theme-support.md) | 4.2 (theme support) |
+| About Panel | [`cowork-z/plan_about_panel.md`](plan_about_panel.md) | 4.4 (about panel) |
 
 ---
 
@@ -300,12 +301,14 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
    - `Escape` — Cancel running task
 2. WHERE the input field is focused, THE SYSTEM SHALL not intercept shortcuts that conflict with standard text editing (`Cmd+A`, `Cmd+C`, etc.)
 
-#### 4.4 About Panel
+#### 4.4 About Panel ✅
+
+> **Plan:** [About Panel](plan_about_panel.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL provide an info panel accessible via the app menu (Help > About)
 2. THE SYSTEM SHALL display the current app version (from package metadata)
-3. THE SYSTEM SHALL display a changelog derived from the source repository
+3. THE SYSTEM SHALL display a changelog derived from [UPDATE_LOG.md](../../../UPDATE_LOG.md)
 
 #### 4.5 Feedback
 
@@ -403,7 +406,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
-- [ ] **About Panel** — App info panel with version and changelog (Req 4.4)
+- [x] **About Panel** — App info panel with version and changelog (Req 4.4)
 - [ ] **Feedback** — In-app bug report and feature request via GitHub Issues (Req 4.5)
 - [ ] **Cross-Platform Testing & Installers** — Test on Windows/Linux, build `.msi`/`.exe`/`.deb` installers (Req 5.1.1, 5.1.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

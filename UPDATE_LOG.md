@@ -1,17 +1,5 @@
 # UPDATE LOG
 
-## v0.1.0
-
-- Initial tauri app with OpenCode sidecar implementation
-
-## v0.2.0
-
-- [Sidecar Rewrite: From PTY-Based to OpenCode Server API](docs/specs/opencode-sidecar/plan_sidecar-opencode-rewrite.md)
-- 1.1 Multi-Provider Support
-- 1.2 Session Management
-- 4.1 Settings
-- 5.3 Error Handling
-
 ## v0.3.0
 
 - 1.3 Permission System
@@ -26,4 +14,17 @@
 - 3.6 Multi-Line Text Input
 - 4.2 Theme Support
 - 4.3 Keyboard Shortcuts
+- 4.4 About Panel — App info panel with version and changelog accessible via Help > About menu
 - 5.2 Security Hardening
+
+## v0.2.0
+
+- Sidecar Rewrite: From PTY-Based to OpenCode Server API
+- 1.1 Multi-Provider Support
+- 1.2 Session Management
+- 4.1 Settings
+- 5.3 Error Handling
+
+## v0.1.0
+
+- Migrate from Electron to Tauri with OpenCode sidecar

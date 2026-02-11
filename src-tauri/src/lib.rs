@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tauri::{Manager, State};
+use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
+use tauri::{Emitter, Manager, State};
 
 mod db;
 mod secure_storage;
@@ -1796,6 +1797,48 @@ pub fn run() {
 
             // Initialize sidecar state
             app.manage(SidecarState::new());
+
+            // Build native menu bar
+            let app_menu = SubmenuBuilder::new(app, "Cowork-Z")
+                .about(None)
+                .separator()
+                .quit()
+                .build()?;
+
+            let edit_menu = SubmenuBuilder::new(app, "Edit")
+                .undo()
+                .redo()
+                .separator()
+                .cut()
+                .copy()
+                .paste()
+                .select_all()
+                .build()?;
+
+            let window_menu = SubmenuBuilder::new(app, "Window")
+                .minimize()
+                .item(&PredefinedMenuItem::close_window(app, None)?)
+                .build()?;
+
+            let show_about_item = MenuItemBuilder::new("About Cowork-Z")
+                .id("show-about")
+                .build(app)?;
+
+            let help_menu = SubmenuBuilder::new(app, "Help")
+                .item(&show_about_item)
+                .build()?;
+
+            let menu = MenuBuilder::new(app)
+                .items(&[&app_menu, &edit_menu, &window_menu, &help_menu])
+                .build()?;
+
+            app.set_menu(menu)?;
+
+            app.on_menu_event(move |app_handle, event| {
+                if event.id().0.as_str() == "show-about" {
+                    let _ = app_handle.emit("show-about", ());
+                }
+            });
 
             Ok(())
         })

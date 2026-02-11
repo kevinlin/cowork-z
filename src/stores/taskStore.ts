@@ -71,6 +71,10 @@ interface TaskState {
   showSettings: boolean;
   setShowSettings: (show: boolean) => void;
 
+  // About dialog
+  showAbout: boolean;
+  setShowAbout: (show: boolean) => void;
+
   // Task launcher
   isLauncherOpen: boolean;
   openLauncher: () => void;
@@ -331,6 +335,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   startupStageTaskId: null,
   showSettings: false,
   setShowSettings: (show: boolean) => set({ showSettings: show }),
+  showAbout: false,
+  setShowAbout: (show: boolean) => set({ showAbout: show }),
   isLauncherOpen: false,
   folderPermissions: [],
 
@@ -1005,6 +1011,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       startupStage: null,
       startupStageTaskId: null,
       showSettings: false,
+      showAbout: false,
       isLauncherOpen: false,
       folderPermissions: [],
       todos: new Map<string, Todo[]>(),

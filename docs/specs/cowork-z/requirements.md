@@ -307,6 +307,26 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. THE SYSTEM SHALL display the current app version (from package metadata)
 3. THE SYSTEM SHALL display a changelog derived from the source repository
 
+#### 4.5 Feedback
+
+**User Story:** As a user, I want to report bugs and suggest features directly from the app, so that I can provide feedback without leaving my workflow.
+
+**Acceptance Criteria:**
+
+##### 4.5.1 Feedback Entry Point
+1. THE SYSTEM SHALL display a feedback icon button in the sidebar bottom bar, positioned between the logo and the settings button
+2. WHEN the user clicks the feedback button, THE SYSTEM SHALL show a popover with two options: "Report Bug" and "Suggest Feature"
+
+##### 4.5.2 GitHub Issue Integration
+1. WHEN the user selects "Report Bug", THE SYSTEM SHALL open the OS default browser to the GitHub new issue URL (`https://github.com/kevinlin/cowork-z/issues/new`) with the `bug` label, a pre-filled title placeholder, and a structured body template (description, steps to reproduce, expected vs. actual behavior)
+2. WHEN the user selects "Suggest Feature", THE SYSTEM SHALL open the OS default browser to the GitHub new issue URL with the `enhancement` label, a pre-filled title placeholder, and a structured body template (description, use case, proposed solution)
+3. THE SYSTEM SHALL auto-append an "Environment" section to the issue body containing: app version, OS name, and platform architecture
+
+##### 4.5.3 Environment Metadata
+1. THE SYSTEM SHALL read the app version from the Tauri app metadata
+2. THE SYSTEM SHALL read OS name and architecture from the Tauri platform APIs
+3. THE SYSTEM SHALL NOT include any user-specific configuration (API keys, provider settings, session data) in the issue body
+
 ---
 
 ### 5. Platform & Security
@@ -371,5 +391,6 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 The following items remain to be implemented:
 
 - [ ] **About Panel** — App info panel with version and changelog (Req 4.4)
+- [ ] **Feedback** — In-app bug report and feature request via GitHub Issues (Req 4.5)
 - [ ] **Cross-Platform Testing & Installers** — Test on Windows/Linux, build `.msi`/`.exe`/`.deb` installers (Req 5.1.1, 5.1.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

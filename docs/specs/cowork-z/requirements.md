@@ -351,6 +351,19 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. THE SYSTEM SHALL use platform-appropriate keyboard modifiers (`Cmd` on macOS, `Ctrl` on Windows/Linux)
 3. THE SYSTEM SHALL provide platform-appropriate installer formats (`.dmg` for macOS, `.msi`/`.exe` for Windows)
 
+##### 5.1.4 PATH Resolution for External CLI Tools ✅
+1. WHEN launched from a GUI context (Finder/Dock on macOS, Start Menu/Explorer on Windows), THE SYSTEM SHALL augment the process PATH so that globally-installed CLI tools (e.g., `opencode`) are discoverable
+2. On macOS/Linux, THE SYSTEM SHALL source the user's login shell PATH via `$SHELL -ilc 'echo $PATH'` and merge it with the current process PATH
+3. On macOS/Linux, THE SYSTEM SHALL fall back to well-known directories (`/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin`, `~/.volta/bin`, `~/.nvm/versions/node/*/bin`, `~/.yarn/bin`, `~/.local/share/pnpm`, `~/.local/share/fnm`) when the login shell approach fails
+4. On Windows, THE SYSTEM SHALL include well-known directories (`%APPDATA%\npm`, `%ProgramFiles%\nodejs`, `%LOCALAPPDATA%\Volta\bin`, `~\scoop\shims`, `C:\ProgramData\chocolatey\bin`, `%LOCALAPPDATA%\Yarn\bin`, `%LOCALAPPDATA%\pnpm`, nvm-windows version directories)
+5. THE SYSTEM SHALL deduplicate PATH entries (case-insensitively on Windows) and use the platform-appropriate separator (`:` on Unix, `;` on Windows)
+
+##### 5.1.5 Missing OpenCode CLI Detection
+1. WHEN the `opencode` CLI cannot be found on the augmented PATH, THE SYSTEM SHALL display an error dialog informing the user that OpenCode is required but not installed
+2. THE SYSTEM SHALL include a brief installation instruction in the dialog
+3. THE SYSTEM SHALL NOT attempt to start a task or launch the OpenCode server when the CLI is missing
+4. WHEN the user dismisses the dialog, THE SYSTEM SHALL remain usable for configuration (e.g., setting API keys, provider settings) but SHALL block task execution until OpenCode is detected
+
 #### 5.2 Security Hardening
 
 > **Plan:** [Server Isolation](plan_server-isolation.md) (Req 5.2.1)

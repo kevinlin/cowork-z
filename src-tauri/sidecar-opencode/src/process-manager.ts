@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -10,6 +10,169 @@ import type { ApiKeys } from './types';
 
 /** Default working directory for `opencode serve` to avoid writing config.json into the source tree. */
 const OPENCODE_DATA_DIR = path.join(os.homedir(), '.local', 'share', 'opencode', 'log');
+
+/**
+ * Build an augmented PATH suitable for macOS GUI-launched apps.
+ *
+ * When the app is launched from Finder / Dock / Spotlight, macOS gives
+ * the process a minimal PATH (e.g. /usr/bin:/bin:/usr/sbin:/sbin).
+ * Tools installed via Homebrew, nvm, volta, etc. won't be found.
+ *
+ * Strategy:
+ * 1. Try to get the user's full login-shell PATH via `$SHELL -ilc 'echo $PATH'`
+ * 2. Fall back to a curated list of well-known directories.
+ * 3. Merge with the current process PATH (deduplicated).
+ */
+function getAugmentedPath(): string {
+  const isWindows = process.platform === 'win32';
+  const sep = isWindows ? ';' : ':';
+  const currentPath = process.env.PATH ?? '';
+  // Windows PATH lookups are case-insensitive; normalise for dedup.
+  const existingDirs = isWindows
+    ? new Set(
+        currentPath
+          .split(sep)
+          .filter(Boolean)
+          .map((d) => d.toLowerCase())
+      )
+    : new Set(currentPath.split(sep).filter(Boolean));
+  // Keep the original (non-lowered) entries so we emit a valid PATH string.
+  const orderedDirs = currentPath.split(sep).filter(Boolean);
+
+  const addDir = (dir: string): void => {
+    const key = isWindows ? dir.toLowerCase() : dir;
+    if (!existingDirs.has(key)) {
+      try {
+        if (fs.existsSync(dir)) {
+          existingDirs.add(key);
+          orderedDirs.push(dir);
+        }
+      } catch {
+        // stat failed, skip
+      }
+    }
+  };
+
+  // --- Login-shell PATH (macOS / Linux only) ---
+  // On Unix, GUI-launched apps receive a minimal PATH. Source the user's
+  // login shell to recover the full PATH they configured in .zshrc etc.
+  // Uses execFileSync (not execSync) to avoid shell injection.
+  if (!isWindows) {
+    try {
+      const userShell = process.env.SHELL || '/bin/zsh';
+      const shellPath = execFileSync(userShell, ['-ilc', 'echo $PATH'], {
+        timeout: 5000,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
+      if (shellPath) {
+        for (const dir of shellPath.split(':').filter(Boolean)) {
+          if (!existingDirs.has(dir)) {
+            existingDirs.add(dir);
+            orderedDirs.push(dir);
+          }
+        }
+      }
+    } catch {
+      logger.debug('Failed to get PATH from login shell, using fallback paths');
+    }
+  }
+
+  // --- Well-known directories ---
+  const home = os.homedir();
+
+  if (isWindows) {
+    // Windows-specific directories
+    const appData = process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming');
+    const localAppData = process.env.LOCALAPPDATA ?? path.join(home, 'AppData', 'Local');
+    const programFiles = process.env.ProgramFiles ?? 'C:\\Program Files';
+    const programFilesX86 = process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)';
+
+    const winDirs = [
+      // npm global
+      path.join(appData, 'npm'),
+      // Node.js installers
+      path.join(programFiles, 'nodejs'),
+      path.join(programFilesX86, 'nodejs'),
+      // Volta
+      path.join(localAppData, 'Volta', 'bin'),
+      // Scoop
+      path.join(home, 'scoop', 'shims'),
+      // Chocolatey
+      'C:\\ProgramData\\chocolatey\\bin',
+      // Yarn
+      path.join(localAppData, 'Yarn', 'bin'),
+      // pnpm
+      path.join(localAppData, 'pnpm'),
+      // fnm (Fast Node Manager)
+      path.join(localAppData, 'fnm_multishells'),
+    ];
+
+    // nvm-windows: versions live in %APPDATA%\nvm\<version>
+    const nvmDir = process.env.NVM_HOME ?? path.join(appData, 'nvm');
+    try {
+      if (fs.existsSync(nvmDir)) {
+        const versions = fs
+          .readdirSync(nvmDir)
+          .filter((v) => /^v?\d+/.test(v))
+          .sort()
+          .reverse();
+        if (versions.length > 0) {
+          winDirs.push(path.join(nvmDir, versions[0]));
+        }
+        // nvm-windows symlink directory
+        addDir(nvmDir);
+      }
+    } catch {
+      // nvm-windows not installed, skip
+    }
+
+    for (const dir of winDirs) {
+      addDir(dir);
+    }
+  } else {
+    // macOS / Linux directories
+    const unixDirs = [
+      '/opt/homebrew/bin',
+      '/opt/homebrew/sbin',
+      '/usr/local/bin',
+      '/usr/local/sbin',
+      path.join(home, '.local', 'bin'),
+      path.join(home, '.volta', 'bin'),
+      path.join(home, '.npm-global', 'bin'),
+      path.join(home, '.yarn', 'bin'),
+      // pnpm
+      path.join(home, '.local', 'share', 'pnpm'),
+      // fnm (Fast Node Manager)
+      path.join(home, '.local', 'share', 'fnm'),
+    ];
+
+    // Expand nvm: find the latest node version directory
+    const nvmBase = path.join(home, '.nvm', 'versions', 'node');
+    try {
+      if (fs.existsSync(nvmBase)) {
+        const versions = fs.readdirSync(nvmBase).sort().reverse();
+        if (versions.length > 0) {
+          unixDirs.push(path.join(nvmBase, versions[0], 'bin'));
+        }
+      }
+    } catch {
+      // nvm not installed, skip
+    }
+
+    for (const dir of unixDirs) {
+      addDir(dir);
+    }
+  }
+
+  const augmentedPath = orderedDirs.join(sep);
+  if (augmentedPath !== currentPath) {
+    logger.debug('Augmented PATH for opencode spawn', {
+      added: orderedDirs.filter((d) => !currentPath.split(sep).includes(d)),
+    });
+  }
+  return augmentedPath;
+}
 
 /**
  * Find a random available port by binding to port 0 on 127.0.0.1.
@@ -133,6 +296,10 @@ export class ProcessManager {
     this.client = new OpenCodeClient({ port: this.port, password: this.password });
 
     const env: NodeJS.ProcessEnv = { ...process.env };
+
+    // Augment PATH so that `opencode` can be found when the app is launched
+    // from Finder/Dock (which provides a minimal PATH).
+    env.PATH = getAugmentedPath();
 
     // Enable HTTP basic auth on the OpenCode server
     env.OPENCODE_SERVER_PASSWORD = this.password;

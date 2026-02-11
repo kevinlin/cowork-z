@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import AboutDialog from './components/layout/AboutDialog';
+import OpenCodeCliMissingDialog from './components/layout/OpenCodeCliMissingDialog';
 import SettingsDialog from './components/layout/SettingsDialog';
 // Components
 import Sidebar from './components/layout/Sidebar';
@@ -29,7 +30,7 @@ export default function App() {
   const navigate = useNavigate();
 
   // Get store actions
-  const { openLauncher, showSettings, setShowSettings, showAbout, setShowAbout } = useTaskStore();
+  const { openLauncher, showSettings, setShowSettings, showAbout, setShowAbout, showCliMissing, setShowCliMissing } = useTaskStore();
 
   // Theme — load persisted theme, detect OS dark-mode on first launch
   const { themeId, switchTheme } = useTheme();
@@ -164,6 +165,7 @@ export default function App() {
       <TaskLauncher />
       <SettingsDialog onOpenChange={setShowSettings} onSwitchTheme={switchTheme} open={showSettings} themeId={themeId} />
       <AboutDialog onOpenChange={setShowAbout} open={showAbout} />
+      <OpenCodeCliMissingDialog onOpenChange={setShowCliMissing} open={showCliMissing} />
     </div>
   );
 }

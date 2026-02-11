@@ -56,6 +56,7 @@ The following implementation plans document how specific requirements were desig
 | About Panel | [`cowork-z/plan_about_panel.md`](plan_about_panel.md) | 4.4 (about panel) |
 | User Feedback | [`cowork-z/plan_user-feedback.md`](plan_user-feedback.md) | 4.5 (feedback) |
 | Cross-Platform Fixes | [`cowork-z/plan_cross-platform-support.md`](plan_cross-platform-support.md) | 5.1.1–5.1.3 (cross-platform support) |
+| Missing OpenCode CLI Detection | [`cowork-z/plan_missing-opencode-cli-detection.md`](plan_missing-opencode-cli-detection.md) | 5.3.3 (CLI detection dialog) |
 
 ---
 
@@ -387,20 +388,23 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL store all API keys and secrets in the OS keychain — never in the database or config files
 2. THE SYSTEM SHALL never log or display full API keys
 
-#### 5.3 Error Handling
+#### 5.3 Error Handling ✅
 
 **Acceptance Criteria:**
 
-##### 5.3.1 Error Display ✅
+##### 5.3.1 Error Display
 1. WHEN API errors occur, THE SYSTEM SHALL display user-friendly error messages
 2. WHERE tool execution fails, THE SYSTEM SHALL show the error inline with actionable context
 3. IF the application encounters an unrecoverable error, THE SYSTEM SHALL allow session restart
 
-##### 5.3.2 Logging ✅
+##### 5.3.2 Logging
 1. WHEN errors occur, THE SYSTEM SHALL log them to the platform-appropriate log directory
 2. WHERE debugging is needed, THE SYSTEM SHALL provide a debug mode with verbose logging
 
 ##### 5.3.3 Missing OpenCode CLI Detection
+
+> **Plan:** [Missing OpenCode CLI Detection](plan_missing-opencode-cli-detection.md)
+
 1. WHEN the `opencode` CLI cannot be found on the augmented PATH, THE SYSTEM SHALL display an error dialog informing the user that OpenCode is required but not installed
 2. THE SYSTEM SHALL include a brief installation instruction in the dialog
 3. THE SYSTEM SHALL NOT attempt to start a task or launch the OpenCode server when the CLI is missing
@@ -412,5 +416,4 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
-- [x] **Cross-Platform Testing & Installers** — Test on Windows/Linux, build `.msi`/`.exe`/`.deb` installers (Req 5.1.1, 5.1.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

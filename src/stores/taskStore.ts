@@ -75,6 +75,10 @@ interface TaskState {
   showAbout: boolean;
   setShowAbout: (show: boolean) => void;
 
+  // OpenCode CLI missing dialog
+  showCliMissing: boolean;
+  setShowCliMissing: (show: boolean) => void;
+
   // Task launcher
   isLauncherOpen: boolean;
   openLauncher: () => void;
@@ -337,6 +341,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   setShowSettings: (show: boolean) => set({ showSettings: show }),
   showAbout: false,
   setShowAbout: (show: boolean) => set({ showAbout: show }),
+  showCliMissing: false,
+  setShowCliMissing: (show: boolean) => set({ showCliMissing: show }),
   isLauncherOpen: false,
   folderPermissions: [],
 
@@ -412,6 +418,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   startTask: async (config: TaskConfig) => {
     set({ isLoading: true, error: null });
     try {
+      // Pre-flight: verify OpenCode CLI is available
+      const cliStatus = await api.checkClaudeCli();
+      if (!cliStatus.installed) {
+        set({ showCliMissing: true, isLoading: false });
+        return null;
+      }
+
       void api.logEvent({
         level: 'info',
         message: 'UI start task',
@@ -487,6 +500,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const sessionId = currentTask.result?.sessionId || currentTask.sessionId;
 
     // If no session but task was interrupted, start a fresh task with the new message
+    // (startTask has its own CLI pre-flight check)
     if (!sessionId && currentTask.status === 'interrupted') {
       void api.logEvent({
         level: 'info',
@@ -541,6 +555,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     });
 
     try {
+      // Pre-flight: verify OpenCode CLI is available before resuming
+      const cliStatus = await api.checkClaudeCli();
+      if (!cliStatus.installed) {
+        set({ showCliMissing: true, isLoading: false });
+        return;
+      }
+
       void api.logEvent({
         level: 'info',
         message: 'UI follow-up sent',
@@ -1012,6 +1033,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       startupStageTaskId: null,
       showSettings: false,
       showAbout: false,
+      showCliMissing: false,
       isLauncherOpen: false,
       folderPermissions: [],
       todos: new Map<string, Todo[]>(),

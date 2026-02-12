@@ -7,9 +7,11 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import AboutDialog from './components/layout/AboutDialog';
 import OpenCodeCliMissingDialog from './components/layout/OpenCodeCliMissingDialog';
 import SettingsDialog from './components/layout/SettingsDialog';
+import UpdateDialog from './components/layout/UpdateDialog';
 // Components
 import Sidebar from './components/layout/Sidebar';
 import { TaskLauncher } from './components/TaskLauncher';
+import { useAppUpdate } from './hooks/useAppUpdate';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTheme } from './hooks/useTheme';
 import { analytics } from './lib/analytics';
@@ -34,6 +36,9 @@ export default function App() {
 
   // Theme — load persisted theme, detect OS dark-mode on first launch
   const { themeId, switchTheme } = useTheme();
+
+  // App updates — auto-check on startup, listen for menu event
+  const appUpdate = useAppUpdate();
 
   // Listen for native "show-about" menu event from Rust
   useEffect(() => {
@@ -166,6 +171,15 @@ export default function App() {
       <SettingsDialog onOpenChange={setShowSettings} onSwitchTheme={switchTheme} open={showSettings} themeId={themeId} />
       <AboutDialog onOpenChange={setShowAbout} open={showAbout} />
       <OpenCodeCliMissingDialog onOpenChange={setShowCliMissing} open={showCliMissing} />
+      <UpdateDialog
+        error={appUpdate.error}
+        onInstall={appUpdate.installUpdate}
+        onOpenChange={appUpdate.setShowDialog}
+        onRetry={appUpdate.checkForUpdate}
+        open={appUpdate.showDialog}
+        status={appUpdate.status}
+        updateInfo={appUpdate.updateInfo}
+      />
     </div>
   );
 }

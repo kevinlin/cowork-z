@@ -1060,6 +1060,25 @@ export async function onTodoUpdated(callback: (event: { taskId: string; todos: T
 }
 
 // ============================================================================
+// App Updates
+// ============================================================================
+
+export interface UpdateInfo {
+  version: string;
+  currentVersion: string;
+  body: string | null;
+  date: string | null;
+}
+
+export async function checkForUpdate(): Promise<UpdateInfo | null> {
+  return invoke<UpdateInfo | null>('check_for_update');
+}
+
+export async function installUpdate(): Promise<void> {
+  return invoke<void>('install_update');
+}
+
+// ============================================================================
 // Logging
 // ============================================================================
 

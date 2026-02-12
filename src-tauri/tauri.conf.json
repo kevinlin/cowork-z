@@ -42,12 +42,19 @@
     "externalBin": [
       "binaries/sidecar-opencode"
     ],
-    "resources": []
+    "resources": [],
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "shell": {
       "open": true
     },
-    "dialog": null
+    "dialog": null,
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdDOTMyRUEyRjQzRUVBQUQKUldTdDZqNzBvaTZUZkdlcWRnSk1jbVFDNmxhTzNnakRQOFN4UTNoR0F5Ni84Ui9wcnhqMk1ZcDQK",
+      "endpoints": [
+        "https://github.com/kevinlin/open-cowork/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

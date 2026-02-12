@@ -19,6 +19,7 @@
 - 5.1 Cross-Platform Support — Fixed CI/CD sidecar path, added platform-aware binary resolution for Windows/Linux, fixed CLI detection on Windows
 - 5.2 Security Hardening
 - 5.3.3 Missing OpenCode CLI Detection — Pre-flight CLI check before task execution with user-facing dialog showing install instructions
+- 5.4 App Update - GitHub Releases as Tuari update server, automatic update check on app startup, update dialogue to let user decide
 
 ## v0.2.0
 

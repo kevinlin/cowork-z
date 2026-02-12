@@ -410,6 +410,30 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 3. THE SYSTEM SHALL NOT attempt to start a task or launch the OpenCode server when the CLI is missing
 4. WHEN the user dismisses the dialog, THE SYSTEM SHALL remain usable for configuration (e.g., setting API keys, provider settings) but SHALL block task execution until OpenCode is detected
 
+#### 5.4 App Update ✅
+
+**User Story:** As a user, I want the app to automatically check for updates and allow me to install them, so that I always have the latest features and fixes without manually downloading new versions.
+
+**Acceptance Criteria:**
+
+##### 5.4.1 Update Check
+1. THE SYSTEM SHALL automatically check for updates on app startup (silently, after a short delay)
+2. THE SYSTEM SHALL provide a "Check for Updates…" menu item under Help for manual update checks
+3. THE SYSTEM SHALL use the Tauri updater plugin with signed update bundles to verify update authenticity
+4. THE SYSTEM SHALL check for updates from GitHub Releases (static JSON endpoint)
+
+##### 5.4.2 Update Dialog
+1. WHEN an update is available, THE SYSTEM SHALL display a dialog showing the new version number, current version, and release notes (if any)
+2. THE SYSTEM SHALL allow the user to choose "Update Now" or "Later"
+3. WHEN the user chooses "Update Now", THE SYSTEM SHALL download and install the update, then restart the app automatically
+4. WHEN no update is available (manual check), THE SYSTEM SHALL display a "You're up to date" confirmation
+5. WHEN the update check fails, THE SYSTEM SHALL display an error message with a "Retry" option
+
+##### 5.4.3 Update Signing
+1. THE SYSTEM SHALL sign all update bundles with a private key during the CI build process
+2. THE SYSTEM SHALL verify update signatures using the embedded public key before installation
+3. THE SYSTEM SHALL NOT install unsigned or tampered update bundles
+
 ---
 
 ## Outstanding Feature TODO

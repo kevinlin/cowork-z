@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Mutex;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{Emitter, Manager, State};
+use tauri_plugin_updater::{Update, UpdaterExt};
 
 mod db;
 mod secure_storage;
@@ -1789,12 +1791,80 @@ async fn log_event(payload: LogPayload) -> Result<(), String> {
 }
 
 // ============================================================================
+// App Update Commands
+// ============================================================================
+
+/// Managed state to hold a pending update between check and install steps.
+struct PendingUpdate(Mutex<Option<Update>>);
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInfo {
+    pub version: String,
+    pub current_version: String,
+    pub body: Option<String>,
+    pub date: Option<String>,
+}
+
+/// Check for an available update. Returns `Some(UpdateInfo)` if an update is
+/// available, or `None` if the app is already up to date.
+#[tauri::command]
+async fn check_for_update(
+    app: tauri::AppHandle,
+    pending: State<'_, PendingUpdate>,
+) -> Result<Option<UpdateInfo>, String> {
+    let update = app
+        .updater()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    match update {
+        Some(u) => {
+            let info = UpdateInfo {
+                version: u.version.clone(),
+                current_version: u.current_version.clone(),
+                body: u.body.clone(),
+                date: u.date.map(|d| format!("{d}")),
+            };
+            *pending.0.lock().unwrap() = Some(u);
+            Ok(Some(info))
+        }
+        None => Ok(None),
+    }
+}
+
+/// Download and install the pending update, then relaunch the app.
+#[tauri::command]
+async fn install_update(
+    app: tauri::AppHandle,
+    pending: State<'_, PendingUpdate>,
+) -> Result<(), String> {
+    let update = pending
+        .0
+        .lock()
+        .unwrap()
+        .take()
+        .ok_or("No pending update to install")?;
+
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|e| e.to_string())?;
+
+    app.restart();
+}
+
+// ============================================================================
 // App Entry Point
 // ============================================================================
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -1806,6 +1876,9 @@ pub fn run() {
 
             // Initialize sidecar state
             app.manage(SidecarState::new());
+
+            // Initialize pending update state
+            app.manage(PendingUpdate(Mutex::new(None)));
 
             // Build native menu bar
             let app_menu = SubmenuBuilder::new(app, "Cowork-Z")
@@ -1833,8 +1906,14 @@ pub fn run() {
                 .id("show-about")
                 .build(app)?;
 
+            let check_updates_item = MenuItemBuilder::new("Check for Updates…")
+                .id("check-for-updates")
+                .build(app)?;
+
             let help_menu = SubmenuBuilder::new(app, "Help")
                 .item(&show_about_item)
+                .separator()
+                .item(&check_updates_item)
                 .build()?;
 
             let menu = MenuBuilder::new(app)
@@ -1844,8 +1923,14 @@ pub fn run() {
             app.set_menu(menu)?;
 
             app.on_menu_event(move |app_handle, event| {
-                if event.id().0.as_str() == "show-about" {
-                    let _ = app_handle.emit("show-about", ());
+                match event.id().0.as_str() {
+                    "show-about" => {
+                        let _ = app_handle.emit("show-about", ());
+                    }
+                    "check-for-updates" => {
+                        let _ = app_handle.emit("check-for-updates", ());
+                    }
+                    _ => {}
                 }
             });
 
@@ -1944,6 +2029,9 @@ pub fn run() {
             set_theme,
             // Logging
             log_event,
+            // App Updates
+            check_for_update,
+            install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -57,6 +57,7 @@ The following implementation plans document how specific requirements were desig
 | User Feedback | [`cowork-z/plan_user-feedback.md`](plan_user-feedback.md) | 4.5 (feedback) |
 | Cross-Platform Fixes | [`cowork-z/plan_cross-platform-support.md`](plan_cross-platform-support.md) | 5.1.1–5.1.3 (cross-platform support) |
 | Missing OpenCode CLI Detection | [`cowork-z/plan_missing-opencode-cli-detection.md`](plan_missing-opencode-cli-detection.md) | 5.3.3 (CLI detection dialog) |
+| OpenCode Server API Skill | [`cowork-z/plan_opencode-server-skill.md`](plan_opencode-server-skill.md) | 2.4 (server API skill) |
 
 ---
 
@@ -187,6 +188,31 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. FOR local MCP servers, THE SYSTEM SHALL provide a form with fields for: name, command, environment variables, timeout, and enabled toggle
 3. FOR remote MCP servers, THE SYSTEM SHALL provide a form with fields for: name, URL, headers, OAuth configuration, timeout, and enabled toggle
 4. THE SYSTEM SHALL display the connection status of each configured MCP server
+
+#### 2.4 OpenCode Server API Skill
+
+**User Story:** As an agent, I want to understand and invoke the OpenCode server's REST APIs, so that I can introspect my own session state, configuration, and runtime environment to work more effectively.
+
+> **Plan:** [OpenCode Server API Skill](plan_opencode-server-skill.md)
+
+**Acceptance Criteria:**
+
+##### 2.4.1 Skill Content
+1. THE SYSTEM SHALL bundle a SKILL.md file documenting the OpenCode server REST API for agent self-introspection
+2. THE SKILL SHALL cover these read endpoints: `GET /global/health`, `GET /config`, `GET /session`, `GET /session/{id}`, `GET /session/{id}/message`, `GET /session/{id}/todo`, `GET /skill`, `GET /mcp`, `GET /permission`, `GET /question`
+3. THE SKILL SHALL cover this write endpoint: `PATCH /config` (runtime configuration updates)
+4. THE SKILL SHALL document request parameters, response shapes, and curl examples for each endpoint
+5. THE SKILL SHALL reference server credentials provided in the system prompt rather than hardcoding them
+
+##### 2.4.2 Skill Deployment
+1. THE SYSTEM SHALL store the skill source at `src-tauri/resources/skills/opencode-server-api/SKILL.md`
+2. THE SYSTEM SHALL copy the bundled SKILL.md to `~/.config/opencode/skills/opencode-server-api/SKILL.md` on every app launch, overwriting any existing copy
+3. THE SYSTEM SHALL create the target directory if it does not exist
+4. WHERE the copy fails, THE SYSTEM SHALL log a warning without blocking app startup
+
+##### 2.4.3 System Prompt Consolidation
+1. THE SYSTEM SHALL replace the existing `skills-discovery` and `mcp-discovery` behavior blocks in the system prompt with a compact `server-access` block containing only the server port, password, and a pointer to the skill
+2. THE SYSTEM SHALL continue to inject serverPort and serverPassword into the system prompt at runtime via `buildSystemPrompt()`
 
 ---
 
@@ -441,3 +467,4 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 The following items remain to be implemented:
 
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)
+- [ ] **OpenCode Server API Skill** — Bundled SKILL.md for agent self-introspection via OpenCode server REST APIs (Req 2.4)

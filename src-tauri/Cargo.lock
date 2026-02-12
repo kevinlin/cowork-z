@@ -658,7 +658,7 @@ dependencies = [
 
 [[package]]
 name = "cowork-z"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "dirs 5.0.1",

@@ -1,8 +1,12 @@
 # UPDATE LOG
 
+## v0.4.0
+
+- 
+
 ## v0.3.1
 
-- Fix: Assign right entitlement to Tauri Mac OS build to fix sidecar binary crashing on start
+- Fix: Assign right entitlement to Tauri macOS build to fix sidecar binary crashing on start
 
 ## v0.3.0
 

@@ -42,7 +42,12 @@
     "externalBin": [
       "binaries/sidecar-opencode"
     ],
-    "resources": []
+    "resources": [],
+    "bundle": {
+      "macOS": {
+        "signingIdentity": "kevin.linyun@gmail.com"
+      }
+    }
   },
   "plugins": {
     "shell": {

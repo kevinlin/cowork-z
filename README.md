@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/Screenshot_MediaFileInChat.png" alt="Cowork-Z — Rich chat with image thumbnails, sidebar panels, and task history" width="800" />
+  <img src="assets/ScreenRecording_LocatePhotos.gif" alt="Cowork-Z — AI agent locating and organizing photos locally" width="800" />
 </p>
 
 ---

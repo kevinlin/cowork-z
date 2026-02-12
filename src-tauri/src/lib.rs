@@ -1192,13 +1192,108 @@ async fn set_onboarding_complete(complete: bool, state: State<'_, DbState>) -> R
 // Claude CLI Commands
 // ============================================================================
 
+/// Build an augmented PATH suitable for macOS GUI-launched apps.
+///
+/// When the app is launched from Finder / Dock / Spotlight, macOS gives
+/// the process a minimal PATH (e.g. /usr/bin:/bin:/usr/sbin:/sbin).
+/// Tools installed via Homebrew, nvm, volta, etc. won't be found.
+fn get_augmented_path() -> String {
+    let current_path = std::env::var("PATH").unwrap_or_default();
+    let mut seen = std::collections::HashSet::new();
+    let mut dirs: Vec<String> = Vec::new();
+
+    // Start with existing PATH entries
+    for dir in current_path.split(':').filter(|s| !s.is_empty()) {
+        if seen.insert(dir.to_string()) {
+            dirs.push(dir.to_string());
+        }
+    }
+
+    // Try to get the user's full login-shell PATH
+    if cfg!(not(target_os = "windows")) {
+        let user_shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+        if let Ok(output) = std::process::Command::new(&user_shell)
+            .args(["-ilc", "echo $PATH"])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .stdin(std::process::Stdio::null())
+            .output()
+        {
+            if output.status.success() {
+                if let Ok(shell_path) = String::from_utf8(output.stdout) {
+                    for dir in shell_path.trim().split(':').filter(|s| !s.is_empty()) {
+                        if seen.insert(dir.to_string()) {
+                            dirs.push(dir.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Well-known directories as fallback
+    let home = dirs::home_dir().unwrap_or_default();
+    let well_known = vec![
+        "/opt/homebrew/bin".to_string(),
+        "/opt/homebrew/sbin".to_string(),
+        "/usr/local/bin".to_string(),
+        "/usr/local/sbin".to_string(),
+        home.join(".local/bin").to_string_lossy().to_string(),
+        home.join(".volta/bin").to_string_lossy().to_string(),
+        home.join(".npm-global/bin").to_string_lossy().to_string(),
+        home.join(".yarn/bin").to_string_lossy().to_string(),
+        home.join(".local/share/pnpm").to_string_lossy().to_string(),
+        home.join(".local/share/fnm").to_string_lossy().to_string(),
+    ];
+
+    // Add nvm latest node version
+    let nvm_base = home.join(".nvm/versions/node");
+    if nvm_base.exists() {
+        if let Ok(versions) = std::fs::read_dir(&nvm_base) {
+            let mut version_dirs: Vec<String> = versions
+                .filter_map(|e| e.ok())
+                .map(|e| e.file_name().to_string_lossy().to_string())
+                .collect();
+            version_dirs.sort();
+            version_dirs.reverse();
+            if let Some(latest) = version_dirs.first() {
+                let nvm_bin = nvm_base.join(latest).join("bin").to_string_lossy().to_string();
+                if seen.insert(nvm_bin.clone()) {
+                    if std::path::Path::new(&nvm_bin).exists() {
+                        dirs.push(nvm_bin);
+                    }
+                }
+            }
+        }
+    }
+
+    for dir in well_known {
+        if seen.insert(dir.clone()) {
+            if std::path::Path::new(&dir).exists() {
+                dirs.push(dir);
+            }
+        }
+    }
+
+    dirs.join(":")
+}
+
 #[tauri::command]
 async fn check_claude_cli() -> Result<ClaudeCliStatus, String> {
-    // Check if opencode CLI is installed
+    // Build augmented PATH for CLI lookup (macOS GUI apps get minimal PATH)
+    let augmented_path = get_augmented_path();
+
+    // Check if opencode CLI is installed using augmented PATH
     let output = if cfg!(target_os = "windows") {
-        std::process::Command::new("where").arg("opencode").output()
+        std::process::Command::new("where")
+            .arg("opencode")
+            .env("PATH", &augmented_path)
+            .output()
     } else {
-        std::process::Command::new("which").arg("opencode").output()
+        std::process::Command::new("which")
+            .arg("opencode")
+            .env("PATH", &augmented_path)
+            .output()
     };
 
     match output {
@@ -1206,6 +1301,7 @@ async fn check_claude_cli() -> Result<ClaudeCliStatus, String> {
             // Try to get version
             let version_output = std::process::Command::new("opencode")
                 .arg("--version")
+                .env("PATH", &augmented_path)
                 .output();
 
             let version = version_output.ok().and_then(|v| {
@@ -1232,8 +1328,10 @@ async fn check_claude_cli() -> Result<ClaudeCliStatus, String> {
 
 #[tauri::command]
 async fn get_claude_version() -> Result<Option<String>, String> {
+    let augmented_path = get_augmented_path();
     let output = std::process::Command::new("opencode")
         .arg("--version")
+        .env("PATH", &augmented_path)
         .output();
 
     Ok(output.ok().and_then(|v| {

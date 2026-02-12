@@ -14,6 +14,10 @@
   <a href="https://github.com/kevinlin/cowork-z/actions"><img src="https://img.shields.io/github/actions/workflow/status/kevinlin/cowork-z/publish.yml?branch=release&style=for-the-badge&label=build" alt="Build Status" /></a>
 </p>
 
+<p align="center">
+  <img src="assets/Screenshot_MediaFileInChat.png" alt="Cowork-Z — Rich chat with image thumbnails, sidebar panels, and task history" width="800" />
+</p>
+
 ---
 
 ## Why Cowork-Z?
@@ -23,12 +27,6 @@ Most AI tools force an uncomfortable choice: **upload your sensitive work to clo
 Cowork-Z eliminates this tradeoff. It's a desktop app where AI agents run entirely on your machine — accessing your local files, executing commands in your environment, and integrating with your tools — all while keeping your data under your control.
 
 Whether you're a developer protecting proprietary code, a researcher working with sensitive data, or a team that needs auditability and control, Cowork-Z delivers AI-powered productivity without the privacy compromise.
-
-<p align="center">
-  <img src="assets/Screenshot_Settings.png" alt="Cowork-Z — Provider Settings" width="700" />
-  <br />
-  <em>Choose from 13+ AI providers — credentials stored securely in the OS Keychain</em>
-</p>
 
 ---
 
@@ -45,6 +43,12 @@ Connect to **13+ AI providers** and switch between them at any time:
 
 Credentials are stored in the **OS Keychain** (macOS Keychain, Windows Credential Manager, Linux Secret Service) — never in plain text files.
 
+<p align="center">
+  <img src="assets/Screenshot_Settings.png" alt="Cowork-Z — Provider Settings" width="700" />
+  <br />
+  <em>Choose from 13+ AI providers — credentials stored securely in the OS Keychain</em>
+</p>
+
 ### Sandboxed Permissions
 
 You control exactly what the agent can access:
@@ -53,19 +57,38 @@ You control exactly what the agent can access:
 - **Runtime permission prompts** — if the agent needs a folder you haven't approved, it asks first
 - **Per-session tracking** — permissions are scoped and persisted per task
 
+<p align="center">
+  <img src="assets/Screenshot_PermissionRequest.png" alt="Cowork-Z — Runtime permission dialog" width="700" />
+  <br />
+  <em>The agent asks before accessing directories outside your approved list</em>
+</p>
+
 ### Rich Chat Experience
 
 - **Inline file previews** — file paths render as clickable links with thumbnails for images and video
+- **Image gallery** — click any thumbnail to open an in-app preview with "Show in Finder"
 - **URL previews** — links in agent responses open in your default browser
 - **Drag-and-drop** — drop files or folders from Finder into the chat to reference them
 - **Multi-line input** — compose detailed prompts with `Shift+Enter`
 - **Todo tracking** — see the agent's task progress in a sidebar panel with a progress bar
 - **Artefacts panel** — all files the agent creates or modifies are tracked in the sidebar
 
+<p align="center">
+  <img src="assets/Screenshot_ImageGallery.png" alt="Cowork-Z — In-app image preview" width="700" />
+  <br />
+  <em>Click any image thumbnail to preview it without leaving the app</em>
+</p>
+
 ### Extensible with Skills & MCP Servers
 
 - **Skills** — drop a `SKILL.md` file into `~/.config/opencode/skills/<name>/` to teach the agent new capabilities. Auto-discovered, no restart needed.
 - **MCP Servers** — connect external tools and data sources (databases, APIs, file systems) via the [Model Context Protocol](https://opencode.ai/docs/mcp-servers/). Supports both local (command) and remote (URL) servers.
+
+<p align="center">
+  <img src="assets/Screenshot_Skills.png" alt="Cowork-Z — Skills discovery and management" width="700" />
+  <br />
+  <em>Skills are auto-discovered from your config directory — no restart needed</em>
+</p>
 
 ### Desktop-Native Experience
 
@@ -75,9 +98,9 @@ You control exactly what the agent can access:
 - **Cross-platform** — macOS (Apple Silicon & Intel) today; Windows and Linux builds available
 
 <p align="center">
-  <img src="assets/Screenshot_About.png" alt="Cowork-Z — About Panel" width="700" />
+  <img src="assets/Screenshot_DarkMode.png" alt="Cowork-Z — Dark mode theme" width="700" />
   <br />
-  <em>Built-in update log and version info</em>
+  <em>Switch between light and dark themes at any time</em>
 </p>
 
 ---

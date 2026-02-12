@@ -341,7 +341,7 @@ export async function setOnboardingComplete(complete: boolean): Promise<void> {
 // Claude CLI
 // ============================================================================
 
-export async function checkClaudeCli(): Promise<{
+export async function checkOpencodeCli(): Promise<{
   installed: boolean;
   version: string | null;
   installCommand: string;
@@ -350,11 +350,11 @@ export async function checkClaudeCli(): Promise<{
     installed: boolean;
     version: string | null;
     installCommand: string;
-  }>('check_claude_cli');
+  }>('check_opencode_cli');
 }
 
-export async function getClaudeVersion(): Promise<string | null> {
-  return invoke<string | null>('get_claude_version');
+export async function getOpencodeVersion(): Promise<string | null> {
+  return invoke<string | null>('get_opencode_version');
 }
 
 // ============================================================================
@@ -1197,8 +1197,8 @@ export function getTauriApi() {
     setOnboardingComplete,
 
     // Claude CLI
-    checkClaudeCli,
-    getClaudeVersion,
+    checkOpencodeCli,
+    getOpencodeVersion,
 
     // Model selection
     getSelectedModel,

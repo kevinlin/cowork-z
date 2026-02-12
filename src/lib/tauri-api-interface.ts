@@ -98,12 +98,12 @@ export interface TauriAPI {
   setOnboardingComplete(complete: boolean): Promise<void>;
 
   // Claude CLI
-  checkClaudeCli(): Promise<{
+  checkOpencodeCli(): Promise<{
     installed: boolean;
     version: string | null;
     installCommand: string;
   }>;
-  getClaudeVersion(): Promise<string | null>;
+  getOpencodeVersion(): Promise<string | null>;
 
   // Model selection
   getSelectedModel(): Promise<{

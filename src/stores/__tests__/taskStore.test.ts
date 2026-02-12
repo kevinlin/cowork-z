@@ -15,7 +15,7 @@ vi.mock('@/lib/tauri-api', () => ({
     messages: [],
     createdAt: new Date().toISOString(),
   }),
-  checkClaudeCli: vi.fn().mockResolvedValue({ installed: true }),
+  checkOpencodeCli: vi.fn().mockResolvedValue({ installed: true }),
 }));
 
 describe('taskStore - Partial Message Management', () => {

@@ -59,7 +59,7 @@ let candidate_names: Vec<&str> = if cfg!(target_os = "macos") {
 
 Note: This is diagnostic-only code (for logging binary resolution). The actual sidecar spawn at line 319 uses `shell.sidecar("sidecar-opencode")` which relies on Tauri's built-in platform resolution via `tauri.conf.json` `externalBin` — that part already works correctly.
 
-### A3. Fix `check_claude_cli` for Windows
+### A3. Fix `check_opencode_cli` for Windows
 
 **File:** `src-tauri/src/lib.rs` (line 1196)
 

@@ -237,7 +237,7 @@ pub struct ApiKeyStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ClaudeCliStatus {
+pub struct OpenCodeCliStatus {
     pub installed: bool,
     pub version: Option<String>,
     pub install_command: String,
@@ -1189,7 +1189,7 @@ async fn set_onboarding_complete(complete: bool, state: State<'_, DbState>) -> R
 }
 
 // ============================================================================
-// Claude CLI Commands
+// OpenCode CLI Commands
 // ============================================================================
 
 /// Build an augmented PATH suitable for macOS GUI-launched apps.
@@ -1279,7 +1279,7 @@ fn get_augmented_path() -> String {
 }
 
 #[tauri::command]
-async fn check_claude_cli() -> Result<ClaudeCliStatus, String> {
+async fn check_opencode_cli() -> Result<OpenCodeCliStatus, String> {
     // Build augmented PATH for CLI lookup (macOS GUI apps get minimal PATH)
     let augmented_path = get_augmented_path();
 
@@ -1312,13 +1312,13 @@ async fn check_claude_cli() -> Result<ClaudeCliStatus, String> {
                 }
             });
 
-            Ok(ClaudeCliStatus {
+            Ok(OpenCodeCliStatus {
                 installed: true,
                 version,
                 install_command: "npm install -g opencode-ai".to_string(),
             })
         }
-        _ => Ok(ClaudeCliStatus {
+        _ => Ok(OpenCodeCliStatus {
             installed: false,
             version: None,
             install_command: "npm install -g opencode-ai".to_string(),
@@ -1327,7 +1327,7 @@ async fn check_claude_cli() -> Result<ClaudeCliStatus, String> {
 }
 
 #[tauri::command]
-async fn get_claude_version() -> Result<Option<String>, String> {
+async fn get_opencode_version() -> Result<Option<String>, String> {
     let augmented_path = get_augmented_path();
     let output = std::process::Command::new("opencode")
         .arg("--version")
@@ -2081,9 +2081,9 @@ pub fn run() {
             // Onboarding
             get_onboarding_complete,
             set_onboarding_complete,
-            // Claude CLI
-            check_claude_cli,
-            get_claude_version,
+            // OpenCode CLI
+            check_opencode_cli,
+            get_opencode_version,
             // Model selection
             get_selected_model,
             set_selected_model,

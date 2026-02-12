@@ -14,7 +14,7 @@ Section 5 of `requirements.md` contains 3 subsections. Two features are fully im
 
 ## Feature B: Missing OpenCode CLI Detection (Req 5.3.3)
 
-The backend `check_claude_cli` command and frontend `checkClaudeCli()` API already exist but are **never called**. This feature wires them up with a user-facing dialog and pre-task validation.
+The backend `check_opencode_cli` command and frontend `checkOpencodeCli()` API already exist but are **never called**. This feature wires them up with a user-facing dialog and pre-task validation.
 
 ### B1. Add CLI status state to taskStore ✅
 
@@ -43,7 +43,7 @@ startTask: async (config: TaskConfig) => {
   set({ isLoading: true, error: null });
   try {
     // Pre-flight: verify OpenCode CLI is available
-    const cliStatus = await api.checkClaudeCli();
+    const cliStatus = await api.checkOpencodeCli();
     if (!cliStatus.installed) {
       set({ showCliMissing: true, isLoading: false });
       return null;

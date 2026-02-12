@@ -419,7 +419,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       // Pre-flight: verify OpenCode CLI is available
-      const cliStatus = await api.checkClaudeCli();
+      const cliStatus = await api.checkOpencodeCli();
       if (!cliStatus.installed) {
         set({ showCliMissing: true, isLoading: false });
         return null;
@@ -556,7 +556,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     try {
       // Pre-flight: verify OpenCode CLI is available before resuming
-      const cliStatus = await api.checkClaudeCli();
+      const cliStatus = await api.checkOpencodeCli();
       if (!cliStatus.installed) {
         set({ showCliMissing: true, isLoading: false });
         return;

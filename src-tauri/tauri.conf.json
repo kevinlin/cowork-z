@@ -51,7 +51,7 @@
     },
     "dialog": null,
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdDOTMyRUEyRjQzRUVBQUQKUldTdDZqNzBvaTZUZkdlcWRnSk1jbVFDNmxhTzNnakRQOFN4UTNoR0F5Ni84Ui9wcnhqMk1ZcDQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc1ODBCMzdFMUVDRDYxRTUKUldUbFljMGVmck9BZGVpTlVSSHRHcEdMQjVaek1SbFFQNXhMTlRkNjg4TDNuNENLM3VaK3RXU2kK",
       "endpoints": [
         "https://github.com/kevinlin/open-cowork/releases/latest/download/latest.json"
       ]

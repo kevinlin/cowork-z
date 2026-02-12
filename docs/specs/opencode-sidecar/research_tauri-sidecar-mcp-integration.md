@@ -3,7 +3,7 @@ date: 2026-02-05T17:30:00-08:00
 researcher: Claude
 git_commit: 78adce3c2e574a825205fe53bbdc2affc9a156e4
 branch: main
-repository: kevinlin/open-cowork
+repository: kevinlin/cowork-z
 topic: "Tauri-Sidecar-OpenCode Integration with MCP Servers"
 tags: [research, codebase, tauri, sidecar, opencode, mcp, integration]
 status: complete
@@ -17,7 +17,7 @@ last_updated_by: Claude
 **Researcher**: Claude
 **Git Commit**: 78adce3c2e574a825205fe53bbdc2affc9a156e4
 **Branch**: main
-**Repository**: kevinlin/open-cowork
+**Repository**: kevinlin/cowork-z
 
 ## Research Question
 

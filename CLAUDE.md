@@ -220,6 +220,6 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 ## Design Documentation
 
 See `docs/specs/`:
-- `open-cowork/requirements.md` — Feature requirements
-- `open-cowork/design.md` — Technical design
+- `cowork-z/requirements.md` — Feature requirements
+- `cowork-z/design.md` — Technical design
 - `sidecar-opencode-rewrite/plan_sidecar-opencode-rewrite.md` — Sidecar rewrite plan (complete)

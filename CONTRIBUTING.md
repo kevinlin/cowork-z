@@ -12,7 +12,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 Before submitting a bug report:
 
-1. Check the [existing issues](https://github.com/kevinlin/open-cowork/issues) to avoid duplicates.
+1. Check the [existing issues](https://github.com/kevinlin/cowork-z/issues) to avoid duplicates.
 2. Use the bug report template if one is available.
 
 When filing a bug report, include:
@@ -54,8 +54,8 @@ Feature requests are welcome! Please:
 
 ```bash
 # Clone the repository
-git clone https://github.com/kevinlin/open-cowork.git
-cd open-cowork
+git clone https://github.com/kevinlin/cowork-z.git
+cd cowork-z
 
 # Install frontend dependencies
 pnpm install

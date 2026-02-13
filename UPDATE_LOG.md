@@ -1,5 +1,9 @@
 # UPDATE LOG
 
+## v0.4.2
+
+- 
+
 ## v0.4.1
 
 - Security hardening: restricted login-shell PATH probing to a trusted shell allowlist in both Rust and sidecar runtimes, preventing untrusted `$SHELL` values from being executed

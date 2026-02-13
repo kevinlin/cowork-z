@@ -1,5 +1,9 @@
 # UPDATE LOG
 
+## v0.4.1
+
+- 
+
 ## v0.4.0
 
 - **2.4 OpenCode Server API Skill** — Bundled SKILL.md giving the agent self-introspection capabilities via the OpenCode server REST API (health, config, sessions, messages, todos, skills, MCP status); replaced hardcoded system prompt behavior blocks with a compact server-access pointer; skill auto-deployed to `~/.config/opencode/skills/` on every app launch

@@ -165,7 +165,7 @@ export function enrichContentWithLinks(markdown: string): string {
   }
 
   // 3. Windows paths: C:\dir\file.ext or D:/dir/file.ext
-  const winPathRe = /[A-Za-z]:[/\\](?:[^\s<>)\]*]+[/\\])*[^\s<>)\]*]+\.\w+/g;
+  const winPathRe = /[A-Za-z]:[\\/](?:[^\\/\s<>)]+[\\/])*[^\\/\s<>)]+\.\w+/g;
   while ((m = winPathRe.exec(markdown)) !== null) {
     const start = m.index;
     const candidate = m[0];

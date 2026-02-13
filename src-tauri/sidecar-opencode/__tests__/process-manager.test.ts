@@ -416,7 +416,7 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
   describe('security: allowlist enforcement', () => {
     const untrustedShells = [
-      '/tmp/malicious',
+      '/tmp/untrusted-shell',
       '/home/user/evil-shell',
       '../../../bin/bash',
       'bash',

@@ -3,6 +3,7 @@
 ## v0.4.1
 
 - Security hardening: restricted login-shell PATH probing to a trusted shell allowlist in both Rust and sidecar runtimes, preventing untrusted `$SHELL` values from being executed
+- Fix app update download 404: changed `tagName` in publish workflow from `app-v__VERSION__` to `v__VERSION__` so `latest.json` download URLs match the actual release tag
 
 ## v0.4.0
 

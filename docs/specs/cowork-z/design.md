@@ -34,6 +34,8 @@ Cowork-Z is a cross-platform desktop application that provides a sandboxed envir
 
 ### Multi-Process Architecture
 
+> **Plan:** [Sidecar OpenCode Rewrite](../opencode-sidecar/plan_sidecar-opencode-rewrite.md) — Complete rewrite from PTY-based `opencode run` to the `opencode serve` HTTP/SSE API.
+
 ```
 Tauri (Rust) ↔ JSON-line IPC (stdin/stdout) ↔ Node.js Sidecar ↔ HTTP/SSE ↔ opencode serve
 ```
@@ -115,6 +117,8 @@ The sidecar communicates with the OpenCode server via HTTP REST and Server-Sent 
 
 **Note:** `PATCH /config` causes the OpenCode server to dispose and recreate its instance, terminating the SSE connection. The `eventsource` npm library auto-reconnects in ~1s. Do not add manual reconnection logic on top.
 
+> **Plan:** [Fix System Prompt Injection](../opencode-sidecar/plan_fix_system_prompt_injection.md) — Uses the `system` field on `sendMessage` instead of custom agent names to inject the system prompt.
+
 ---
 
 ## Key Source Locations
@@ -166,6 +170,8 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 
 ### Constraints
 
+> **Plan:** [Cross-Platform Support](plan_cross-platform-support.md) — Platform-specific build targets, PATH resolution, and installer formats.
+
 - **Must use CommonJS** — the `pkg` bundler (`@yao-pkg/pkg`) has limited ESM support
 - **No `.js` extensions** in TypeScript imports (CommonJS convention)
 - **Tests:** Jest with `ts-jest` (CommonJS transpile)
@@ -204,6 +210,8 @@ Keys are retrieved on-demand during task startup. Only masked prefixes are retur
 
 ### OpenCode Server Isolation
 
+> **Plan:** [Server Isolation](plan_server-isolation.md)
+
 - Server binds to `127.0.0.1` on a **random available port** (not a fixed port)
 - A **random password** is generated on each app launch
 - The password is set via `OPENCODE_SERVER_PASSWORD` environment variable when spawning the OpenCode server
@@ -211,6 +219,8 @@ Keys are retrieved on-demand during task startup. Only masked prefixes are retur
 - The sidecar handles authentication automatically
 
 ### Folder Permission Model
+
+> **Plan:** [Folder Permission Model](../opencode-sidecar/plan_folder-permission-model.md)
 
 - Default access: user's **Desktop** and **Downloads** folders
 - All other paths require explicit user approval via runtime permission dialogs
@@ -249,6 +259,56 @@ Handled by a `useEffect` in `src/pages/Execution.tsx` that attaches a `window.ad
 |----------|--------|-----------------|
 | `Escape` | Cancel running task (`interruptTask()`) | Task must be running; no permission dialog active |
 | `Cmd+Enter` / `Ctrl+Enter` | Send follow-up message (`handleFollowUp()`) | Task must be in follow-up state (`canFollowUp`) |
+
+---
+
+## Agent Extensions
+
+### User Prompt Customization
+
+> **Plan:** [User Prompt Customization](plan_user-prompt-customization.md)
+
+Users can configure a custom system prompt via a Settings toggle and textarea. When enabled, the custom prompt is appended to the agent's system prompt in a `<user-instructions>` XML block, delivered via the `system` field on each `sendMessage` call. Persisted to SQLite (`app_settings` table) and applied on every `startTask` and `resumeSession` call through the sidecar IPC protocol.
+
+### MCP Server Support
+
+> **Plan:** [MCP Server Support](plan_mcp-server-support.md)
+
+MCP (Model Context Protocol) server configuration allows users to extend the agent with additional tools via local commands or remote URLs. Configurations are managed in the Settings UI, persisted to the database, and sent to the OpenCode server via `PATCH /config`. Supports both local (command-based) and remote (URL-based) MCP servers with per-server enable/disable toggles.
+
+### OpenCode Server API Skill
+
+> **Plan:** [OpenCode Server API Skill](plan_opencode-server-skill.md)
+
+A bundled `SKILL.md` gives the agent self-introspection capabilities — the ability to check its own health, session state, message history, todos, config, skills, and MCP status via the OpenCode server REST API. Deployed to `~/.config/opencode/skills/opencode-server-api/SKILL.md` on every app launch.
+
+---
+
+## Frontend Features
+
+### Todo Panel
+
+> **Plan:** [Todo Panel in Sidebar](plan_todo-panel-in-sidebard.md)
+
+Wires OpenCode's todo API (`GET /session/{sessionID}/todo`) and real-time SSE events (`todo.updated`) through all five layers of the stack (OpenCode SSE → Sidecar → Rust → Frontend). Renders the agent's planned and in-progress work items inside the Sidebar's Tasks collapsible section with status icons and a progress bar.
+
+### Artefacts Panel
+
+> **Plan:** [Artefacts Panel](plan_artefacts-panel.md)
+
+Collects all files the agent creates or modifies during a session and displays them in a sidebar panel. Files are clickable (opens with OS default application) and the artefact list is restored when a session is resumed.
+
+### User Feedback
+
+> **Plan:** [User Feedback](plan_user-feedback.md)
+
+Feedback flow opens pre-filled GitHub issue templates in the default browser with environment metadata (app version, OS, architecture) auto-appended. Accessible via a feedback icon button in the sidebar bottom bar.
+
+### Missing OpenCode CLI Detection
+
+> **Plan:** [Missing OpenCode CLI Detection](plan_missing-opencode-cli-detection.md)
+
+When the `opencode` CLI cannot be found on the augmented PATH, an error dialog informs the user that OpenCode is required. Task execution is blocked until the CLI is detected, but settings and configuration remain accessible.
 
 ---
 

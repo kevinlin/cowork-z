@@ -45,15 +45,15 @@ The following implementation plans document how specific requirements were desig
 | Sidecar OpenCode Rewrite | [`opencode-sidecar/plan_sidecar-opencode-rewrite.md`](../opencode-sidecar/plan_sidecar-opencode-rewrite.md) | 1.2.1, 1.2.2 (HTTP/SSE-based session management) |
 | Folder Permission Model | [`opencode-sidecar/plan_folder-permission-model.md`](../opencode-sidecar/plan_folder-permission-model.md) | 1.3.1–1.3.4 (permission system) |
 | Fix System Prompt Injection | [`opencode-sidecar/plan_fix_system_prompt_injection.md`](../opencode-sidecar/plan_fix_system_prompt_injection.md) | 2.1 (user prompt / agent configuration) |
-| Keyboard Shortcuts | [`cowork-z/plan_keyboard-shortcuts.md`](plan_keyboard-shortcuts.md) | 4.3.1, 4.3.2 (keyboard shortcuts) |
+| Keyboard Shortcuts | [`ts-frontend/plan_keyboard-shortcuts.md`](../ts-frontend/plan_keyboard-shortcuts.md) | 4.3.1, 4.3.2 (keyboard shortcuts) |
 | Server Isolation | [`cowork-z/plan_server-isolation.md`](plan_server-isolation.md) | 5.2.1 (OpenCode server isolation) |
-| Todo Panel in Sidebar | [`cowork-z/plan_todo-panel-in-sidebard.md`](plan_todo-panel-in-sidebard.md) | 3.3 (task todos panel) |
+| Todo Panel in Sidebar | [`plan_todo-panel-in-sidebard.md`](plan_todo-panel-in-sidebard.md) | 3.3 (task todos panel) |
 | User Prompt Customization | [`cowork-z/plan_user-prompt-customization.md`](plan_user-prompt-customization.md) | 2.1 (user prompt customization) |
 | MCP Server Support | [cowork-z/plan_mcp-server-support.md](plan_mcp-server-support.md) | 2.3 (MCP support) |
 | Artefacts Panel | [`cowork-z/plan_artefacts-panel.md`](plan_artefacts-panel.md) | 3.4 (artefacts panel) |
-| Drag and Droop in Chat | [Drag-and-drop Support](plan_drag-and-drop-support.md) | 3.5 (drag and drop) |
-| Theme Support | [`cowork-z/plan_theme-support.md`](plan_theme-support.md) | 4.2 (theme support) |
-| About Panel | [`cowork-z/plan_about_panel.md`](plan_about_panel.md) | 4.4 (about panel) |
+| Drag-and-Drop in Chat | [`ts-frontend/plan_drag-and-drop-support.md`](../ts-frontend/plan_drag-and-drop-support.md) | 3.5 (drag and drop) |
+| Theme Support | [`ts-frontend/plan_theme-support.md`](../ts-frontend/plan_theme-support.md) | 4.2 (theme support) |
+| About Panel | [`ts-frontend/plan_about_panel.md`](../ts-frontend/plan_about_panel.md) | 4.4 (about panel) |
 | User Feedback | [`cowork-z/plan_user-feedback.md`](plan_user-feedback.md) | 4.5 (feedback) |
 | Cross-Platform Fixes | [`cowork-z/plan_cross-platform-support.md`](plan_cross-platform-support.md) | 5.1.1–5.1.3 (cross-platform support) |
 | Missing OpenCode CLI Detection | [`cowork-z/plan_missing-opencode-cli-detection.md`](plan_missing-opencode-cli-detection.md) | 5.3.3 (CLI detection dialog) |
@@ -259,7 +259,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 **User Story:** As a user, I want to drag files or folders into the chat input, so that I can quickly reference them in my prompts without typing full paths.
 
-> **Plan:** [Drag-and-drop Support](plan_drag-and-drop-support.md)
+> **Plan:** [Drag-and-drop Support](../ts-frontend/plan_drag-and-drop-support.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL support drag-and-drop of files and folders onto the chat input area
@@ -304,7 +304,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 4.2 Theme Support ✅
 
-> **Plan:** [Theme Support](plan_theme-support.md)
+> **Plan:** [Theme Support](../ts-frontend/plan_theme-support.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL provide multiple predefined themes aligned with the Zuhlke style guide, including at least one dark theme
@@ -314,7 +314,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 4.3 Keyboard Shortcuts ✅
 
-> **Plan:** [Keyboard Shortcuts](plan_keyboard-shortcuts.md)
+> **Plan:** [Keyboard Shortcuts](../ts-frontend/plan_keyboard-shortcuts.md)
 
 **Acceptance Criteria:**
 
@@ -332,7 +332,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 4.4 About Panel ✅
 
-> **Plan:** [About Panel](plan_about_panel.md)
+> **Plan:** [About Panel](../ts-frontend/plan_about_panel.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL provide an info panel accessible via the app menu (Help > About)

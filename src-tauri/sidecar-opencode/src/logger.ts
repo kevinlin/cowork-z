@@ -56,9 +56,6 @@ export class Logger {
       this.logFile.write(`${line}\n`);
     }
 
-    // Also write to stderr for debugging
-    console.error(line);
-
     // Send to frontend debug panel via IPC
     if (this.ipcEmitter) {
       const levelLower = level.toLowerCase();

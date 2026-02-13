@@ -58,6 +58,7 @@ The following implementation plans document how specific requirements were desig
 | Cross-Platform Fixes | [`cowork-z/plan_cross-platform-support.md`](plan_cross-platform-support.md) | 5.1.1–5.1.3 (cross-platform support) |
 | Missing OpenCode CLI Detection | [`cowork-z/plan_missing-opencode-cli-detection.md`](plan_missing-opencode-cli-detection.md) | 5.3.3 (CLI detection dialog) |
 | OpenCode Server API Skill | [`cowork-z/plan_opencode-server-skill.md`](plan_opencode-server-skill.md) | 2.4 (server API skill) |
+| Windows Production Readiness | [`docs/plans/2026-02-13-windows-production-readiness-design.md`](../../../docs/plans/2026-02-13-windows-production-readiness-design.md) | 5.1.1–5.1.3 (Windows runtime, CI, signing) |
 
 ---
 
@@ -367,7 +368,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 **User Story:** As a user, I want Cowork-Z to run on my OS and protect its internal services and data from other local users.
 
-#### 5.1 Cross-Platform Support ✅
+#### 5.1 Cross-Platform Support
 
 > **Plan:** [Cross-Platform Fixes](plan_cross-platform-support.md)
 
@@ -467,5 +468,6 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
+- [ ] **Windows Production Readiness** — Fix runtime bugs (log path, PATH resolution, dev command), CI hardening (Windows smoke tests, installer verification), and code signing (Req 5.1.1–5.1.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)
 - [x] **OpenCode Server API Skill** — Bundled SKILL.md for agent self-introspection via OpenCode server REST APIs (Req 2.4)

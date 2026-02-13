@@ -1211,26 +1211,42 @@ fn get_augmented_path() -> String {
 
     // Try to get the user's full login-shell PATH
     if cfg!(not(target_os = "windows")) {
-        // Use a trusted shell path instead of reading $SHELL directly.
-        // Environment variables can be user-controlled and static analysis
-        // flags using them as process executables.
-        let shell_candidates = ["/bin/zsh", "/bin/bash", "/bin/sh"];
-        let shell_path = shell_candidates
-            .iter()
-            .find(|path| std::path::Path::new(path).exists())
-            .copied()
-            .unwrap_or("/bin/sh");
+        // Prefer the user's login shell from $SHELL, but only if it is an
+        // absolute path, is in an allowlist of trusted shells, and exists.
+        // Otherwise, fall back to a list of known-good shell paths.
+        let allowed_shells = ["/bin/zsh", "/bin/bash", "/bin/sh"];
+        let shell_env = std::env::var("SHELL").ok();
+        let shell_executable = shell_env
+            .as_deref()
+            .filter(|s| s.starts_with('/'))
+            .filter(|s| allowed_shells.iter().any(|&allowed| *s == allowed))
+            .filter(|s| std::path::Path::new(s).exists())
+            .unwrap_or_else(|| {
+                allowed_shells
+                    .iter()
+                    .find(|path| std::path::Path::new(path).exists())
+                    .copied()
+                    .unwrap_or("/bin/sh")
+            });
 
-        if let Ok(output) = std::process::Command::new(shell_path)
-            .args(["-ilc", "echo $PATH"])
+        // Use per-shell arguments to avoid unsupported flags (e.g. `-l` on some `/bin/sh`).
+        let shell_args: &[&str] = if shell_executable == "/bin/bash" || shell_executable == "/bin/zsh" {
+            &["-ilc", "echo $PATH"]
+        } else {
+            // For generic /bin/sh (which may be dash), avoid `-l`.
+            &["-ic", "echo $PATH"]
+        };
+
+        if let Ok(output) = std::process::Command::new(shell_executable)
+            .args(shell_args)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
             .stdin(std::process::Stdio::null())
             .output()
         {
             if output.status.success() {
-                if let Ok(shell_path) = String::from_utf8(output.stdout) {
-                    for dir in shell_path.trim().split(':').filter(|s| !s.is_empty()) {
+                if let Ok(shell_path_output) = String::from_utf8(output.stdout) {
+                    for dir in shell_path_output.trim().split(':').filter(|s| !s.is_empty()) {
                         if seen.insert(dir.to_string()) {
                             dirs.push(dir.to_string());
                         }

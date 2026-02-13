@@ -105,6 +105,8 @@ echo "  ✅ UPDATE_LOG.md"
 echo ""
 echo "🔨 Running pnpm tauri build …"
 pnpm tauri build
+echo "Wait for 1 second to ensure the build is complete..."
+sleep 1
 
 # ── 7. Commit and push ───────────────────────────────────────────────
 echo ""

@@ -1978,6 +1978,36 @@ pub fn run() {
             // Initialize pending update state
             app.manage(PendingUpdate(Mutex::new(None)));
 
+            // Copy bundled OpenCode Server API skill to global skills directory
+            // so that OpenCode discovers it automatically.
+            if let Some(home) = dirs::home_dir() {
+                let target_dir = home.join(".config/opencode/skills/opencode-server-api");
+                let target_file = target_dir.join("SKILL.md");
+
+                match app.path().resource_dir() {
+                    Ok(resource_dir) => {
+                        let source_file = resource_dir
+                            .join("resources")
+                            .join("skills")
+                            .join("opencode-server-api")
+                            .join("SKILL.md");
+
+                        if source_file.exists() {
+                            if let Err(e) = std::fs::create_dir_all(&target_dir) {
+                                eprintln!("[warn] Failed to create skill directory {:?}: {}", target_dir, e);
+                            } else if let Err(e) = std::fs::copy(&source_file, &target_file) {
+                                eprintln!("[warn] Failed to copy skill SKILL.md to {:?}: {}", target_file, e);
+                            }
+                        } else {
+                            eprintln!("[warn] Bundled SKILL.md not found at {:?}", source_file);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("[warn] Failed to resolve resource directory: {}", e);
+                    }
+                }
+            }
+
             // Build native menu bar
             let app_menu = SubmenuBuilder::new(app, "Cowork-Z")
                 .about(None)

@@ -1,8 +1,5 @@
 # Plan: OpenCode Server API Skill
 
-> **Requirement:** 2.4 OpenCode Server API Skill
-> **Status:** Design complete, pending implementation
-
 ## Overview
 
 Create a bundled SKILL.md that gives the Cowork-Z agent self-introspection capabilities — the ability to check its own health, session state, message history, todos, config, skills, MCP status, and perform lightweight config updates via the OpenCode server REST API.

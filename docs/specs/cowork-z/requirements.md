@@ -189,11 +189,11 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 3. FOR remote MCP servers, THE SYSTEM SHALL provide a form with fields for: name, URL, headers, OAuth configuration, timeout, and enabled toggle
 4. THE SYSTEM SHALL display the connection status of each configured MCP server
 
-#### 2.4 OpenCode Server API Skill
-
-**User Story:** As an agent, I want to understand and invoke the OpenCode server's REST APIs, so that I can introspect my own session state, configuration, and runtime environment to work more effectively.
+#### 2.4 OpenCode Server API Skill ✅
 
 > **Plan:** [OpenCode Server API Skill](plan_opencode-server-skill.md)
+
+**User Story:** As an agent, I want to understand and invoke the OpenCode server's REST APIs, so that I can introspect my own session state, configuration, and runtime environment to work more effectively.
 
 **Acceptance Criteria:**
 
@@ -467,4 +467,4 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 The following items remain to be implemented:
 
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)
-- [ ] **OpenCode Server API Skill** — Bundled SKILL.md for agent self-introspection via OpenCode server REST APIs (Req 2.4)
+- [x] **OpenCode Server API Skill** — Bundled SKILL.md for agent self-introspection via OpenCode server REST APIs (Req 2.4)

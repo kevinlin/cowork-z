@@ -1211,8 +1211,17 @@ fn get_augmented_path() -> String {
 
     // Try to get the user's full login-shell PATH
     if cfg!(not(target_os = "windows")) {
-        let user_shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-        if let Ok(output) = std::process::Command::new(&user_shell)
+        // Use a trusted shell path instead of reading $SHELL directly.
+        // Environment variables can be user-controlled and static analysis
+        // flags using them as process executables.
+        let shell_candidates = ["/bin/zsh", "/bin/bash", "/bin/sh"];
+        let shell_path = shell_candidates
+            .iter()
+            .find(|path| std::path::Path::new(path).exists())
+            .copied()
+            .unwrap_or("/bin/sh");
+
+        if let Ok(output) = std::process::Command::new(shell_path)
             .args(["-ilc", "echo $PATH"])
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())

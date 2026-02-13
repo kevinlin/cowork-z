@@ -11,6 +11,41 @@ import type { ApiKeys } from './types';
 /** Default working directory for `opencode serve` to avoid writing config.json into the source tree. */
 const OPENCODE_DATA_DIR = path.join(os.homedir(), '.local', 'share', 'opencode', 'log');
 
+const UNIX_ALLOWED_LOGIN_SHELLS = [
+  '/bin/zsh',
+  '/bin/bash',
+  '/bin/sh',
+  '/usr/bin/zsh',
+  '/usr/bin/bash',
+  '/usr/bin/sh',
+  '/opt/homebrew/bin/bash',
+] as const;
+
+const getSafeUnixLoginShell = (): string | undefined => {
+  const envShell = process.env.SHELL;
+  if (envShell && UNIX_ALLOWED_LOGIN_SHELLS.includes(envShell as (typeof UNIX_ALLOWED_LOGIN_SHELLS)[number])) {
+    try {
+      if (fs.existsSync(envShell)) {
+        return envShell;
+      }
+    } catch {
+      // Ignore fs errors and fall back to known shell paths.
+    }
+  }
+
+  for (const shellPath of UNIX_ALLOWED_LOGIN_SHELLS) {
+    try {
+      if (fs.existsSync(shellPath)) {
+        return shellPath;
+      }
+    } catch {
+      // Ignore fs errors and keep trying allowed shells.
+    }
+  }
+
+  return undefined;
+};
+
 /**
  * Build an augmented PATH suitable for macOS GUI-launched apps.
  *
@@ -59,17 +94,19 @@ function getAugmentedPath(): string {
   // Uses execFileSync (not execSync) to avoid shell injection.
   if (!isWindows) {
     try {
-      const userShell = process.env.SHELL || '/bin/zsh';
-      const shellPath = execFileSync(userShell, ['-ilc', 'echo $PATH'], {
-        timeout: 5000,
-        encoding: 'utf-8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }).trim();
-      if (shellPath) {
-        for (const dir of shellPath.split(':').filter(Boolean)) {
-          if (!existingDirs.has(dir)) {
-            existingDirs.add(dir);
-            orderedDirs.push(dir);
+      const userShell = getSafeUnixLoginShell();
+      if (userShell) {
+        const shellPath = execFileSync(userShell, ['-ilc', 'echo $PATH'], {
+          timeout: 5000,
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
+        if (shellPath) {
+          for (const dir of shellPath.split(':').filter(Boolean)) {
+            if (!existingDirs.has(dir)) {
+              existingDirs.add(dir);
+              orderedDirs.push(dir);
+            }
           }
         }
       }

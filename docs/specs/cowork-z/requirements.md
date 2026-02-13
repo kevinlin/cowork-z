@@ -389,10 +389,11 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ##### 5.1.4 PATH Resolution for External CLI Tools
 1. WHEN launched from a GUI context (Finder/Dock on macOS, Start Menu/Explorer on Windows), THE SYSTEM SHALL augment the process PATH so that globally-installed CLI tools (e.g., `opencode`) are discoverable
-2. On macOS/Linux, THE SYSTEM SHALL source the user's login shell PATH via `$SHELL -ilc 'echo $PATH'` and merge it with the current process PATH
-3. On macOS/Linux, THE SYSTEM SHALL fall back to well-known directories (`/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin`, `~/.volta/bin`, `~/.nvm/versions/node/*/bin`, `~/.yarn/bin`, `~/.local/share/pnpm`, `~/.local/share/fnm`) when the login shell approach fails
-4. On Windows, THE SYSTEM SHALL include well-known directories (`%APPDATA%\npm`, `%ProgramFiles%\nodejs`, `%LOCALAPPDATA%\Volta\bin`, `~\scoop\shims`, `C:\ProgramData\chocolatey\bin`, `%LOCALAPPDATA%\Yarn\bin`, `%LOCALAPPDATA%\pnpm`, nvm-windows version directories)
-5. THE SYSTEM SHALL deduplicate PATH entries (case-insensitively on Windows) and use the platform-appropriate separator (`:` on Unix, `;` on Windows)
+2. On macOS/Linux, THE SYSTEM SHALL source the user's login shell PATH via `trusted-shell -ilc 'echo $PATH'` and merge it with the current process PATH
+3. On macOS/Linux, THE SYSTEM SHALL only execute login shells from an allowlist of absolute paths and SHALL ignore untrusted `$SHELL` values
+4. On macOS/Linux, THE SYSTEM SHALL fall back to well-known directories (`/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin`, `~/.volta/bin`, `~/.nvm/versions/node/*/bin`, `~/.yarn/bin`, `~/.local/share/pnpm`, `~/.local/share/fnm`) when the login shell approach fails
+5. On Windows, THE SYSTEM SHALL include well-known directories (`%APPDATA%\npm`, `%ProgramFiles%\nodejs`, `%LOCALAPPDATA%\Volta\bin`, `~\scoop\shims`, `C:\ProgramData\chocolatey\bin`, `%LOCALAPPDATA%\Yarn\bin`, `%LOCALAPPDATA%\pnpm`, nvm-windows version directories)
+6. THE SYSTEM SHALL deduplicate PATH entries (case-insensitively on Windows) and use the platform-appropriate separator (`:` on Unix, `;` on Windows)
 
 #### 5.2 Security Hardening
 

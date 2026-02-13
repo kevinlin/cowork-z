@@ -1211,19 +1211,20 @@ fn get_augmented_path() -> String {
 
     // Try to get the user's full login-shell PATH
     if cfg!(not(target_os = "windows")) {
-        let user_shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-        if let Ok(output) = std::process::Command::new(&user_shell)
+        if let Some(user_shell) = get_safe_login_shell() {
+            if let Ok(output) = std::process::Command::new(&user_shell)
             .args(["-ilc", "echo $PATH"])
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
             .stdin(std::process::Stdio::null())
             .output()
-        {
-            if output.status.success() {
-                if let Ok(shell_path) = String::from_utf8(output.stdout) {
-                    for dir in shell_path.trim().split(':').filter(|s| !s.is_empty()) {
-                        if seen.insert(dir.to_string()) {
-                            dirs.push(dir.to_string());
+            {
+                if output.status.success() {
+                    if let Ok(shell_path) = String::from_utf8(output.stdout) {
+                        for dir in shell_path.trim().split(':').filter(|s| !s.is_empty()) {
+                            if seen.insert(dir.to_string()) {
+                                dirs.push(dir.to_string());
+                            }
                         }
                     }
                 }
@@ -1276,6 +1277,29 @@ fn get_augmented_path() -> String {
     }
 
     dirs.join(":")
+}
+
+fn get_safe_login_shell() -> Option<String> {
+    const ALLOWED_SHELLS: &[&str] = &[
+        "/bin/zsh",
+        "/bin/bash",
+        "/bin/sh",
+        "/usr/bin/zsh",
+        "/usr/bin/bash",
+        "/usr/bin/sh",
+        "/opt/homebrew/bin/bash",
+    ];
+
+    if let Ok(shell) = std::env::var("SHELL") {
+        if ALLOWED_SHELLS.contains(&shell.as_str()) && std::path::Path::new(&shell).exists() {
+            return Some(shell);
+        }
+    }
+
+    ALLOWED_SHELLS
+        .iter()
+        .find(|shell| std::path::Path::new(*shell).exists())
+        .map(|shell| shell.to_string())
 }
 
 #[tauri::command]

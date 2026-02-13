@@ -1214,7 +1214,16 @@ fn get_augmented_path() -> String {
         // Prefer the user's login shell from $SHELL, but only if it is an
         // absolute path, is in an allowlist of trusted shells, and exists.
         // Otherwise, fall back to a list of known-good shell paths.
-        let allowed_shells = ["/bin/zsh", "/bin/bash", "/bin/sh"];
+        let allowed_shells = [
+            "/bin/zsh",
+            "/bin/bash",
+            "/bin/sh",
+            "/usr/bin/zsh",
+            "/usr/bin/bash",
+            "/usr/bin/sh",
+            "/usr/local/bin/zsh",
+            "/usr/local/bin/bash",
+        ];
         let shell_env = std::env::var("SHELL").ok();
         let shell_executable = shell_env
             .as_deref()
@@ -1230,7 +1239,12 @@ fn get_augmented_path() -> String {
             });
 
         // Use per-shell arguments to avoid unsupported flags (e.g. `-l` on some `/bin/sh`).
-        let shell_args: &[&str] = if shell_executable == "/bin/bash" || shell_executable == "/bin/zsh" {
+        // Detect shell type by basename to handle shells in different directories.
+        let shell_basename = std::path::Path::new(shell_executable)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        let shell_args: &[&str] = if shell_basename == "bash" || shell_basename == "zsh" {
             &["-ilc", "echo $PATH"]
         } else {
             // For generic /bin/sh (which may be dash), avoid `-l`.

@@ -415,7 +415,7 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
   });
 
   describe('security: allowlist enforcement', () => {
-    const maliciousShells = [
+    const untrustedShells = [
       '/tmp/malicious',
       '/home/user/evil-shell',
       '../../../bin/bash',
@@ -424,12 +424,12 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
       '/opt/custom/shell',
     ];
 
-    it.each(maliciousShells)('should reject untrusted shell: %s', async (maliciousShell) => {
-      process.env.SHELL = maliciousShell;
+    it.each(untrustedShells)('should reject untrusted shell: %s', async (untrustedShell) => {
+      process.env.SHELL = untrustedShell;
       process.env.PATH = '/usr/bin:/bin';
       mockExistsSync.mockImplementation((path) => {
-        // Both malicious shell and fallback exist
-        if (path === maliciousShell) return true;
+        // Both untrusted shell and fallback exist
+        if (path === untrustedShell) return true;
         if (path === '/bin/bash') return true;
         return false;
       });
@@ -447,9 +447,9 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
         expect.any(Object)
       );
       
-      // Should NOT use the malicious shell
+      // Should NOT use the untrusted shell
       expect(mockExecFileSync).not.toHaveBeenCalledWith(
-        maliciousShell,
+        untrustedShell,
         expect.any(Array),
         expect.any(Object)
       );

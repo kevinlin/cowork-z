@@ -1230,7 +1230,7 @@ fn get_augmented_path() -> String {
             });
 
         // Use per-shell arguments to avoid unsupported flags (e.g. `-l` on some `/bin/sh`).
-        let shell_args: &[&str] = if shell_executable.ends_with("bash") || shell_executable.ends_with("zsh") {
+        let shell_args: &[&str] = if shell_executable == "/bin/bash" || shell_executable == "/bin/zsh" {
             &["-ilc", "echo $PATH"]
         } else {
             // For generic /bin/sh (which may be dash), avoid `-l`.

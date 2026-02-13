@@ -370,7 +370,8 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 5.1 Cross-Platform Support
 
-> **Plan:** [Cross-Platform Fixes](plan_cross-platform-support.md)
+> **Plan:** [Cross-Platform Fixes](plan_cross-platform-support.md), [Windows Production Readiness](plan_windows-production-readiness.md)
+
 
 **Acceptance Criteria:**
 

@@ -49,6 +49,7 @@ When users ask about your capabilities, mention:
 <server-access>
 The OpenCode server is running at http://localhost:${serverPort}
 Authenticate with: -u opencode:${serverPassword}
+Before calling any API endpoint, ALWAYS fetch the OpenAPI spec first: curl -s -u opencode:${serverPassword} http://localhost:${serverPort}/doc
 Refer to the "opencode-server-api" skill for the full API reference.
 To load it: curl -s -u opencode:${serverPassword} http://localhost:${serverPort}/skill
 </server-access>

@@ -12,9 +12,19 @@ curl -s -u opencode:$PASSWORD http://localhost:$PORT/<endpoint>
 
 Replace `$PORT` and `$PASSWORD` with the values from your system prompt.
 
+## IMPORTANT: Fetch the API Spec First
+
+**Before calling ANY specific endpoint, you MUST first fetch and parse the live OpenAPI specification.** The spec is the source of truth for all available endpoints, request/response schemas, and query parameters. The endpoint summaries in this skill are a convenient reference, but the server's own spec may be newer or more complete.
+
+```bash
+curl -s -u opencode:$PASSWORD http://localhost:$PORT/doc
+```
+
+This returns the full OpenAPI JSON spec. Parse it to understand the exact request format, required parameters, and response shapes before invoking any endpoint. **Do not guess or rely solely on the examples below — always verify against `/doc` first.**
+
 ---
 
-## Endpoints
+## Endpoint Reference
 
 ### GET /global/health
 

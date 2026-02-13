@@ -2,7 +2,7 @@
 
 ## v0.4.2
 
-- 
+- **5.1 Windows Runtime Fixes (Phase 1)** — Platform-aware log directory, Windows PATH resolution (semicolon separators, case-insensitive dedup, well-known Windows tool directories), cross-platform sidecar build script, graceful sidecar shutdown for Windows process management
 
 ## v0.4.1
 

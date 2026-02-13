@@ -248,7 +248,8 @@ export type SidecarCommand =
   | { type: 'get_session_todos'; taskId: string; sessionId: string }
   | { type: 'update_mcp_config'; payload: UpdateMcpConfigPayload }
   | { type: 'ping' }
-  | { type: 'check_server' };
+  | { type: 'check_server' }
+  | { type: 'shutdown' };
 
 export interface FolderPermission {
   path: string;

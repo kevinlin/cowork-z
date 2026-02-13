@@ -194,12 +194,21 @@ fn create_log_file(
     session_id: Option<&str>,
     task_id: Option<&str>,
 ) -> Result<Arc<std::sync::Mutex<File>>, String> {
-    let log_dir = dirs::home_dir()
-        .ok_or("Could not determine home directory")?
-        .join(".local")
-        .join("share")
-        .join("opencode")
-        .join("log");
+    let log_dir = if cfg!(target_os = "windows") {
+        // Windows: %LOCALAPPDATA%\opencode\log
+        dirs::data_local_dir()
+            .ok_or("Could not determine local app data directory")?
+            .join("opencode")
+            .join("log")
+    } else {
+        // macOS/Linux: ~/.local/share/opencode/log
+        dirs::home_dir()
+            .ok_or("Could not determine home directory")?
+            .join(".local")
+            .join("share")
+            .join("opencode")
+            .join("log")
+    };
     std::fs::create_dir_all(&log_dir)
         .map_err(|e| format!("Failed to create log directory: {}", e))?;
 
@@ -471,8 +480,15 @@ impl SidecarManager {
     /// Stop the sidecar process
     #[allow(dead_code)]
     pub async fn stop(&mut self) -> Result<(), String> {
-        if let Some(child) = self.child.take() {
-            child.kill().map_err(|e| format!("Failed to kill sidecar: {}", e))?;
+        if let Some(mut child) = self.child.take() {
+            // Send shutdown command via stdin so sidecar can clean up child processes
+            let shutdown_cmd = serde_json::json!({"type": "shutdown"});
+            let json = serde_json::to_string(&shutdown_cmd).unwrap_or_default();
+            let _ = child.write((json + "\n").as_bytes());
+
+            // Give sidecar a moment to shut down gracefully, then force kill
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            let _ = child.kill();
         }
         self.is_ready = false;
         Ok(())

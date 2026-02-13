@@ -1192,19 +1192,26 @@ async fn set_onboarding_complete(complete: bool, state: State<'_, DbState>) -> R
 // OpenCode CLI Commands
 // ============================================================================
 
-/// Build an augmented PATH suitable for macOS GUI-launched apps.
+/// Build an augmented PATH suitable for GUI-launched apps on all platforms.
 ///
-/// When the app is launched from Finder / Dock / Spotlight, macOS gives
-/// the process a minimal PATH (e.g. /usr/bin:/bin:/usr/sbin:/sbin).
-/// Tools installed via Homebrew, nvm, volta, etc. won't be found.
+/// On macOS, Finder/Dock/Spotlight give a minimal PATH. On Windows,
+/// Start Menu/Explorer may omit user-installed tool directories.
+/// This function merges the current PATH with login-shell PATH (Unix only)
+/// and well-known tool directories for each platform.
 fn get_augmented_path() -> String {
+    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
     let current_path = std::env::var("PATH").unwrap_or_default();
     let mut seen = std::collections::HashSet::new();
     let mut dirs: Vec<String> = Vec::new();
 
     // Start with existing PATH entries
-    for dir in current_path.split(':').filter(|s| !s.is_empty()) {
-        if seen.insert(dir.to_string()) {
+    for dir in current_path.split(separator).filter(|s| !s.is_empty()) {
+        let key = if cfg!(target_os = "windows") {
+            dir.to_lowercase()
+        } else {
+            dir.to_string()
+        };
+        if seen.insert(key) {
             dirs.push(dir.to_string());
         }
     }
@@ -1221,8 +1228,13 @@ fn get_augmented_path() -> String {
             {
                 if output.status.success() {
                     if let Ok(shell_path) = String::from_utf8(output.stdout) {
-                        for dir in shell_path.trim().split(':').filter(|s| !s.is_empty()) {
-                            if seen.insert(dir.to_string()) {
+                        for dir in shell_path.trim().split(separator).filter(|s| !s.is_empty()) {
+                            let key = if cfg!(target_os = "windows") {
+                                dir.to_lowercase()
+                            } else {
+                                dir.to_string()
+                            };
+                            if seen.insert(key) {
                                 dirs.push(dir.to_string());
                             }
                         }
@@ -1234,32 +1246,70 @@ fn get_augmented_path() -> String {
 
     // Well-known directories as fallback
     let home = dirs::home_dir().unwrap_or_default();
-    let well_known = vec![
-        "/opt/homebrew/bin".to_string(),
-        "/opt/homebrew/sbin".to_string(),
-        "/usr/local/bin".to_string(),
-        "/usr/local/sbin".to_string(),
-        home.join(".local/bin").to_string_lossy().to_string(),
-        home.join(".volta/bin").to_string_lossy().to_string(),
-        home.join(".npm-global/bin").to_string_lossy().to_string(),
-        home.join(".yarn/bin").to_string_lossy().to_string(),
-        home.join(".local/share/pnpm").to_string_lossy().to_string(),
-        home.join(".local/share/fnm").to_string_lossy().to_string(),
-    ];
 
-    // Add nvm latest node version
-    let nvm_base = home.join(".nvm/versions/node");
+    let well_known: Vec<String> = if cfg!(target_os = "windows") {
+        let appdata = std::env::var("APPDATA").unwrap_or_default();
+        let localappdata = std::env::var("LOCALAPPDATA").unwrap_or_default();
+        let programfiles = std::env::var("ProgramFiles").unwrap_or_default();
+
+        vec![
+            format!("{}\\npm", appdata),                          // npm global
+            format!("{}\\nodejs", programfiles),                   // Node.js install
+            format!("{}\\Volta\\bin", localappdata),               // Volta
+            home.join("scoop\\shims").to_string_lossy().to_string(), // Scoop
+            "C:\\ProgramData\\chocolatey\\bin".to_string(),        // Chocolatey
+            format!("{}\\Yarn\\bin", localappdata),                // Yarn
+            format!("{}\\pnpm", localappdata),                     // pnpm
+        ]
+    } else {
+        vec![
+            "/opt/homebrew/bin".to_string(),
+            "/opt/homebrew/sbin".to_string(),
+            "/usr/local/bin".to_string(),
+            "/usr/local/sbin".to_string(),
+            home.join(".local/bin").to_string_lossy().to_string(),
+            home.join(".volta/bin").to_string_lossy().to_string(),
+            home.join(".npm-global/bin").to_string_lossy().to_string(),
+            home.join(".yarn/bin").to_string_lossy().to_string(),
+            home.join(".local/share/pnpm").to_string_lossy().to_string(),
+            home.join(".local/share/fnm").to_string_lossy().to_string(),
+        ]
+    };
+
+    // Add nvm/nvm-windows latest node version
+    let nvm_base = if cfg!(target_os = "windows") {
+        // nvm-windows: %APPDATA%\nvm or %NVM_HOME%
+        let nvm_home = std::env::var("NVM_HOME")
+            .unwrap_or_else(|_| {
+                let appdata = std::env::var("APPDATA").unwrap_or_default();
+                format!("{}\\nvm", appdata)
+            });
+        std::path::PathBuf::from(nvm_home)
+    } else {
+        home.join(".nvm/versions/node")
+    };
     if nvm_base.exists() {
         if let Ok(versions) = std::fs::read_dir(&nvm_base) {
             let mut version_dirs: Vec<String> = versions
                 .filter_map(|e| e.ok())
                 .map(|e| e.file_name().to_string_lossy().to_string())
+                .filter(|name| name.starts_with('v'))
                 .collect();
             version_dirs.sort();
             version_dirs.reverse();
             if let Some(latest) = version_dirs.first() {
-                let nvm_bin = nvm_base.join(latest).join("bin").to_string_lossy().to_string();
-                if seen.insert(nvm_bin.clone()) {
+                let nvm_bin = if cfg!(target_os = "windows") {
+                    // nvm-windows puts node.exe directly in the version dir
+                    nvm_base.join(latest).to_string_lossy().to_string()
+                } else {
+                    nvm_base.join(latest).join("bin").to_string_lossy().to_string()
+                };
+                let key = if cfg!(target_os = "windows") {
+                    nvm_bin.to_lowercase()
+                } else {
+                    nvm_bin.clone()
+                };
+                if seen.insert(key) {
                     if std::path::Path::new(&nvm_bin).exists() {
                         dirs.push(nvm_bin);
                     }
@@ -1269,14 +1319,19 @@ fn get_augmented_path() -> String {
     }
 
     for dir in well_known {
-        if seen.insert(dir.clone()) {
+        let key = if cfg!(target_os = "windows") {
+            dir.to_lowercase()
+        } else {
+            dir.clone()
+        };
+        if seen.insert(key) {
             if std::path::Path::new(&dir).exists() {
                 dirs.push(dir);
             }
         }
     }
 
-    dirs.join(":")
+    dirs.join(separator)
 }
 
 fn get_safe_login_shell() -> Option<String> {

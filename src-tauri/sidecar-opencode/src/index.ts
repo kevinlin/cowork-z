@@ -404,6 +404,17 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
       break;
     }
 
+    case 'shutdown':
+      // Graceful shutdown: stop OpenCode server, then exit
+      logger.info('Received shutdown command, cleaning up...');
+      try {
+        await cleanup();
+      } catch {
+        // Best-effort cleanup
+      }
+      process.exit(0);
+      break;
+
     default:
       logger.warn('Unknown command type', msg);
   }

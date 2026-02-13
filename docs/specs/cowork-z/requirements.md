@@ -58,7 +58,7 @@ The following implementation plans document how specific requirements were desig
 | Cross-Platform Fixes | [`cowork-z/plan_cross-platform-support.md`](plan_cross-platform-support.md) | 5.1.1–5.1.3 (cross-platform support) |
 | Missing OpenCode CLI Detection | [`cowork-z/plan_missing-opencode-cli-detection.md`](plan_missing-opencode-cli-detection.md) | 5.3.3 (CLI detection dialog) |
 | OpenCode Server API Skill | [`cowork-z/plan_opencode-server-skill.md`](plan_opencode-server-skill.md) | 2.4 (server API skill) |
-| Windows Production Readiness | [`docs/plans/2026-02-13-windows-production-readiness-design.md`](../../../docs/plans/2026-02-13-windows-production-readiness-design.md) | 5.1.1–5.1.3 (Windows runtime, CI, signing) |
+| Windows Production Readiness | [`cowork-z/plan_windows-production-readiness.md`](plan_windows-production-readiness.md) | 5.1.1–5.1.3 (Windows runtime, CI, signing) |
 
 ---
 

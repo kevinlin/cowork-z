@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Platform-Aware Log Directory
+### Task 1: Platform-Aware Log Directory ✅
 
 **Files:**
 - Modify: `src-tauri/src/sidecar.rs:197-202`
@@ -62,7 +62,7 @@ git commit -m "fix: use platform-aware log directory path for Windows support"
 
 ---
 
-### Task 2: PATH Resolution — Separator and Dedup
+### Task 2: PATH Resolution — Separator and Dedup ✅
 
 **Files:**
 - Modify: `src-tauri/src/lib.rs:1200-1280` (function `get_augmented_path`)
@@ -252,7 +252,7 @@ git commit -m "fix: Windows PATH resolution — separators, well-known dirs, cas
 
 ---
 
-### Task 3: Cross-Platform Sidecar Build Script
+### Task 3: Cross-Platform Sidecar Build Script ✅
 
 **Files:**
 - Create: `scripts/build-sidecar.mjs`
@@ -339,7 +339,7 @@ git commit -m "feat: cross-platform sidecar build script for beforeDevCommand"
 
 ---
 
-### Task 4: Graceful Sidecar Shutdown on Windows
+### Task 4: Graceful Sidecar Shutdown on Windows ✅
 
 **Files:**
 - Modify: `src-tauri/src/sidecar.rs:473-479` (function `stop`)
@@ -420,7 +420,7 @@ git commit -m "fix: graceful sidecar shutdown to prevent orphaned processes on W
 
 ---
 
-### Task 5: Update Docstring and Function Comment
+### Task 5: Update Docstring and Function Comment ✅
 
 **Files:**
 - Modify: `src-tauri/src/lib.rs:1195-1199`
@@ -462,7 +462,7 @@ git commit -m "docs: update get_augmented_path docstring for cross-platform scop
 
 ---
 
-### Task 6: Verify Full Build and Run Tests
+### Task 6: Verify Full Build and Run Tests ✅
 
 **Files:** None (verification only)
 
@@ -488,7 +488,7 @@ Expected: No lint errors.
 
 ---
 
-### Task 7: Update Docs and Changelog
+### Task 7: Update Docs and Changelog ✅
 
 **Files:**
 - Modify: `docs/specs/cowork-z/requirements.md`
@@ -509,11 +509,4 @@ Add to `UPDATE_LOG.md` under a new `## v0.4.2` section (or the current version s
 ## v0.4.2
 
 - **5.1 Windows Runtime Fixes (Phase 1)** — Platform-aware log directory, Windows PATH resolution (semicolon separators, case-insensitive dedup, well-known Windows tool directories), cross-platform sidecar build script, graceful sidecar shutdown for Windows process management
-```
-
-**Step 3: Commit**
-
-```bash
-git add docs/specs/cowork-z/requirements.md UPDATE_LOG.md
-git commit -m "docs: update changelog and requirements for Windows Phase 1"
 ```

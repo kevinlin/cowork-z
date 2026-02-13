@@ -1219,7 +1219,7 @@ fn get_augmented_path() -> String {
         let shell_executable = shell_env
             .as_deref()
             .filter(|s| s.starts_with('/'))
-            .filter(|s| allowed_shells.contains(s))
+            .filter(|s| allowed_shells.iter().any(|&allowed| *s == allowed))
             .filter(|s| std::path::Path::new(s).exists())
             .unwrap_or_else(|| {
                 allowed_shells

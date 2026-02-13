@@ -220,6 +220,8 @@ Type a prompt in the launcher (or press **`Cmd + N`**) and hit Enter. The agent 
 └──────────────────┘                         └─────────────────┘                    └──────────────────┘
 ```
 
+For detailed architecture documentation — including C4 diagrams, IPC protocol specs, security model, data architecture, and Architecture Decision Records — see [docs/architecture/](docs/architecture/README.md).
+
 ---
 
 ## Contributing

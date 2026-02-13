@@ -1889,6 +1889,15 @@ async fn log_event(payload: LogPayload) -> Result<(), String> {
 }
 
 // ============================================================================
+// File Export
+// ============================================================================
+
+#[tauri::command]
+async fn write_text_file(path: String, contents: String) -> Result<(), String> {
+    std::fs::write(&path, &contents).map_err(|e| format!("Failed to write file: {}", e))
+}
+
+// ============================================================================
 // App Update Commands
 // ============================================================================
 
@@ -2157,6 +2166,8 @@ pub fn run() {
             set_theme,
             // Logging
             log_event,
+            // File Export
+            write_text_file,
             // App Updates
             check_for_update,
             install_update,

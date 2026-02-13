@@ -8,7 +8,7 @@
 import { invoke, convertFileSrc as tauriConvertFileSrc } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { homeDir } from '@tauri-apps/api/path';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, save } from '@tauri-apps/plugin-dialog';
 import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
 
 import type {
@@ -89,6 +89,24 @@ export async function pickFolder(): Promise<string | null> {
     title: 'Select Folder',
   });
   return result as string | null;
+}
+
+/**
+ * Open a native save-file dialog and write text content to the chosen path.
+ * @returns The saved file path, or null if the user cancelled.
+ */
+export async function saveTextFile(
+  contents: string,
+  options?: { defaultPath?: string; title?: string; filters?: Array<{ name: string; extensions: string[] }> }
+): Promise<string | null> {
+  const path = await save({
+    title: options?.title ?? 'Save File',
+    defaultPath: options?.defaultPath,
+    filters: options?.filters,
+  });
+  if (!path) return null;
+  await invoke<void>('write_text_file', { path, contents });
+  return path;
 }
 
 /**

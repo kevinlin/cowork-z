@@ -445,7 +445,7 @@ export default function ExecutionPage() {
     await sendFollowUp('continue');
   };
 
-  const handleExportDebugLogs = useCallback(() => {
+  const handleExportDebugLogs = useCallback(async () => {
     const text = debugLogs
       .map((log) => {
         const dataStr = log.data !== undefined ? ` ${typeof log.data === 'string' ? log.data : JSON.stringify(log.data)}` : '';
@@ -453,18 +453,21 @@ export default function ExecutionPage() {
       })
       .join('\n');
 
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `debug-logs-${id}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const defaultFilename = `debug-logs-${id}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
 
-    setDebugExported(true);
-    setTimeout(() => setDebugExported(false), 2000);
+    try {
+      const savedPath = await api.saveTextFile(text, {
+        title: 'Export Debug Logs',
+        defaultPath: defaultFilename,
+        filters: [{ name: 'Text Files', extensions: ['txt', 'log'] }],
+      });
+      if (savedPath) {
+        setDebugExported(true);
+        setTimeout(() => setDebugExported(false), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to export debug logs:', err);
+    }
   }, [debugLogs, id]);
 
   const handlePermissionResponse = async (allowed: boolean) => {

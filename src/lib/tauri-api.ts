@@ -482,6 +482,19 @@ export async function saveAzureFoundryConfig(config: {
 // OpenRouter Configuration
 // ============================================================================
 
+export async function fetchProviderModels(provider: string): Promise<{
+  success: boolean;
+  models?: Array<{
+    id: string;
+    name: string;
+    provider: string;
+    contextLength: number;
+  }>;
+  error?: string;
+}> {
+  return invoke('fetch_provider_models', { provider });
+}
+
 export async function fetchOpenRouterModels(): Promise<{
   success: boolean;
   models?: Array<{
@@ -1232,6 +1245,9 @@ export function getTauriApi() {
     setAzureFoundryConfig,
     testAzureFoundryConnection,
     saveAzureFoundryConfig,
+
+    // Dynamic provider model discovery
+    fetchProviderModels,
 
     // OpenRouter configuration
     fetchOpenRouterModels,

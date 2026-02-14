@@ -165,6 +165,18 @@ export interface TauriAPI {
     apiKey?: string;
   }): Promise<void>;
 
+  // Dynamic provider model discovery
+  fetchProviderModels(provider: string): Promise<{
+    success: boolean;
+    models?: Array<{
+      id: string;
+      name: string;
+      provider: string;
+      contextLength: number;
+    }>;
+    error?: string;
+  }>;
+
   // OpenRouter configuration
   fetchOpenRouterModels(): Promise<{
     success: boolean;

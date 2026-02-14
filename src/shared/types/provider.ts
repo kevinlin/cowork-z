@@ -112,7 +112,46 @@ export interface LiteLLMConfig {
 }
 
 /**
- * Default providers and models
+ * Providers that support dynamic model discovery via their API.
+ * When a user connects to one of these, the app fetches models from the provider's API.
+ */
+export const DYNAMIC_MODEL_PROVIDERS: ProviderType[] = ['anthropic', 'openai', 'google', 'xai', 'deepseek'];
+
+/**
+ * Fallback models used when dynamic model fetching fails (network error, API error).
+ * These are the previously-hardcoded static model lists, keyed by provider.
+ */
+export const FALLBACK_MODELS: Partial<Record<ProviderType, Array<{ id: string; name: string }>>> = {
+  anthropic: [
+    { id: 'anthropic/claude-haiku-4-5', name: 'Claude Haiku 4.5' },
+    { id: 'anthropic/claude-sonnet-4-5', name: 'Claude Sonnet 4.5' },
+    { id: 'anthropic/claude-opus-4-5', name: 'Claude Opus 4.5' },
+  ],
+  openai: [
+    { id: 'openai/gpt-5.2-codex', name: 'GPT 5.2 Codex' },
+    { id: 'openai/gpt-5.2', name: 'GPT 5.2' },
+    { id: 'openai/gpt-5-mini', name: 'GPT 5 Mini' },
+    { id: 'openai/gpt-5-codex', name: 'GPT 5 Codex' },
+  ],
+  google: [
+    { id: 'google/gemini-3-pro-preview', name: 'Gemini 3 Pro' },
+    { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash' },
+  ],
+  xai: [
+    { id: 'xai/grok-4', name: 'Grok 4' },
+    { id: 'xai/grok-3', name: 'Grok 3' },
+  ],
+  deepseek: [
+    { id: 'deepseek/deepseek-chat', name: 'DeepSeek Chat (V3)' },
+    { id: 'deepseek/deepseek-reasoner', name: 'DeepSeek Reasoner (R1)' },
+  ],
+};
+
+/**
+ * Default providers and models.
+ * Dynamic providers (Anthropic, OpenAI, Google, xAI, DeepSeek) have empty models arrays —
+ * their models are fetched from the provider API at connect time.
+ * Z.AI keeps its static model list.
  */
 export const DEFAULT_PROVIDERS: ProviderConfig[] = [
   {
@@ -120,96 +159,21 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
     name: 'Anthropic',
     requiresApiKey: true,
     apiKeyEnvVar: 'ANTHROPIC_API_KEY',
-    models: [
-      {
-        id: 'claude-haiku-4-5',
-        displayName: 'Claude Haiku 4.5',
-        provider: 'anthropic',
-        fullId: 'anthropic/claude-haiku-4-5',
-        contextWindow: 200_000,
-        supportsVision: true,
-      },
-      {
-        id: 'claude-sonnet-4-5',
-        displayName: 'Claude Sonnet 4.5',
-        provider: 'anthropic',
-        fullId: 'anthropic/claude-sonnet-4-5',
-        contextWindow: 200_000,
-        supportsVision: true,
-      },
-      {
-        id: 'claude-opus-4-5',
-        displayName: 'Claude Opus 4.5',
-        provider: 'anthropic',
-        fullId: 'anthropic/claude-opus-4-5',
-        contextWindow: 200_000,
-        supportsVision: true,
-      },
-    ],
+    models: [], // Fetched dynamically
   },
   {
     id: 'openai',
     name: 'OpenAI',
     requiresApiKey: true,
     apiKeyEnvVar: 'OPENAI_API_KEY',
-    models: [
-      {
-        id: 'gpt-5.2-codex',
-        displayName: 'GPT 5.2 Codex',
-        provider: 'openai',
-        fullId: 'openai/gpt-5.2-codex',
-        contextWindow: 4_000_000,
-        supportsVision: true,
-      },
-      {
-        id: 'gpt-5.2',
-        displayName: 'GPT 5.2',
-        provider: 'openai',
-        fullId: 'openai/gpt-5.2',
-        contextWindow: 4_000_000,
-        supportsVision: true,
-      },
-      {
-        id: 'gpt-5-mini',
-        displayName: 'GPT 5 Mini',
-        provider: 'openai',
-        fullId: 'openai/gpt-5-mini',
-        contextWindow: 4_000_000,
-        supportsVision: true,
-      },
-      {
-        id: 'gpt-5-codex',
-        displayName: 'GPT 5 Codex',
-        provider: 'openai',
-        fullId: 'openai/gpt-5-codex',
-        contextWindow: 400_000,
-        supportsVision: true,
-      },
-    ],
+    models: [], // Fetched dynamically
   },
   {
     id: 'google',
     name: 'Google AI',
     requiresApiKey: true,
     apiKeyEnvVar: 'GOOGLE_GENERATIVE_AI_API_KEY',
-    models: [
-      {
-        id: 'gemini-3-pro-preview',
-        displayName: 'Gemini 3 Pro',
-        provider: 'google',
-        fullId: 'google/gemini-3-pro-preview',
-        contextWindow: 2_000_000,
-        supportsVision: true,
-      },
-      {
-        id: 'gemini-3-flash-preview',
-        displayName: 'Gemini 3 Flash',
-        provider: 'google',
-        fullId: 'google/gemini-3-flash-preview',
-        contextWindow: 1_000_000,
-        supportsVision: true,
-      },
-    ],
+    models: [], // Fetched dynamically
   },
   {
     id: 'xai',
@@ -217,24 +181,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
     requiresApiKey: true,
     apiKeyEnvVar: 'XAI_API_KEY',
     baseUrl: 'https://api.x.ai',
-    models: [
-      {
-        id: 'grok-4',
-        displayName: 'Grok 4',
-        provider: 'xai',
-        fullId: 'xai/grok-4',
-        contextWindow: 256_000,
-        supportsVision: true,
-      },
-      {
-        id: 'grok-3',
-        displayName: 'Grok 3',
-        provider: 'xai',
-        fullId: 'xai/grok-3',
-        contextWindow: 131_000,
-        supportsVision: false,
-      },
-    ],
+    models: [], // Fetched dynamically
   },
   {
     id: 'deepseek',
@@ -242,24 +189,7 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
     requiresApiKey: true,
     apiKeyEnvVar: 'DEEPSEEK_API_KEY',
     baseUrl: 'https://api.deepseek.com',
-    models: [
-      {
-        id: 'deepseek-chat',
-        displayName: 'DeepSeek Chat (V3)',
-        provider: 'deepseek',
-        fullId: 'deepseek/deepseek-chat',
-        contextWindow: 64_000,
-        supportsVision: false,
-      },
-      {
-        id: 'deepseek-reasoner',
-        displayName: 'DeepSeek Reasoner (R1)',
-        provider: 'deepseek',
-        fullId: 'deepseek/deepseek-reasoner',
-        contextWindow: 64_000,
-        supportsVision: false,
-      },
-    ],
+    models: [], // Fetched dynamically
   },
   {
     id: 'zai',

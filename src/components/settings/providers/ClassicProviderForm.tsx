@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { ApiKeyCredentials, ConnectedProvider, ProviderId } from '@/shared';
-import { DEFAULT_PROVIDERS, getDefaultModelForProvider, PROVIDER_META } from '@/shared';
+import { DEFAULT_PROVIDERS, DYNAMIC_MODEL_PROVIDERS, FALLBACK_MODELS, getDefaultModelForProvider, PROVIDER_META } from '@/shared';
 // Import provider logos
 import anthropicLogo from '/assets/ai-logos/anthropic.svg';
 import deepseekLogo from '/assets/ai-logos/deepseek.svg';
@@ -44,14 +44,23 @@ export function ClassicProviderForm({
   const [apiKey, setApiKey] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localAvailableModels, setLocalAvailableModels] = useState<Array<{ id: string; name: string }> | null>(null);
 
   const meta = PROVIDER_META[providerId];
+  const isDynamic = DYNAMIC_MODEL_PROVIDERS.includes(providerId);
+
+  // Model display: use persisted availableModels, then local just-fetched, then fallback, then static
   const providerConfig = DEFAULT_PROVIDERS.find((p) => p.id === providerId);
-  const models =
+  const staticModels =
     providerConfig?.models.map((m) => ({
       id: m.fullId,
       name: m.displayName,
     })) || [];
+
+  const models = isDynamic
+    ? (connectedProvider?.availableModels ?? localAvailableModels ?? FALLBACK_MODELS[providerId] ?? [])
+    : staticModels;
+
   const isConnected = connectedProvider?.connectionStatus === 'connected';
   const logoSrc = PROVIDER_LOGOS[providerId];
 
@@ -79,20 +88,47 @@ export function ClassicProviderForm({
       // Save the API key
       await api.addApiKey(providerId as any, trimmedKey);
 
+      // For dynamic providers, fetch models from the provider API
+      let availableModels: Array<{ id: string; name: string }> | undefined;
+      if (isDynamic) {
+        const result = await api.fetchProviderModels(providerId);
+        if (result.success && result.models) {
+          availableModels = result.models.map((m) => ({
+            id: `${providerId}/${m.id}`,
+            name: m.name,
+          }));
+        } else {
+          // Fall back to static fallback models
+          availableModels = FALLBACK_MODELS[providerId];
+        }
+        setLocalAvailableModels(availableModels ?? null);
+      }
+
       // Get default model for this provider (if one exists)
       const defaultModel = getDefaultModelForProvider(providerId);
+
+      // For dynamic providers, only auto-select default if it exists in the fetched list
+      let selectedModelId = defaultModel;
+      if (isDynamic && availableModels && defaultModel) {
+        const exists = availableModels.some((m) => m.id === defaultModel);
+        if (!exists) {
+          // Default not in fetched list — select the first available model instead
+          selectedModelId = availableModels.length > 0 ? availableModels[0].id : null;
+        }
+      }
 
       // Create connected provider - store longer key prefix for display
       const provider: ConnectedProvider = {
         providerId,
         connectionStatus: 'connected',
-        selectedModelId: defaultModel, // Auto-select default model for main providers
+        selectedModelId,
         credentials: {
           type: 'api_key',
           keyPrefix:
             trimmedKey.length > 40 ? trimmedKey.substring(0, 40) + '...' : trimmedKey.substring(0, Math.min(trimmedKey.length, 20)) + '...',
         } as ApiKeyCredentials,
         lastConnectedAt: new Date().toISOString(),
+        availableModels,
       };
 
       onConnect(provider);

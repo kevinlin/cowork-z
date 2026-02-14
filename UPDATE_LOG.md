@@ -2,6 +2,7 @@
 
 ## v0.4.2
 
+- **1.1.4 Dynamic Model Discovery** — When connecting to Anthropic, OpenAI, Google AI, xAI, or DeepSeek, the app now fetches available models from the provider's API instead of using a hardcoded list. Fetched models are persisted and restored on settings reopen. Falls back to static defaults if the API is unreachable.
 - **1.1.3 OpenRouter Provider Support** — Implemented OpenRouter Provider support with dynamic model selection from the OpenRouter API
 - **5.1 Windows Runtime Fixes (Phase 1)** — Platform-aware log directory, Windows PATH resolution (semicolon separators, case-insensitive dedup, well-known Windows tool directories), cross-platform sidecar build script, graceful sidecar shutdown for Windows process management
 

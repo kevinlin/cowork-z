@@ -43,6 +43,7 @@ The following implementation plans document how specific requirements were desig
 | OpenCode Server API Skill | [`cowork-z/plan_opencode-server-skill.md`](plan_opencode-server-skill.md) | 2.4 (server API skill) |
 | Windows Production Readiness | [`cowork-z/plan_windows-production-readiness.md`](plan_windows-production-readiness.md) | 5.1.1–5.1.3 (Windows runtime, CI, signing) |
 | OpenRouter Provider Support | [`cowork-z/plan_openrouter-provider-support.md`](plan_openrouter-provider-support.md) | 1.1.3 (OpenRouter model catalog fetching) |
+| Dynamic Model Discovery | [`cowork-z/plan_dynamic-model-discovery-for-direct-api-providers.md`](plan_dynamic-model-discovery-for-direct-api-providers.md) | 1.1.4 (Dynamic model fetching for direct API providers) |
 
 ---
 
@@ -61,7 +62,7 @@ The following implementation plans document how specific requirements were desig
    - **Direct API**: Anthropic, OpenAI, Google Gemini, xAI, DeepSeek, Z.AI
    - **Cloud Platforms**: AWS Bedrock, Azure AI Foundry
    - **Local**: Ollama
-   - **Proxy**: OpenRouter, LiteLLM
+   - **Proxy**: LiteLLM
 2. WHEN a provider is configured, THE SYSTEM SHALL display its connection status (disconnected, connecting, connected, error)
 3. WHERE multiple providers are configured, THE SYSTEM SHALL allow the user to switch the active provider and model at any time
 
@@ -70,7 +71,7 @@ The following implementation plans document how specific requirements were desig
 2. THE SYSTEM SHALL never expose full API keys to the frontend — only masked prefixes
 3. WHERE provider-specific auth is needed (e.g., Bedrock access keys, Azure Entra ID), THE SYSTEM SHALL provide dedicated configuration forms
 
-##### 1.1.3 OpenRouter Provider Support ✅
+##### 1.1.3 OpenRouter Provider Support
 
 > **Plan:** [OpenRouter Provider Support](plan_openrouter-provider-support.md)
 1. THE SYSTEM SHALL support OpenRouter as a proxy provider, allowing users to access models from multiple upstream providers (Anthropic, OpenAI, Google, Meta, etc.) through a single API key
@@ -79,6 +80,15 @@ The following implementation plans document how specific requirements were desig
 4. WHEN a model is selected, THE SYSTEM SHALL prefix the model ID with `openrouter/` (e.g., `openrouter/anthropic/claude-3.5-sonnet`) for delivery to the OpenCode server
 5. THE SYSTEM SHALL pass the `OPENROUTER_API_KEY` environment variable to the OpenCode server process
 6. THE SYSTEM SHALL send `HTTP-Referer` and `X-Title` headers to identify the application in OpenRouter API requests
+
+##### 1.1.4 Dynamic Model Discovery
+
+> **Plan:** [Dynamic Model Discovery](plan_dynamic-model-discovery-for-direct-api-providers.md)
+1. WHEN a user connects to Anthropic, OpenAI, Google AI, xAI, or DeepSeek with a valid API key, THE SYSTEM SHALL fetch the available model catalog from the provider's models API endpoint
+2. THE SYSTEM SHALL persist the fetched model list in the database alongside provider credentials
+3. WHEN the Settings dialog is reopened, THE SYSTEM SHALL restore the persisted model list without requiring a re-fetch
+4. WHERE the model fetch fails (network error, API error), THE SYSTEM SHALL fall back to a static default model list without blocking the connection
+5. THE SYSTEM SHALL prefix fetched model IDs with the provider identifier (e.g., `anthropic/claude-sonnet-4-5`) for delivery to the OpenCode server
 
 #### 1.2 Session Management ✅
 

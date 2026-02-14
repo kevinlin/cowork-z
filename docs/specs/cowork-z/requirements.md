@@ -17,23 +17,6 @@ Most AI tools force an uncomfortable choice: upload your sensitive work to cloud
 
 Whether you're a developer protecting proprietary code, a researcher working with sensitive data, or an organization that needs auditability and control, Cowork-Z delivers AI-powered productivity without the privacy compromise.
 
-## Introduction
-
-Cowork-Z is a cross-platform desktop application that provides a sandboxed environment for autonomous AI agents. It integrates with the OpenCode SDK via a sidecar process to enable users to interact with AI agents that can execute code, manipulate files, and perform multi-step workflows.
-
-Built with Tauri 2.x (Rust backend + React/TypeScript frontend), the application supports 13+ AI providers and runs on macOS, Windows, and Linux.
-
-### Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Desktop Framework | Tauri 2.x (Rust backend + Web frontend) |
-| Frontend | React 19 + TypeScript 5.8, Radix UI + shadcn/ui, Tailwind CSS, Zustand |
-| Build | Vite 7 + Cargo, pnpm workspaces |
-| Database | SQLite (rusqlite) |
-| Secure Storage | OS Keychain (keyring crate) |
-| Sidecar | Node.js + pkg binary (CommonJS) |
-
 ---
 
 ## Implementation Plans Index
@@ -482,5 +465,3 @@ The following items remain to be implemented:
 
 - [ ] **Windows Production Readiness** — Fix runtime bugs (log path, PATH resolution, dev command), CI hardening (Windows smoke tests, installer verification), and code signing (Req 5.1.1–5.1.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)
-- [x] **OpenCode Server API Skill** — Bundled SKILL.md for agent self-introspection via OpenCode server REST APIs (Req 2.4)
-- [x] **OpenRouter Provider** — Implement model catalog fetching from OpenRouter API and complete provider integration (Req 1.1.3)

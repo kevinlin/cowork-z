@@ -479,7 +479,7 @@ export async function saveAzureFoundryConfig(config: {
 }
 
 // ============================================================================
-// OpenRouter Configuration
+// Dynamic Provider Model Discovery
 // ============================================================================
 
 export async function fetchProviderModels(provider: string): Promise<{
@@ -493,19 +493,6 @@ export async function fetchProviderModels(provider: string): Promise<{
   error?: string;
 }> {
   return invoke('fetch_provider_models', { provider });
-}
-
-export async function fetchOpenRouterModels(): Promise<{
-  success: boolean;
-  models?: Array<{
-    id: string;
-    name: string;
-    provider: string;
-    contextLength: number;
-  }>;
-  error?: string;
-}> {
-  return invoke('fetch_openrouter_models');
 }
 
 // ============================================================================
@@ -1248,9 +1235,6 @@ export function getTauriApi() {
 
     // Dynamic provider model discovery
     fetchProviderModels,
-
-    // OpenRouter configuration
-    fetchOpenRouterModels,
 
     // LiteLLM configuration
     testLiteLLMConnection,

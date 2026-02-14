@@ -177,18 +177,6 @@ export interface TauriAPI {
     error?: string;
   }>;
 
-  // OpenRouter configuration
-  fetchOpenRouterModels(): Promise<{
-    success: boolean;
-    models?: Array<{
-      id: string;
-      name: string;
-      provider: string;
-      contextLength: number;
-    }>;
-    error?: string;
-  }>;
-
   // LiteLLM configuration
   testLiteLLMConnection(
     url: string,

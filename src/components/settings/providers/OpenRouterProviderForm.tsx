@@ -57,7 +57,7 @@ export function OpenRouterProviderForm({
       await api.addApiKey('openrouter', apiKey.trim());
 
       // Fetch models
-      const result = await api.fetchOpenRouterModels();
+      const result = await api.fetchProviderModels('openrouter');
       if (!result.success) {
         setError(result.error || 'Failed to fetch models');
         setConnecting(false);

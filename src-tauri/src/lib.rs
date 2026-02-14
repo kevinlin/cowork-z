@@ -175,7 +175,7 @@ pub struct AzureFoundryTestConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OpenRouterModel {
+pub struct ProviderModel {
     pub id: String,
     pub name: String,
     pub provider: String,
@@ -190,7 +190,7 @@ pub struct LiteLLMConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_validated: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub models: Option<Vec<OpenRouterModel>>,
+    pub models: Option<Vec<ProviderModel>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -260,12 +260,28 @@ pub struct ConnectionResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OpenRouterModelsResult {
+pub struct ProviderModelsResult {
     pub success: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub models: Option<Vec<OpenRouterModel>>,
+    pub models: Option<Vec<ProviderModel>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+}
+
+fn models_ok(models: Vec<ProviderModel>) -> ProviderModelsResult {
+    ProviderModelsResult {
+        success: true,
+        models: Some(models),
+        error: None,
+    }
+}
+
+fn models_error(msg: String) -> ProviderModelsResult {
+    ProviderModelsResult {
+        success: false,
+        models: None,
+        error: Some(msg),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1630,110 +1646,6 @@ async fn save_azure_foundry_config(
 }
 
 // ============================================================================
-// OpenRouter Commands
-// ============================================================================
-
-#[tauri::command]
-async fn fetch_openrouter_models() -> Result<OpenRouterModelsResult, String> {
-    // Retrieve API key from OS keychain
-    let api_key = match secure_storage::get_api_key("openrouter") {
-        Ok(Some(key)) => key,
-        Ok(None) => {
-            return Ok(OpenRouterModelsResult {
-                success: false,
-                models: None,
-                error: Some("No OpenRouter API key configured".to_string()),
-            });
-        }
-        Err(e) => {
-            return Ok(OpenRouterModelsResult {
-                success: false,
-                models: None,
-                error: Some(format!("Failed to retrieve API key: {}", e)),
-            });
-        }
-    };
-
-    let client = reqwest::Client::new();
-
-    match client
-        .get("https://openrouter.ai/api/v1/models")
-        .header("Authorization", format!("Bearer {}", api_key))
-        .header("HTTP-Referer", "https://cowork-z.app")
-        .header("X-Title", "Cowork-Z")
-        .send()
-        .await
-    {
-        Ok(response) => {
-            if response.status().is_success() {
-                #[derive(Deserialize)]
-                struct OpenRouterApiResponse {
-                    data: Vec<OpenRouterApiModel>,
-                }
-                #[derive(Deserialize)]
-                struct OpenRouterApiModel {
-                    id: String,
-                    name: String,
-                    #[serde(default)]
-                    context_length: Option<u64>,
-                }
-
-                match response.json::<OpenRouterApiResponse>().await {
-                    Ok(resp) => {
-                        let models: Vec<OpenRouterModel> = resp
-                            .data
-                            .into_iter()
-                            .map(|m| {
-                                let provider = m
-                                    .id
-                                    .split('/')
-                                    .next()
-                                    .unwrap_or("unknown")
-                                    .to_string();
-                                OpenRouterModel {
-                                    id: m.id,
-                                    name: m.name,
-                                    provider,
-                                    context_length: m.context_length.unwrap_or(0),
-                                }
-                            })
-                            .collect();
-
-                        Ok(OpenRouterModelsResult {
-                            success: true,
-                            models: Some(models),
-                            error: None,
-                        })
-                    }
-                    Err(e) => Ok(OpenRouterModelsResult {
-                        success: false,
-                        models: None,
-                        error: Some(format!(
-                            "Failed to parse OpenRouter response: {}",
-                            e
-                        )),
-                    }),
-                }
-            } else {
-                Ok(OpenRouterModelsResult {
-                    success: false,
-                    models: None,
-                    error: Some(format!(
-                        "OpenRouter returned status: {}",
-                        response.status()
-                    )),
-                })
-            }
-        }
-        Err(e) => Ok(OpenRouterModelsResult {
-            success: false,
-            models: None,
-            error: Some(format!("Failed to connect to OpenRouter: {}", e)),
-        }),
-    }
-}
-
-// ============================================================================
 // Dynamic Provider Model Discovery
 // ============================================================================
 
@@ -1743,7 +1655,7 @@ async fn fetch_openai_compatible_models(
     api_key: &str,
     base_url: &str,
     provider_name: &str,
-) -> OpenRouterModelsResult {
+) -> ProviderModelsResult {
     let client = reqwest::Client::new();
     let url = format!("{}/models", base_url.trim_end_matches('/'));
 
@@ -1766,49 +1678,29 @@ async fn fetch_openai_compatible_models(
 
                 match response.json::<ModelsResponse>().await {
                     Ok(resp) => {
-                        let models: Vec<OpenRouterModel> = resp
+                        let models: Vec<ProviderModel> = resp
                             .data
                             .into_iter()
-                            .map(|m| OpenRouterModel {
+                            .map(|m| ProviderModel {
                                 name: m.id.clone(),
                                 provider: provider_name.to_string(),
                                 context_length: 0,
                                 id: m.id,
                             })
                             .collect();
-                        OpenRouterModelsResult {
-                            success: true,
-                            models: Some(models),
-                            error: None,
-                        }
+                        models_ok(models)
                     }
-                    Err(e) => OpenRouterModelsResult {
-                        success: false,
-                        models: None,
-                        error: Some(format!("Failed to parse {} response: {}", provider_name, e)),
-                    },
+                    Err(e) => models_error(format!("Failed to parse {} response: {}", provider_name, e)),
                 }
             } else {
-                OpenRouterModelsResult {
-                    success: false,
-                    models: None,
-                    error: Some(format!(
-                        "{} returned status: {}",
-                        provider_name,
-                        response.status()
-                    )),
-                }
+                models_error(format!("{} returned status: {}", provider_name, response.status()))
             }
         }
-        Err(e) => OpenRouterModelsResult {
-            success: false,
-            models: None,
-            error: Some(format!("Failed to connect to {}: {}", provider_name, e)),
-        },
+        Err(e) => models_error(format!("Failed to connect to {}: {}", provider_name, e)),
     }
 }
 
-async fn fetch_anthropic_models(api_key: &str) -> OpenRouterModelsResult {
+async fn fetch_anthropic_models(api_key: &str) -> ProviderModelsResult {
     let client = reqwest::Client::new();
 
     match client
@@ -1833,48 +1725,29 @@ async fn fetch_anthropic_models(api_key: &str) -> OpenRouterModelsResult {
 
                 match response.json::<AnthropicModelsResponse>().await {
                     Ok(resp) => {
-                        let models: Vec<OpenRouterModel> = resp
+                        let models: Vec<ProviderModel> = resp
                             .data
                             .into_iter()
-                            .map(|m| OpenRouterModel {
+                            .map(|m| ProviderModel {
                                 name: m.display_name.unwrap_or_else(|| m.id.clone()),
                                 provider: "anthropic".to_string(),
                                 context_length: 0,
                                 id: m.id,
                             })
                             .collect();
-                        OpenRouterModelsResult {
-                            success: true,
-                            models: Some(models),
-                            error: None,
-                        }
+                        models_ok(models)
                     }
-                    Err(e) => OpenRouterModelsResult {
-                        success: false,
-                        models: None,
-                        error: Some(format!("Failed to parse Anthropic response: {}", e)),
-                    },
+                    Err(e) => models_error(format!("Failed to parse Anthropic response: {}", e)),
                 }
             } else {
-                OpenRouterModelsResult {
-                    success: false,
-                    models: None,
-                    error: Some(format!(
-                        "Anthropic returned status: {}",
-                        response.status()
-                    )),
-                }
+                models_error(format!("Anthropic returned status: {}", response.status()))
             }
         }
-        Err(e) => OpenRouterModelsResult {
-            success: false,
-            models: None,
-            error: Some(format!("Failed to connect to Anthropic: {}", e)),
-        },
+        Err(e) => models_error(format!("Failed to connect to Anthropic: {}", e)),
     }
 }
 
-async fn fetch_openai_models(api_key: &str) -> OpenRouterModelsResult {
+async fn fetch_openai_models(api_key: &str) -> ProviderModelsResult {
     let client = reqwest::Client::new();
 
     match client
@@ -1911,7 +1784,7 @@ async fn fetch_openai_models(api_key: &str) -> OpenRouterModelsResult {
 
                 match response.json::<OpenAIModelsResponse>().await {
                     Ok(resp) => {
-                        let models: Vec<OpenRouterModel> = resp
+                        let models: Vec<ProviderModel> = resp
                             .data
                             .into_iter()
                             .filter(|m| {
@@ -1919,45 +1792,26 @@ async fn fetch_openai_models(api_key: &str) -> OpenRouterModelsResult {
                                     .iter()
                                     .any(|prefix| m.id.starts_with(prefix))
                             })
-                            .map(|m| OpenRouterModel {
+                            .map(|m| ProviderModel {
                                 name: m.id.clone(),
                                 provider: "openai".to_string(),
                                 context_length: 0,
                                 id: m.id,
                             })
                             .collect();
-                        OpenRouterModelsResult {
-                            success: true,
-                            models: Some(models),
-                            error: None,
-                        }
+                        models_ok(models)
                     }
-                    Err(e) => OpenRouterModelsResult {
-                        success: false,
-                        models: None,
-                        error: Some(format!("Failed to parse OpenAI response: {}", e)),
-                    },
+                    Err(e) => models_error(format!("Failed to parse OpenAI response: {}", e)),
                 }
             } else {
-                OpenRouterModelsResult {
-                    success: false,
-                    models: None,
-                    error: Some(format!(
-                        "OpenAI returned status: {}",
-                        response.status()
-                    )),
-                }
+                models_error(format!("OpenAI returned status: {}", response.status()))
             }
         }
-        Err(e) => OpenRouterModelsResult {
-            success: false,
-            models: None,
-            error: Some(format!("Failed to connect to OpenAI: {}", e)),
-        },
+        Err(e) => models_error(format!("Failed to connect to OpenAI: {}", e)),
     }
 }
 
-async fn fetch_google_models(api_key: &str) -> OpenRouterModelsResult {
+async fn fetch_google_models(api_key: &str) -> ProviderModelsResult {
     let client = reqwest::Client::new();
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models?key={}",
@@ -1983,7 +1837,7 @@ async fn fetch_google_models(api_key: &str) -> OpenRouterModelsResult {
 
                 match response.json::<GoogleModelsResponse>().await {
                     Ok(resp) => {
-                        let models: Vec<OpenRouterModel> = resp
+                        let models: Vec<ProviderModel> = resp
                             .models
                             .into_iter()
                             .filter(|m| {
@@ -1998,7 +1852,7 @@ async fn fetch_google_models(api_key: &str) -> OpenRouterModelsResult {
                                     .strip_prefix("models/")
                                     .unwrap_or(&m.name)
                                     .to_string();
-                                OpenRouterModel {
+                                ProviderModel {
                                     name: m.display_name.unwrap_or_else(|| id.clone()),
                                     provider: "google".to_string(),
                                     context_length: 0,
@@ -2006,55 +1860,85 @@ async fn fetch_google_models(api_key: &str) -> OpenRouterModelsResult {
                                 }
                             })
                             .collect();
-                        OpenRouterModelsResult {
-                            success: true,
-                            models: Some(models),
-                            error: None,
-                        }
+                        models_ok(models)
                     }
-                    Err(e) => OpenRouterModelsResult {
-                        success: false,
-                        models: None,
-                        error: Some(format!("Failed to parse Google response: {}", e)),
-                    },
+                    Err(e) => models_error(format!("Failed to parse Google response: {}", e)),
                 }
             } else {
-                OpenRouterModelsResult {
-                    success: false,
-                    models: None,
-                    error: Some(format!(
-                        "Google returned status: {}",
-                        response.status()
-                    )),
-                }
+                models_error(format!("Google returned status: {}", response.status()))
             }
         }
-        Err(e) => OpenRouterModelsResult {
-            success: false,
-            models: None,
-            error: Some(format!("Failed to connect to Google: {}", e)),
-        },
+        Err(e) => models_error(format!("Failed to connect to Google: {}", e)),
+    }
+}
+
+async fn fetch_openrouter_models(api_key: &str) -> ProviderModelsResult {
+    let client = reqwest::Client::new();
+
+    match client
+        .get("https://openrouter.ai/api/v1/models")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("HTTP-Referer", "https://cowork-z.app")
+        .header("X-Title", "Cowork-Z")
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                #[derive(Deserialize)]
+                struct OpenRouterApiResponse {
+                    data: Vec<OpenRouterApiModel>,
+                }
+                #[derive(Deserialize)]
+                struct OpenRouterApiModel {
+                    id: String,
+                    name: String,
+                    #[serde(default)]
+                    context_length: Option<u64>,
+                }
+
+                match response.json::<OpenRouterApiResponse>().await {
+                    Ok(resp) => {
+                        let models: Vec<ProviderModel> = resp
+                            .data
+                            .into_iter()
+                            .map(|m| {
+                                let provider = m
+                                    .id
+                                    .split('/')
+                                    .next()
+                                    .unwrap_or("unknown")
+                                    .to_string();
+                                ProviderModel {
+                                    id: m.id,
+                                    name: m.name,
+                                    provider,
+                                    context_length: m.context_length.unwrap_or(0),
+                                }
+                            })
+                            .collect();
+                        models_ok(models)
+                    }
+                    Err(e) => models_error(format!("Failed to parse OpenRouter response: {}", e)),
+                }
+            } else {
+                models_error(format!("OpenRouter returned status: {}", response.status()))
+            }
+        }
+        Err(e) => models_error(format!("Failed to connect to OpenRouter: {}", e)),
     }
 }
 
 #[tauri::command]
-async fn fetch_provider_models(provider: String) -> Result<OpenRouterModelsResult, String> {
+async fn fetch_provider_models(provider: String) -> Result<ProviderModelsResult, String> {
     // Retrieve API key from OS keychain
     let api_key = match secure_storage::get_api_key(&provider) {
         Ok(Some(key)) => key,
         Ok(None) => {
-            return Ok(OpenRouterModelsResult {
-                success: false,
-                models: None,
-                error: Some(format!("No {} API key configured", provider)),
-            });
+            return Ok(models_error(format!("No {} API key configured", provider)));
         }
         Err(e) => {
-            return Ok(OpenRouterModelsResult {
-                success: false,
-                models: None,
-                error: Some(format!("Failed to retrieve API key: {}", e)),
-            });
+            return Ok(models_error(format!("Failed to retrieve API key: {}", e)));
         }
     };
 
@@ -2068,14 +1952,11 @@ async fn fetch_provider_models(provider: String) -> Result<OpenRouterModelsResul
         "deepseek" => {
             fetch_openai_compatible_models(&api_key, "https://api.deepseek.com", "deepseek").await
         }
-        _ => OpenRouterModelsResult {
-            success: false,
-            models: None,
-            error: Some(format!(
-                "Dynamic model discovery not supported for provider: {}",
-                provider
-            )),
-        },
+        "openrouter" => fetch_openrouter_models(&api_key).await,
+        _ => models_error(format!(
+            "Dynamic model discovery not supported for provider: {}",
+            provider
+        )),
     };
 
     Ok(result)
@@ -2089,7 +1970,7 @@ async fn fetch_provider_models(provider: String) -> Result<OpenRouterModelsResul
 async fn test_litellm_connection(
     url: String,
     _api_key: Option<String>,
-) -> Result<OpenRouterModelsResult, String> {
+) -> Result<ProviderModelsResult, String> {
     let client = reqwest::Client::new();
     let models_url = format!("{}/models", url.trim_end_matches('/'));
 
@@ -2109,52 +1990,31 @@ async fn test_litellm_connection(
 
                 match response.json::<LiteLLMModelsResponse>().await {
                     Ok(resp) => {
-                        let models: Vec<OpenRouterModel> = resp
+                        let models: Vec<ProviderModel> = resp
                             .data
                             .into_iter()
-                            .map(|m| OpenRouterModel {
+                            .map(|m| ProviderModel {
                                 id: m.id.clone(),
                                 name: m.id,
                                 provider: m.owned_by,
                                 context_length: 0,
                             })
                             .collect();
-
-                        Ok(OpenRouterModelsResult {
-                            success: true,
-                            models: Some(models),
-                            error: None,
-                        })
+                        Ok(models_ok(models))
                     }
-                    Err(e) => Ok(OpenRouterModelsResult {
-                        success: false,
-                        models: None,
-                        error: Some(format!("Failed to parse LiteLLM response: {}", e)),
-                    }),
+                    Err(e) => Ok(models_error(format!("Failed to parse LiteLLM response: {}", e))),
                 }
             } else {
-                Ok(OpenRouterModelsResult {
-                    success: false,
-                    models: None,
-                    error: Some(format!("LiteLLM returned status: {}", response.status())),
-                })
+                Ok(models_error(format!("LiteLLM returned status: {}", response.status())))
             }
         }
-        Err(e) => Ok(OpenRouterModelsResult {
-            success: false,
-            models: None,
-            error: Some(format!("Failed to connect to LiteLLM: {}", e)),
-        }),
+        Err(e) => Ok(models_error(format!("Failed to connect to LiteLLM: {}", e))),
     }
 }
 
 #[tauri::command]
-async fn fetch_litellm_models() -> Result<OpenRouterModelsResult, String> {
-    Ok(OpenRouterModelsResult {
-        success: false,
-        models: None,
-        error: Some("LiteLLM not yet implemented".to_string()),
-    })
+async fn fetch_litellm_models() -> Result<ProviderModelsResult, String> {
+    Ok(models_error("LiteLLM not yet implemented".to_string()))
 }
 
 #[tauri::command]
@@ -2168,7 +2028,7 @@ async fn get_litellm_config(state: State<'_, DbState>) -> Result<Option<LiteLLMC
         models: c.models.map(|models| {
             models
                 .into_iter()
-                .map(|m| OpenRouterModel {
+                .map(|m| ProviderModel {
                     id: m.id,
                     name: m.name,
                     provider: m.provider,
@@ -2688,8 +2548,6 @@ pub fn run() {
             set_azure_foundry_config,
             test_azure_foundry_connection,
             save_azure_foundry_config,
-            // OpenRouter
-            fetch_openrouter_models,
             // Dynamic Provider Models
             fetch_provider_models,
             // LiteLLM

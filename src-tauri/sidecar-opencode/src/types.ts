@@ -127,6 +127,7 @@ export interface Config {
   permission?: PermissionConfig;
   agent?: Record<string, AgentConfig>;
   mcp?: Record<string, McpConfig>;
+  provider?: Record<string, unknown>;
   // other config fields
 }
 

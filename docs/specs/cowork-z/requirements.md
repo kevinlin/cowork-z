@@ -59,6 +59,7 @@ The following implementation plans document how specific requirements were desig
 | Missing OpenCode CLI Detection | [`cowork-z/plan_missing-opencode-cli-detection.md`](plan_missing-opencode-cli-detection.md) | 5.3.3 (CLI detection dialog) |
 | OpenCode Server API Skill | [`cowork-z/plan_opencode-server-skill.md`](plan_opencode-server-skill.md) | 2.4 (server API skill) |
 | Windows Production Readiness | [`cowork-z/plan_windows-production-readiness.md`](plan_windows-production-readiness.md) | 5.1.1–5.1.3 (Windows runtime, CI, signing) |
+| OpenRouter Provider Support | [`cowork-z/plan_openrouter-provider-support.md`](plan_openrouter-provider-support.md) | 1.1.3 (OpenRouter model catalog fetching) |
 
 ---
 
@@ -86,7 +87,9 @@ The following implementation plans document how specific requirements were desig
 2. THE SYSTEM SHALL never expose full API keys to the frontend — only masked prefixes
 3. WHERE provider-specific auth is needed (e.g., Bedrock access keys, Azure Entra ID), THE SYSTEM SHALL provide dedicated configuration forms
 
-##### 1.1.3 OpenRouter Provider
+##### 1.1.3 OpenRouter Provider Support ✅
+
+> **Plan:** [OpenRouter Provider Support](plan_openrouter-provider-support.md)
 1. THE SYSTEM SHALL support OpenRouter as a proxy provider, allowing users to access models from multiple upstream providers (Anthropic, OpenAI, Google, Meta, etc.) through a single API key
 2. WHEN a user connects with an OpenRouter API key (`sk-or-` prefix), THE SYSTEM SHALL fetch the available model catalog from the OpenRouter API (`GET https://openrouter.ai/api/v1/models`)
 3. THE SYSTEM SHALL display fetched models in a selectable list, showing model name, upstream provider, and context length
@@ -480,4 +483,4 @@ The following items remain to be implemented:
 - [ ] **Windows Production Readiness** — Fix runtime bugs (log path, PATH resolution, dev command), CI hardening (Windows smoke tests, installer verification), and code signing (Req 5.1.1–5.1.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)
 - [x] **OpenCode Server API Skill** — Bundled SKILL.md for agent self-introspection via OpenCode server REST APIs (Req 2.4)
-- [ ] **OpenRouter Provider** — Implement model catalog fetching from OpenRouter API and complete provider integration (Req 1.1.3)
+- [x] **OpenRouter Provider** — Implement model catalog fetching from OpenRouter API and complete provider integration (Req 1.1.3)

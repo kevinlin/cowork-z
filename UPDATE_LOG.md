@@ -2,6 +2,7 @@
 
 ## v0.4.2
 
+- **1.1.3 OpenRouter Provider Support** — Implemented OpenRouter Provider support with dynamic model selection from the OpenRouter API
 - **5.1 Windows Runtime Fixes (Phase 1)** — Platform-aware log directory, Windows PATH resolution (semicolon separators, case-insensitive dedup, well-known Windows tool directories), cross-platform sidecar build script, graceful sidecar shutdown for Windows process management
 
 ## v0.4.1

@@ -138,7 +138,8 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
     permission: permissionConfig,
   };
 
-  // Set model if provided
+  // Set model if provided (best-effort via config; the authoritative model
+  // override is passed per-message in sendMessage — see session-manager.ts).
   if (options.modelId) {
     config.model = options.modelId;
   }

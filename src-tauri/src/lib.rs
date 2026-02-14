@@ -1635,12 +1635,102 @@ async fn save_azure_foundry_config(
 
 #[tauri::command]
 async fn fetch_openrouter_models() -> Result<OpenRouterModelsResult, String> {
-    // TODO: Requires API key from secure storage
-    Ok(OpenRouterModelsResult {
-        success: false,
-        models: None,
-        error: Some("OpenRouter not yet implemented".to_string()),
-    })
+    // Retrieve API key from OS keychain
+    let api_key = match secure_storage::get_api_key("openrouter") {
+        Ok(Some(key)) => key,
+        Ok(None) => {
+            return Ok(OpenRouterModelsResult {
+                success: false,
+                models: None,
+                error: Some("No OpenRouter API key configured".to_string()),
+            });
+        }
+        Err(e) => {
+            return Ok(OpenRouterModelsResult {
+                success: false,
+                models: None,
+                error: Some(format!("Failed to retrieve API key: {}", e)),
+            });
+        }
+    };
+
+    let client = reqwest::Client::new();
+
+    match client
+        .get("https://openrouter.ai/api/v1/models")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("HTTP-Referer", "https://cowork-z.app")
+        .header("X-Title", "Cowork-Z")
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                #[derive(Deserialize)]
+                struct OpenRouterApiResponse {
+                    data: Vec<OpenRouterApiModel>,
+                }
+                #[derive(Deserialize)]
+                struct OpenRouterApiModel {
+                    id: String,
+                    name: String,
+                    #[serde(default)]
+                    context_length: Option<u64>,
+                }
+
+                match response.json::<OpenRouterApiResponse>().await {
+                    Ok(resp) => {
+                        let models: Vec<OpenRouterModel> = resp
+                            .data
+                            .into_iter()
+                            .map(|m| {
+                                let provider = m
+                                    .id
+                                    .split('/')
+                                    .next()
+                                    .unwrap_or("unknown")
+                                    .to_string();
+                                OpenRouterModel {
+                                    id: m.id,
+                                    name: m.name,
+                                    provider,
+                                    context_length: m.context_length.unwrap_or(0),
+                                }
+                            })
+                            .collect();
+
+                        Ok(OpenRouterModelsResult {
+                            success: true,
+                            models: Some(models),
+                            error: None,
+                        })
+                    }
+                    Err(e) => Ok(OpenRouterModelsResult {
+                        success: false,
+                        models: None,
+                        error: Some(format!(
+                            "Failed to parse OpenRouter response: {}",
+                            e
+                        )),
+                    }),
+                }
+            } else {
+                Ok(OpenRouterModelsResult {
+                    success: false,
+                    models: None,
+                    error: Some(format!(
+                        "OpenRouter returned status: {}",
+                        response.status()
+                    )),
+                })
+            }
+        }
+        Err(e) => Ok(OpenRouterModelsResult {
+            success: false,
+            models: None,
+            error: Some(format!("Failed to connect to OpenRouter: {}", e)),
+        }),
+    }
 }
 
 // ============================================================================

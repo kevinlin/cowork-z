@@ -23,6 +23,22 @@ interface ManagedSession {
   textAccumulator: string;
 }
 
+/**
+ * Parse a composite model ID (e.g. "openrouter/minimax/minimax-m2.5") into
+ * the { providerID, modelID } shape that OpenCode's sendMessage API expects.
+ * This bypasses config-based model resolution, which fails for models not
+ * in OpenCode's models.dev curated database.
+ */
+function parseModelId(modelId?: string): { providerID: string; modelID: string } | undefined {
+  if (!modelId) return undefined;
+  const slashIdx = modelId.indexOf('/');
+  if (slashIdx <= 0) return undefined;
+  return {
+    providerID: modelId.substring(0, slashIdx),
+    modelID: modelId.substring(slashIdx + 1),
+  };
+}
+
 export class SessionManager extends EventEmitter {
   private client: OpenCodeClient;
   private eventStream: EventStream;
@@ -228,11 +244,15 @@ export class SessionManager extends EventEmitter {
     // Send the initial message with system prompt injected directly.
     // OpenCode 1.1.48 ignores custom agents, so we bypass agent resolution
     // by passing the system prompt via the `system` field on sendMessage.
+    // Also pass the model directly per-message to bypass config-based model
+    // resolution, which fails for models not in OpenCode's models.dev database.
     managed.status = 'active';
+    const messageModel = parseModelId(modelId);
     await this.client.sendMessage(session.id, {
       parts: [{ type: 'text', text: prompt }],
       directory: workingDirectory,
       system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt),
+      model: messageModel,
     });
   }
 
@@ -243,6 +263,7 @@ export class SessionManager extends EventEmitter {
 
     // Push session-specific config via PATCH /config
     const config = buildSessionConfig({ modelId, folderPermissions, mcpServers });
+
     await this.client.updateConfig(config, workingDirectory);
 
     this.emit('progress', { taskId, stage: 'configuring' });
@@ -265,12 +286,15 @@ export class SessionManager extends EventEmitter {
     this.emit('progress', { taskId, stage: 'executing' });
 
     // Send follow-up message if provided, with system prompt injected directly.
+    // Also pass the model directly per-message (same as startTask).
     if (prompt) {
       managed.status = 'active';
+      const messageModel = parseModelId(modelId);
       await this.client.sendMessage(sessionId, {
         parts: [{ type: 'text', text: prompt }],
         directory: workingDirectory,
         system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt),
+        model: messageModel,
       });
     }
   }

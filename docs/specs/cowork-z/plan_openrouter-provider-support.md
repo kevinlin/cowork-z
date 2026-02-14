@@ -49,7 +49,25 @@ No other code files change. The frontend form (`OpenRouterProviderForm.tsx`) alr
 
 > **Note:** This fix benefits all providers, not just OpenRouter. Any model selected in Cowork-Z that isn't in OpenCode's `models.dev` database will now work correctly.
 
-### 3. Update docs (post-implementation checklist)
+### 3. Fix: Persist and restore available models in provider settings
+
+**Problem discovered during testing:** After connecting to OpenRouter and selecting a model, reopening the Settings dialog showed "Select model..." instead of the saved model name — even though `selected_model_id` was correctly stored in the `providers` SQLite table.
+
+**Root cause:** Two bugs in `src-tauri/src/lib.rs`:
+
+1. **Write path** (`set_connected_provider`): The `available_models` field was hardcoded to `None`. The frontend sends the fetched model list inside `provider.config.availableModels`, but the handler never extracted it — so the DB column `available_models` was always NULL.
+2. **Read path** (`get_provider_settings` and `get_connected_provider`): The `config` response was set to only the serialized `credentials` object. Even if `available_models` existed in the DB, it was dropped from the response. The frontend's `normalizeConnectedProvider` expects `config.availableModels` to be present to populate the `ModelSelector` options list.
+
+Without the model list, `ModelSelector` has no options to match against the saved `selectedModelId`, so `models.find(m => m.id === value)` returns `undefined` and the placeholder is shown.
+
+**Fix — `src-tauri/src/lib.rs`:**
+
+1. **Write path** — In `set_connected_provider`, extract `availableModels` from the `config` JSON value and deserialize it as `Vec<db::providers::AvailableModel>`
+2. **Read path** — In both `get_provider_settings` and `get_connected_provider`, build the `config` response as a JSON object containing both `credentials` and `availableModels`
+
+> **Note:** This fix benefits all providers with dynamic model lists (OpenRouter, Ollama, LiteLLM), not just OpenRouter. The DB layer (`db::providers`) already fully supported `available_models` — it was only the Tauri command handlers that failed to use it.
+
+### 4. Update docs (post-implementation checklist)
 
 - **`docs/specs/cowork-z/requirements.md`**: Add `✅` to `##### 1.1.3 OpenRouter Provider`, add plan reference link, check off in Outstanding TODO, add to Implementation Plans Index
 - **`UPDATE_LOG.md`**: Append entry for 1.1.3
@@ -63,6 +81,7 @@ No other code files change. The frontend form (`OpenRouterProviderForm.tsx`) alr
    - Settings > OpenRouter > enter `sk-or-*` key > Connect
    - Verify model list populates with names, providers, context lengths
    - Select a model (including one not in OpenCode's curated list, e.g., MiniMax M2.5), start a task, verify the correct model is used
+   - Close and reopen Settings dialog — verify the selected model name is displayed (not "Select model...") and the full model list is available in the dropdown
 
 No automated Rust test — the function depends on OS keychain + network; the `test_litellm_connection` reference implementation also has no test.
 
@@ -70,7 +89,7 @@ No automated Rust test — the function depends on OS keychain + network; the `t
 
 | File | Action |
 |------|--------|
-| `src-tauri/src/lib.rs` | Replace stub at lines 1636-1644 |
+| `src-tauri/src/lib.rs` | Replace stub at lines 1636-1644; fix `set_connected_provider` to persist `availableModels`; fix `get_provider_settings` and `get_connected_provider` to return `availableModels` in response |
 | `src-tauri/sidecar-opencode/src/session-manager.ts` | Add `parseModelId()`, pass model on `sendMessage` |
 | `src-tauri/sidecar-opencode/src/config-builder.ts` | Update comment on `config.model` |
 | `src-tauri/sidecar-opencode/src/types.ts` | Add `provider` field to `Config` interface |

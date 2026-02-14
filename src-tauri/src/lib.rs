@@ -1943,12 +1943,25 @@ async fn get_provider_settings(state: State<'_, DbState>) -> Result<ProviderSett
         .connected_providers
         .into_iter()
         .map(|(k, v)| {
+            // Build config object with both credentials and availableModels
+            let config = {
+                let mut map = serde_json::Map::new();
+                if let Ok(creds) = serde_json::to_value(&v.credentials) {
+                    map.insert("credentials".to_string(), creds);
+                }
+                if let Some(models) = &v.available_models {
+                    if let Ok(models_val) = serde_json::to_value(models) {
+                        map.insert("availableModels".to_string(), models_val);
+                    }
+                }
+                Some(serde_json::Value::Object(map))
+            };
             (
                 k,
                 ConnectedProviderResponse {
                     id: v.provider_id,
                     selected_model: v.selected_model_id,
-                    config: serde_json::to_value(&v.credentials).ok(),
+                    config,
                 },
             )
         })
@@ -1978,10 +1991,24 @@ async fn get_connected_provider(
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let provider = db::providers::get_connected_provider(&conn, &provider_id);
 
-    Ok(provider.map(|p| ConnectedProviderResponse {
-        id: p.provider_id,
-        selected_model: p.selected_model_id,
-        config: serde_json::to_value(&p.credentials).ok(),
+    Ok(provider.map(|p| {
+        let config = {
+            let mut map = serde_json::Map::new();
+            if let Ok(creds) = serde_json::to_value(&p.credentials) {
+                map.insert("credentials".to_string(), creds);
+            }
+            if let Some(models) = &p.available_models {
+                if let Ok(models_val) = serde_json::to_value(models) {
+                    map.insert("availableModels".to_string(), models_val);
+                }
+            }
+            Some(serde_json::Value::Object(map))
+        };
+        ConnectedProviderResponse {
+            id: p.provider_id,
+            selected_model: p.selected_model_id,
+            config,
+        }
     }))
 }
 
@@ -1992,6 +2019,15 @@ async fn set_connected_provider(
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+
+    // Extract available models from config.availableModels (sent by the frontend)
+    let available_models = provider
+        .config
+        .as_ref()
+        .and_then(|c| c.get("availableModels"))
+        .and_then(|v| {
+            serde_json::from_value::<Vec<db::providers::AvailableModel>>(v.clone()).ok()
+        });
 
     // Convert input to db type
     let db_provider = db::providers::ConnectedProvider {
@@ -2006,7 +2042,7 @@ async fn set_connected_provider(
             extra: HashMap::new(),
         },
         last_connected_at: chrono::Utc::now().to_rfc3339(),
-        available_models: None,
+        available_models,
     };
 
     db::providers::set_connected_provider(&conn, &provider_id, &db_provider)

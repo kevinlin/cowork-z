@@ -86,6 +86,14 @@ The following implementation plans document how specific requirements were desig
 2. THE SYSTEM SHALL never expose full API keys to the frontend — only masked prefixes
 3. WHERE provider-specific auth is needed (e.g., Bedrock access keys, Azure Entra ID), THE SYSTEM SHALL provide dedicated configuration forms
 
+##### 1.1.3 OpenRouter Provider
+1. THE SYSTEM SHALL support OpenRouter as a proxy provider, allowing users to access models from multiple upstream providers (Anthropic, OpenAI, Google, Meta, etc.) through a single API key
+2. WHEN a user connects with an OpenRouter API key (`sk-or-` prefix), THE SYSTEM SHALL fetch the available model catalog from the OpenRouter API (`GET https://openrouter.ai/api/v1/models`)
+3. THE SYSTEM SHALL display fetched models in a selectable list, showing model name, upstream provider, and context length
+4. WHEN a model is selected, THE SYSTEM SHALL prefix the model ID with `openrouter/` (e.g., `openrouter/anthropic/claude-3.5-sonnet`) for delivery to the OpenCode server
+5. THE SYSTEM SHALL pass the `OPENROUTER_API_KEY` environment variable to the OpenCode server process
+6. THE SYSTEM SHALL send `HTTP-Referer` and `X-Title` headers to identify the application in OpenRouter API requests
+
 #### 1.2 Session Management ✅
 
 > **Plan:** [Sidecar OpenCode Rewrite](../opencode-sidecar/plan_sidecar-opencode-rewrite.md)
@@ -472,3 +480,4 @@ The following items remain to be implemented:
 - [ ] **Windows Production Readiness** — Fix runtime bugs (log path, PATH resolution, dev command), CI hardening (Windows smoke tests, installer verification), and code signing (Req 5.1.1–5.1.3)
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)
 - [x] **OpenCode Server API Skill** — Bundled SKILL.md for agent self-introspection via OpenCode server REST APIs (Req 2.4)
+- [ ] **OpenRouter Provider** — Implement model catalog fetching from OpenRouter API and complete provider integration (Req 1.1.3)

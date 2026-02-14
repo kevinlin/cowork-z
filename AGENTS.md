@@ -32,8 +32,18 @@ src/                          # React/TypeScript frontend
 
 src-tauri/                    # Rust/Tauri backend
   src/
-    lib.rs                    # All Tauri command handlers (60+)
+    lib.rs                    # App entry point, plugin/menu setup, command registration
+    commands/                 # Tauri command handlers by domain
+      tasks.rs, settings.rs, api_keys.rs, providers.rs,
+      folder_permissions.rs, ollama.rs, bedrock.rs,
+      azure_foundry.rs, litellm.rs, opencode_cli.rs,
+      updates.rs, app_info.rs, logging.rs
+    db/                       # SQLite persistence layer
+      tasks.rs, settings.rs, providers.rs,
+      folder_permissions.rs, migrations.rs
     sidecar.rs                # Sidecar process lifecycle and IPC
+    types.rs                  # Shared Rust types (serializable structs)
+    secure_storage.rs         # OS Keychain wrapper (keyring crate)
   Cargo.toml
 
 src-tauri/sidecar-opencode/   # Node.js sidecar (separate pnpm workspace)

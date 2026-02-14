@@ -117,8 +117,12 @@ OpenCode server endpoints used by sidecar: `GET /event` (SSE), `POST /session/{i
 - **`src/lib/tauri-api.ts`** — Centralized frontend API bridge. All Tauri `invoke()` calls and `listen()` event subscriptions go through here. This is the contract between frontend and Rust.
 - **`src/lib/tauri-api-interface.ts`** — `TauriAPI` interface abstracting the backend. Wraps `getTauriApi()` from `tauri-api.ts` with synchronous event unlisteners.
 - **`src/stores/taskStore.ts`** — Zustand store for all app state: tasks, permissions, questions, UI state.
-- **`src-tauri/src/lib.rs`** — All Tauri command handlers (60+). Commands are registered in `invoke_handler`.
+- **`src-tauri/src/lib.rs`** — App entry point (`run()`), plugin registration, menu setup, and `invoke_handler` command registration.
+- **`src-tauri/src/commands/`** — Tauri command handlers, organized by domain: `tasks.rs`, `settings.rs`, `api_keys.rs`, `providers.rs`, `folder_permissions.rs`, `ollama.rs`, `bedrock.rs`, `azure_foundry.rs`, `litellm.rs`, `opencode_cli.rs`, `updates.rs`, `app_info.rs`, `logging.rs`.
+- **`src-tauri/src/db/`** — SQLite persistence layer: `tasks.rs`, `settings.rs`, `providers.rs`, `folder_permissions.rs`, `migrations.rs`.
 - **`src-tauri/src/sidecar.rs`** — Sidecar process lifecycle, IPC serialization (`SidecarCommand` enum), and event routing.
+- **`src-tauri/src/types.rs`** — Shared Rust types (serializable structs for IPC).
+- **`src-tauri/src/secure_storage.rs`** — OS Keychain wrapper (keyring crate).
 - **`src-tauri/sidecar-opencode/src/types.ts`** — Single source of truth for the IPC protocol between Rust and sidecar.
 
 ### IPC Protocol

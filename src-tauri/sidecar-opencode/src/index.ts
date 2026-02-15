@@ -45,14 +45,14 @@ let sessionManager: SessionManager | null = null;
 // Initialization
 // ============================================================================
 
-async function initialize(apiKeys?: ApiKeys, mcpServers?: Record<string, unknown>): Promise<void> {
+async function initialize(apiKeys?: ApiKeys, mcpServers?: Record<string, unknown>, modelId?: string): Promise<void> {
   if (processManager) {
     return; // Already initialized
   }
 
   // Start process manager — picks a random available port and generates a password
   processManager = new ProcessManager();
-  await processManager.ensureServerRunning({ apiKeys, mcpServers });
+  await processManager.ensureServerRunning({ apiKeys, mcpServers, modelId });
 
   const port = processManager.getPort();
   const password = processManager.getPassword();
@@ -208,11 +208,17 @@ async function initialize(apiKeys?: ApiKeys, mcpServers?: Record<string, unknown
 
 async function handleStartTask(taskId: string, payload: StartTaskPayload): Promise<void> {
   try {
-    await initialize(payload.apiKeys, payload.mcpServers);
+    await initialize(payload.apiKeys, payload.mcpServers, payload.modelId);
 
-    if (!sessionManager) {
+    if (!(sessionManager && processManager)) {
       throw new Error('Session manager not initialized');
     }
+
+    // Update model config on disk for subsequent instance reloads.
+    // This is a no-op when the server is freshly started (config already
+    // written in startServer), but handles model changes between tasks
+    // when the server is already running.
+    processManager.updateModelConfig(payload.modelId);
 
     await sessionManager.startTask(payload);
   } catch (error) {
@@ -228,11 +234,14 @@ async function handleStartTask(taskId: string, payload: StartTaskPayload): Promi
 
 async function handleResumeSession(taskId: string, payload: ResumeSessionPayload): Promise<void> {
   try {
-    await initialize(payload.apiKeys, payload.mcpServers);
+    await initialize(payload.apiKeys, payload.mcpServers, payload.modelId);
 
-    if (!sessionManager) {
+    if (!(sessionManager && processManager)) {
       throw new Error('Session manager not initialized');
     }
+
+    // Update model config on disk (same rationale as handleStartTask)
+    processManager.updateModelConfig(payload.modelId);
 
     await sessionManager.resumeSession(payload);
   } catch (error) {

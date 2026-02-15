@@ -90,6 +90,14 @@ The following implementation plans document how specific requirements were desig
 4. WHERE the model fetch fails (network error, API error), THE SYSTEM SHALL fall back to a static default model list without blocking the connection
 5. THE SYSTEM SHALL prefix fetched model IDs with the provider identifier (e.g., `anthropic/claude-sonnet-4-5`) for delivery to the OpenCode server
 
+###### 1.1.5 OpenRouter Small-Model Pinning
+
+1. WHEN the selected model uses the OpenRouter provider (model ID starts with `openrouter/`), THE SYSTEM SHALL explicitly set `small_model` to `openrouter/openai/gpt-5-nano` in the OpenCode configuration
+2. THE SYSTEM SHALL disable the built-in `opencode` provider (`disabled_providers: ["opencode"]`) to prevent it from silently routing small-model calls through OpenCode's own servers
+3. THE SYSTEM SHALL register the small model (`openai/gpt-5-nano`) in the OpenRouter provider's model config so that OpenCode's model resolver can find it
+4. THE SYSTEM SHALL write these settings to the pre-start `opencode.json` config file AND the `OPENCODE_CONFIG_CONTENT` environment variable (highest-priority config source) to ensure they survive OpenCode instance disposal and recreation
+5. THE SYSTEM SHALL update the on-disk config when the model changes between tasks (server already running) so that subsequent instance reloads pick up the correct settings
+
 #### 1.2 Session Management ✅
 
 > **Plan:** [Sidecar OpenCode Rewrite](../opencode-sidecar/plan_sidecar-opencode-rewrite.md)

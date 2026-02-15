@@ -122,8 +122,10 @@ export type PermissionRule = {};
 export interface Config {
   $schema?: string;
   model?: string;
+  small_model?: string;
   default_agent?: string;
   enabled_providers?: string[];
+  disabled_providers?: string[];
   permission?: PermissionConfig;
   agent?: Record<string, AgentConfig>;
   mcp?: Record<string, McpConfig>;

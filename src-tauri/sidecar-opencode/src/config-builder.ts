@@ -142,6 +142,29 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
   // override is passed per-message in sendMessage — see session-manager.ts).
   if (options.modelId) {
     config.model = options.modelId;
+
+    // OpenRouter models are not in OpenCode's curated model database, so
+    // automatic small-model resolution picks the wrong model (e.g. Claude
+    // Haiku 4.5 via the built-in "opencode" provider).  Fix:
+    //  1. Disable the "opencode" provider so it can't auto-load.
+    //  2. Register gpt-5-nano under the openrouter provider config so
+    //     OpenCode's getModel("openrouter", "openai/gpt-5-nano") succeeds.
+    //  3. Set small_model explicitly.
+    if (options.modelId.startsWith('openrouter/')) {
+      config.small_model = 'openrouter/openai/gpt-5-nano';
+      config.disabled_providers = ['opencode'];
+      config.provider = {
+        ...((config.provider as Record<string, unknown>) ?? {}),
+        openrouter: {
+          models: {
+            'openai/gpt-5-nano': {
+              name: 'GPT-5 Nano',
+              tool_call: true,
+            },
+          },
+        },
+      };
+    }
   }
 
   // Set enabled providers

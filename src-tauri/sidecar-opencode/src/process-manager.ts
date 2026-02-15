@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { logger } from './logger';
 import { OpenCodeClient } from './opencode-client';
-import type { ApiKeys } from './types';
+import type { ApiKeys, Config } from './types';
 
 /** Default working directory for `opencode serve` to avoid writing config.json into the source tree. */
 const OPENCODE_DATA_DIR = path.join(os.homedir(), '.local', 'share', 'opencode', 'log');
@@ -250,6 +250,8 @@ export interface ServerStartOptions {
   apiKeys?: ApiKeys;
   /** MCP servers to write into config.json before starting the server. */
   mcpServers?: Record<string, unknown>;
+  /** Model ID (e.g. "openrouter/minimax/minimax-m2.5") to derive pre-start config. */
+  modelId?: string;
 }
 
 export class ProcessManager {
@@ -275,14 +277,46 @@ export class ProcessManager {
   }
 
   /**
-   * Write MCP servers (and any other pre-start config) into config.json
-   * in the OpenCode data directory **before** spawning the server.
-   * OpenCode reads MCP config at startup; PATCH /config after start
-   * does NOT cause MCP server processes to be initialized.
+   * Build the OpenRouter-specific config overlay that pins the small model
+   * and registers it in the provider model list.
+   *
+   * OpenRouter models are not in OpenCode's curated models.dev database, so
+   * automatic small-model resolution picks the wrong model (e.g. Claude
+   * Haiku 4.5 via the built-in "opencode" provider).  This overlay:
+   *  1. Disables the "opencode" provider so it can't auto-load.
+   *  2. Registers gpt-5-nano under the openrouter provider config so
+   *     OpenCode's getModel("openrouter", "openai/gpt-5-nano") succeeds.
+   *  3. Sets small_model explicitly.
    */
-  private writePreStartConfig(mcpServers?: Record<string, unknown>): void {
-    // Write to BOTH opencode.json (primary) and config.json (legacy).
-    // OpenCode prioritizes opencode.json over config.json.
+  static buildOpenRouterOverlay(): Partial<Config> {
+    return {
+      small_model: 'openrouter/openai/gpt-5-nano',
+      disabled_providers: ['opencode'],
+      provider: {
+        openrouter: {
+          models: {
+            'openai/gpt-5-nano': {
+              name: 'GPT-5 Nano',
+              tool_call: true,
+            },
+          },
+        },
+      },
+    };
+  }
+
+  /**
+   * Write config into the OpenCode data directory **before** spawning the
+   * server (or while it's running to prepare for the next instance reload).
+   *
+   * Writes to BOTH opencode.json (primary — what OpenCode actually reads)
+   * and config.json (legacy fallback).
+   *
+   * @param mcpServers  MCP server definitions (or undefined to clear)
+   * @param configOverlay  Additional config fields to merge (e.g. small_model,
+   *                       disabled_providers, provider model registration)
+   */
+  private writePreStartConfig(mcpServers?: Record<string, unknown>, configOverlay?: Partial<Config>): void {
     const opencodePath = path.join(OPENCODE_DATA_DIR, 'opencode.json');
     const legacyPath = path.join(OPENCODE_DATA_DIR, 'config.json');
 
@@ -298,28 +332,59 @@ export class ProcessManager {
       logger.warn('Failed to read existing config, starting fresh');
     }
 
-    if (mcpServers && Object.keys(mcpServers).length > 0) {
-      existing.mcp = mcpServers;
-    } else {
-      // Remove MCP key if no servers configured
-      delete existing.mcp;
+    // Apply MCP servers (undefined = leave existing MCP config untouched)
+    if (mcpServers !== undefined) {
+      if (Object.keys(mcpServers).length > 0) {
+        existing.mcp = mcpServers;
+      } else {
+        delete existing.mcp;
+      }
+    }
+
+    // Apply config overlay (small_model, disabled_providers, provider, etc.)
+    if (configOverlay) {
+      for (const [key, value] of Object.entries(configOverlay)) {
+        if (value !== undefined) {
+          existing[key] = value;
+        }
+      }
     }
 
     // Write to opencode.json (primary config file)
     fs.writeFileSync(opencodePath, JSON.stringify(existing, null, 2), 'utf-8');
     // Also write to config.json (legacy) for backwards compatibility
     fs.writeFileSync(legacyPath, JSON.stringify(existing, null, 2), 'utf-8');
-    logger.info('Pre-start config written', { opencodePath, legacyPath, hasMcp: !!mcpServers });
+    logger.info('Pre-start config written', {
+      opencodePath,
+      legacyPath,
+      hasMcp: !!mcpServers,
+      hasOverlay: !!configOverlay,
+    });
   }
 
   /**
-   * Update MCP servers in the on-disk config.json while the server is running.
+   * Update MCP servers in the on-disk config while the server is running.
    * OpenCode does NOT dynamically reload MCP servers from PATCH /config,
    * so changes only take effect on next server restart (i.e. next task start
    * after the sidecar is recycled).
    */
   updateMcpConfig(mcpServers?: Record<string, unknown>): void {
     this.writePreStartConfig(mcpServers);
+  }
+
+  /**
+   * Update model-related config on disk while the server is running.
+   * This is needed when the user switches models between tasks (e.g. from
+   * Anthropic to OpenRouter) without restarting the sidecar.
+   *
+   * The config is written to opencode.json so that when PATCH /config
+   * triggers an instance disposal, the new instance picks up the settings
+   * from the file OpenCode actually reads.
+   */
+  updateModelConfig(modelId?: string): void {
+    const overlay = modelId?.startsWith('openrouter/') ? ProcessManager.buildOpenRouterOverlay() : undefined;
+    // Pass undefined for mcpServers to preserve existing MCP config on disk
+    this.writePreStartConfig(undefined, overlay);
   }
 
   private async startServer(options?: ServerStartOptions): Promise<void> {
@@ -366,15 +431,25 @@ export class ProcessManager {
       fs.mkdirSync(OPENCODE_DATA_DIR, { recursive: true });
     }
 
-    // Write MCP servers (and other pre-start config) into config files
-    // BEFORE spawning the server. OpenCode only initializes MCP at startup.
-    this.writePreStartConfig(options?.mcpServers);
+    // Build model-specific config overlay (e.g. OpenRouter small_model pinning)
+    const modelOverlay = options?.modelId?.startsWith('openrouter/') ? ProcessManager.buildOpenRouterOverlay() : undefined;
 
-    // Also set OPENCODE_CONFIG_CONTENT env var as a belt-and-suspenders approach.
-    // This is the highest-priority config source for OpenCode and ensures MCP
-    // servers are present even if file-based config isn't read correctly.
+    // Write MCP servers and config overlay into opencode.json / config.json
+    // BEFORE spawning the server. OpenCode reads these at startup.
+    this.writePreStartConfig(options?.mcpServers, modelOverlay);
+
+    // Also set OPENCODE_CONFIG_CONTENT env var — the highest-priority config
+    // source for OpenCode. Merge MCP and model overlay so neither overrides
+    // the other when OpenCode re-reads config after instance disposal.
+    const envConfig: Record<string, unknown> = {};
     if (options?.mcpServers && Object.keys(options.mcpServers).length > 0) {
-      env.OPENCODE_CONFIG_CONTENT = JSON.stringify({ mcp: options.mcpServers });
+      envConfig.mcp = options.mcpServers;
+    }
+    if (modelOverlay) {
+      Object.assign(envConfig, modelOverlay);
+    }
+    if (Object.keys(envConfig).length > 0) {
+      env.OPENCODE_CONFIG_CONTENT = JSON.stringify(envConfig);
     }
 
     this.process = spawn(this.cliPath, args, {

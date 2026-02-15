@@ -123,14 +123,23 @@ export class SessionManager extends EventEmitter {
 
     // Message part updates (full part state, e.g. tool use, step-start/finish)
     // Server nests sessionID and messageID inside the part object itself
-    this.eventStream.on('message.part.updated', (props: { part: PartUpdate }) => {
+    this.eventStream.on('message.part.updated', (props: { part: PartUpdate; delta?: string }) => {
       const taskId = this.sessionToTask.get(props.part.sessionID);
       if (!taskId) return;
 
       const managed = this.sessions.get(taskId);
       if (!managed) return;
 
-      if (props.part.type === 'tool') {
+      if (props.part.type === 'text' && props.delta) {
+        managed.textAccumulator += props.delta;
+        this.emit('message-partial', {
+          taskId,
+          messageId: props.part.messageID,
+          textSoFar: managed.textAccumulator,
+          delta: props.delta,
+          isStreaming: true,
+        });
+      } else if (props.part.type === 'tool') {
         this.emit('tool-use', {
           taskId,
           messageId: props.part.messageID,

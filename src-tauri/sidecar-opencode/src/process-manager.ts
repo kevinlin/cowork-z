@@ -6,18 +6,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { logger } from './logger';
 import { OpenCodeClient } from './opencode-client';
+import { getOpenCodeLogDir } from './paths';
 import type { ApiKeys, Config } from './types';
 
 /** Default working directory for `opencode serve` to avoid writing config.json into the source tree. */
-const OPENCODE_DATA_DIR = (() => {
-  // On Windows use %LOCALAPPDATA%\opencode\log to match the Rust sidecar logger.
-  // On macOS/Linux use ~/.local/share/opencode/log (XDG convention).
-  const base =
-    process.platform === 'win32'
-      ? process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local')
-      : path.join(os.homedir(), '.local', 'share');
-  return path.join(base, 'opencode', 'log');
-})();
+const OPENCODE_DATA_DIR = getOpenCodeLogDir();
 
 const UNIX_ALLOWED_LOGIN_SHELLS = [
   '/bin/zsh',

@@ -5,7 +5,16 @@ use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const SERVICE_NAME: &str = "com.kevinlin.cowork-z";
+/// Service name for keychain entries.
+/// In dev profile (debug_assertions), append `-dev` so dev and release
+/// keychain entries never collide.
+fn service_name() -> &'static str {
+    if cfg!(debug_assertions) {
+        "com.kevinlin.cowork-z-dev"
+    } else {
+        "com.kevinlin.cowork-z"
+    }
+}
 
 /// API key providers
 pub const PROVIDERS: &[&str] = &[
@@ -25,7 +34,7 @@ pub const PROVIDERS: &[&str] = &[
 
 /// Store an API key in the OS keychain
 pub fn store_api_key(provider: &str, api_key: &str) -> Result<(), String> {
-    let entry = Entry::new(SERVICE_NAME, provider).map_err(|e| format!("Keychain error: {}", e))?;
+    let entry = Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
 
     entry
         .set_password(api_key)
@@ -36,7 +45,7 @@ pub fn store_api_key(provider: &str, api_key: &str) -> Result<(), String> {
 
 /// Retrieve an API key from the OS keychain
 pub fn get_api_key(provider: &str) -> Result<Option<String>, String> {
-    let entry = Entry::new(SERVICE_NAME, provider).map_err(|e| format!("Keychain error: {}", e))?;
+    let entry = Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
 
     match entry.get_password() {
         Ok(password) => Ok(Some(password)),
@@ -47,7 +56,7 @@ pub fn get_api_key(provider: &str) -> Result<Option<String>, String> {
 
 /// Delete an API key from the OS keychain
 pub fn delete_api_key(provider: &str) -> Result<bool, String> {
-    let entry = Entry::new(SERVICE_NAME, provider).map_err(|e| format!("Keychain error: {}", e))?;
+    let entry = Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
 
     match entry.delete_password() {
         Ok(()) => Ok(true),
@@ -58,7 +67,7 @@ pub fn delete_api_key(provider: &str) -> Result<bool, String> {
 
 /// Check if an API key exists for a provider
 pub fn has_api_key(provider: &str) -> Result<bool, String> {
-    let entry = Entry::new(SERVICE_NAME, provider).map_err(|e| format!("Keychain error: {}", e))?;
+    let entry = Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
 
     match entry.get_password() {
         Ok(_) => Ok(true),

@@ -344,12 +344,9 @@ async fn fetch_openai_models(api_key: &str) -> ProviderModelsResult {
 
 async fn fetch_google_models(api_key: &str) -> ProviderModelsResult {
     let client = reqwest::Client::new();
-    let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models?key={}",
-        api_key
-    );
+    let url = "https://generativelanguage.googleapis.com/v1beta/models";
 
-    match client.get(&url).send().await {
+    match client.get(url).header("x-goog-api-key", api_key).send().await {
         Ok(response) => {
             if response.status().is_success() {
                 #[derive(Deserialize)]

@@ -193,7 +193,16 @@ export type OpenCodeEvent =
       type: 'message.part.updated';
       properties: {
         part: PartUpdate;
-        delta?: string;
+      };
+    }
+  | {
+      type: 'message.part.delta';
+      properties: {
+        sessionID: string;
+        messageID: string;
+        partID: string;
+        field: string;
+        delta: string;
       };
     }
   | { type: 'permission.asked'; properties: PermissionRequest }

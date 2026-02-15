@@ -400,6 +400,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL use platform-appropriate data directories (e.g., `~/Library/Application Support/` on macOS, `%APPDATA%` on Windows)
 2. THE SYSTEM SHALL use platform-appropriate keyboard modifiers (`Cmd` on macOS, `Ctrl` on Windows/Linux)
 3. THE SYSTEM SHALL provide platform-appropriate installer formats (`.dmg` for macOS, `.msi`/`.exe` for Windows)
+4. THE SYSTEM SHALL write sidecar log files (both Rust and TypeScript) to the same platform-appropriate directory: `~/.local/share/opencode/log` on macOS/Linux (intentionally using an XDG-style location on macOS for parity with Linux), `%LOCALAPPDATA%\opencode\log` on Windows
 
 ##### 5.1.4 PATH Resolution for External CLI Tools
 1. WHEN launched from a GUI context (Finder/Dock on macOS, Start Menu/Explorer on Windows), THE SYSTEM SHALL augment the process PATH so that globally-installed CLI tools (e.g., `opencode`) are discoverable
@@ -441,6 +442,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 ##### 5.3.2 Logging
 1. WHEN errors occur, THE SYSTEM SHALL log them to the platform-appropriate log directory
 2. WHERE debugging is needed, THE SYSTEM SHALL provide a debug mode with verbose logging
+3. THE SYSTEM SHALL ensure all sidecar log sources (Rust process logger and TypeScript sidecar logger) write to the same directory so logs are co-located for debugging
 
 ##### 5.3.3 Missing OpenCode CLI Detection
 
@@ -481,5 +483,5 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 The following items remain to be implemented:
 
-- [ ] **Windows Production Readiness** — Fix runtime bugs (log path, PATH resolution, dev command), CI hardening (Windows smoke tests, installer verification), and code signing (Req 5.1.1–5.1.3)
+- [ ] **Windows Production Readiness** — Fix runtime bugs (PATH resolution, dev command), CI hardening (Windows smoke tests, installer verification), and code signing (Req 5.1.1–5.1.3). *Log path fix completed in v0.4.4.*
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

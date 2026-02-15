@@ -1,6 +1,6 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
+import { getOpenCodeLogDir } from './paths';
 
 export type IpcLogEmitter = (level: 'debug' | 'info' | 'warn' | 'error', message: string) => void;
 
@@ -12,7 +12,7 @@ export class Logger {
   private ipcEmitter: IpcLogEmitter | null = null;
 
   constructor() {
-    this.logDir = path.join(os.homedir(), '.local', 'share', 'opencode', 'log');
+    this.logDir = getOpenCodeLogDir();
     this.ensureLogDir();
   }
 

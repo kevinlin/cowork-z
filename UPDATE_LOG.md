@@ -1,5 +1,9 @@
 # UPDATE LOG
 
+## v0.4.4
+
+- 
+
 ## v0.4.3
 
 - **Refactor: Split lib.rs into modules** — Extracted the 2200-line monolithic `lib.rs` into a `types.rs` module for shared types and a `commands/` directory with 13 focused command modules (app_info, tasks, folder_permissions, settings, api_keys, providers, ollama, azure_foundry, litellm, bedrock, opencode_cli, updates, logging). `lib.rs` is now a slim orchestrator containing only module declarations and the `run()` function.

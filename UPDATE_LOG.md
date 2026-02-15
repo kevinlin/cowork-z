@@ -1,5 +1,9 @@
 # UPDATE LOG
 
+## v0.4.5
+
+- 
+
 ## v0.4.4
 
 - **Fix: Streaming messages not displayed in UI** — The sidecar `SessionManager` only listened to `message.part.updated` SSE events (which don't carry text deltas); added a `message.part.delta` listener so incremental text is accumulated and forwarded to the frontend via `task_message_partial` / `task_message_complete` IPC events

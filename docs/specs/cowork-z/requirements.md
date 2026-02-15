@@ -400,7 +400,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL use platform-appropriate data directories (e.g., `~/Library/Application Support/` on macOS, `%APPDATA%` on Windows)
 2. THE SYSTEM SHALL use platform-appropriate keyboard modifiers (`Cmd` on macOS, `Ctrl` on Windows/Linux)
 3. THE SYSTEM SHALL provide platform-appropriate installer formats (`.dmg` for macOS, `.msi`/`.exe` for Windows)
-4. THE SYSTEM SHALL write sidecar log files (both Rust and TypeScript) to the same platform-appropriate directory: `~/.local/share/opencode/log` on macOS/Linux, `%LOCALAPPDATA%\opencode\log` on Windows
+4. THE SYSTEM SHALL write sidecar log files (both Rust and TypeScript) to the same platform-appropriate directory: `~/.local/share/opencode/log` on macOS/Linux (intentionally using an XDG-style location on macOS for parity with Linux), `%LOCALAPPDATA%\opencode\log` on Windows
 
 ##### 5.1.4 PATH Resolution for External CLI Tools
 1. WHEN launched from a GUI context (Finder/Dock on macOS, Start Menu/Explorer on Windows), THE SYSTEM SHALL augment the process PATH so that globally-installed CLI tools (e.g., `opencode`) are discoverable

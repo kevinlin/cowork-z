@@ -9,7 +9,15 @@ import { OpenCodeClient } from './opencode-client';
 import type { ApiKeys, Config } from './types';
 
 /** Default working directory for `opencode serve` to avoid writing config.json into the source tree. */
-const OPENCODE_DATA_DIR = path.join(os.homedir(), '.local', 'share', 'opencode', 'log');
+const OPENCODE_DATA_DIR = (() => {
+  // On Windows use %LOCALAPPDATA%\opencode\log to match the Rust sidecar logger.
+  // On macOS/Linux use ~/.local/share/opencode/log (XDG convention).
+  const base =
+    process.platform === 'win32'
+      ? process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local')
+      : path.join(os.homedir(), '.local', 'share');
+  return path.join(base, 'opencode', 'log');
+})();
 
 const UNIX_ALLOWED_LOGIN_SHELLS = [
   '/bin/zsh',

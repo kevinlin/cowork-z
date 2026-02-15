@@ -12,7 +12,13 @@ export class Logger {
   private ipcEmitter: IpcLogEmitter | null = null;
 
   constructor() {
-    this.logDir = path.join(os.homedir(), '.local', 'share', 'opencode', 'log');
+    // On Windows use %LOCALAPPDATA%\opencode\log to match the Rust sidecar logger.
+    // On macOS/Linux use ~/.local/share/opencode/log (XDG convention).
+    const base =
+      process.platform === 'win32'
+        ? process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local')
+        : path.join(os.homedir(), '.local', 'share');
+    this.logDir = path.join(base, 'opencode', 'log');
     this.ensureLogDir();
   }
 

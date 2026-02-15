@@ -230,7 +230,7 @@ describe('SessionManager', () => {
       expect(completeEvents).toEqual([{ taskId: 'task_1', sessionId: 'ses_123', status: 'success' }]);
     });
 
-    it('should emit message-partial on text part updates', async () => {
+    it('should emit message-partial on text part deltas', async () => {
       await manager.startTask({
         taskId: 'task_1',
         prompt: 'Do something',
@@ -239,13 +239,19 @@ describe('SessionManager', () => {
       const partials: Array<{ delta: string; textSoFar: string }> = [];
       manager.on('message-partial', (data) => partials.push(data));
 
-      // Simulate streaming text deltas (server nests sessionID/messageID inside part)
-      eventStream.emit('message.part.updated', {
-        part: { type: 'text', sessionID: 'ses_123', messageID: 'msg_1', id: 'prt_1' },
+      // Simulate streaming text deltas via message.part.delta events
+      eventStream.emit('message.part.delta', {
+        sessionID: 'ses_123',
+        messageID: 'msg_1',
+        partID: 'prt_1',
+        field: 'text',
         delta: 'Hello ',
       });
-      eventStream.emit('message.part.updated', {
-        part: { type: 'text', sessionID: 'ses_123', messageID: 'msg_1', id: 'prt_1' },
+      eventStream.emit('message.part.delta', {
+        sessionID: 'ses_123',
+        messageID: 'msg_1',
+        partID: 'prt_1',
+        field: 'text',
         delta: 'world!',
       });
 
@@ -265,9 +271,12 @@ describe('SessionManager', () => {
         info: { id: 'msg_1', role: 'assistant', sessionID: 'ses_123' },
       });
 
-      // Accumulate some text (sessionID/messageID inside part)
-      eventStream.emit('message.part.updated', {
-        part: { type: 'text', sessionID: 'ses_123', messageID: 'msg_1', id: 'prt_1' },
+      // Accumulate some text via message.part.delta
+      eventStream.emit('message.part.delta', {
+        sessionID: 'ses_123',
+        messageID: 'msg_1',
+        partID: 'prt_1',
+        field: 'text',
         delta: 'Final answer',
       });
 

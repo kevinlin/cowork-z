@@ -2,7 +2,8 @@
 
 ## v0.4.4
 
-- 
+- **Fix: Streaming messages not displayed in UI** — The sidecar `SessionManager` only listened to `message.part.updated` SSE events (which don't carry text deltas); added a `message.part.delta` listener so incremental text is accumulated and forwarded to the frontend via `task_message_partial` / `task_message_complete` IPC events
+- **Fix: Sidecar log files written to wrong directory on Windows** — The sidecar logger and process manager hardcoded `~/.local/share/opencode/log` (Unix convention); now uses `%LOCALAPPDATA%\opencode\log` on Windows to match the Rust-side logger, so all logs are co-located in one directory
 
 ## v0.4.3
 

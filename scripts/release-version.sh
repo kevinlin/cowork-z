@@ -113,7 +113,7 @@ echo ""
 echo "📝 Committing and pushing …"
 git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json UPDATE_LOG.md
 git commit -m "Release version ${NEW_VERSION}"
-git push
+# git push
 
 echo ""
 echo "🎉 Released v${NEW_VERSION} successfully!"

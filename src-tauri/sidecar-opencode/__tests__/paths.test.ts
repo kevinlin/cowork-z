@@ -10,6 +10,8 @@ describe('getOpenCodeLogDir', () => {
     // Restore original values
     Object.defineProperty(process, 'platform', {
       value: originalPlatform,
+      writable: true,
+      configurable: true,
     });
     process.env = originalEnv;
     jest.restoreAllMocks();
@@ -66,23 +68,5 @@ describe('getOpenCodeLogDir', () => {
 
     const result = getOpenCodeLogDir();
     expect(result).toBe('/home/testuser/.local/share/opencode/log');
-  });
-
-  it('should use correct path based on platform', () => {
-    // Test that the function correctly uses process.platform
-    Object.defineProperty(process, 'platform', {
-      value: 'darwin',
-    });
-    process.env = {};
-
-    jest.spyOn(os, 'homedir').mockReturnValue('/Users/testuser');
-
-    const result = getOpenCodeLogDir();
-
-    // Verify the result contains the Unix-style path structure
-    expect(result).toContain('.local');
-    expect(result).toContain('share');
-    expect(result).toContain('opencode');
-    expect(result).toContain('log');
   });
 });

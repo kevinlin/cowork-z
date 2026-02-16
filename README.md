@@ -297,6 +297,12 @@ Track progress on the [issues page](https://github.com/kevinlin/cowork-z/issues)
 
 ---
 
+## Acknowledgments
+
+Cowork-Z's UI is based on [Accomplish](https://github.com/accomplish-ai/accomplish). Thank you to the Accomplish team for their work on the original implementation.
+
+---
+
 ## License
 
 [MIT](LICENSE) — Copyright (c) 2025-present Kevin Lin and contributors

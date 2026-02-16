@@ -241,7 +241,8 @@ pnpm tauri dev
 ### Prerequisites
 
 - Node.js v20+, pnpm v9+
-- Rust (stable toolchain)
+- Tauri v2 toolchain (see https://v2.tauri.app/start/prerequisites/)
+- Rust toolchain (for the Tauri backend)
 - OpenCode (`npm install -g opencode-ai`)
 
 #### Windows: Rust with MSVC toolchain

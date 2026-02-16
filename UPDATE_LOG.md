@@ -5,6 +5,7 @@
 - **3.7.2 Tool Call Display** - Tool-use messages now render as collapsible cards showing tool name and input summary when collapsed, full input/output when expanded.
 - **3.7.3 Question Handling** - Added `task:question_request` event handling with a dedicated question dialog. Streaming, permissions, and all existing functionality preserved.
 - **3.7.4 Component Decomposition** — Rewrote the monolithic Execution.tsx into modular chat components (MessageList, MessageBubble, ToolCallCard, PermissionModal, QuestionDialog, ChatInput, ThinkingIndicator).
+- **Fix: Tasks failing prematurely during permission waits** — The `sendMessage` HTTP request to OpenCode used the same 30-second timeout, but this endpoint blocks until the full agent turn completes (including permission waits and tool execution). If the user took longer than 30 seconds, the request was aborted with "This operation was aborted" and the task was marked as failed while OpenCode continued processing on the backend. Fixed by extending the `sendMessage` timeout to 10 minutes. (Req 1.2.1)
 
 ## v0.4.4 (2026-02-16)
 

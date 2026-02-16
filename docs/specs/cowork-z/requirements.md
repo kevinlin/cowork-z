@@ -111,6 +111,7 @@ The following implementation plans document how specific requirements were desig
 1. WHEN a user submits a prompt, THE SYSTEM SHALL create a new task and OpenCode session
 2. WHEN a task completes or errors, THE SYSTEM SHALL persist the session ID, messages, and folder permissions to the database
 3. WHEN the application closes, THE SYSTEM SHALL gracefully terminate all running sessions and sidecar processes
+4. THE SYSTEM SHALL use an extended timeout (10 minutes) for the `sendMessage` HTTP request to the OpenCode server, since this is a long-running call that blocks until the full agent turn completes (including permission waits, tool execution, and multi-step reasoning)
 
 ##### 1.2.2 Session Resumption
 1. THE SYSTEM SHALL allow users to resume a previous session with a new prompt

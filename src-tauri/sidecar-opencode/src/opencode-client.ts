@@ -23,7 +23,13 @@ export class OpenCodeClient {
     }
   }
 
-  private async request<T>(method: string, path: string, body?: unknown, queryParams?: Record<string, string>): Promise<T> {
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    queryParams?: Record<string, string>,
+    options?: { timeout?: number }
+  ): Promise<T> {
     const url = new URL(path, this.baseUrl);
     if (queryParams) {
       for (const [key, value] of Object.entries(queryParams)) {
@@ -31,8 +37,9 @@ export class OpenCodeClient {
       }
     }
 
+    const effectiveTimeout = options?.timeout ?? this.timeout;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
 
     const headers: Record<string, string> = {};
     if (body) headers['Content-Type'] = 'application/json';
@@ -161,6 +168,9 @@ export class OpenCodeClient {
     }
   ): Promise<{ info: Message; parts: Part[] }> {
     const params = options.directory ? { directory: options.directory } : undefined;
+    // sendMessage is a long-running request: OpenCode blocks until the full agent
+    // turn completes (which may include permission waits, tool execution, etc.).
+    // Use a 10-minute timeout instead of the default 30 seconds.
     return this.request(
       'POST',
       `/session/${sessionId}/message`,
@@ -170,7 +180,8 @@ export class OpenCodeClient {
         agent: options.agent,
         system: options.system,
       },
-      params
+      params,
+      { timeout: 10 * 60 * 1000 }
     );
   }
 

@@ -1,13 +1,15 @@
 'use client';
 
-import { AlertCircle, CheckCircle2, Loader2, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FolderOpen, Loader2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task } from '@/shared';
+import type { Task, Workspace } from '@/shared';
 
 interface TaskLauncherItemProps {
   task: Task;
   isSelected: boolean;
   onClick: () => void;
+  workspace?: Workspace;
+  activeWorkspaceId?: string;
 }
 
 function formatRelativeDate(dateString: string): string {
@@ -39,7 +41,9 @@ function getStatusIcon(status: Task['status']) {
   }
 }
 
-export default function TaskLauncherItem({ task, isSelected, onClick }: TaskLauncherItemProps) {
+export default function TaskLauncherItem({ task, isSelected, onClick, workspace, activeWorkspaceId }: TaskLauncherItemProps) {
+  const isDifferentWorkspace = task.workspaceId && task.workspaceId !== activeWorkspaceId;
+
   return (
     <button
       className={cn(
@@ -50,7 +54,19 @@ export default function TaskLauncherItem({ task, isSelected, onClick }: TaskLaun
       onClick={onClick}
     >
       {getStatusIcon(task.status)}
-      <span className="flex-1 truncate">{task.prompt}</span>
+      <span className="min-w-0 flex-1 truncate">{task.prompt}</span>
+      {workspace && (
+        <span
+          className={cn(
+            'flex shrink-0 items-center gap-1 text-xs',
+            isSelected ? 'text-primary-foreground/70' : isDifferentWorkspace ? 'text-primary' : 'text-muted-foreground'
+          )}
+          title={workspace.folderPath}
+        >
+          <FolderOpen className="h-3 w-3" />
+          {workspace.displayName}
+        </span>
+      )}
       <span className={cn('shrink-0 text-xs', isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
         {formatRelativeDate(task.createdAt)}
       </span>

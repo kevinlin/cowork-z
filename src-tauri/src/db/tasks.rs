@@ -23,6 +23,8 @@ pub struct StoredTask {
     pub started_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
 }
 
 /// Stored task message representation
@@ -163,7 +165,7 @@ fn get_attachments_for_message(conn: &Connection, message_id: &str) -> Vec<Store
 pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<StoredTask> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at
+            "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id
              FROM tasks
              WHERE workspace_id = ?1
              ORDER BY created_at DESC
@@ -182,6 +184,7 @@ pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Stor
                 row.get::<_, String>(5)?,
                 row.get::<_, Option<String>>(6)?,
                 row.get::<_, Option<String>>(7)?,
+                row.get::<_, Option<String>>(8)?,
             ))
         })
         .expect("Failed to query tasks");
@@ -189,7 +192,7 @@ pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Stor
     task_iter
         .filter_map(|r| r.ok())
         .map(
-            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at)| {
+            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at, ws_id)| {
                 let messages = get_messages_for_task(conn, &id);
                 StoredTask {
                     id,
@@ -201,6 +204,7 @@ pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Stor
                     created_at,
                     started_at,
                     completed_at,
+                    workspace_id: ws_id,
                 }
             },
         )
@@ -211,7 +215,7 @@ pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Stor
 pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at
+            "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id
              FROM tasks
              ORDER BY created_at DESC
              LIMIT ?1",
@@ -229,6 +233,7 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
                 row.get::<_, String>(5)?,
                 row.get::<_, Option<String>>(6)?,
                 row.get::<_, Option<String>>(7)?,
+                row.get::<_, Option<String>>(8)?,
             ))
         })
         .expect("Failed to query tasks");
@@ -236,7 +241,7 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
     task_iter
         .filter_map(|r| r.ok())
         .map(
-            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at)| {
+            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id)| {
                 let messages = get_messages_for_task(conn, &id);
                 StoredTask {
                     id,
@@ -248,6 +253,7 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
                     created_at,
                     started_at,
                     completed_at,
+                    workspace_id,
                 }
             },
         )
@@ -257,7 +263,7 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
 /// Get a single task by ID
 pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
     let result = conn.query_row(
-        "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at
+        "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id
          FROM tasks WHERE id = ?1",
         [task_id],
         |row| {
@@ -270,12 +276,13 @@ pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
                 row.get::<_, String>(5)?,
                 row.get::<_, Option<String>>(6)?,
                 row.get::<_, Option<String>>(7)?,
+                row.get::<_, Option<String>>(8)?,
             ))
         },
     );
 
     match result {
-        Ok((id, prompt, summary, status, session_id, created_at, started_at, completed_at)) => {
+        Ok((id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id)) => {
             let messages = get_messages_for_task(conn, &id);
             Some(StoredTask {
                 id,
@@ -287,6 +294,7 @@ pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
                 created_at,
                 started_at,
                 completed_at,
+                workspace_id,
             })
         }
         Err(_) => None,

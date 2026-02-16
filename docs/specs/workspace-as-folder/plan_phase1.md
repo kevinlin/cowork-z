@@ -482,7 +482,59 @@ Run: `pnpm typecheck`
 
 ---
 
-## Task 17: Final verification and cleanup
+## Task 17: Cross-workspace task history and auto-switch
+
+**Goal:** Task History page and Task Launcher show tasks from all workspaces with workspace names. Selecting a task from a different workspace auto-switches before navigation.
+
+**Files:**
+- Modify: `src-tauri/src/db/tasks.rs` (add `workspace_id` to `StoredTask`, include in all queries)
+- Modify: `src-tauri/src/types.rs` (add `workspace_id: Option<String>` to `Task`)
+- Modify: `src-tauri/src/commands/tasks.rs` (pass `workspace_id` through in all `Task` constructors)
+- Modify: `src/shared/types/task.ts` (add `workspaceId?: string` to `Task` interface)
+- Modify: `src/stores/taskStore.ts` (add `allTasks: Task[]` state, `loadAllTasks()` action)
+- Modify: `src/components/TaskLauncher/TaskLauncher.tsx` (use `allTasks`, widen modal, auto-switch)
+- Modify: `src/components/TaskLauncher/TaskLauncherItem.tsx` (show workspace icon + name)
+
+**Step 1: Add `workspace_id` to Rust types and DB queries**
+
+In `db/tasks.rs`, add `pub workspace_id: Option<String>` to `StoredTask`. Update all three query functions (`get_tasks`, `get_tasks_by_workspace`, `get_task`) to SELECT and map `workspace_id`.
+
+In `types.rs`, add `pub workspace_id: Option<String>` to `Task` (with `skip_serializing_if`).
+
+In `commands/tasks.rs`, pass `workspace_id: t.workspace_id` in all `StoredTask` → `Task` mappings. For `start_task` and `resume_session`, read `last_workspace_id` from settings for the response.
+
+**Step 2: Add `workspaceId` to frontend Task type**
+
+In `src/shared/types/task.ts`, add `workspaceId?: string` to the `Task` interface.
+
+**Step 3: Add `allTasks` and `loadAllTasks` to taskStore**
+
+In `src/stores/taskStore.ts`:
+- Add `allTasks: Task[]` to state interface and initial state
+- Add `loadAllTasks: () => Promise<void>` action that calls `api.listTasks()` (no workspace filter)
+- Update `deleteTask` and `clearHistory` to also clear from `allTasks`
+
+**Step 4: Update TaskLauncher**
+
+- Use `allTasks` and `loadAllTasks` instead of `tasks`
+- Widen modal from `max-w-lg` to `max-w-2xl`
+- Build workspace lookup, pass `workspace` and `activeWorkspaceId` to `TaskLauncherItem`
+- In `handleSelect`: if selected task is from different workspace, call `switchWorkspace()` before navigating
+- Update search placeholder to "Search tasks across all workspaces..."
+
+**Step 5: Update TaskLauncherItem**
+
+- Accept `workspace?: Workspace` and `activeWorkspaceId?: string` props
+- Show `FolderOpen` icon + `workspace.displayName` between task prompt and date
+- Highlight workspace name in primary color if it differs from active workspace
+
+**Step 6: Verify**
+
+Run: `pnpm typecheck` + `cd src-tauri && cargo check`
+
+---
+
+## Task 18: Final verification and cleanup
 
 **Files:**
 - All modified files
@@ -513,6 +565,9 @@ Run: `pnpm tauri dev`
 - Switching workspaces should update session list and file tree
 - Starting a task should use workspace folder as CWD
 - File tree should update when AI creates files
+- Task Launcher (Cmd+K) should show tasks from all workspaces with workspace names
+- Task History page should show tasks from all workspaces with workspace names
+- Selecting a task from a different workspace should auto-switch and navigate to it
 
 ---
 

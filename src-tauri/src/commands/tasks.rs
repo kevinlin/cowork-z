@@ -156,6 +156,12 @@ pub async fn start_task(
         })
         .await?;
 
+    // Get the workspace_id for the response
+    let response_workspace_id = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::settings::get_last_workspace_id(&conn)
+    };
+
     // Return task object (status will be updated via events)
     Ok(Task {
         id: task_id,
@@ -169,6 +175,7 @@ pub async fn start_task(
         updated_at: None,
         completed_at: None,
         started_at: Some(started_at),
+        workspace_id: response_workspace_id,
     })
 }
 
@@ -286,6 +293,7 @@ pub async fn get_task(task_id: String, state: State<'_, DbState>) -> Result<Opti
         updated_at: None,
         completed_at: t.completed_at,
         started_at: t.started_at,
+        workspace_id: t.workspace_id,
     }))
 }
 
@@ -335,6 +343,7 @@ pub async fn list_tasks(
             updated_at: None,
             completed_at: t.completed_at,
             started_at: t.started_at,
+            workspace_id: t.workspace_id,
         })
         .collect())
 }
@@ -589,6 +598,12 @@ pub async fn resume_session(
         })
         .await?;
 
+    // Get the workspace_id for the response
+    let response_workspace_id = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::settings::get_last_workspace_id(&conn)
+    };
+
     // Return task object
     Ok(Task {
         id: task_id,
@@ -602,5 +617,6 @@ pub async fn resume_session(
         updated_at: None,
         completed_at: None,
         started_at: Some(chrono::Utc::now().to_rfc3339()),
+        workspace_id: response_workspace_id,
     })
 }

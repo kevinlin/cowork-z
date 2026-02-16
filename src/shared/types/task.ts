@@ -33,6 +33,8 @@ export interface Task {
   startedAt?: string;
   completedAt?: string;
   result?: TaskResult;
+  /** Workspace ID this task belongs to */
+  workspaceId?: string;
 }
 
 export interface TaskAttachment {

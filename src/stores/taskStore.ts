@@ -46,8 +46,10 @@ interface TaskState {
   isLoading: boolean;
   error: string | null;
 
-  // Task history
+  // Task history (workspace-scoped)
   tasks: Task[];
+  // All tasks across all workspaces (for history page and launcher)
+  allTasks: Task[];
 
   // Partial messages (streaming)
   partialMessages: Map<string, PartialMessage>;
@@ -111,6 +113,7 @@ interface TaskState {
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   setTaskSummary: (taskId: string, summary: string) => void;
   loadTasks: () => Promise<void>;
+  loadAllTasks: () => Promise<void>;
   loadTaskById: (taskId: string) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   clearHistory: () => Promise<void>;
@@ -318,6 +321,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   isLoading: false,
   error: null,
   tasks: [],
+  allTasks: [],
   partialMessages: new Map<string, PartialMessage>(),
   permissionRequests: [],
   permissionRequest: null,
@@ -1070,6 +1074,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ tasks });
   },
 
+  loadAllTasks: async () => {
+    const allTasks = await api.listTasks();
+    set({ allTasks });
+  },
+
   loadTaskById: async (taskId: string) => {
     const task = await api.getTask(taskId);
     set({ currentTask: task, error: task ? null : 'Task not found' });
@@ -1085,6 +1094,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     await api.deleteTask(taskId);
     set((state) => ({
       tasks: state.tasks.filter((t) => t.id !== taskId),
+      allTasks: state.allTasks.filter((t) => t.id !== taskId),
       // Clear currentTask if it's the one being deleted
       currentTask: state.currentTask?.id === taskId ? null : state.currentTask,
     }));
@@ -1092,7 +1102,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   clearHistory: async () => {
     await api.clearTaskHistory();
-    set({ tasks: [] });
+    set({ tasks: [], allTasks: [] });
   },
 
   reset: () => {

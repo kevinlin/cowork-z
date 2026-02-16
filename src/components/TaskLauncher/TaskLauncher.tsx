@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { springs } from '@/lib/animations';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { cn } from '@/lib/utils';
+import type { Workspace } from '@/shared';
 import { hasAnyReadyProvider } from '@/shared';
 import { useTaskStore } from '@/stores/taskStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 import TaskLauncherItem from './TaskLauncherItem';
 
 export default function TaskLauncher() {
@@ -18,19 +20,36 @@ export default function TaskLauncher() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const { isLauncherOpen, closeLauncher, tasks, startTask } = useTaskStore();
+  const { isLauncherOpen, closeLauncher, allTasks, loadAllTasks, startTask } = useTaskStore();
+  const { workspaces, activeWorkspace, switchWorkspace } = useWorkspaceStore();
   const api = getTauriAPI();
+
+  // Build workspace lookup map
+  const workspaceMap = useMemo(() => {
+    const map = new Map<string, Workspace>();
+    for (const ws of workspaces) {
+      map.set(ws.id, ws);
+    }
+    return map;
+  }, [workspaces]);
+
+  // Load all tasks when launcher opens
+  useEffect(() => {
+    if (isLauncherOpen) {
+      loadAllTasks();
+    }
+  }, [isLauncherOpen, loadAllTasks]);
 
   // Filter tasks by search query (title only)
   const filteredTasks = useMemo(() => {
     if (!searchQuery.trim()) {
       // Show last 7 days when no search
       const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      return tasks.filter((t) => new Date(t.createdAt).getTime() > sevenDaysAgo);
+      return allTasks.filter((t) => new Date(t.createdAt).getTime() > sevenDaysAgo);
     }
     const query = searchQuery.toLowerCase();
-    return tasks.filter((t) => t.prompt.toLowerCase().includes(query));
-  }, [tasks, searchQuery]);
+    return allTasks.filter((t) => t.prompt.toLowerCase().includes(query));
+  }, [allTasks, searchQuery]);
 
   // Total items: "New task" + filtered tasks
   const totalItems = 1 + filteredTasks.length;
@@ -84,15 +103,18 @@ export default function TaskLauncher() {
           navigate('/');
         }
       } else {
-        // Task selected - navigate to it
+        // Task selected - navigate to it, switching workspace if needed
         const task = filteredTasks[index - 1];
         if (task) {
           closeLauncher();
+          if (task.workspaceId && task.workspaceId !== activeWorkspace?.id) {
+            await switchWorkspace(task.workspaceId);
+          }
           navigate(`/execution/${task.id}`);
         }
       }
     },
-    [searchQuery, filteredTasks, closeLauncher, navigate, startTask, api]
+    [searchQuery, filteredTasks, closeLauncher, navigate, startTask, api, activeWorkspace?.id, switchWorkspace]
   );
 
   const handleKeyDown = useCallback(
@@ -141,7 +163,7 @@ export default function TaskLauncher() {
             <DialogPrimitive.Content className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]" onKeyDown={handleKeyDown}>
               <motion.div
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="w-full max-w-lg overflow-hidden rounded-lg border border-border bg-card shadow-2xl"
+                className="w-full max-w-2xl overflow-hidden rounded-lg border border-border bg-card shadow-2xl"
                 exit={{ opacity: 0, scale: 0.95, y: -10 }}
                 initial={{ opacity: 0, scale: 0.95, y: -10 }}
                 transition={springs.bouncy}
@@ -152,7 +174,7 @@ export default function TaskLauncher() {
                   <Input
                     className="h-full border-0 px-0 py-1 focus:outline-none focus-visible:ring-0"
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search tasks..."
+                    placeholder="Search tasks across all workspaces..."
                     type="text"
                     value={searchQuery}
                   />
@@ -193,10 +215,12 @@ export default function TaskLauncher() {
                       </div>
                       {filteredTasks.slice(0, 10).map((task, i) => (
                         <TaskLauncherItem
+                          activeWorkspaceId={activeWorkspace?.id}
                           isSelected={selectedIndex === i + 1}
                           key={task.id}
                           onClick={() => handleSelect(i + 1)}
                           task={task}
+                          workspace={task.workspaceId ? workspaceMap.get(task.workspaceId) : undefined}
                         />
                       ))}
                     </>

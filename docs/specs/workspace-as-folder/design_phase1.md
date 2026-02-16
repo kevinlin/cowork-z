@@ -243,7 +243,38 @@ The existing Artifacts panel is removed from the sidebar. With the workspace fol
 
 ---
 
-## 7. Keyboard Shortcuts
+## 7. Cross-Workspace Task History & Navigation
+
+### Task–Workspace Association
+
+Every task record has a `workspace_id` foreign key linking it to the workspace in which it was created. This field is returned in all task API responses (`list_tasks`, `get_task`, `start_task`, `resume_session`).
+
+### Task Launcher (Cmd+K)
+
+The Task Launcher modal (`TaskLauncher.tsx`) also shows tasks across all workspaces:
+- The modal is wider (`max-w-2xl` instead of `max-w-lg`) to accommodate workspace information.
+- Each task item shows a folder icon and workspace `display_name` alongside the date.
+- Tasks from other workspaces display the workspace name in the primary color.
+- The search placeholder reads "Search tasks across all workspaces...".
+
+### Automatic Workspace Switching on Task Selection
+
+When a user selects a task that belongs to a different workspace (from either the History page or the Task Launcher):
+1. The app calls `switchWorkspace(task.workspaceId)` **before** navigating to the task's execution page.
+2. This triggers the full workspace switch flow (Section 3): settings update, sidecar reconfiguration, SSE reconnection, frontend reload of sessions and file tree.
+3. After the switch completes, the app navigates to `/execution/:taskId`.
+
+This ensures the user always sees the correct file tree and session context for the task they selected.
+
+### Data Loading
+
+- **Sidebar sessions list** (`tasks` in store) — continues to load workspace-scoped tasks via `loadTasks()`.
+- **Task History page and Task Launcher** (`allTasks` in store) — load all tasks across workspaces via `loadAllTasks()` (calls `list_tasks` with no `workspace_id` filter).
+- The Launcher refreshes `allTasks` each time it opens.
+
+---
+
+## 8. Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|

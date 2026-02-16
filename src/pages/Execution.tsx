@@ -76,7 +76,7 @@ export default function ExecutionPage() {
     addTaskUpdate,
     addTaskUpdateBatch,
     updateTaskStatus,
-    setPermissionRequest,
+    enqueuePermissionRequest,
     permissionRequest,
     respondToPermission,
     sendFollowUp,
@@ -179,7 +179,7 @@ export default function ExecutionPage() {
 
     api
       .onPermissionRequest((request) => {
-        setPermissionRequest(request);
+        enqueuePermissionRequest(request);
       })
       .then((unsub) => unlisteners.push(unsub));
 
@@ -209,7 +209,7 @@ export default function ExecutionPage() {
       unlisteners.forEach((unsub) => unsub());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, loadTaskById, addTaskUpdate, addTaskUpdateBatch, updateTaskStatus, setPermissionRequest]);
+  }, [id, loadTaskById, addTaskUpdate, addTaskUpdateBatch, updateTaskStatus, enqueuePermissionRequest]);
 
   // Fetch todos when session becomes available
   useEffect(() => {

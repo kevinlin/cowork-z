@@ -84,7 +84,7 @@ export default function HomePage() {
   const [prompt, setPrompt] = useState('');
   const [showExamples, setShowExamples] = useState(true);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
-  const { startTask, isLoading, addTaskUpdate, setPermissionRequest } = useTaskStore();
+  const { startTask, isLoading, addTaskUpdate, enqueuePermissionRequest } = useTaskStore();
   const navigate = useNavigate();
   const api = getTauriAPI();
 
@@ -95,14 +95,14 @@ export default function HomePage() {
     });
 
     const unsubscribePermission = api.onPermissionRequest((request) => {
-      setPermissionRequest(request);
+      enqueuePermissionRequest(request);
     });
 
     return () => {
       unsubscribeTask();
       unsubscribePermission();
     };
-  }, [addTaskUpdate, setPermissionRequest, api]);
+  }, [addTaskUpdate, enqueuePermissionRequest, api]);
 
   const executeTask = useCallback(async () => {
     if (!prompt.trim() || isLoading) return;

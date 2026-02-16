@@ -52,8 +52,12 @@ interface TaskState {
   // Partial messages (streaming)
   partialMessages: Map<string, PartialMessage>;
 
-  // Permission handling
+  // Permission handling (queue supports concurrent requests from parallel tool calls)
+  permissionRequests: PermissionRequest[];
+  /** Derived: first item in the queue (shown in the modal) */
   permissionRequest: PermissionRequest | null;
+  /** Patterns already approved by the user this session — used to auto-approve duplicates */
+  approvedPatterns: Set<string>;
 
   // Todos (per task)
   todos: Map<string, Todo[]>;
@@ -98,6 +102,7 @@ interface TaskState {
   cancelTask: () => Promise<void>;
   interruptTask: () => Promise<void>;
   setPermissionRequest: (request: PermissionRequest | null) => void;
+  enqueuePermissionRequest: (request: PermissionRequest) => void;
   respondToPermission: (response: PermissionResponse) => Promise<void>;
   addTaskUpdate: (event: TaskUpdateEvent) => void;
   addTaskUpdateBatch: (event: TaskUpdateBatchEvent) => void;
@@ -314,7 +319,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   error: null,
   tasks: [],
   partialMessages: new Map<string, PartialMessage>(),
+  permissionRequests: [],
   permissionRequest: null,
+  approvedPatterns: new Set<string>(),
   todos: new Map<string, Todo[]>(),
 
   setTodos: (taskId: string, todos: Todo[]) => {
@@ -628,16 +635,49 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   setPermissionRequest: (request) => {
-    set({ permissionRequest: request });
+    if (request === null) {
+      // Clear the front of the queue (used after responding)
+      const { permissionRequests } = get();
+      const remaining = permissionRequests.slice(1);
+      set({ permissionRequests: remaining, permissionRequest: remaining[0] ?? null });
+    } else {
+      // Legacy path: direct set (prefer enqueuePermissionRequest for new code)
+      set({ permissionRequests: [request], permissionRequest: request });
+    }
+  },
+
+  enqueuePermissionRequest: (request) => {
+    const { approvedPatterns, permissionRequests } = get();
+
+    // Auto-approve if ALL patterns in this request have already been approved
+    const requestPatterns = request.patterns ?? [];
+    const allPatternsApproved = requestPatterns.length > 0 && requestPatterns.every((p) => approvedPatterns.has(p));
+
+    if (allPatternsApproved) {
+      // Fire-and-forget auto-approval
+      void api.respondToPermission({
+        requestId: request.id,
+        taskId: request.taskId,
+        decision: 'allow',
+        patterns: request.patterns,
+      });
+      return;
+    }
+
+    // Enqueue — show in modal if it's the first in the queue
+    const updated = [...permissionRequests, request];
+    set({ permissionRequests: updated, permissionRequest: updated[0] });
   },
 
   respondToPermission: async (response: PermissionResponse) => {
-    const { permissionRequest, folderPermissions } = get();
+    const { permissionRequests, approvedPatterns, folderPermissions } = get();
+    const current = permissionRequests[0];
+    if (!current) return;
 
     // Attach patterns from the current permission request so Rust can persist adhoc grants
     const responseWithPatterns: PermissionResponse = {
       ...response,
-      patterns: permissionRequest?.patterns,
+      patterns: current.patterns,
     };
 
     void api.logEvent({
@@ -647,12 +687,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     });
     await api.respondToPermission(responseWithPatterns);
 
+    // Track approved patterns for auto-approval of future duplicates
+    if (response.decision === 'allow' && current.patterns) {
+      const newApproved = new Set(approvedPatterns);
+      for (const p of current.patterns) {
+        newApproved.add(p);
+      }
+      set({ approvedPatterns: newApproved });
+    }
+
     // When user allows a permission, add the target folder(s) to local state as adhoc grants.
     // For external_directory permissions, patterns are directory paths — use them directly.
     // For edit/file permissions, patterns are file paths — use the parent directory.
-    if (response.decision === 'allow' && permissionRequest?.patterns) {
-      const isDirectoryPermission = permissionRequest.toolName === 'external_directory';
-      for (const pattern of permissionRequest.patterns) {
+    if (response.decision === 'allow' && current.patterns) {
+      const isDirectoryPermission = current.toolName === 'external_directory';
+      for (const pattern of current.patterns) {
         let targetFolder: string;
         if (isDirectoryPermission) {
           targetFolder = pattern;
@@ -672,7 +721,28 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
     }
 
-    set({ permissionRequest: null });
+    // Pop the responded request from the queue
+    const remaining = permissionRequests.slice(1);
+
+    // Auto-approve any remaining requests whose patterns are now all approved
+    const { approvedPatterns: latestApproved } = get();
+    const stillPending: PermissionRequest[] = [];
+    for (const req of remaining) {
+      const reqPatterns = req.patterns ?? [];
+      const allApproved = reqPatterns.length > 0 && reqPatterns.every((p) => latestApproved.has(p));
+      if (allApproved) {
+        void api.respondToPermission({
+          requestId: req.id,
+          taskId: req.taskId,
+          decision: 'allow',
+          patterns: req.patterns,
+        });
+      } else {
+        stillPending.push(req);
+      }
+    }
+
+    set({ permissionRequests: stillPending, permissionRequest: stillPending[0] ?? null });
   },
 
   addTaskUpdate: (event: TaskUpdateEvent) => {
@@ -1029,7 +1099,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       isLoading: false,
       error: null,
       partialMessages: new Map<string, PartialMessage>(),
+      permissionRequests: [],
       permissionRequest: null,
+      approvedPatterns: new Set<string>(),
       startupStage: null,
       startupStageTaskId: null,
       showSettings: false,

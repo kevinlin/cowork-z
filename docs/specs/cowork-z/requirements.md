@@ -134,6 +134,8 @@ The following implementation plans document how specific requirements were desig
 1. THE SYSTEM SHALL support two access levels: **read** and **read-write**
 2. WHEN a task starts, THE SYSTEM SHALL enforce folder permissions for all file operations
 3. WHERE permissions are granted, THE SYSTEM SHALL persist them per task in the database
+4. WHEN multiple permission requests arrive concurrently (e.g. from parallel tool calls), THE SYSTEM SHALL queue them and present each to the user in order
+5. WHEN the user approves a permission pattern, THE SYSTEM SHALL auto-approve any queued or subsequent requests matching the same pattern
 
 ##### 1.3.2 Default Access
 1. THE SYSTEM SHALL grant default access to the user's **Desktop** and **Downloads** folders

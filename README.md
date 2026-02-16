@@ -124,7 +124,7 @@ Go to the [**latest release**](https://github.com/kevinlin/cowork-z/releases/lat
 
 ### Windows
 
-> **Coming soon** — The build pipeline is in place and we're working on testing and polish. Star the repo or [watch releases](https://github.com/kevinlin/cowork-z/releases) to get notified.
+> **Windows support (dev)** — Cowork-Z now runs on Windows. Full feature coverage hasn't been completed yet, so please expect rough edges and [report issues](https://github.com/kevinlin/cowork-z/issues/new) you encounter.
 
 ### Linux
 
@@ -244,15 +244,53 @@ pnpm tauri dev
 - Rust (stable toolchain)
 - OpenCode (`npm install -g opencode-ai`)
 
+#### Windows: Rust with MSVC toolchain
+
+Tauri on Windows requires the **MSVC** toolchain. If you see `missing dlltool.exe` errors or your `rustc -vV` shows `host: x86_64-pc-windows-gnu`, follow these steps:
+
+1. **Install Microsoft C++ Build Tools**
+   - Download [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+   - In the installer, select the **Desktop development with C++** workload
+   - Verify the **MSVC v143** toolset and **Windows 10/11 SDK** are included
+   - Open a **new terminal** after install and confirm with `where cl`
+
+2. **Install rustup** (if `rustup`/`cargo` aren't found)
+   - Download and run [rustup-init.exe](https://rustup.rs/) — choose the default install
+   - Ensure `%USERPROFILE%\.cargo\bin` is on your `PATH`
+   - Verify: `rustup --version && cargo --version`
+
+3. **Switch to the MSVC toolchain**
+   ```powershell
+   rustup toolchain install stable-x86_64-pc-windows-msvc
+   rustup default stable-x86_64-pc-windows-msvc
+   ```
+   Verify with `rustc -vV` — you should see `host: x86_64-pc-windows-msvc`.
+
+4. **Remove any per-repo GNU override** (common gotcha)
+   ```powershell
+   rustup override list
+   # If your repo is listed with ...-gnu:
+   cd path\to\cowork-z
+   rustup override unset
+   ```
+
+5. **Clean and rebuild**
+   ```powershell
+   cd src-tauri && cargo clean && cd ..
+   pnpm tauri dev
+   ```
+
+> **Note:** Windows 11 ships with WebView2 pre-installed. If the build complains about WebView2, install the [runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) and retry.
+
 ---
 
 ## Roadmap
 
 See the [requirements document](docs/specs/cowork-z/requirements.md) for the full feature spec. Outstanding items:
 
+- [x] Windows testing and polish
 - [ ] Database encryption at rest (Req 5.2.2)
 - [ ] OpenCode Server API Skill for agent self-introspection (Req 2.4)
-- [ ] Windows testing and polish
 
 Track progress on the [issues page](https://github.com/kevinlin/cowork-z/issues) or check the [changelog](UPDATE_LOG.md) for recent releases.
 

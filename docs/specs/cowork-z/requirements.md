@@ -44,6 +44,7 @@ The following implementation plans document how specific requirements were desig
 | Windows Production Readiness | [`cowork-z/plan_windows-production-readiness.md`](plan_windows-production-readiness.md) | 5.1.1–5.1.3 (Windows runtime, CI, signing) |
 | OpenRouter Provider Support | [`cowork-z/plan_openrouter-provider-support.md`](plan_openrouter-provider-support.md) | 1.1.3 (OpenRouter model catalog fetching) |
 | Dynamic Model Discovery | [`cowork-z/plan_dynamic-model-discovery-for-direct-api-providers.md`](plan_dynamic-model-discovery-for-direct-api-providers.md) | 1.1.4 (Dynamic model fetching for direct API providers) |
+| Chat UI Rewrite | [Chat UI Rewrite](../ts-frontend/plan_chat_ui_rewrite.md) | 3.7 |
 
 ---
 
@@ -293,7 +294,9 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 4. THE SYSTEM SHALL auto-resize the textarea to fit content, up to a maximum height
 5. THE SYSTEM SHALL support drag-and-drop file references within the multi-line textarea (see 3.5)
 
-#### 3.7 Chat UI Component Architecture ✅
+#### 3.7 Chat UI Rewrite ✅
+
+> **Plan:** [Chat UI Rewrite](../ts-frontend/plan_chat_ui_rewrite.md)
 
 **User Story:** As a user, I want a polished chat experience with collapsible tool calls, clear permission/question dialogs, and streaming support, so that I can follow the agent's work without visual noise.
 

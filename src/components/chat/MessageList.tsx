@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { type RefObject, useCallback, useMemo, useRef } from 'react';
 import { springs } from '@/lib/animations';
+import { cn } from '@/lib/utils';
 import { isWaitingForUser } from '@/lib/waiting-detection';
 import type { PartialMessage, TaskMessage } from '@/shared';
 import type { StartupStageInfo } from '@/stores/taskStore';
@@ -83,7 +84,7 @@ export function MessageList({
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6" data-testid="messages-scroll-container" onScroll={onScroll} ref={scrollContainerRef}>
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-4xl">
         {messagesToRender
           .filter((m) => !(m.type === 'tool' && 'toolName' in m && (m as TaskMessage).toolName?.toLowerCase() === 'bash'))
           .map((message, index, filteredMessages) => {
@@ -110,27 +111,33 @@ export function MessageList({
 
             const shouldStream = isLastAssistantMessage && isTaskRunning && !isPartial;
 
+            // Use tighter spacing (4px) between consecutive tool messages, normal (16px) otherwise
+            const isTool = message.type === 'tool';
+            const prevIsTool = index > 0 && filteredMessages[index - 1].type === 'tool';
+            const gapClass = index === 0 ? '' : isTool && prevIsTool ? 'mt-1' : 'mt-4';
+
             return (
-              <MessageBubble
-                continueLabel={taskStatus === 'interrupted' ? 'Continue' : 'Done, Continue'}
-                isLastMessage={isLastMessage}
-                isLoading={isLoading}
-                isRealStreaming={isPartial}
-                isRunning={isTaskRunning}
-                key={message.id}
-                message={
-                  isPartial
-                    ? {
-                        ...message,
-                        content: messageContent,
-                        type: 'assistant' as const,
-                      }
-                    : (message as TaskMessage)
-                }
-                onContinue={onContinue}
-                shouldStream={shouldStream}
-                showContinueButton={showContinue}
-              />
+              <div className={cn(gapClass)} key={message.id}>
+                <MessageBubble
+                  continueLabel={taskStatus === 'interrupted' ? 'Continue' : 'Done, Continue'}
+                  isLastMessage={isLastMessage}
+                  isLoading={isLoading}
+                  isRealStreaming={isPartial}
+                  isRunning={isTaskRunning}
+                  message={
+                    isPartial
+                      ? {
+                          ...message,
+                          content: messageContent,
+                          type: 'assistant' as const,
+                        }
+                      : (message as TaskMessage)
+                  }
+                  onContinue={onContinue}
+                  shouldStream={shouldStream}
+                  showContinueButton={showContinue}
+                />
+              </div>
             );
           })}
 

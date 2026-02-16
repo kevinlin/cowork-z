@@ -691,10 +691,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     // are not incorrectly deduplicated
     if (event.type === 'message' && event.message) {
       eventKey = `${event.taskId}:message:${event.message.id}`;
-      // Include toolInput hash to allow updates to same message (e.g. bash tool
-      // transitioning from pending to completed with actual command content)
+      // Include toolInput hash and toolOutput presence to allow updates to same
+      // message (e.g. tool transitioning from pending to completed with output)
       const toolInputStr = event.message.toolInput ? JSON.stringify(event.message.toolInput) : '';
-      normalizedContent = `${event.message.id}:${toolInputStr.length}`;
+      const hasOutput = event.message.toolOutput ? `out:${event.message.toolOutput.length}` : 'no-out';
+      normalizedContent = `${event.message.id}:${toolInputStr.length}:${hasOutput}`;
     }
 
     // Check for duplicate AFTER determining the correct key

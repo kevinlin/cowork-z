@@ -1,5 +1,9 @@
 # UPDATE LOG
 
+## v0.5.0
+
+- 
+
 ## v0.4.5
 
 - **3.7.2 Tool Call Display** - Tool-use messages now render as collapsible cards showing tool name and input summary when collapsed, full input/output when expanded.

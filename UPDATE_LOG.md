@@ -4,37 +4,37 @@
 
 - 
 
-## v0.4.4
+## v0.4.4 (2026-02-16)
 
 - **Fix: Streaming messages not displayed in UI** — The sidecar `SessionManager` only listened to `message.part.updated` SSE events (which don't carry text deltas); added a `message.part.delta` listener so incremental text is accumulated and forwarded to the frontend via `task_message_partial` / `task_message_complete` IPC events
 - **Fix: Sidecar log files written to wrong directory on Windows** — The sidecar logger and process manager hardcoded `~/.local/share/opencode/log` (Unix convention); now uses `%LOCALAPPDATA%\opencode\log` on Windows to match the Rust-side logger, so all logs are co-located in one directory
 
-## v0.4.3
+## v0.4.3 (2026-02-16)
 
 - **Refactor: Split lib.rs into modules** — Extracted the 2200-line monolithic `lib.rs` into a `types.rs` module for shared types and a `commands/` directory with 13 focused command modules (app_info, tasks, folder_permissions, settings, api_keys, providers, ollama, azure_foundry, litellm, bedrock, opencode_cli, updates, logging). `lib.rs` is now a slim orchestrator containing only module declarations and the `run()` function.
 - **1.1.5 OpenRouter Small-Model Pinning** — Fixed OpenCode using the wrong small model (Claude Haiku 4.5 via the built-in "opencode" provider) when an OpenRouter model is selected. The fix writes `small_model`, `disabled_providers`, and provider model registration to the pre-start `opencode.json` file and `OPENCODE_CONFIG_CONTENT` env var so settings survive OpenCode instance disposal. Also updates on-disk config when the model changes between tasks.
 
-## v0.4.2
+## v0.4.2 (2026-02-15)
 
 - **1.1.3 OpenRouter Provider Support** — Implemented OpenRouter Provider support with dynamic model selection from the OpenRouter API
 - **1.1.4 Dynamic Model Discovery** — When connecting to Anthropic, OpenAI, Google AI, xAI, or DeepSeek, the app now fetches available models from the provider's API instead of using a hardcoded list. Fetched models are persisted and restored on settings reopen. Falls back to static defaults if the API is unreachable.
 - **5.1 Windows Runtime Fixes (Phase 1)** — Platform-aware log directory, Windows PATH resolution (semicolon separators, case-insensitive dedup, well-known Windows tool directories), cross-platform sidecar build script, graceful sidecar shutdown for Windows process management
 
-## v0.4.1
+## v0.4.1 (2026-02-13)
 
 - Security hardening: restricted login-shell PATH probing to a trusted shell allowlist in both Rust and sidecar runtimes, preventing untrusted `$SHELL` values from being executed
 - Fix app update download 404: changed `tagName` in publish workflow from `app-v__VERSION__` to `v__VERSION__` so `latest.json` download URLs match the actual release tag
 
-## v0.4.0
+## v0.4.0 (2026-02-13)
 
 - **2.4 OpenCode Server API Skill** — Bundled SKILL.md giving the agent self-introspection capabilities via the OpenCode server REST API (health, config, sessions, messages, todos, skills, MCP status); replaced hardcoded system prompt behavior blocks with a compact server-access pointer; skill auto-deployed to `~/.config/opencode/skills/` on every app launch
 - Fix export log functionality in debug panel
 
-## v0.3.1
+## v0.3.1 (2026-02-12)
 
 - Fix: Assign right entitlement to Tauri macOS build to fix sidecar binary crashing on start
 
-## v0.3.0
+## v0.3.0 (2026-02-12)
 
 - **1.3 Permission System** — Granular folder-level access controls (read / read-write), runtime permission prompts when the agent requests access outside approved directories, per-session ad-hoc grants that persist on session resume
 - **2.1 User Prompt Customization** — Settings panel with enable toggle and textarea to define a custom system prompt, injected as a `<user-instructions>` block on every message sent to the agent
@@ -55,7 +55,7 @@
 - **5.3.3 Missing OpenCode CLI Detection** — Pre-flight CLI check before task execution with user-facing dialog showing install instructions; app remains usable for configuration while CLI is missing
 - **5.4 App Update** — Signed update bundles via GitHub Releases; automatic check on app startup; update dialog with version info, release notes, and "Update Now" / "Later" options
 
-## v0.2.0
+## v0.2.0 (2026-02-6)
 
 - **OpenCode Sidecar Rewrite** — Replaced PTY-based OpenCode integration with HTTP/SSE client communicating via the OpenCode Server API; JSON-line IPC protocol between Rust and Node.js sidecar
 - **1.1 Multi-Provider Support** — 13+ AI providers across direct API (Anthropic, OpenAI, Gemini, xAI, DeepSeek, Z.AI), cloud platforms (AWS Bedrock, Azure AI Foundry), local (Ollama), and proxy services (OpenRouter, LiteLLM); credentials stored in OS Keychain
@@ -63,6 +63,6 @@
 - **4.1 Settings** — Persistent settings in SQLite with immediate apply; configurable provider/model selection, per-provider API keys, folder permissions, skills folder path, and debug mode
 - **5.3 Error Handling** — User-friendly API error messages, inline tool execution errors with actionable context, session restart on unrecoverable errors, platform-appropriate debug logging
 
-## v0.1.0
+## v0.1.0 (2026-02-01)
 
 - Migrate from Electron to Tauri with OpenCode sidecar

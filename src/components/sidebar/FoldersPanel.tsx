@@ -160,7 +160,7 @@ export default function FoldersPanel() {
   ];
 
   return (
-    <CollapsibleSection action={addButton} defaultOpen={true} title="Folders">
+    <CollapsibleSection action={addButton} defaultOpen={true} title="External Folders">
       {/* Access level picker overlay */}
       {showAccessPicker && pendingFolderPath && (
         <div className="mb-2 rounded-md border border-border bg-muted p-2">

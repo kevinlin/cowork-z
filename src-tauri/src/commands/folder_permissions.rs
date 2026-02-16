@@ -43,24 +43,6 @@ pub async fn remove_folder_permission(
 
 #[tauri::command]
 pub async fn get_default_folder_permissions() -> Result<Vec<FolderPermission>, String> {
-    let home = dirs::home_dir().ok_or("Could not determine home directory")?;
-    let downloads_dir = home.join("Downloads");
-    let desktop_dir = home.join("Desktop");
-
-    let mut defaults = Vec::new();
-    if downloads_dir.exists() {
-        defaults.push(FolderPermission {
-            folder_path: format!("{}/*", downloads_dir.to_string_lossy()),
-            access_level: "read".to_string(),
-            source: None,
-        });
-    }
-    if desktop_dir.exists() {
-        defaults.push(FolderPermission {
-            folder_path: format!("{}/*", desktop_dir.to_string_lossy()),
-            access_level: "read".to_string(),
-            source: None,
-        });
-    }
-    Ok(defaults)
+    // Workspace folder now provides the default scope — no hardcoded defaults needed
+    Ok(vec![])
 }

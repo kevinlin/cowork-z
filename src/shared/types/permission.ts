@@ -9,7 +9,7 @@ export type FileOperation = 'create' | 'delete' | 'rename' | 'move' | 'modify' |
 export type FolderAccessLevel = 'read' | 'read-write';
 
 /** Source of a folder permission */
-export type FolderPermissionSource = 'user' | 'adhoc';
+export type FolderPermissionSource = 'user' | 'adhoc' | 'workspace';
 
 /** Folder permission for a task */
 export interface FolderPermission {

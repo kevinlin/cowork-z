@@ -4,9 +4,11 @@ use tauri::{Emitter, Manager};
 
 mod commands;
 mod db;
+mod fs_watcher;
 mod secure_storage;
 mod sidecar;
 pub mod types;
+mod workspace_validator;
 
 use commands::updates::PendingUpdate;
 use sidecar::SidecarState;
@@ -31,6 +33,9 @@ pub fn run() {
 
             // Initialize sidecar state
             app.manage(SidecarState::new());
+
+            // Initialize filesystem watcher state
+            app.manage(fs_watcher::FsWatcherState::new());
 
             // Initialize pending update state
             app.manage(PendingUpdate(Mutex::new(None)));
@@ -213,6 +218,14 @@ pub fn run() {
             // App Updates
             commands::updates::check_for_update,
             commands::updates::install_update,
+            // Workspaces
+            commands::workspaces::list_workspaces,
+            commands::workspaces::get_active_workspace,
+            commands::workspaces::add_workspace,
+            commands::workspaces::remove_workspace,
+            commands::workspaces::switch_workspace,
+            commands::workspaces::read_directory,
+            commands::workspaces::initialize_workspace,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

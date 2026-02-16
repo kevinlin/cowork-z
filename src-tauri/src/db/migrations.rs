@@ -4,7 +4,7 @@
 use rusqlite::Connection;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 1;
+const CURRENT_VERSION: i32 = 2;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -183,6 +183,51 @@ fn migrate_v1(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v2: Workspaces
+fn migrate_v2(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v2 (workspaces)");
+
+    conn.execute(
+        "CREATE TABLE workspaces (
+            id TEXT PRIMARY KEY,
+            folder_path TEXT NOT NULL UNIQUE,
+            display_name TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            last_opened_at INTEGER NOT NULL
+        )",
+        [],
+    )
+    .map_err(|e| format!("Failed to create workspaces: {}", e))?;
+
+    conn.execute(
+        "CREATE INDEX idx_workspaces_last_opened ON workspaces(last_opened_at DESC)",
+        [],
+    )
+    .map_err(|e| format!("Failed to create workspaces index: {}", e))?;
+
+    conn.execute(
+        "ALTER TABLE tasks ADD COLUMN workspace_id TEXT REFERENCES workspaces(id)",
+        [],
+    )
+    .map_err(|e| format!("Failed to add workspace_id to tasks: {}", e))?;
+
+    conn.execute(
+        "CREATE INDEX idx_tasks_workspace_id ON tasks(workspace_id)",
+        [],
+    )
+    .map_err(|e| format!("Failed to create tasks workspace index: {}", e))?;
+
+    conn.execute(
+        "ALTER TABLE app_settings ADD COLUMN last_workspace_id TEXT",
+        [],
+    )
+    .map_err(|e| format!("Failed to add last_workspace_id to app_settings: {}", e))?;
+
+    set_stored_version(conn, 2)?;
+    println!("[Migrations] Migration v2 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -205,6 +250,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
 
     if stored_version < 1 {
         migrate_v1(conn)?;
+    }
+
+    if stored_version < 2 {
+        migrate_v2(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

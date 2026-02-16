@@ -159,6 +159,54 @@ fn get_attachments_for_message(conn: &Connection, message_id: &str) -> Vec<Store
     att_iter.filter_map(|r| r.ok()).collect()
 }
 
+/// Get tasks for a specific workspace (limited to MAX_HISTORY_ITEMS)
+pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<StoredTask> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at
+             FROM tasks
+             WHERE workspace_id = ?1
+             ORDER BY created_at DESC
+             LIMIT ?2",
+        )
+        .expect("Failed to prepare tasks query");
+
+    let task_iter = stmt
+        .query_map(params![workspace_id, MAX_HISTORY_ITEMS], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<String>>(4)?,
+                row.get::<_, String>(5)?,
+                row.get::<_, Option<String>>(6)?,
+                row.get::<_, Option<String>>(7)?,
+            ))
+        })
+        .expect("Failed to query tasks");
+
+    task_iter
+        .filter_map(|r| r.ok())
+        .map(
+            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at)| {
+                let messages = get_messages_for_task(conn, &id);
+                StoredTask {
+                    id,
+                    prompt,
+                    summary,
+                    status,
+                    messages,
+                    session_id,
+                    created_at,
+                    started_at,
+                    completed_at,
+                }
+            },
+        )
+        .collect()
+}
+
 /// Get all tasks (limited to MAX_HISTORY_ITEMS)
 pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
     let mut stmt = conn

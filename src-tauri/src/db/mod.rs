@@ -8,6 +8,7 @@ pub mod migrations;
 pub mod providers;
 pub mod settings;
 pub mod tasks;
+pub mod workspaces;
 
 use rusqlite::Connection;
 use std::path::PathBuf;

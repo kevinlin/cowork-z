@@ -40,15 +40,29 @@ logger.setIpcEmitter(sendLog);
 let processManager: ProcessManager | null = null;
 let eventStream: EventStream | null = null;
 let sessionManager: SessionManager | null = null;
+let currentDirectory: string | undefined;
 
 // ============================================================================
 // Initialization
 // ============================================================================
 
-async function initialize(apiKeys?: ApiKeys, mcpServers?: Record<string, unknown>, modelId?: string): Promise<void> {
+async function initialize(
+  apiKeys?: ApiKeys,
+  mcpServers?: Record<string, unknown>,
+  modelId?: string,
+  workingDirectory?: string
+): Promise<void> {
   if (processManager) {
-    return; // Already initialized
+    // Already initialized — but reconnect SSE if directory changed
+    if (eventStream && workingDirectory && workingDirectory !== currentDirectory) {
+      logger.info('Workspace directory changed, reconnecting SSE stream', { from: currentDirectory, to: workingDirectory });
+      currentDirectory = workingDirectory;
+      eventStream.reconnectWithDirectory(workingDirectory);
+    }
+    return;
   }
+
+  currentDirectory = workingDirectory;
 
   // Start process manager — picks a random available port and generates a password
   processManager = new ProcessManager();
@@ -58,10 +72,11 @@ async function initialize(apiKeys?: ApiKeys, mcpServers?: Record<string, unknown
   const password = processManager.getPassword();
   logger.info(`OpenCode server bound to port ${port}`);
 
-  // Start event stream with auth
+  // Start event stream with auth, scoped to the workspace directory
   eventStream = new EventStream({
     baseUrl: `http://127.0.0.1:${port}`,
     password,
+    directory: workingDirectory,
   });
 
   // Initialize session manager with port and password (for dynamic system prompt with auth)
@@ -208,7 +223,7 @@ async function initialize(apiKeys?: ApiKeys, mcpServers?: Record<string, unknown
 
 async function handleStartTask(taskId: string, payload: StartTaskPayload): Promise<void> {
   try {
-    await initialize(payload.apiKeys, payload.mcpServers, payload.modelId);
+    await initialize(payload.apiKeys, payload.mcpServers, payload.modelId, payload.workingDirectory);
 
     if (!(sessionManager && processManager)) {
       throw new Error('Session manager not initialized');
@@ -234,7 +249,7 @@ async function handleStartTask(taskId: string, payload: StartTaskPayload): Promi
 
 async function handleResumeSession(taskId: string, payload: ResumeSessionPayload): Promise<void> {
   try {
-    await initialize(payload.apiKeys, payload.mcpServers, payload.modelId);
+    await initialize(payload.apiKeys, payload.mcpServers, payload.modelId, payload.workingDirectory);
 
     if (!(sessionManager && processManager)) {
       throw new Error('Session manager not initialized');

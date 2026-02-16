@@ -1064,7 +1064,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   loadTasks: async () => {
-    const tasks = await api.listTasks();
+    const { useWorkspaceStore } = await import('./workspaceStore');
+    const workspaceId = useWorkspaceStore.getState().activeWorkspace?.id;
+    const tasks = await api.listTasks(workspaceId);
     set({ tasks });
   },
 

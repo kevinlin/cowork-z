@@ -98,6 +98,16 @@ export class EventStream extends EventEmitter {
     logger.info('SSE stream disconnected');
   }
 
+  /**
+   * Reconnect the SSE stream with a new directory scope.
+   * Used when the workspace changes to ensure session events are received.
+   */
+  reconnectWithDirectory(directory: string): void {
+    this.directory = directory;
+    this.disconnect();
+    this.connect();
+  }
+
   isActive(): boolean {
     return this.isConnected;
   }

@@ -511,6 +511,67 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ---
 
+### 6. Workspace & File Browser
+
+> **Full specification:** [Workspace-as-Folder Requirements](../workspace-as-folder/requirements.md)
+> **Design:** [Workspace-as-Folder Design (Phase 1)](../workspace-as-folder/design_phase1.md)
+
+**User Story:** As a user, I want each project folder to be its own workspace with a file browser and scoped session history, so that I can keep my AI interactions organized by project and browse files the agent creates or modifies.
+
+#### 6.1 Workspace Lifecycle
+
+**Acceptance Criteria:**
+
+##### 6.1.1 Workspace Management
+1. THE SYSTEM SHALL model each workspace as a unique directory on the local filesystem, stored in a `workspaces` database table
+2. THE SYSTEM SHALL provide a workspace switcher dropdown at the top of the sidebar, listing all workspaces ordered by most recently used
+3. THE SYSTEM SHALL allow users to add a new workspace by selecting a folder via the native folder picker
+4. THE SYSTEM SHALL validate workspace paths against a platform-aware blocklist (system root, system directories, exact home directory, volume mount points) and reject restricted paths with an error message
+5. THE SYSTEM SHALL create `~/Downloads` as the default workspace on first launch
+6. THE SYSTEM SHALL persist and restore the last-used workspace across app restarts via `last_workspace_id` in app settings
+
+##### 6.1.2 Workspace Switching
+1. WHEN the user switches workspaces, THE SYSTEM SHALL reconfigure the sidecar's SSE event stream to scope to the new workspace directory
+2. WHEN the user switches workspaces, THE SYSTEM SHALL reload the session list (filtered to the new workspace) and the file tree (rooted at the new folder)
+3. WHERE a workspace folder no longer exists on disk, THE SYSTEM SHALL fall back to `~/Downloads` and display an error toast
+
+##### 6.1.3 Session Scoping
+1. THE SYSTEM SHALL associate each task/session with a workspace via a `workspace_id` foreign key
+2. THE SYSTEM SHALL filter the sidebar session list to show only sessions belonging to the active workspace
+3. WHEN a task starts, THE SYSTEM SHALL pass the active workspace folder as the `working_directory` to the sidecar
+
+#### 6.2 File Tree Browser
+
+**Acceptance Criteria:**
+
+##### 6.2.1 Tree Display
+1. THE SYSTEM SHALL display a hierarchical file tree in a "Files" tab in the sidebar, alongside the existing "Sessions" tab
+2. THE SYSTEM SHALL lazy-load directory contents on demand (when the user expands a folder)
+3. THE SYSTEM SHALL display type-specific icons for directories, images, code files, data/config files, and text files
+4. THE SYSTEM SHALL sort entries with directories first, then files, both alphabetical
+
+##### 6.2.2 Search and Filter
+1. THE SYSTEM SHALL provide a search bar at the top of the file tree for real-time, case-insensitive, name-based filtering
+2. THE SYSTEM SHALL include parent directories when a child matches the search query
+
+##### 6.2.3 Filesystem Watching
+1. THE SYSTEM SHALL watch the active workspace directory for filesystem changes using the `notify` crate, debounced at 200ms
+2. WHEN changes are detected, THE SYSTEM SHALL emit a `workspace:fs_changed` event and refresh only the affected expanded directories, preserving expand/collapse state
+
+#### 6.3 Workspace Permissions
+
+**Acceptance Criteria:**
+
+##### 6.3.1 Workspace Trusted Zone
+1. THE SYSTEM SHALL automatically grant read-write access to the active workspace folder and all its descendants without prompting the user
+2. THE SYSTEM SHALL inject the workspace folder permission with `source: "workspace"` into every task's permission config
+
+##### 6.3.2 External Folders
+1. THE SYSTEM SHALL rename the existing "Folders" panel to "External Folders" for granting access to directories outside the workspace
+2. THE SYSTEM SHALL remove the implicit default permissions for `~/Downloads` and `~/Desktop` (the workspace folder replaces this concept)
+
+---
+
 ## Outstanding Feature TODO
 
 The following items remain to be implemented:

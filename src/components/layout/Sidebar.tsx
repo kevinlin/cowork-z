@@ -1,32 +1,35 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { MessageSquarePlus, Search, Settings } from 'lucide-react';
+import { FolderTree, MessageSquare, MessageSquarePlus, Search, Settings } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArtifactsPanel } from '@/components/sidebar/ArtifactsPanel';
+import FileTreePanel from '@/components/sidebar/FileTreePanel';
 import FoldersPanel from '@/components/sidebar/FoldersPanel';
 import { TodoPanel } from '@/components/sidebar/TodoPanel';
+import WorkspaceSwitcher from '@/components/sidebar/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { analytics } from '@/lib/analytics';
 import { staggerContainer } from '@/lib/animations';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
-import type { Artifact, Todo } from '@/shared';
+import type { Todo } from '@/shared';
 import { useTaskStore } from '@/stores/taskStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 import logoImage from '/assets/logo-1.png';
 import CollapsibleSection from '../sidebar/CollapsibleSection';
 import ConversationListItem from './ConversationListItem';
 import FeedbackButton from './FeedbackButton';
 
-// Stable empty arrays to avoid creating new references in selectors
+// Stable empty array to avoid creating new references in selectors
 const EMPTY_TODOS: Todo[] = [];
-const EMPTY_ARTIFACTS: Artifact[] = [];
 
 // Resize constraints
 const MIN_WIDTH = 200; // pixels
 const MAX_WIDTH_PERCENT = 0.5; // 50% of window
 const DEFAULT_WIDTH = 260;
+
+type SidebarTab = 'sessions' | 'files';
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -34,16 +37,8 @@ export default function Sidebar() {
   const api = getTauriAPI();
   const currentTaskTodos = useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? EMPTY_TODOS);
   const hasTodos = currentTaskTodos.length > 0;
-  const currentTaskArtifacts = useTaskStore((s) => s.artifacts.get(s.currentTask?.id ?? '') ?? EMPTY_ARTIFACTS);
-  const hasArtifacts = currentTaskArtifacts.length > 0;
 
-  // Controlled open state for Artefacts section — auto-expand when artifacts arrive
-  const [artefactsOpen, setArtefactsOpen] = useState(hasArtifacts);
-  useEffect(() => {
-    if (hasArtifacts) {
-      setArtefactsOpen(true);
-    }
-  }, [hasArtifacts]);
+  const [activeTab, setActiveTab] = useState<SidebarTab>('sessions');
 
   // Controlled open state for Tasks section — auto-expand when todos arrive
   const [tasksOpen, setTasksOpen] = useState(hasTodos);
@@ -80,7 +75,6 @@ export default function Sidebar() {
     if (isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
-      // Prevent text selection while resizing
       document.body.style.userSelect = 'none';
       document.body.style.cursor = 'col-resize';
     }
@@ -112,12 +106,25 @@ export default function Sidebar() {
     setIsResizing(true);
   };
 
+  // Initialize workspace and load tasks on mount
   useEffect(() => {
+    useWorkspaceStore.getState().initialize();
     loadTasks();
   }, [loadTasks]);
 
-  // Subscribe to task status changes (queued -> running) and task updates (complete/error)
-  // This ensures sidebar always reflects current task status
+  // Reload tasks when active workspace changes
+  useEffect(() => {
+    const unsubscribe = useWorkspaceStore.subscribe((state, prevState) => {
+      const currentId = state.activeWorkspace?.id;
+      const prevId = prevState.activeWorkspace?.id;
+      if (currentId && currentId !== prevId) {
+        loadTasks();
+      }
+    });
+    return unsubscribe;
+  }, [loadTasks]);
+
+  // Subscribe to task status changes and task updates
   useEffect(() => {
     const unsubscribeStatusChange = api.onTaskStatusChange?.((data) => {
       updateTaskStatus(data.taskId, data.status);
@@ -148,6 +155,11 @@ export default function Sidebar() {
         {/* Resize Handle */}
         <div className={`sidebar-resize-handle ${isResizing ? 'active' : ''}`} onMouseDown={handleResizeStart} />
 
+        {/* Workspace Switcher */}
+        <div className="border-border border-b px-2 py-1.5">
+          <WorkspaceSwitcher />
+        </div>
+
         {/* Action Buttons */}
         <div className="flex gap-2 border-border border-b px-3 py-3">
           <Button
@@ -166,44 +178,69 @@ export default function Sidebar() {
           </Button>
         </div>
 
-        {/* Scrollable Conversation List - Expands to fill remaining space */}
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-1 p-2">
-            <AnimatePresence mode="wait">
-              {tasks.length === 0 ? (
-                <motion.div
-                  animate={{ opacity: 1 }}
-                  className="px-3 py-8 text-center text-muted-foreground text-sm"
-                  exit={{ opacity: 0 }}
-                  initial={{ opacity: 0 }}
-                  key="empty"
-                >
-                  No conversations yet
-                </motion.div>
-              ) : (
-                <motion.div animate="animate" className="space-y-1" initial="initial" key="task-list" variants={staggerContainer}>
-                  {tasks.map((task) => (
-                    <ConversationListItem key={task.id} task={task} />
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+        {/* Tab Switcher */}
+        <div className="flex border-border border-b">
+          <button
+            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
+              activeTab === 'sessions'
+                ? 'border-primary border-b-2 text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setActiveTab('sessions')}
+            type="button"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Sessions
+          </button>
+          <button
+            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
+              activeTab === 'files'
+                ? 'border-primary border-b-2 text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setActiveTab('files')}
+            type="button"
+          >
+            <FolderTree className="h-3.5 w-3.5" />
+            Files
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'sessions' ? (
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-1 p-2">
+              <AnimatePresence mode="wait">
+                {tasks.length === 0 ? (
+                  <motion.div
+                    animate={{ opacity: 1 }}
+                    className="px-3 py-8 text-center text-muted-foreground text-sm"
+                    exit={{ opacity: 0 }}
+                    initial={{ opacity: 0 }}
+                    key="empty"
+                  >
+                    No conversations yet
+                  </motion.div>
+                ) : (
+                  <motion.div animate="animate" className="space-y-1" initial="initial" key="task-list" variants={staggerContainer}>
+                    {tasks.map((task) => (
+                      <ConversationListItem key={task.id} task={task} />
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </ScrollArea>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <FileTreePanel />
           </div>
-        </ScrollArea>
+        )}
 
         {/* Pinned Panels - Always visible, never scroll out of view */}
         <div className="shrink-0 border-border border-t">
-          {/* Folders Panel - Collapsible, Default Collapsed */}
+          {/* External Folders Panel */}
           <FoldersPanel />
-
-          {/* Artefacts Panel - Shows files created/modified by agent, auto-expands when artifacts appear */}
-          <CollapsibleSection defaultOpen={hasArtifacts} onOpenChange={setArtefactsOpen} open={artefactsOpen} title="Artefacts">
-            {hasArtifacts ? (
-              <ArtifactsPanel artifacts={currentTaskArtifacts} />
-            ) : (
-              <div className="px-2 py-3 text-center text-muted-foreground text-xs">No files modified yet</div>
-            )}
-          </CollapsibleSection>
 
           {/* Tasks Panel - Shows current task's todos, auto-expands when todos appear */}
           <CollapsibleSection onOpenChange={setTasksOpen} open={tasksOpen} title="Tasks">

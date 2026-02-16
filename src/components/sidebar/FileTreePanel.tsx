@@ -1,0 +1,190 @@
+'use client';
+
+import {
+  ChevronRight,
+  File,
+  FileCode,
+  FileJson,
+  FileText,
+  Folder,
+  FolderOpen,
+  Image,
+  Loader2,
+  Search,
+} from 'lucide-react';
+import { useCallback, useEffect, useRef } from 'react';
+
+import { type FileTreeNode, useFileTree } from '@/hooks/useFileTree';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
+import { cn } from '@/lib/utils';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
+
+const CODE_EXTENSIONS = new Set(['ts', 'tsx', 'js', 'jsx', 'rs', 'py', 'java', 'c', 'cpp', 'go', 'rb', 'swift', 'kt']);
+const CONFIG_EXTENSIONS = new Set(['json', 'yaml', 'yml', 'toml', 'xml', 'ini', 'env']);
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp']);
+
+function getFileIcon(entry: { isDirectory: boolean; extension?: string; name: string }, isExpanded: boolean) {
+  if (entry.isDirectory) {
+    return isExpanded ? FolderOpen : Folder;
+  }
+  const ext = entry.extension?.toLowerCase();
+  if (ext && IMAGE_EXTENSIONS.has(ext)) return Image;
+  if (ext && CODE_EXTENSIONS.has(ext)) return FileCode;
+  if (ext && CONFIG_EXTENSIONS.has(ext)) return FileJson;
+  if (ext === 'md' || ext === 'txt' || ext === 'log') return FileText;
+  return File;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+interface TreeRowProps {
+  node: FileTreeNode;
+  depth: number;
+  onToggle: (path: string) => void;
+  onSelect: (path: string) => void;
+}
+
+function TreeRow({ node, depth, onToggle, onSelect }: TreeRowProps) {
+  const { entry, isExpanded, isLoading } = node;
+  const Icon = getFileIcon(entry, isExpanded);
+
+  const handleClick = () => {
+    if (entry.isDirectory) {
+      onToggle(entry.path);
+    } else {
+      onSelect(entry.path);
+    }
+  };
+
+  return (
+    <>
+      <button
+        className={cn(
+          'flex w-full items-center gap-1 rounded-sm px-1 py-0.5 text-left text-xs',
+          'hover:bg-accent hover:text-accent-foreground transition-colors',
+          'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+        )}
+        onClick={handleClick}
+        style={{ paddingLeft: `${depth * 16 + 4}px` }}
+        title={entry.path}
+        type="button"
+      >
+        {entry.isDirectory && (
+          <ChevronRight
+            className={cn('h-3 w-3 shrink-0 transition-transform', isExpanded && 'rotate-90')}
+          />
+        )}
+        {!entry.isDirectory && <span className="w-3" />}
+        {isLoading ? (
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+        ) : (
+          <Icon className={cn('h-3.5 w-3.5 shrink-0', entry.isDirectory ? 'text-blue-500' : 'text-muted-foreground')} />
+        )}
+        <span className="min-w-0 flex-1 truncate">{entry.name}</span>
+        {!entry.isDirectory && entry.size != null && (
+          <span className="shrink-0 text-[10px] text-muted-foreground">{formatFileSize(entry.size)}</span>
+        )}
+      </button>
+      {isExpanded && node.children && (
+        <div>
+          {node.children.map((child) => (
+            <TreeRow
+              depth={depth + 1}
+              key={child.entry.path}
+              node={child}
+              onSelect={onSelect}
+              onToggle={onToggle}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function FileTreePanel() {
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+  const { nodes, isLoadingRoot, error, searchQuery, loadRoot, toggleExpand, refreshRoot, setSearchQuery } = useFileTree();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // Load root when workspace changes
+  useEffect(() => {
+    if (activeWorkspace?.folderPath) {
+      loadRoot(activeWorkspace.folderPath);
+    }
+  }, [activeWorkspace?.folderPath, loadRoot]);
+
+  // Subscribe to filesystem change events
+  useEffect(() => {
+    const api = getTauriAPI();
+    const unlisten = api.onWorkspaceFsChanged?.(() => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        refreshRoot();
+      }, 200);
+    });
+    return () => {
+      unlisten?.();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [refreshRoot]);
+
+  const handleSelect = useCallback((path: string) => {
+    // For now, reveal file in finder
+    try {
+      const api = getTauriAPI();
+      api.revealInFinder(path);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  if (!activeWorkspace) {
+    return <div className="px-3 py-8 text-center text-muted-foreground text-sm">No workspace selected</div>;
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Search */}
+      <div className="relative px-2 py-1.5">
+        <Search className="absolute top-1/2 left-4 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          className="w-full rounded-md border border-border bg-background py-1 pr-2 pl-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search files..."
+          type="text"
+          value={searchQuery}
+        />
+      </div>
+
+      {/* Tree */}
+      <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
+        {isLoadingRoot ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <div className="px-2 py-4 text-center text-destructive text-xs">{error}</div>
+        ) : nodes.length === 0 ? (
+          <div className="px-2 py-8 text-center text-muted-foreground text-xs">
+            {searchQuery ? 'No files found' : 'Empty directory'}
+          </div>
+        ) : (
+          nodes.map((node) => (
+            <TreeRow
+              depth={0}
+              key={node.entry.path}
+              node={node}
+              onSelect={handleSelect}
+              onToggle={toggleExpand}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}

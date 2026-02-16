@@ -106,6 +106,14 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
     const readRules: Record<string, PermissionAction> = {};
 
     for (const fp of options.folderPermissions) {
+      if (fp.source === 'workspace') {
+        // Workspace folder: allow everything without prompts
+        externalDirRules[fp.path] = 'allow';
+        readRules[fp.path] = 'allow';
+        editRules[fp.path] = 'allow';
+        continue;
+      }
+
       // Allow external directory access for all permitted folders
       externalDirRules[fp.path] = 'allow';
       // Always allow read access for permitted folders

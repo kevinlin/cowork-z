@@ -9,6 +9,7 @@ import type {
   ApiKeyConfig,
   BedrockCredentials,
   ConnectedProvider,
+  DirectoryEntry,
   McpServersConfig,
   PermissionRequest,
   PermissionResponse,
@@ -20,6 +21,7 @@ import type {
   TaskProgress,
   TaskStatus,
   TaskUpdateEvent,
+  Workspace,
 } from '@/shared';
 import { getTauriApi, isRunningInTauri } from './tauri-api';
 
@@ -40,7 +42,7 @@ export interface TauriAPI {
   /** @deprecated Use abortSession instead */
   interruptTask?(taskId: string): Promise<void>;
   getTask(taskId: string): Promise<Task | null>;
-  listTasks(): Promise<Task[]>;
+  listTasks(workspaceId?: string): Promise<Task[]>;
   deleteTask(taskId: string): Promise<void>;
   clearTaskHistory(): Promise<void>;
 
@@ -269,6 +271,17 @@ export interface TauriAPI {
 
   // Logging
   logEvent(payload: { level?: string; message: string; context?: Record<string, unknown> }): Promise<unknown>;
+
+  // Workspaces
+  listWorkspaces(): Promise<Workspace[]>;
+  getActiveWorkspace(): Promise<Workspace | null>;
+  addWorkspace(folderPath: string): Promise<Workspace>;
+  removeWorkspace(workspaceId: string): Promise<void>;
+  switchWorkspace(workspaceId: string): Promise<Workspace>;
+  initializeWorkspace(): Promise<Workspace>;
+  readDirectory(path: string): Promise<DirectoryEntry[]>;
+  onWorkspaceChanged?(callback: (data: { workspace: Workspace }) => void): () => void;
+  onWorkspaceFsChanged?(callback: (data: { changedPath: string }) => void): () => void;
 }
 
 const toSyncUnlisten = (promise: Promise<() => void>) => {
@@ -320,6 +333,8 @@ export function getTauriAPI(): TauriAPI {
     onTaskStatusChange: (callback: (data: { taskId: string; status: TaskStatus }) => void) =>
       toSyncUnlisten(tauriApi.onTaskStatusChange(callback)),
     onTaskSummary: (callback: (data: { taskId: string; summary: string }) => void) => toSyncUnlisten(tauriApi.onTaskSummary(callback)),
+    onWorkspaceChanged: (callback: (data: { workspace: Workspace }) => void) => toSyncUnlisten(tauriApi.onWorkspaceChanged(callback)),
+    onWorkspaceFsChanged: (callback: (data: { changedPath: string }) => void) => toSyncUnlisten(tauriApi.onWorkspaceFsChanged(callback)),
   };
 
   return cachedTauriAPI;

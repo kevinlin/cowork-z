@@ -404,3 +404,24 @@ pub fn set_theme_id(conn: &Connection, theme_id: Option<&str>) -> Result<(), Str
     .map_err(|e| format!("Failed to set theme_id: {}", e))?;
     Ok(())
 }
+
+/// Get the last active workspace ID
+pub fn get_last_workspace_id(conn: &Connection) -> Option<String> {
+    conn.query_row(
+        "SELECT last_workspace_id FROM app_settings WHERE id = 1",
+        [],
+        |row| row.get(0),
+    )
+    .ok()
+    .flatten()
+}
+
+/// Set the last active workspace ID
+pub fn set_last_workspace_id(conn: &Connection, id: Option<&str>) -> Result<(), String> {
+    conn.execute(
+        "UPDATE app_settings SET last_workspace_id = ?1 WHERE id = 1",
+        params![id],
+    )
+    .map_err(|e| format!("Failed to set last_workspace_id: {}", e))?;
+    Ok(())
+}

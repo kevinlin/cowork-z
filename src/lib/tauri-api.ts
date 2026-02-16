@@ -16,6 +16,7 @@ import type {
   BedrockCredentials,
   CompleteMessageEvent,
   ConnectedProvider,
+  DirectoryEntry,
   FolderPermission,
   McpServersConfig,
   OpenCodeMessage,
@@ -32,6 +33,7 @@ import type {
   TaskStatus,
   TaskUpdateEvent,
   Todo,
+  Workspace,
 } from '@/shared';
 
 // ============================================================================
@@ -139,8 +141,8 @@ export async function getTask(taskId: string): Promise<Task | null> {
   return invoke<Task | null>('get_task', { taskId });
 }
 
-export async function listTasks(): Promise<Task[]> {
-  return invoke<Task[]>('list_tasks');
+export async function listTasks(workspaceId?: string): Promise<Task[]> {
+  return invoke<Task[]>('list_tasks', { workspaceId: workspaceId ?? null });
 }
 
 export async function deleteTask(taskId: string): Promise<void> {
@@ -1105,6 +1107,46 @@ export async function logEvent(payload: { level?: string; message: string; conte
 }
 
 // ============================================================================
+// Workspaces
+// ============================================================================
+
+export async function listWorkspaces(): Promise<Workspace[]> {
+  return invoke<Workspace[]>('list_workspaces');
+}
+
+export async function getActiveWorkspace(): Promise<Workspace | null> {
+  return invoke<Workspace | null>('get_active_workspace');
+}
+
+export async function addWorkspace(folderPath: string): Promise<Workspace> {
+  return invoke<Workspace>('add_workspace', { folderPath });
+}
+
+export async function removeWorkspace(workspaceId: string): Promise<void> {
+  return invoke<void>('remove_workspace', { workspaceId });
+}
+
+export async function switchWorkspace(workspaceId: string): Promise<Workspace> {
+  return invoke<Workspace>('switch_workspace', { workspaceId });
+}
+
+export async function initializeWorkspace(): Promise<Workspace> {
+  return invoke<Workspace>('initialize_workspace');
+}
+
+export async function readDirectory(path: string): Promise<DirectoryEntry[]> {
+  return invoke<DirectoryEntry[]>('read_directory', { path });
+}
+
+export async function onWorkspaceChanged(callback: (data: { workspace: Workspace }) => void): Promise<UnlistenFn> {
+  return listen<{ workspace: Workspace }>('workspace:changed', (e) => callback(e.payload));
+}
+
+export async function onWorkspaceFsChanged(callback: (data: { changedPath: string }) => void): Promise<UnlistenFn> {
+  return listen<{ changedPath: string }>('workspace:fs_changed', (e) => callback(e.payload));
+}
+
+// ============================================================================
 // Compatibility Helpers
 // ============================================================================
 
@@ -1284,5 +1326,16 @@ export function getTauriApi() {
 
     // Logging
     logEvent,
+
+    // Workspaces
+    listWorkspaces,
+    getActiveWorkspace,
+    addWorkspace,
+    removeWorkspace,
+    switchWorkspace,
+    initializeWorkspace,
+    readDirectory,
+    onWorkspaceChanged,
+    onWorkspaceFsChanged,
   };
 }

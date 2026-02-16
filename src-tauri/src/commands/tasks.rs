@@ -72,12 +72,24 @@ pub async fn start_task(
         })?;
     }
 
+    // Assign task to active workspace and get working directory
+    let working_directory = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        let ws_id = db::settings::get_last_workspace_id(&conn);
+        if let Some(ref ws_id) = ws_id {
+            let _ = db::workspaces::assign_task_to_workspace(&conn, ws_id, &task_id);
+            db::workspaces::get_workspace(&conn, ws_id).map(|w| w.folder_path)
+        } else {
+            None
+        }
+    };
+
     // Load folder permissions from database
     let folder_permissions = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
         db::folder_permissions::get_folder_permissions(&conn, &task_id)
     };
-    let sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if folder_permissions.is_empty() {
+    let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if folder_permissions.is_empty() {
         None
     } else {
         Some(folder_permissions.iter().map(|fp| sidecar::FolderPermissionPayload {
@@ -86,6 +98,20 @@ pub async fn start_task(
             source: Some(fp.source.clone()),
         }).collect())
     };
+
+    // Prepend workspace folder as trusted read-write permission
+    if let Some(ref wd) = working_directory {
+        let ws_perm = sidecar::FolderPermissionPayload {
+            path: wd.clone(),
+            access_level: "read-write".to_string(),
+            source: Some("workspace".to_string()),
+        };
+        let mut perms = vec![ws_perm];
+        if let Some(existing) = sidecar_perms.take() {
+            perms.extend(existing);
+        }
+        sidecar_perms = Some(perms);
+    }
 
     // Get API keys from secure storage
     let api_keys = sidecar::get_all_api_keys()?;
@@ -121,7 +147,7 @@ pub async fn start_task(
                 task_id: task_id.clone(),
                 prompt: config.prompt.clone(),
                 api_keys: Some(api_keys),
-                working_directory: None,
+                working_directory,
                 model_id: resolved_model_id,
                 folder_permissions: sidecar_perms,
                 custom_prompt,
@@ -264,9 +290,16 @@ pub async fn get_task(task_id: String, state: State<'_, DbState>) -> Result<Opti
 }
 
 #[tauri::command]
-pub async fn list_tasks(state: State<'_, DbState>) -> Result<Vec<Task>, String> {
+pub async fn list_tasks(
+    workspace_id: Option<String>,
+    state: State<'_, DbState>,
+) -> Result<Vec<Task>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let tasks = db::tasks::get_tasks(&conn);
+    let tasks = if let Some(ref ws_id) = workspace_id {
+        db::tasks::get_tasks_by_workspace(&conn, ws_id)
+    } else {
+        db::tasks::get_tasks(&conn)
+    };
 
     Ok(tasks
         .into_iter()
@@ -475,12 +508,20 @@ pub async fn resume_session(
         format!("task_{}", uuid::Uuid::new_v4())
     });
 
+    // Get workspace working directory
+    let working_directory = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::settings::get_last_workspace_id(&conn)
+            .and_then(|ws_id| db::workspaces::get_workspace(&conn, &ws_id))
+            .map(|w| w.folder_path)
+    };
+
     // Load folder permissions from database
     let folder_permissions = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
         db::folder_permissions::get_folder_permissions(&conn, &task_id)
     };
-    let sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if folder_permissions.is_empty() {
+    let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if folder_permissions.is_empty() {
         None
     } else {
         Some(folder_permissions.iter().map(|fp| sidecar::FolderPermissionPayload {
@@ -489,6 +530,20 @@ pub async fn resume_session(
             source: Some(fp.source.clone()),
         }).collect())
     };
+
+    // Prepend workspace folder as trusted read-write permission
+    if let Some(ref wd) = working_directory {
+        let ws_perm = sidecar::FolderPermissionPayload {
+            path: wd.clone(),
+            access_level: "read-write".to_string(),
+            source: Some("workspace".to_string()),
+        };
+        let mut perms = vec![ws_perm];
+        if let Some(existing) = sidecar_perms.take() {
+            perms.extend(existing);
+        }
+        sidecar_perms = Some(perms);
+    }
 
     // Get API keys from secure storage
     let api_keys = sidecar::get_all_api_keys()?;
@@ -525,7 +580,7 @@ pub async fn resume_session(
                 session_id: session_id.clone(),
                 prompt: Some(prompt.clone()),
                 api_keys: Some(api_keys),
-                working_directory: None,
+                working_directory,
                 model_id: None,
                 folder_permissions: sidecar_perms,
                 custom_prompt,

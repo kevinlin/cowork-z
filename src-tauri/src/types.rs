@@ -307,3 +307,27 @@ pub struct UserPromptResponse {
     pub enabled: bool,
     pub text: Option<String>,
 }
+
+/// Workspace returned to the frontend
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Workspace {
+    pub id: String,
+    pub folder_path: String,
+    pub display_name: String,
+    pub created_at: i64,
+    pub last_opened_at: i64,
+}
+
+/// A single entry from a directory listing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectoryEntry {
+    pub name: String,
+    pub path: String,
+    pub is_directory: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extension: Option<String>,
+}

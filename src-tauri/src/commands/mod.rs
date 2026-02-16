@@ -11,3 +11,4 @@ pub mod providers;
 pub mod settings;
 pub mod tasks;
 pub mod updates;
+pub mod workspaces;

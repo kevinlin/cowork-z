@@ -293,6 +293,32 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 4. THE SYSTEM SHALL auto-resize the textarea to fit content, up to a maximum height
 5. THE SYSTEM SHALL support drag-and-drop file references within the multi-line textarea (see 3.5)
 
+#### 3.7 Chat UI Component Architecture ✅
+
+**User Story:** As a user, I want a polished chat experience with collapsible tool calls, clear permission/question dialogs, and streaming support, so that I can follow the agent's work without visual noise.
+
+**Acceptance Criteria:**
+
+##### 3.7.1 Message Rendering
+1. THE SYSTEM SHALL render user, assistant, tool, and system messages with distinct visual styles
+2. THE SYSTEM SHALL support streaming (partial) messages with a cursor indicator
+3. THE SYSTEM SHALL render assistant messages as Markdown with syntax-highlighted code blocks, clickable file paths, and media previews
+
+##### 3.7.2 Tool Call Display
+1. THE SYSTEM SHALL render tool-use messages as collapsible cards, collapsed by default
+2. WHEN collapsed, THE SYSTEM SHALL display the tool name, a one-line input summary (e.g. file path, command, search query), and a status indicator
+3. WHEN expanded, THE SYSTEM SHALL display the full tool input and output in monospace font
+4. THE SYSTEM SHALL show a spinner for in-progress tool calls and a checkmark for completed ones
+
+##### 3.7.3 Question Handling
+1. WHEN the agent sends a question request (`task:question_request`), THE SYSTEM SHALL display a modal dialog with the question text, selectable options, and an optional free-text input
+2. THE SYSTEM SHALL support both single-select and multi-select question options
+3. THE SYSTEM SHALL allow the user to submit or cancel the question response
+
+##### 3.7.4 Component Decomposition
+1. THE SYSTEM SHALL decompose the chat view into focused components: MessageList, MessageBubble, ToolCallCard, PermissionModal, QuestionDialog, ChatInput, and ThinkingIndicator
+2. THE SYSTEM SHALL keep all Tauri event subscriptions in the page-level component (Execution.tsx) and pass state to child components via props
+
 ---
 
 ### 4. App Experience

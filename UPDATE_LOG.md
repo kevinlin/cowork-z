@@ -2,7 +2,7 @@
 
 ## v0.4.5
 
-- 
+- **3.7 Chat UI Component Architecture** — Rewrote the monolithic Execution.tsx into modular chat components (MessageList, MessageBubble, ToolCallCard, PermissionModal, QuestionDialog, ChatInput, ThinkingIndicator). Tool-use messages now render as collapsible cards showing tool name and input summary when collapsed, full input/output when expanded. Added `task:question_request` event handling with a dedicated question dialog. Streaming, permissions, and all existing functionality preserved.
 
 ## v0.4.4 (2026-02-16)
 

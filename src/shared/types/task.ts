@@ -122,6 +122,21 @@ export interface CompleteMessageEvent {
   text: string;
 }
 
+// ========== Question Request Types ==========
+
+/** A question request from the agent (via task:question_request event) */
+export interface QuestionRequest {
+  taskId: string;
+  requestId: string;
+  sessionId: string;
+  questions: Array<{
+    question: string;
+    header?: string;
+    options?: Array<{ label: string; description?: string }>;
+    multiSelect?: boolean;
+  }>;
+}
+
 // ========== Todo Types ==========
 
 /** A todo item from the OpenCode server's todo list */

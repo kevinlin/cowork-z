@@ -2,7 +2,7 @@
 
 ## v0.5.0
 
-- 
+- **Workspace-as-Folder (Phase 1)** — Workspace-per-folder model where each workspace is a unique directory that becomes the AI agent's CWD, scopes sessions, and provides a file tree browser.
 
 ## v0.4.5
 
@@ -14,16 +14,15 @@
 - **Fix: Tasks stalling on concurrent permission requests** — Replaced single `permissionRequest` field with a queue and pattern-based auto-approval for matching directory patterns (Req 1.3.1)
 - **Fix: Tool call card overflowing chat width** — Added `min-w-0` constraints so `<pre>` content respects the max-width container instead of blowing out the layout (Req 3.7.2)
 
-
 ## v0.4.4 (2026-02-16)
 
-- **Fix: Streaming messages not displayed in UI** — The sidecar `SessionManager` only listened to `message.part.updated` SSE events (which don't carry text deltas); added a `message.part.delta` listener so incremental text is accumulated and forwarded to the frontend via `task_message_partial` / `task_message_complete` IPC events
+- **Fix: Streaming messages not displayed in UI** — The sidecar `SessionManager` only listened to `message.part.updated` SSE events (which don't carry text deltas); added a `message.part.delta` listener so incremental text is accumulated and forwarded to the frontend.
 - **Fix: Sidecar log files written to wrong directory on Windows** — The sidecar logger and process manager hardcoded `~/.local/share/opencode/log` (Unix convention); now uses `%LOCALAPPDATA%\opencode\log` on Windows to match the Rust-side logger, so all logs are co-located in one directory
 
 ## v0.4.3 (2026-02-16)
 
-- **Refactor: Split lib.rs into modules** — Extracted the 2200-line monolithic `lib.rs` into a `types.rs` module for shared types and a `commands/` directory with 13 focused command modules (app_info, tasks, folder_permissions, settings, api_keys, providers, ollama, azure_foundry, litellm, bedrock, opencode_cli, updates, logging). `lib.rs` is now a slim orchestrator containing only module declarations and the `run()` function.
-- **1.1.5 OpenRouter Small-Model Pinning** — Fixed OpenCode using the wrong small model (Claude Haiku 4.5 via the built-in "opencode" provider) when an OpenRouter model is selected. The fix writes `small_model`, `disabled_providers`, and provider model registration to the pre-start `opencode.json` file and `OPENCODE_CONFIG_CONTENT` env var so settings survive OpenCode instance disposal. Also updates on-disk config when the model changes between tasks.
+- **Refactor: Split lib.rs into modules** — Extracted the 2200-line monolithic `lib.rs` into a `types.rs` module for shared types and a `commands/` directory with 13 focused command modules.
+- **1.1.5 OpenRouter Small-Model Pinning** — Fixed OpenCode using the wrong small model (Claude Haiku 4.5 via the built-in "opencode" provider) when an OpenRouter model is selected. 
 
 ## v0.4.2 (2026-02-15)
 

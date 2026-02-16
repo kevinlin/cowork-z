@@ -56,7 +56,7 @@ export default function CollapsibleSection({
         aria-disabled={disabled}
         aria-expanded={isOpen}
         className={cn(
-          'flex w-full items-center justify-between px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide',
+          'flex w-full items-center justify-between px-3 py-2 text-left font-medium text-muted-foreground text-xs tracking-wide',
           'transition-colors hover:bg-accent/50',
           disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
         )}

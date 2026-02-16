@@ -148,7 +148,7 @@ export default function Sidebar() {
   return (
     <>
       <div
-        className="relative flex h-screen flex-col border-border border-r bg-card pt-12"
+        className="relative flex h-screen flex-col border-border border-r bg-card pt-3"
         ref={sidebarRef}
         style={{ width: sidebarWidth }}
       >

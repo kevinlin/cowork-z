@@ -424,7 +424,32 @@ useEffect(() => {
 }, [loadTasks]);
 ```
 
-**Step 6: Verify**
+**Step 6: On workspace switch, reset active task and navigate to home**
+
+Add a `useEffect` that subscribes to `useWorkspaceStore` and reacts when `activeWorkspace.id` changes. When a different workspace is selected:
+
+1. Call `useTaskStore.getState().reset()` to clear `currentTask`, `partialMessages`, `permissionRequests`, `approvedPatterns`, and error state — ensuring no stale task data from the previous workspace leaks through.
+2. Call `navigate('/')` (from `useNavigate()`) to return to the home screen so the user sees the task launcher instead of the previous workspace's conversation.
+3. Call `loadTasks()` to reload the workspace-scoped session list.
+
+```typescript
+useEffect(() => {
+  const unsubscribe = useWorkspaceStore.subscribe((state, prevState) => {
+    const currentId = state.activeWorkspace?.id;
+    const prevId = prevState.activeWorkspace?.id;
+    if (currentId && currentId !== prevId) {
+      useTaskStore.getState().reset();
+      navigate('/');
+      loadTasks();
+    }
+  });
+  return unsubscribe;
+}, [loadTasks, navigate]);
+```
+
+The `navigate` dependency is stable (from `useNavigate()`) so this effect won't re-subscribe unnecessarily.
+
+**Step 7: Verify**
 
 Run: `pnpm typecheck`
 
@@ -562,7 +587,7 @@ Run: `pnpm tauri dev`
 - Sessions tab should show existing conversations
 - Files tab should show ~/Downloads file tree
 - Adding a new workspace via folder picker should work
-- Switching workspaces should update session list and file tree
+- Switching workspaces should reset the active conversation, navigate to home, and update session list and file tree
 - Starting a task should use workspace folder as CWD
 - File tree should update when AI creates files
 - Task Launcher (Cmd+K) should show tasks from all workspaces with workspace names

@@ -85,7 +85,10 @@ A single sidecar process serves all workspaces. Switching workspaces reconfigure
 3. **Rust** sends `PATCH /config` to sidecar with the new workspace folder as the working directory and updated permission rules
 4. **SSE reconnects** with the new directory scope (~1s)
 5. **Rust** emits a `workspace:changed` Tauri event to the frontend
-6. **Frontend** reloads: session list (filtered to new workspace), file tree (rooted at new folder), clears active task view
+6. **Frontend** resets active task state and navigates to home:
+   - Calls `taskStore.reset()` to clear `currentTask`, streaming state (`partialMessages`), permission requests, and error flags
+   - Navigates to `/` so the user sees the default home screen (task launcher)
+   - Reloads the session list (filtered to the new workspace) and file tree (rooted at the new folder)
 
 ### New Task Flow
 

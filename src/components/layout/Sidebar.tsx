@@ -112,17 +112,20 @@ export default function Sidebar() {
     loadTasks();
   }, [loadTasks]);
 
-  // Reload tasks when active workspace changes
+  // When the active workspace changes: reset the current task, navigate to
+  // the home screen, and reload the workspace-scoped task list.
   useEffect(() => {
     const unsubscribe = useWorkspaceStore.subscribe((state, prevState) => {
       const currentId = state.activeWorkspace?.id;
       const prevId = prevState.activeWorkspace?.id;
       if (currentId && currentId !== prevId) {
+        useTaskStore.getState().reset();
+        navigate('/');
         loadTasks();
       }
     });
     return unsubscribe;
-  }, [loadTasks]);
+  }, [loadTasks, navigate]);
 
   // Subscribe to task status changes and task updates
   useEffect(() => {

@@ -5,9 +5,11 @@
 - **3.7.2 Tool Call Display** - Tool-use messages now render as collapsible cards showing tool name and input summary when collapsed, full input/output when expanded.
 - **3.7.3 Question Handling** - Added `task:question_request` event handling with a dedicated question dialog. Streaming, permissions, and all existing functionality preserved.
 - **3.7.4 Component Decomposition** — Rewrote the monolithic Execution.tsx into modular chat components (MessageList, MessageBubble, ToolCallCard, PermissionModal, QuestionDialog, ChatInput, ThinkingIndicator).
-- **Fix: Tasks failing prematurely during permission waits** — The `sendMessage` HTTP request to OpenCode used the same 30-second timeout, but this endpoint blocks until the full agent turn completes (including permission waits and tool execution). If the user took longer than 30 seconds, the request was aborted with "This operation was aborted" and the task was marked as failed while OpenCode continued processing on the backend. Fixed by extending the `sendMessage` timeout to 10 minutes. (Req 1.2.1)
-- **Fix: Default folder access not covering contents** — Default `~/Downloads` and `~/Desktop` permissions now use `/*` glob pattern so files and subdirectories within are accessible without extra permission prompts. (Req 1.3.2)
-- **Fix: Tasks stalling on concurrent permission requests** — When the agent issued parallel tool calls requiring permissions, only one request was tracked in the UI (the store used a single `permissionRequest` field). The earlier request was silently dropped, leaving OpenCode permanently blocked. Fixed by replacing the single field with a queue (`permissionRequests[]`) and adding pattern-based auto-approval: once the user approves a directory pattern, any queued or future requests matching that pattern are auto-approved immediately. (Req 1.3.1)
+- **Fix: Tasks failing during permission waits** — Extended `sendMessage` timeout from 30s to 10 min since the endpoint blocks until the full agent turn completes (Req 1.2.1)
+- **Fix: Default folder access not covering contents** — Default `~/Downloads` and `~/Desktop` permissions now use `/*` glob pattern (Req 1.3.2)
+- **Fix: Tasks stalling on concurrent permission requests** — Replaced single `permissionRequest` field with a queue and pattern-based auto-approval for matching directory patterns (Req 1.3.1)
+- **Fix: Tool call card overflowing chat width** — Added `min-w-0` constraints so `<pre>` content respects the max-width container instead of blowing out the layout (Req 3.7.2)
+
 
 ## v0.4.4 (2026-02-16)
 

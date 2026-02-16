@@ -83,7 +83,7 @@ export const ToolCallCard = memo(function ToolCallCard({ message, isLastMessage 
   const hasExpandableContent = message.toolInput !== undefined || message.toolOutput !== undefined;
 
   return (
-    <div className={cn('rounded-lg border border-border bg-muted/50 transition-colors', isExpanded && 'bg-muted/80')}>
+    <div className={cn('min-w-0 w-full rounded-lg border border-border bg-muted/50 transition-colors', isExpanded && 'bg-muted/80')}>
       <button
         className={cn(
           'flex w-full items-center gap-2 px-3 py-2 text-left text-sm',

@@ -126,7 +126,7 @@ export const MessageBubble = memo(
       return (
         <motion.div
           animate={{ opacity: 1, y: 0 }}
-          className="group flex flex-col items-start"
+          className="group flex min-w-0 w-full flex-col items-start"
           initial={{ opacity: 0, y: 8 }}
           transition={springs.gentle}
         >

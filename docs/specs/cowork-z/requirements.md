@@ -25,25 +25,25 @@ The following implementation plans document how specific requirements were desig
 
 | Plan | Location | Requirements |
 |------|----------|--------------|
-| Sidecar OpenCode Rewrite | [`opencode-sidecar/plan_sidecar-opencode-rewrite.md`](../opencode-sidecar/plan_sidecar-opencode-rewrite.md) | 1.2.1, 1.2.2 (HTTP/SSE-based session management) |
-| Folder Permission Model | [`opencode-sidecar/plan_folder-permission-model.md`](../opencode-sidecar/plan_folder-permission-model.md) | 1.3.1–1.3.4 (permission system) |
-| Fix System Prompt Injection | [`opencode-sidecar/plan_fix_system_prompt_injection.md`](../opencode-sidecar/plan_fix_system_prompt_injection.md) | 2.1 (user prompt / agent configuration) |
-| Keyboard Shortcuts | [`ts-frontend/plan_keyboard-shortcuts.md`](../ts-frontend/plan_keyboard-shortcuts.md) | 4.3.1, 4.3.2 (keyboard shortcuts) |
-| Server Isolation | [`cowork-z/plan_server-isolation.md`](plan_server-isolation.md) | 5.2.1 (OpenCode server isolation) |
-| Todo Panel in Sidebar | [`plan_todo-panel-in-sidebard.md`](plan_todo-panel-in-sidebard.md) | 3.3 (task todos panel) |
-| User Prompt Customization | [`cowork-z/plan_user-prompt-customization.md`](plan_user-prompt-customization.md) | 2.1 (user prompt customization) |
-| MCP Server Support | [cowork-z/plan_mcp-server-support.md](plan_mcp-server-support.md) | 2.3 (MCP support) |
-| Artefacts Panel | [`cowork-z/plan_artefacts-panel.md`](plan_artefacts-panel.md) | 3.4 (artefacts panel) |
-| Drag-and-Drop in Chat | [`ts-frontend/plan_drag-and-drop-support.md`](../ts-frontend/plan_drag-and-drop-support.md) | 3.5 (drag and drop) |
-| Theme Support | [`ts-frontend/plan_theme-support.md`](../ts-frontend/plan_theme-support.md) | 4.2 (theme support) |
-| About Panel | [`ts-frontend/plan_about_panel.md`](../ts-frontend/plan_about_panel.md) | 4.4 (about panel) |
+| Sidecar OpenCode Rewrite | [`opencode-sidecar/plan_sidecar-opencode-rewrite.md`](../opencode-sidecar/plan_sidecar-opencode-rewrite.md) | 1.2.1, 1.2.2 |
+| Folder Permission Model | [`opencode-sidecar/plan_folder-permission-model.md`](../opencode-sidecar/plan_folder-permission-model.md) | 1.3.1–1.3.4 |
+| Fix System Prompt Injection | [`opencode-sidecar/plan_fix_system_prompt_injection.md`](../opencode-sidecar/plan_fix_system_prompt_injection.md) | 2.1 |
+| Keyboard Shortcuts | [`ts-frontend/plan_keyboard-shortcuts.md`](../ts-frontend/plan_keyboard-shortcuts.md) | 4.3.1, 4.3.2 |
+| Server Isolation | [`cowork-z/plan_server-isolation.md`](plan_server-isolation.md) | 5.2.1 |
+| Todo Panel in Sidebar | [`plan_todo-panel-in-sidebard.md`](plan_todo-panel-in-sidebard.md) | 3.3 |
+| User Prompt Customization | [`cowork-z/plan_user-prompt-customization.md`](plan_user-prompt-customization.md) | 2.1 |
+| MCP Server Support | `[cowork-z/plan_mcp-server-support.md](plan_mcp-server-support.md)` | 2.3 |
+| Artefacts Panel | [`cowork-z/plan_artefacts-panel.md`](plan_artefacts-panel.md) | 3.4 |
+| Drag-and-Drop in Chat | [`ts-frontend/plan_drag-and-drop-support.md`](../ts-frontend/plan_drag-and-drop-support.md) | 3.5 |
+| Theme Support | [`ts-frontend/plan_theme-support.md`](../ts-frontend/plan_theme-support.md) | 4.2 |
+| About Panel | [`ts-frontend/plan_about_panel.md`](../ts-frontend/plan_about_panel.md) | 4.4 |
 | User Feedback | [`cowork-z/plan_user-feedback.md`](plan_user-feedback.md) | 4.5 (feedback) |
-| Cross-Platform Fixes | [`cowork-z/plan_cross-platform-support.md`](plan_cross-platform-support.md) | 5.1.1–5.1.3 (cross-platform support) |
-| Missing OpenCode CLI Detection | [`cowork-z/plan_missing-opencode-cli-detection.md`](plan_missing-opencode-cli-detection.md) | 5.3.3 (CLI detection dialog) |
-| OpenCode Server API Skill | [`cowork-z/plan_opencode-server-skill.md`](plan_opencode-server-skill.md) | 2.4 (server API skill) |
-| Windows Production Readiness | [`cowork-z/plan_windows-production-readiness.md`](plan_windows-production-readiness.md) | 5.1.1–5.1.3 (Windows runtime, CI, signing) |
-| OpenRouter Provider Support | [`cowork-z/plan_openrouter-provider-support.md`](plan_openrouter-provider-support.md) | 1.1.3 (OpenRouter model catalog fetching) |
-| Dynamic Model Discovery | [`cowork-z/plan_dynamic-model-discovery-for-direct-api-providers.md`](plan_dynamic-model-discovery-for-direct-api-providers.md) | 1.1.4 (Dynamic model fetching for direct API providers) |
+| Cross-Platform Fixes | [`cowork-z/plan_cross-platform-support.md`](plan_cross-platform-support.md) | 5.1.1–5.1.3 |
+| Missing OpenCode CLI Detection | [`cowork-z/plan_missing-opencode-cli-detection.md`](plan_missing-opencode-cli-detection.md) | 5.3.3 |
+| OpenCode Server API Skill | [`cowork-z/plan_opencode-server-skill.md`](plan_opencode-server-skill.md) | 2.4 |
+| Windows Production Readiness | [`cowork-z/plan_windows-production-readiness.md`](plan_windows-production-readiness.md) | 5.1.1–5.1.3 |
+| OpenRouter Provider Support | [`cowork-z/plan_openrouter-provider-support.md`](plan_openrouter-provider-support.md) | 1.1.3 |
+| Dynamic Model Discovery | [`cowork-z/plan_dynamic-model-discovery-for-direct-api-providers.md`](plan_dynamic-model-discovery-for-direct-api-providers.md) | 1.1.4 |
 | Chat UI Rewrite | [Chat UI Rewrite](../ts-frontend/plan_chat_ui_rewrite.md) | 3.7 |
 
 ---

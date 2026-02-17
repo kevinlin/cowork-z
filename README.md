@@ -26,6 +26,8 @@ Most AI tools force you to choose between capability and privacy — and leave y
 
 Each project lives in its own workspace: one folder, all your files, sessions, and agent history in one place. Your data never leaves your machine. And a built-in Skills Catalog and Starter Packs mean you're productive in minutes, not hours.
 
+Whether you're a developer protecting proprietary code, a researcher with sensitive data, or a knowledge worker who wants AI on your local files — if privacy matters, this is for you.
+
 ---
 
 ## Features
@@ -45,6 +47,8 @@ Credentials are stored in the **OS Keychain** (macOS Keychain, Windows Credentia
 
 <p align="center">
   <img src="assets/Screenshot_MultiProvider.png" alt="Cowork-Z — Provider Settings" width="700" />
+  <br />
+  <em>Connect to any provider — credentials stored in the OS Keychain</em>
 </p>
 
 #### Sandboxed Permissions
@@ -57,6 +61,8 @@ Your files never leave your machine. The agent reads and writes locally — noth
 
 <p align="center">
   <img src="assets/Screenshot_PermissionRequest.png" alt="Cowork-Z — Runtime permission dialog" width="700" />
+  <br />
+  <em>The agent asks before accessing folders outside your approved list</em>
 </p>
 
 ---
@@ -73,6 +79,8 @@ Work is organized around workspaces — one folder, one focus. Each workspace ho
 
 <p align="center">
   <img src="assets/Screenshot_Workspace.png" alt="Cowork-Z — Workspace" width="700" />
+  <br />
+  <em>One workspace per project — files, sessions, and history in one place</em>
 </p>
 
 #### Rich Chat Experience
@@ -87,6 +95,8 @@ Work is organized around workspaces — one folder, one focus. Each workspace ho
 
 <p align="center">
   <img src="assets/Screenshot_MediaFileInChat.png" alt="Cowork-Z — Media files in chat" width="700" />
+  <br />
+  <em>File paths render as clickable links with inline media previews</em>
 </p>
 
 ---
@@ -104,7 +114,9 @@ Hit the ground running with **6 guided workspace packs** covering writing, resea
 No configuration, no setup from scratch.
 
 <p align="center">
-  <img src="assets/Screenshot_StarterPacks.png" alt="Cowork-Z — Skills Catalog" width="700" />
+  <img src="assets/Screenshot_StarterPacks.png" alt="Cowork-Z — Starter Packs" width="700" />
+  <br />
+  <em>Browse and install guided workspace packs from the Home screen</em>
 </p>
 
 #### Skills Catalog
@@ -118,6 +130,8 @@ A built-in catalog of reusable AI skill templates, installable with one click:
 
 <p align="center">
   <img src="assets/Screenshot_SkillsCatalog.png" alt="Cowork-Z — Skills Catalog" width="700" />
+  <br />
+  <em>One-click install of reusable AI skills — no manual file management</em>
 </p>
 
 #### Extensible with MCP Servers
@@ -170,8 +184,8 @@ Go to the [**latest release**](https://github.com/kevinlin/cowork-z/releases/lat
 
 ## Quickstart
 
-> [!CAUTION]
-> **Developer Preview** — Cowork-Z is in active development. Features may change, break, or behave unexpectedly. Use at your own risk and please [report any issues](https://github.com/kevinlin/cowork-z/issues/new) you encounter.
+> [!NOTE]
+> **Early access** — Cowork-Z is under active development. Some features may be rough around the edges. [Feedback and bug reports](https://github.com/kevinlin/cowork-z/issues/new) are very welcome.
 
 ### 1. Install OpenCode
 
@@ -179,12 +193,6 @@ Cowork-Z requires [**OpenCode**](https://opencode.ai/) as its AI engine. Install
 
 ```bash
 npm install -g opencode-ai
-```
-
-Verify the installation:
-
-```bash
-opencode --version
 ```
 
 > If the app can't find `opencode` on launch, it will show a dialog with installation instructions. Make sure the `opencode` binary is on your shell's `PATH`.
@@ -196,41 +204,20 @@ opencode --version
 3. Pick an AI provider (e.g. Anthropic, OpenAI, Google Gemini, Ollama ...)
 4. Enter your API key — credentials are stored securely in the **OS Keychain**, never in plain text
 
-### 3. Install a Starter Pack (optional)
-
-From the Home screen, browse the Starter Packs section, pick a pack that fits your task, and click **Install**. The app creates a workspace and starts the agent automatically.
-
-### 4. Install Skills (optional)
-
-Browse the Skills Catalog on the Home screen. Click **Install** on any skill to add it to your OpenCode skills directory — the agent picks it up automatically, no restart needed.
-
-> **Tip:** The Settings panel shows the skills folder path as a clickable link so you can open it in Finder.
-
-### 5. Configure MCP Servers (optional)
-
-[MCP (Model Context Protocol)](https://opencode.ai/docs/mcp-servers/) servers give the agent access to external tools and data sources — databases, APIs, file systems, and more.
-
-1. Open **Settings** > **MCP Servers**
-2. Add a server configuration as JSON:
-
-```json
-{
-  "my-server": {
-    "command": ["npx", "-y", "@my-org/mcp-server"],
-    "environment": {
-      "API_KEY": "your-key-here"
-    },
-    "enabled": true
-  }
-}
-```
-
-3. Both **local** (command-based) and **remote** (URL-based) servers are supported
-4. Servers can be enabled/disabled individually at any time
-
-### 6. Start a task
+### 3. Start a task
 
 Type a prompt in the launcher (or press **`Cmd + N`**) and hit Enter. The agent will plan, execute, and report back — all running locally on your machine.
+
+**Try these:**
+- `"Summarise all PDFs in this folder into a single report"`
+- `"Review this codebase for security issues and write findings to AUDIT.md"`
+- `"Organise the photos in ~/Downloads by date into year/month folders"`
+
+### Go further (optional)
+
+- **Starter Packs** — Browse the Home screen, pick a guided workspace pack, and click **Install**. The app creates a workspace and the agent walks you through `START_HERE.md`.
+- **Skills Catalog** — Click **Install** on any skill from the Home screen to add it to your OpenCode skills directory. No restart needed.
+- **MCP Servers** — Open **Settings > MCP Servers** to connect external tools and data sources (databases, APIs, file systems) via the [Model Context Protocol](https://opencode.ai/docs/mcp-servers/).
 
 ---
 
@@ -322,7 +309,7 @@ Track progress on the [issues page](https://github.com/kevinlin/cowork-z/issues)
 ## Acknowledgments
 
 - Cowork-Z's UI is based on [Accomplish](https://github.com/accomplish-ai/accomplish). Thanks to the Accomplish team for their work on the original implementation.
-- The Workspace, Starter Packs and Skills Catalog features were inspired by and heavily referenced from [Cowork-Z](https://github.com/frumu-ai/Cowork-Z). Thanks to the Cowork-Z team for pioneering this pattern.
+- The Workspace, Starter Packs and Skills Catalog features were inspired by and heavily referenced from [Tandem](https://github.com/frumu-ai/tandem). Thanks to the Tandem team for pioneering this pattern.
 
 ---
 

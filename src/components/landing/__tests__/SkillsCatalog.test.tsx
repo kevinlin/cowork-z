@@ -64,7 +64,7 @@ describe('SkillsCatalog', () => {
       makeSkill('marketing-brand-voice', 'Marketing'),
     ]);
     render(<SkillsCatalog />);
-    await waitFor(() => screen.getByText('Marketing'));
+    await waitFor(() => screen.getByRole('button', { name: 'Marketing' }));
 
     await userEvent.click(screen.getByRole('button', { name: 'Marketing' }));
     expect(screen.getByText('marketing-brand-voice')).toBeInTheDocument();

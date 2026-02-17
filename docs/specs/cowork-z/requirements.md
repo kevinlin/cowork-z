@@ -2,20 +2,15 @@
 
 ## Product Vision
 
-**Cowork-Z is a local-first desktop agent that brings AI assistance to your files and workflows without compromising privacy.**
+**Cowork-Z is a local-first AI workspace that keeps your work private, organized, and ready to run.**
 
-Most AI tools force an uncomfortable choice: upload your sensitive work to cloud services, or forgo AI assistance entirely. Cowork-Z eliminates this tradeoff by running entirely on your machine. The agent accesses your local files, executes commands in your environment, and integrates with your tools—all while keeping your data under your control.
+Most AI tools force you to choose between capability and privacy — and leave you rebuilding context from scratch every time. Cowork-Z takes a different approach: your data stays on your machine, each project gets its own focused workspace with files and sessions co-located, and a built-in library of skills and starter packs means you're productive in minutes, not hours.
 
-**Built for privacy-conscious power users and security-minded teams**, Cowork-Z provides a sandboxed environment where AI agents can work autonomously with granular permission controls. You decide exactly what folders the agent can access and what actions it can take.
+**Private by design** — Your files never leave your machine. The agent reads and writes locally; nothing is uploaded to cloud servers. API keys live in the OS keychain and never touch the frontend. Choose from 13+ providers — Anthropic, OpenAI, Ollama, and more — based on the task, not the privacy policy.
 
-**Key capabilities:**
-- **Local-first architecture** — All agent execution happens on your machine; no cloud uploads required
-- **Multi-provider flexibility** — Switch between 13+ AI providers (Anthropic, OpenAI, Ollama, etc.) based on task requirements
-- **Extensible workflows** — Add custom skills and MCP server integrations to tailor the agent to your specific needs
-- **Parallel task execution** — Run multiple independent tasks simultaneously to accelerate complex workflows
-- **Transparent & auditable** — Full visibility into agent actions, tool calls, and file access with session history
+**One project at a time** — Work is organized around workspaces: one folder, one focus. Each workspace holds its own files, chat sessions, permissions, and agent history in one place. Switch workspaces to switch projects — nothing bleeds between them.
 
-Whether you're a developer protecting proprietary code, a researcher working with sensitive data, or an organization that needs auditability and control, Cowork-Z delivers AI-powered productivity without the privacy compromise.
+**Ready in minutes** — No configuration marathons. A built-in Skills Catalog provides reusable AI behaviors you can install with one click. Starter Packs bundle files, prompts, and step-by-step guidance for real-world tasks — writing, research, security audits, legal review, and more.
 
 ---
 

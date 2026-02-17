@@ -5,7 +5,7 @@
 <h1 align="center">Cowork-Z</h1>
 
 <p align="center">
-  <strong>A local-first desktop agent that brings AI to your files and workflows — without compromising privacy.</strong>
+  <strong>A local-first AI workspace that keeps your work private, organized, and ready to run.</strong>
 </p>
 
 <p align="center">
@@ -22,36 +22,34 @@
 
 ## Why Cowork-Z?
 
-Most AI tools force an uncomfortable choice: **upload your sensitive work to cloud services, or forgo AI assistance entirely**.
+Most AI tools force you to choose between capability and privacy — and leave you rebuilding context from scratch every time. Cowork-Z takes a different approach.
 
-Cowork-Z eliminates this tradeoff. It's a desktop app where AI agents run entirely on your machine — accessing your local files, executing commands in your environment, and integrating with your tools — all while keeping your data under your control.
-
-Whether you're a developer protecting proprietary code, a researcher working with sensitive data, or a team that needs auditability and control, Cowork-Z delivers AI-powered productivity without the privacy compromise.
+Each project lives in its own workspace: one folder, all your files, sessions, and agent history in one place. Your data never leaves your machine. And a built-in Skills Catalog and Starter Packs mean you're productive in minutes, not hours.
 
 ---
 
 ## Features
 
-### Multi-Provider Flexibility
+### 🔒 Private by design
+
+#### Multi-Provider Flexibility
 
 Connect to **13+ AI providers** and switch between them at any time:
 
-**Direct API** — Anthropic, OpenAI, Google Gemini, xAI, DeepSeek, Z.AI
-**Cloud Platforms** — AWS Bedrock, Azure AI Foundry
-**Local Models** — Ollama
+**Direct API** — Anthropic, OpenAI, Google Gemini, xAI, DeepSeek, Z.AI\
+**Cloud Platforms** — AWS Bedrock, Azure AI Foundry\
+**Local Models** — Ollama\
 **Proxy Services** — OpenRouter, LiteLLM
 
 Credentials are stored in the **OS Keychain** (macOS Keychain, Windows Credential Manager, Linux Secret Service) — never in plain text files.
 
 <p align="center">
-  <img src="assets/Screenshot_Settings.png" alt="Cowork-Z — Provider Settings" width="700" />
-  <br />
-  <em>Choose from 13+ AI providers — credentials stored securely in the OS Keychain</em>
+  <img src="assets/Screenshot_MultiProvider.png" alt="Cowork-Z — Provider Settings" width="700" />
 </p>
 
-### Sandboxed Permissions
+#### Sandboxed Permissions
 
-You control exactly what the agent can access:
+Your files never leave your machine. The agent reads and writes locally — nothing is uploaded to cloud servers. You control exactly what it can access:
 
 - **Folder-level access controls** — grant read or read-write per directory
 - **Runtime permission prompts** — if the agent needs a folder you haven't approved, it asks first
@@ -59,38 +57,76 @@ You control exactly what the agent can access:
 
 <p align="center">
   <img src="assets/Screenshot_PermissionRequest.png" alt="Cowork-Z — Runtime permission dialog" width="700" />
-  <br />
-  <em>The agent asks before accessing directories outside your approved list</em>
 </p>
 
-### Rich Chat Experience
+---
+
+### 📁 One project at a time
+
+#### Workspace-per-Project
+
+Work is organized around workspaces — one folder, one focus. Each workspace holds its own files, chat sessions, permissions, and agent history in one place. Switch workspaces to switch projects; nothing bleeds between them.
+
+- **File tree browser** — lazy-loaded sidebar tree with real-time filesystem watching and search
+- **File preview panel** — preview code (syntax-highlighted), Markdown, images, video, PDF, and HTML without leaving the app; supports fullscreen mode
+- **"Add to Chat"** — insert any file as an `@path` reference into the chat input directly from the preview panel
+
+<p align="center">
+  <img src="assets/Screenshot_Workspace.png" alt="Cowork-Z — Workspace" width="700" />
+</p>
+
+#### Rich Chat Experience
 
 - **Inline file previews** — file paths render as clickable links with thumbnails for images and video
 - **Image gallery** — click any thumbnail to open an in-app preview with "Show in Finder"
 - **URL previews** — links in agent responses open in your default browser
-- **Drag-and-drop** — drop files or folders from Finder into the chat to reference them
+- **Drag-and-drop** — drop files or folders from Finder or the file tree into the chat to reference them
 - **Multi-line input** — compose detailed prompts with `Shift+Enter`
 - **Todo tracking** — see the agent's task progress in a sidebar panel with a progress bar
 - **Artefacts panel** — all files the agent creates or modifies are tracked in the sidebar
 
 <p align="center">
-  <img src="assets/Screenshot_ImageGallery.png" alt="Cowork-Z — In-app image preview" width="700" />
-  <br />
-  <em>Click any image thumbnail to preview it without leaving the app</em>
+  <img src="assets/Screenshot_MediaFileInChat.png" alt="Cowork-Z — Media files in chat" width="700" />
 </p>
 
-### Extensible with Skills & MCP Servers
+---
 
-- **Skills** — drop a `SKILL.md` file into `~/.config/opencode/skills/<name>/` to teach the agent new capabilities. Auto-discovered, no restart needed.
-- **MCP Servers** — connect external tools and data sources (databases, APIs, file systems) via the [Model Context Protocol](https://opencode.ai/docs/mcp-servers/). Supports both local (command) and remote (URL) servers.
+### ⚡ Ready in minutes
+
+#### Starter Packs
+
+Hit the ground running with **6 guided workspace packs** covering writing, research, security audits, legal review, and more. Each pack bundles template files, prompts, and step-by-step guidance:
+
+1. Browse packs on the Home screen and click **Install**
+2. Choose a destination folder — the app creates the workspace automatically
+3. The agent opens `START_HERE.md` and walks you through the task
+
+No configuration, no setup from scratch.
 
 <p align="center">
-  <img src="assets/Screenshot_Skills.png" alt="Cowork-Z — Skills discovery and management" width="700" />
-  <br />
-  <em>Skills are auto-discovered from your config directory — no restart needed</em>
+  <img src="assets/Screenshot_StarterPacks.png" alt="Cowork-Z — Skills Catalog" width="700" />
 </p>
 
-### Desktop-Native Experience
+#### Skills Catalog
+
+A built-in catalog of reusable AI skill templates, installable with one click:
+
+- **Category tabs** — browse by domain (Marketing, Sales, Enterprise, and more)
+- **Search** — filter by name, description, or category in real-time
+- **One-click install** — skills are copied to `~/.config/opencode/skills/` and auto-discovered by the agent
+- **Update detection** — SHA256 checksums flag outdated skills with a Re-install prompt
+
+<p align="center">
+  <img src="assets/Screenshot_SkillsCatalog.png" alt="Cowork-Z — Skills Catalog" width="700" />
+</p>
+
+#### Extensible with MCP Servers
+
+Connect external tools and data sources via the [Model Context Protocol](https://opencode.ai/docs/mcp-servers/). Supports both local (command) and remote (URL) servers, configurable from the Settings panel.
+
+---
+
+### 🖥️ Desktop-Native Experience
 
 - **Keyboard shortcuts** — `Cmd+N` new task, `Cmd+,` settings, `Escape` cancel
 - **Multiple themes** — light and dark modes with runtime switching
@@ -160,19 +196,17 @@ opencode --version
 3. Pick an AI provider (e.g. Anthropic, OpenAI, Google Gemini, Ollama ...)
 4. Enter your API key — credentials are stored securely in the **OS Keychain**, never in plain text
 
-### 3. Set up Skills (optional)
+### 3. Install a Starter Pack (optional)
 
-Skills extend the agent with domain-specific knowledge. Cowork-Z supports the [OpenCode Skills spec](https://opencode.ai/docs/skills/) and auto-discovers skill files from:
+From the Home screen, browse the Starter Packs section, pick a pack that fits your task, and click **Install**. The app creates a workspace and starts the agent automatically.
 
-```
-~/.config/opencode/skills/<name>/SKILL.md
-```
+### 4. Install Skills (optional)
 
-To add a skill, drop a `SKILL.md` file into a named folder at that path. The agent picks it up automatically — no restart needed.
+Browse the Skills Catalog on the Home screen. Click **Install** on any skill to add it to your OpenCode skills directory — the agent picks it up automatically, no restart needed.
 
 > **Tip:** The Settings panel shows the skills folder path as a clickable link so you can open it in Finder.
 
-### 4. Configure MCP Servers (optional)
+### 5. Configure MCP Servers (optional)
 
 [MCP (Model Context Protocol)](https://opencode.ai/docs/mcp-servers/) servers give the agent access to external tools and data sources — databases, APIs, file systems, and more.
 
@@ -194,7 +228,7 @@ To add a skill, drop a `SKILL.md` file into a named folder at that path. The age
 3. Both **local** (command-based) and **remote** (URL-based) servers are supported
 4. Servers can be enabled/disabled individually at any time
 
-### 5. Start a task
+### 6. Start a task
 
 Type a prompt in the launcher (or press **`Cmd + N`**) and hit Enter. The agent will plan, execute, and report back — all running locally on your machine.
 
@@ -210,17 +244,6 @@ Type a prompt in the launcher (or press **`Cmd + N`**) and hit Enter. The agent 
 | Database | SQLite (rusqlite) |
 | Secure storage | OS Keychain (keyring crate) |
 | AI Engine | [OpenCode](https://opencode.ai/) via Node.js sidecar |
-
-### Architecture
-
-```
-┌──────────────────┐      stdin/stdout       ┌─────────────────┐      HTTP/SSE      ┌──────────────────┐
-│   Tauri (Rust)   │◄──── JSON-line IPC ────►│  Node.js Sidecar │◄──────────────────►│  OpenCode Server │
-│   + React/TS UI  │                         │                  │                    │  (AI Engine)     │
-└──────────────────┘                         └─────────────────┘                    └──────────────────┘
-```
-
-For detailed architecture documentation — including C4 diagrams, IPC protocol specs, security model, data architecture, and Architecture Decision Records — see [docs/architecture/](docs/architecture/README.md).
 
 ---
 
@@ -291,7 +314,6 @@ See the [requirements document](docs/specs/cowork-z/requirements.md) for the ful
 
 - [x] Windows testing and polish
 - [ ] Database encryption at rest (Req 5.2.2)
-- [ ] OpenCode Server API Skill for agent self-introspection (Req 2.4)
 
 Track progress on the [issues page](https://github.com/kevinlin/cowork-z/issues) or check the [changelog](UPDATE_LOG.md) for recent releases.
 
@@ -299,7 +321,8 @@ Track progress on the [issues page](https://github.com/kevinlin/cowork-z/issues)
 
 ## Acknowledgments
 
-Cowork-Z's UI is based on [Accomplish](https://github.com/accomplish-ai/accomplish). Thank you to the Accomplish team for their work on the original implementation.
+- Cowork-Z's UI is based on [Accomplish](https://github.com/accomplish-ai/accomplish). Thanks to the Accomplish team for their work on the original implementation.
+- The Workspace, Starter Packs and Skills Catalog features were inspired by and heavily referenced from [Cowork-Z](https://github.com/frumu-ai/Cowork-Z). Thanks to the Cowork-Z team for pioneering this pattern.
 
 ---
 

@@ -67,7 +67,7 @@ After making TypeScript edits, always run `pnpm typecheck` (or `tsc --noEmit`) b
 
 ### Frontend Tests (Vitest)
 - **Test runner:** Vitest with jsdom environment
-- **Location:** `src/**/*.{test,spec}.{ts,tsx}` (collocated with source files)
+- **Location:** `src/**/__tests__/*.{test,spec}.{ts,tsx}` — tests live in `__tests__/` subdirectories within their component directory
 - **Setup file:** `src/test/setup.ts` — mocks `matchMedia` and `ResizeObserver` for jsdom
 - **Libraries:** @testing-library/react, @testing-library/jest-dom, @testing-library/user-event
 
@@ -81,9 +81,10 @@ pnpm test path/to/file   # Run specific test file
 
 **Example test locations:**
 - UI components: `src/components/ui/__tests__/`
-- Layout components: `src/components/layout/*.test.tsx`
+- Layout components: `src/components/layout/__tests__/`
+- Sidebar components: `src/components/sidebar/__tests__/`
 - Pages: `src/pages/__tests__/`
-- Store: `src/stores/*.test.ts`
+- Store: `src/stores/__tests__/`
 
 ### Sidecar Tests (Jest)
 ```bash
@@ -166,24 +167,27 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 - `/task/:taskId` — `src/pages/Execution.tsx` — Active task chat view
 
 **State Management** (Zustand)
-- `src/stores/taskStore.ts` — Single global store for all app state
-  - Tasks, permissions, questions
-  - Active task tracking
-  - UI state (settings dialog, launcher modal)
+- `src/stores/taskStore.ts` — Tasks, permissions, questions, active task, UI state (settings, launcher)
+- `src/stores/workspaceStore.ts` — Workspace list, active workspace, `initialize()` / `switchWorkspace()` / `addWorkspace()` / `removeWorkspace()`
+- `src/stores/filePreviewStore.ts` — File preview panel state: `openPreview()`, `openPreviewByPath()`, `closePreview()`, fullscreen toggle
 
 **Component Organization**
 - `src/components/layout/` — App shell (Sidebar, SettingsDialog)
 - `src/components/ui/` — Radix UI + shadcn/ui primitives
-- `src/components/sidebar/` — Sidebar panels (TodoPanel, ArtifactsPanel, FolderPanel)
+- `src/components/sidebar/` — Sidebar panels (FileTreePanel, TodoPanel, ArtifactsPanel, FolderPanel)
+- `src/components/file-preview/` — File preview panel: `FilePreviewPanel.tsx`, per-type renderers (`CodePreview`, `MarkdownPreview`, `MediaPreview`, `PdfPreview`, `HtmlPreview`, `TextPreview`, `BinaryPreview`), `preview-utils.ts`
 - `src/components/settings/` — Provider configuration forms
 - `src/components/markdown/` — Rich message rendering (EnhancedLink, file/URL detection)
 - `src/components/media/` — Image/video thumbnails and modals
+- `src/components/landing/` — Task input bar and drag-drop integration
+
+**Custom Hooks**
+- `src/hooks/useFileTree.ts` — Lazy-loading file tree with search and filtering predicates
+- `src/hooks/useKeyboardShortcuts.tsx` — App-level and chat-level shortcuts
 
 **Shared Types**
-- `src/shared/types/task.ts` — Core task types
-  - `Task`, `TaskMessage`, `TaskStatus`, `TaskProgress`
-  - `Todo`, `Artifact` (session-scoped entities)
-  - `PartialMessage` (streaming support)
+- `src/shared/types/task.ts` — `Task`, `TaskMessage`, `TaskStatus`, `TaskProgress`, `Todo`, `Artifact`, `PartialMessage`
+- `src/shared/types/workspace.ts` — `Workspace`, `DirectoryEntry`
 
 ## Settings UI Patterns
 
@@ -234,9 +238,16 @@ See `src/components/sidebar/FileTreePanel.tsx` (drag source) and `src/components
 2. **Add to UPDATE_LOG.md**: Append to the current version section describing the completed feature with its requirement number (e.g., `- 4.5 Feedback — description`)
 3. **Verify** both `pnpm typecheck` and `cd src-tauri && cargo check` pass before reporting completion
 
+## Workspace-as-Folder Architecture
+
+Workspaces scope each AI session to a directory. The OpenCode sidecar receives `?directory=<workspace_path>` on the `GET /event` SSE subscription and on `POST /permission/{id}/reply` — the directory must match for events to be routed correctly.
+
+Switching workspaces triggers SSE reconnection (same mechanism as `PATCH /config`). The `workspaceStore` manages this lifecycle; `useFileTree` drives the sidebar file tree with lazy-loading and hidden-file filtering (`isHiddenEntry()` blocks dotfiles and platform system entries like `.DS_Store`, `$RECYCLE.BIN`).
+
 ## Design Documentation
 
 See `docs/specs/`:
 - `cowork-z/requirements.md` — Feature requirements
 - `cowork-z/design.md` — Technical design
+- `workspace-as-folder/` — Workspace feature design and plans
 - `sidecar-opencode-rewrite/plan_sidecar-opencode-rewrite.md` — Sidecar rewrite plan (complete)

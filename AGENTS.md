@@ -13,21 +13,27 @@ src/                          # React/TypeScript frontend
   components/
     layout/                   # App shell (Sidebar, SettingsDialog)
     ui/                       # Radix UI + shadcn/ui primitives
-    sidebar/                  # Sidebar panels (TodoPanel, ArtifactsPanel, FolderPanel)
+    sidebar/                  # Sidebar panels (FileTreePanel, TodoPanel, ArtifactsPanel, FolderPanel)
+    file-preview/             # File preview panel (CodePreview, MarkdownPreview, MediaPreview, etc.)
     settings/                 # Provider configuration forms
     markdown/                 # Rich message rendering
     media/                    # Image/video thumbnails and modals
+    landing/                  # Task input bar and drag-drop integration
   pages/
     Home.tsx                  # Task launcher (route: /)
     Execution.tsx             # Active task chat (route: /task/:taskId)
   stores/
-    taskStore.ts              # Zustand store — all app state
+    taskStore.ts              # Zustand store — tasks, permissions, questions, UI state
+    workspaceStore.ts         # Workspace list, active workspace, switchWorkspace()
+    filePreviewStore.ts       # File preview panel state, openPreview(), fullscreen toggle
   lib/
     tauri-api.ts              # Frontend API bridge (all invoke/listen calls)
     tauri-api-interface.ts    # TauriAPI interface abstraction
   shared/types/
     task.ts                   # Core task types (Task, TaskMessage, etc.)
+    workspace.ts              # Workspace, DirectoryEntry types
   hooks/
+    useFileTree.ts            # Lazy-loading file tree with search and filter predicates
     useKeyboardShortcuts.tsx  # Cmd+, Cmd+N, Cmd+K, Cmd+Enter, Escape
 
 src-tauri/                    # Rust/Tauri backend
@@ -56,6 +62,7 @@ src-tauri/sidecar-opencode/   # Node.js sidecar (separate pnpm workspace)
 docs/specs/                   # Design documentation
   cowork-z/requirements.md    # Feature requirements
   cowork-z/design.md          # Technical design
+  workspace-as-folder/        # Workspace feature design and plans
 ```
 
 **Path aliases:** `@` maps to `src/`, `@shared` maps to `src/shared/` (configured in `tsconfig.json` and `vite.config.ts`).
@@ -109,7 +116,7 @@ pnpm dlx ultracite check src/ src-tauri/sidecar-opencode/
 ### Frontend (Vitest)
 
 - Runner: Vitest with jsdom environment
-- Location: `src/**/*.{test,spec}.{ts,tsx}` (collocated with source files)
+- Location: `src/**/__tests__/*.{test,spec}.{ts,tsx}` — tests live in `__tests__/` subdirectories within their component directory
 - Setup: `src/test/setup.ts` (mocks `matchMedia` and `ResizeObserver`)
 - Libraries: @testing-library/react, @testing-library/jest-dom, @testing-library/user-event
 
@@ -205,6 +212,12 @@ After completing any feature or plan implementation:
 - Do not add `console.log`, `debugger`, or `alert` statements to production code
 - Do not use dynamic code execution or raw HTML injection patterns
 - Always sanitize and escape user-provided content before rendering
+
+## Workspace-as-Folder Architecture
+
+Workspaces scope each AI session to a directory. The OpenCode sidecar receives `?directory=<workspace_path>` on the `GET /event` SSE subscription and on `POST /permission/{id}/reply` — the directory must match for events to be routed correctly.
+
+Switching workspaces triggers SSE reconnection (same mechanism as `PATCH /config`). The `workspaceStore` manages this lifecycle; `useFileTree` drives the sidebar file tree with lazy-loading and hidden-file filtering (`isHiddenEntry()` blocks dotfiles and platform system entries like `.DS_Store`, `$RECYCLE.BIN`).
 
 ## Important Notes
 

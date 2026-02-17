@@ -17,36 +17,7 @@
 
 **Step 1: Fix the hardcoded Unix log path**
 
-In `src-tauri/src/sidecar.rs`, replace lines 197-202:
-
-```rust
-    let log_dir = dirs::home_dir()
-        .ok_or("Could not determine home directory")?
-        .join(".local")
-        .join("share")
-        .join("opencode")
-        .join("log");
-```
-
-With platform-aware resolution:
-
-```rust
-    let log_dir = if cfg!(target_os = "windows") {
-        // Windows: %LOCALAPPDATA%\opencode\log
-        dirs::data_local_dir()
-            .ok_or("Could not determine local app data directory")?
-            .join("opencode")
-            .join("log")
-    } else {
-        // macOS/Linux: ~/.local/share/opencode/log
-        dirs::home_dir()
-            .ok_or("Could not determine home directory")?
-            .join(".local")
-            .join("share")
-            .join("opencode")
-            .join("log")
-    };
-```
+In `src-tauri/src/sidecar.rs`, replace lines 197-202 With platform-aware resolution:
 
 **Step 2: Verify it compiles**
 
@@ -90,153 +61,17 @@ Replace the final join at line 1279:
 
 Change the `seen` HashSet logic. Replace lines 1202-1210:
 
-```rust
-    let mut seen = std::collections::HashSet::new();
-    let mut dirs: Vec<String> = Vec::new();
-
-    // Start with existing PATH entries
-    for dir in current_path.split(separator).filter(|s| !s.is_empty()) {
-        let key = if cfg!(target_os = "windows") {
-            dir.to_lowercase()
-        } else {
-            dir.to_string()
-        };
-        if seen.insert(key) {
-            dirs.push(dir.to_string());
-        }
-    }
-```
-
 Also update the login-shell PATH merge (lines 1224-1228) to use the same case-insensitive key:
 
-```rust
-                        for dir in shell_path.trim().split(separator).filter(|s| !s.is_empty()) {
-                            let key = if cfg!(target_os = "windows") {
-                                dir.to_lowercase()
-                            } else {
-                                dir.to_string()
-                            };
-                            if seen.insert(key) {
-                                dirs.push(dir.to_string());
-                            }
-                        }
-```
-
 And update the well-known dirs loop (lines 1271-1277) and nvm loop (lines 1262-1265) similarly:
-
-For nvm (around line 1262):
-```rust
-                let key = if cfg!(target_os = "windows") {
-                    nvm_bin.to_lowercase()
-                } else {
-                    nvm_bin.clone()
-                };
-                if seen.insert(key) {
-                    if std::path::Path::new(&nvm_bin).exists() {
-                        dirs.push(nvm_bin);
-                    }
-                }
-```
-
-For well-known dirs (around line 1271):
-```rust
-    for dir in well_known {
-        let key = if cfg!(target_os = "windows") {
-            dir.to_lowercase()
-        } else {
-            dir.clone()
-        };
-        if seen.insert(key) {
-            if std::path::Path::new(&dir).exists() {
-                dirs.push(dir);
-            }
-        }
-    }
-```
+- For nvm (around line 1262)
+- For well-known dirs (around line 1271)
 
 **Step 3: Add Windows-specific well-known directories**
 
 Replace the well-known dirs block (lines 1236-1248) with platform-conditional lists:
 
-```rust
-    // Well-known directories as fallback
-    let home = dirs::home_dir().unwrap_or_default();
-
-    let well_known: Vec<String> = if cfg!(target_os = "windows") {
-        let appdata = std::env::var("APPDATA").unwrap_or_default();
-        let localappdata = std::env::var("LOCALAPPDATA").unwrap_or_default();
-        let programfiles = std::env::var("ProgramFiles").unwrap_or_default();
-
-        vec![
-            format!("{}\\npm", appdata),                          // npm global
-            format!("{}\\nodejs", programfiles),                   // Node.js install
-            format!("{}\\Volta\\bin", localappdata),               // Volta
-            home.join("scoop\\shims").to_string_lossy().to_string(), // Scoop
-            "C:\\ProgramData\\chocolatey\\bin".to_string(),        // Chocolatey
-            format!("{}\\Yarn\\bin", localappdata),                // Yarn
-            format!("{}\\pnpm", localappdata),                     // pnpm
-        ]
-    } else {
-        vec![
-            "/opt/homebrew/bin".to_string(),
-            "/opt/homebrew/sbin".to_string(),
-            "/usr/local/bin".to_string(),
-            "/usr/local/sbin".to_string(),
-            home.join(".local/bin").to_string_lossy().to_string(),
-            home.join(".volta/bin").to_string_lossy().to_string(),
-            home.join(".npm-global/bin").to_string_lossy().to_string(),
-            home.join(".yarn/bin").to_string_lossy().to_string(),
-            home.join(".local/share/pnpm").to_string_lossy().to_string(),
-            home.join(".local/share/fnm").to_string_lossy().to_string(),
-        ]
-    };
-```
-
 Also make the nvm version directory scanning platform-aware. Replace lines 1250-1269:
-
-```rust
-    // Add nvm/nvm-windows latest node version
-    let nvm_base = if cfg!(target_os = "windows") {
-        // nvm-windows: %APPDATA%\nvm or %NVM_HOME%
-        let nvm_home = std::env::var("NVM_HOME")
-            .unwrap_or_else(|_| {
-                let appdata = std::env::var("APPDATA").unwrap_or_default();
-                format!("{}\\nvm", appdata)
-            });
-        std::path::PathBuf::from(nvm_home)
-    } else {
-        home.join(".nvm/versions/node")
-    };
-    if nvm_base.exists() {
-        if let Ok(versions) = std::fs::read_dir(&nvm_base) {
-            let mut version_dirs: Vec<String> = versions
-                .filter_map(|e| e.ok())
-                .map(|e| e.file_name().to_string_lossy().to_string())
-                .filter(|name| name.starts_with('v'))
-                .collect();
-            version_dirs.sort();
-            version_dirs.reverse();
-            if let Some(latest) = version_dirs.first() {
-                let nvm_bin = if cfg!(target_os = "windows") {
-                    // nvm-windows puts node.exe directly in the version dir
-                    nvm_base.join(latest).to_string_lossy().to_string()
-                } else {
-                    nvm_base.join(latest).join("bin").to_string_lossy().to_string()
-                };
-                let key = if cfg!(target_os = "windows") {
-                    nvm_bin.to_lowercase()
-                } else {
-                    nvm_bin.clone()
-                };
-                if seen.insert(key) {
-                    if std::path::Path::new(&nvm_bin).exists() {
-                        dirs.push(nvm_bin);
-                    }
-                }
-            }
-        }
-    }
-```
 
 **Step 4: Verify it compiles**
 
@@ -261,50 +96,6 @@ git commit -m "fix: Windows PATH resolution — separators, well-known dirs, cas
 **Step 1: Create the cross-platform build script**
 
 Create `scripts/build-sidecar.mjs`:
-
-```javascript
-#!/usr/bin/env node
-
-/**
- * Cross-platform sidecar binary builder.
- * Detects the current OS and architecture, then runs the correct
- * pnpm build:binary:<target> command from the sidecar directory.
- */
-
-import { execSync } from 'node:child_process';
-import { platform, arch } from 'node:os';
-import { resolve } from 'node:path';
-
-const sidecarDir = resolve(import.meta.dirname, '..', 'src-tauri', 'sidecar-opencode');
-
-const targetMap = {
-  'darwin-arm64': 'build:binary',
-  'darwin-x64': 'build:binary:x64',
-  'win32-x64': 'build:binary:win',
-  'linux-x64': 'build:binary:linux',
-  'linux-arm64': 'build:binary:linux-arm64',
-};
-
-const key = `${platform()}-${arch()}`;
-const script = targetMap[key];
-
-if (!script) {
-  console.error(`Unsupported platform/arch: ${key}`);
-  console.error(`Supported targets: ${Object.keys(targetMap).join(', ')}`);
-  process.exit(1);
-}
-
-console.log(`Building sidecar for ${key} (pnpm ${script})...`);
-
-try {
-  execSync(`pnpm ${script}`, {
-    cwd: sidecarDir,
-    stdio: 'inherit',
-  });
-} catch {
-  process.exit(1);
-}
-```
 
 **Step 2: Update `beforeDevCommand` in tauri.conf.json**
 
@@ -348,37 +139,6 @@ git commit -m "feat: cross-platform sidecar build script for beforeDevCommand"
 
 The current `stop()` method calls `child.kill()` directly. On Windows this is `TerminateProcess` — a hard kill that can orphan the OpenCode server child process. Send a `shutdown` command via stdin first to let the sidecar clean up.
 
-Replace lines 473-479:
-
-```rust
-    pub async fn stop(&mut self) -> Result<(), String> {
-        if let Some(child) = self.child.take() {
-            child.kill().map_err(|e| format!("Failed to kill sidecar: {}", e))?;
-        }
-        self.is_ready = false;
-        Ok(())
-    }
-```
-
-With:
-
-```rust
-    pub async fn stop(&mut self) -> Result<(), String> {
-        if let Some(mut child) = self.child.take() {
-            // Send shutdown command via stdin so sidecar can clean up child processes
-            let shutdown_cmd = serde_json::json!({"type": "shutdown"});
-            let json = serde_json::to_string(&shutdown_cmd).unwrap_or_default();
-            let _ = child.write((json + "\n").as_bytes());
-
-            // Give sidecar a moment to shut down gracefully, then force kill
-            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-            let _ = child.kill();
-        }
-        self.is_ready = false;
-        Ok(())
-    }
-```
-
 **Step 2: Add shutdown handler in the sidecar Node.js code**
 
 Read `src-tauri/sidecar-opencode/src/index.ts` to find where stdin commands are parsed, then add a `shutdown` command handler that stops the OpenCode server and exits.
@@ -387,19 +147,7 @@ The sidecar already parses stdin JSON-line commands. Add a case for `"shutdown"`
 1. Calls `sessionManager.cleanup()` (or equivalent) to stop the OpenCode server
 2. Calls `process.exit(0)`
 
-Find the stdin command dispatch (likely a switch/if-chain on the command type) and add:
-
-```typescript
-case 'shutdown':
-  // Graceful shutdown: stop OpenCode server, then exit
-  try {
-    await sessionManager.stop();
-  } catch {
-    // Best-effort cleanup
-  }
-  process.exit(0);
-  break;
-```
+Find the stdin command dispatch (likely a switch/if-chain on the command type) and add shutdown handler
 
 **Step 3: Verify Rust compiles**
 
@@ -426,27 +174,6 @@ git commit -m "fix: graceful sidecar shutdown to prevent orphaned processes on W
 - Modify: `src-tauri/src/lib.rs:1195-1199`
 
 **Step 1: Update the docstring for `get_augmented_path`**
-
-Replace lines 1195-1199:
-
-```rust
-/// Build an augmented PATH suitable for macOS GUI-launched apps.
-///
-/// When the app is launched from Finder / Dock / Spotlight, macOS gives
-/// the process a minimal PATH (e.g. /usr/bin:/bin:/usr/sbin:/sbin).
-/// Tools installed via Homebrew, nvm, volta, etc. won't be found.
-```
-
-With:
-
-```rust
-/// Build an augmented PATH suitable for GUI-launched apps on all platforms.
-///
-/// On macOS, Finder/Dock/Spotlight give a minimal PATH. On Windows,
-/// Start Menu/Explorer may omit user-installed tool directories.
-/// This function merges the current PATH with login-shell PATH (Unix only)
-/// and well-known tool directories for each platform.
-```
 
 **Step 2: Verify it compiles**
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { ChevronRight, File, FileCode, FileJson, FileText, Folder, FolderOpen, Image, Loader2, Search } from 'lucide-react';
-import { useCallback, useEffect, useRef } from 'react';
+import { ChevronRight, Eye, EyeOff, File, FileCode, FileJson, FileText, Folder, FolderOpen, Image, Loader2, Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type FileTreeNode, useFileTree } from '@/hooks/useFileTree';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
@@ -11,6 +11,49 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 const CODE_EXTENSIONS = new Set(['ts', 'tsx', 'js', 'jsx', 'rs', 'py', 'java', 'c', 'cpp', 'go', 'rb', 'swift', 'kt']);
 const CONFIG_EXTENSIONS = new Set(['json', 'yaml', 'yml', 'toml', 'xml', 'ini', 'env']);
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp']);
+
+/**
+ * System/hidden folders that should be hidden by default.
+ * Covers both macOS and Windows conventions.
+ *
+ * macOS: dotfiles/dotfolders (e.g. .git, .DS_Store), __MACOSX
+ * Windows: $RECYCLE.BIN, System Volume Information, Thumbs.db, desktop.ini
+ * Cross-platform: node_modules, __pycache__, .venv, etc. are NOT hidden
+ *   — only OS-level system entries are filtered here.
+ */
+const SYSTEM_ENTRIES_MACOS = new Set([
+  '.DS_Store',
+  '.Spotlight-V100',
+  '.Trashes',
+  '.fseventsd',
+  '__MACOSX',
+  '.DocumentRevisions-V100',
+  '.TemporaryItems',
+]);
+const SYSTEM_ENTRIES_WINDOWS = new Set([
+  '$RECYCLE.BIN',
+  'System Volume Information',
+  'Thumbs.db',
+  'desktop.ini',
+  'NTUSER.DAT',
+  'ntuser.dat.LOG1',
+  'ntuser.dat.LOG2',
+  'ntuser.ini',
+]);
+
+/**
+ * Returns true if the entry is considered "hidden" (dotfile/dotfolder or OS system entry).
+ * Works for both macOS and Windows naming conventions.
+ */
+function isHiddenEntry(name: string): boolean {
+  // Dotfiles/dotfolders (macOS/Linux convention, also common on Windows via Git etc.)
+  if (name.startsWith('.')) return true;
+  // macOS system entries
+  if (SYSTEM_ENTRIES_MACOS.has(name)) return true;
+  // Windows system entries (case-insensitive)
+  if (SYSTEM_ENTRIES_WINDOWS.has(name)) return true;
+  return false;
+}
 
 function getFileIcon(entry: { isDirectory: boolean; extension?: string; name: string }, isExpanded: boolean) {
   if (entry.isDirectory) {
@@ -120,7 +163,14 @@ function TreeRow({ node, depth, onToggle, onSelect }: TreeRowProps) {
 
 export default function FileTreePanel() {
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
-  const { nodes, isLoadingRoot, error, searchQuery, loadRoot, toggleExpand, refreshRoot, setSearchQuery } = useFileTree();
+  const [showHidden, setShowHidden] = useState(false);
+
+  const hiddenFilter = useMemo(() => {
+    if (showHidden) return undefined;
+    return (entry: { name: string }) => !isHiddenEntry(entry.name);
+  }, [showHidden]);
+
+  const { nodes, isLoadingRoot, error, searchQuery, loadRoot, toggleExpand, refreshRoot, setSearchQuery } = useFileTree(hiddenFilter);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   // Load root when workspace changes
@@ -161,16 +211,31 @@ export default function FileTreePanel() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Search */}
-      <div className="relative px-2 py-1.5">
-        <Search className="absolute top-1/2 left-4 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <input
-          className="w-full rounded-md border border-border bg-background py-1 pr-2 pl-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search files..."
-          type="text"
-          value={searchQuery}
-        />
+      {/* Search + hidden files toggle */}
+      <div className="flex items-center gap-1 px-2 py-1.5">
+        <div className="relative flex-1">
+          <Search className="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            className="w-full rounded-md border border-border bg-background py-1 pr-2 pl-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search files..."
+            type="text"
+            value={searchQuery}
+          />
+        </div>
+        <button
+          className={cn(
+            'flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors',
+            'hover:bg-accent hover:text-accent-foreground',
+            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            showHidden && 'bg-accent text-accent-foreground'
+          )}
+          onClick={() => setShowHidden((v) => !v)}
+          title={showHidden ? 'Hide hidden files' : 'Show hidden files'}
+          type="button"
+        >
+          {showHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+        </button>
       </div>
 
       {/* Tree */}

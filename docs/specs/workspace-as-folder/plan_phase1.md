@@ -646,6 +646,38 @@ Run: `pnpm tauri dev`
 
 ---
 
+## Task 19: File tree — hidden files & system folders toggle
+
+**Goal:** Add a toggle to show/hide hidden files (dotfiles, OS system entries) in the file tree. Hidden by default. Cross-platform filter covering macOS and Windows naming conventions.
+
+**Files:**
+- Modify: `src/hooks/useFileTree.ts`
+- Modify: `src/components/sidebar/FileTreePanel.tsx`
+- Modify: `docs/specs/workspace-as-folder/design_phase1.md`
+
+**Step 1: Add `filterPredicate` parameter to `useFileTree` hook**
+
+Accept an optional `filterPredicate: (entry: DirectoryEntry) => boolean`. Apply it via a new `filterNodesByPredicate()` helper that recursively removes non-matching entries from the tree. The predicate filter runs before the existing search filter.
+
+**Step 2: Add hidden entry detection in `FileTreePanel.tsx`**
+
+Define `isHiddenEntry(name: string): boolean` that returns `true` for:
+- Names starting with `.` (dotfiles/dotfolders)
+- macOS system entries: `.DS_Store`, `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `__MACOSX`, `.DocumentRevisions-V100`, `.TemporaryItems`
+- Windows system entries: `$RECYCLE.BIN`, `System Volume Information`, `Thumbs.db`, `desktop.ini`, `NTUSER.DAT`, `ntuser.dat.LOG1`, `ntuser.dat.LOG2`, `ntuser.ini`
+
+**Step 3: Add toggle state and UI button**
+
+Add `showHidden` state (default `false`). Create a `hiddenFilter` via `useMemo` that returns `undefined` when `showHidden` is true (show all) or the `isHiddenEntry`-based predicate when false. Pass to `useFileTree(hiddenFilter)`.
+
+Add a 26×26px icon button (Eye/EyeOff) next to the search input. Button is highlighted when `showHidden` is true.
+
+**Step 4: Verify**
+
+Run: `pnpm typecheck` — passes.
+
+---
+
 ## Verification
 
 1. **Type checks pass:** `pnpm typecheck` + `cd src-tauri && cargo check`

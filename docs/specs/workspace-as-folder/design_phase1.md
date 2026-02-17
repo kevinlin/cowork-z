@@ -216,6 +216,37 @@ Files and folders in the tree are draggable. Dropping a tree item onto either th
 
 **Note:** Both intra-app (file tree) and OS-level (Finder) drops are handled by the same Tauri `onDragDropEvent` listener. The distinction is made by checking whether `paths` is empty (intra-app, read from `pendingDragPath`) or populated (Finder, paths provided by the OS).
 
+### Hidden Files & System Folders Toggle
+
+The file tree hides hidden files and OS system folders by default. A toggle button (eye icon) next to the search bar lets the user show/hide them.
+
+**Default state:** Hidden (toggle off, `EyeOff` icon shown).
+
+**Toggle on:** All files visible (`Eye` icon, button highlighted with `bg-accent`).
+
+#### Filter Logic
+
+Filtering is performed entirely on the frontend — the Rust `read_directory` command returns all entries. The `useFileTree` hook accepts an optional `filterPredicate: (entry: DirectoryEntry) => boolean` parameter. When provided, it recursively removes non-matching entries from the tree before applying search filtering.
+
+An entry is considered "hidden" if any of the following is true:
+
+1. **Dotfiles/dotfolders** (macOS/Linux convention): name starts with `.` (e.g. `.git`, `.DS_Store`, `.env`, `.vscode`)
+2. **macOS system entries**: `.DS_Store`, `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `__MACOSX`, `.DocumentRevisions-V100`, `.TemporaryItems`
+3. **Windows system entries**: `$RECYCLE.BIN`, `System Volume Information`, `Thumbs.db`, `desktop.ini`, `NTUSER.DAT`, `ntuser.dat.LOG1`, `ntuser.dat.LOG2`, `ntuser.ini`
+
+Note: Developer-convention hidden folders like `node_modules`, `__pycache__`, `.venv` etc. are captured by the dotfile rule (if prefixed with `.`) or intentionally left visible (if not prefixed). The filter targets OS-level system entries, not project tooling directories.
+
+#### Filter Pipeline Order
+
+1. **Predicate filter** (`filterNodesByPredicate`) — removes hidden entries from the full tree
+2. **Search filter** (`filterNodes`) — applies the user's search query to the visible subset
+
+This ensures search only matches visible entries when hidden files are off, and matches all entries when hidden files are shown.
+
+#### UI
+
+The toggle button is placed to the right of the search input in the file tree header bar. It is a 26×26px bordered icon button with hover/focus states matching the app's design system.
+
 ### No Preview (Phase 1)
 
 Clicking a file in the tree selects/highlights it but does not open a preview panel. Phase 2 adds the right-side file preview.

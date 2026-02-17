@@ -16,7 +16,7 @@ interface FileTreeState {
   searchQuery: string;
 }
 
-export function useFileTree() {
+export function useFileTree(filterPredicate?: (entry: DirectoryEntry) => boolean) {
   const [state, setState] = useState<FileTreeState>({
     nodes: [],
     isLoadingRoot: false,
@@ -170,8 +170,9 @@ export function useFileTree() {
     setState((s) => ({ ...s, searchQuery: query }));
   }, []);
 
-  // Filter nodes based on search query
-  const filteredNodes = state.searchQuery ? filterNodes(state.nodes, state.searchQuery.toLowerCase()) : state.nodes;
+  // Apply entry filter predicate (e.g. hide hidden files), then search query
+  const visibleNodes = filterPredicate ? filterNodesByPredicate(state.nodes, filterPredicate) : state.nodes;
+  const filteredNodes = state.searchQuery ? filterNodes(visibleNodes, state.searchQuery.toLowerCase()) : visibleNodes;
 
   return {
     nodes: filteredNodes,
@@ -204,6 +205,16 @@ function updateNodeInTree(nodes: FileTreeNode[], path: string, updater: (node: F
     }
     return node;
   });
+}
+
+function filterNodesByPredicate(nodes: FileTreeNode[], predicate: (entry: DirectoryEntry) => boolean): FileTreeNode[] {
+  const result: FileTreeNode[] = [];
+  for (const node of nodes) {
+    if (!predicate(node.entry)) continue;
+    const filteredChildren = node.children ? filterNodesByPredicate(node.children, predicate) : undefined;
+    result.push({ ...node, children: filteredChildren });
+  }
+  return result;
 }
 
 function filterNodes(nodes: FileTreeNode[], query: string): FileTreeNode[] {

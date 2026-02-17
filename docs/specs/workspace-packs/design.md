@@ -24,7 +24,7 @@ Add a Workspace Starter Packs feature to cowork-z. Packs are guided, copyable wo
    ```
    `src-tauri/resources/packs` and `src-tauri/resources/pack-docs` are **symlinks** pointing to `../../workspace-packs/packs` and `../../workspace-packs/pack-docs` respectively. `workspace-packs/` at the repo root is the single source of truth — no content duplication. In dev, `resolve_pack_sources()` falls back to `CARGO_MANIFEST_DIR/../workspace-packs/` (debug-only). In prod, the bundler follows the symlinks and includes the content under `resources/packs/` and `resources/pack-docs/`.
 
-3. **Frontend** — `tauri-api.ts` and `tauri-api-interface.ts` gain `PackMeta`, `PackInstallResult`, `listPacks()`, `installPack()`, `installPackDefault()`. `Home.tsx` is rewritten with a wider container and a packs grid replacing `USE_CASE_EXAMPLES`.
+3. **Frontend** — `tauri-api.ts` and `tauri-api-interface.ts` gain `PackMeta`, `PackInstallResult`, `listPacks()`, `installPack()`, `installPackDefault()`. `Home.tsx` uses a tabbed layout (`packs` | `skills`). The packs tab renders `StarterPacks` (`src/components/landing/StarterPacks.tsx`), a self-contained component that owns its own state (catalog loading, search filtering, install flow, error display) — mirroring the `SkillsCatalog` component pattern. `Home.tsx` no longer contains packs-specific state or logic.
 
 ---
 
@@ -55,23 +55,27 @@ The Rust catalog is a hardcoded `Vec<PackMeta>` (same pattern as Tandem). `pack_
 Card
 ├── CardContent (p-6 pb-4)
 │   └── TaskInputBar  ← unchanged
-└── border-t section  ← replaces "Example prompts" toggle
-    ├── Header row
-    │   ├── Left: "Starter Packs" label + subtitle
-    │   └── Right: search input (filters by title/description/tags)
-    └── ScrollArea (max-h ~400px, overflow-y-auto)
-        └── 2-column grid of PackCard components
-            Each card:
-            ├── Title (bold)
-            ├── Description (muted, 2 lines)
-            ├── Complexity pill + time estimate
-            ├── Tag pills (up to 4, runtime-aware coloring for python/node/bash)
-            └── Install button (right-aligned)
+├── Tab bar (border-t)
+│   ├── "Starter Packs" tab  → renders <StarterPacks />
+│   └── "Skills Catalog" tab → renders <SkillsCatalog />
+└── Tab content
+    └── <StarterPacks /> (src/components/landing/StarterPacks.tsx)
+        ├── Header row
+        │   ├── Left: subtitle text
+        │   └── Right: search input (filters by title/description/tags)
+        └── ScrollArea (max-h ~400px, overflow-y-auto)
+            └── 2-column grid of pack cards
+                Each card:
+                ├── Title (bold)
+                ├── Description (muted, 2 lines)
+                ├── Complexity pill + time estimate
+                ├── Tag pills (up to 4)
+                └── Install button (right-aligned)
 ```
 
-The `AnimatePresence` collapse from the old "Example prompts" section is removed. The packs section is always visible (no toggle).
+`StarterPacks` is a self-contained component (same pattern as `SkillsCatalog`) that owns all packs-specific state: catalog loading, search filtering, install flow with folder picker, workspace registration, and error display. `Home.tsx` only manages the tab selection and delegates entirely to these child components.
 
-**Removed:** `USE_CASE_EXAMPLES` array and all use-case image imports.
+**Removed:** `USE_CASE_EXAMPLES` array, all use-case image imports, and inline packs state/logic from `Home.tsx`.
 
 ---
 
@@ -122,7 +126,8 @@ The `AnimatePresence` collapse from the old "Example prompts" section is removed
 | `src-tauri/tauri.conf.json` | Add `"resources/packs/**/*"` and `"resources/pack-docs/**/*"` to `bundle.resources` |
 | `src/lib/tauri-api.ts` | Add `PackMeta`, `PackInstallResult` interfaces; `listPacks()`, `installPack()`, `installPackDefault()` functions |
 | `src/lib/tauri-api-interface.ts` | Add `listPacks`, `installPack`, `installPackDefault` to `TauriAPI` interface and implementation |
-| `src/pages/Home.tsx` | Rewrite: widen container, remove USE_CASE_EXAMPLES + image imports, add packs section with search + 2-col grid |
+| `src/components/landing/StarterPacks.tsx` | **New** — Self-contained packs catalog component (search, grid, install flow, error display). Mirrors `SkillsCatalog` pattern. |
+| `src/pages/Home.tsx` | Rewrite: widen container, remove USE_CASE_EXAMPLES + image imports, add tab bar (`packs` / `skills`), delegate to `<StarterPacks />` and `<SkillsCatalog />` |
 
 ---
 

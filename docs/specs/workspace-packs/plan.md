@@ -230,3 +230,21 @@ pnpm tauri dev
 - [ ] Install flow works end-to-end in `pnpm tauri dev`
 - [ ] Update `docs/specs/cowork-z/requirements.md` with feature completion
 - [ ] Append entry to `UPDATE_LOG.md`
+
+---
+
+## Implementation Log
+
+### 2026-02-17 — Extract StarterPacks component
+
+**Task:** Extract the inline packs catalog from `Home.tsx` (lines 202–267) into a self-contained `StarterPacks` component.
+
+**Changes:**
+
+| File | Change |
+|------|--------|
+| `src/components/landing/StarterPacks.tsx` | **New** — Self-contained packs catalog component extracted from `Home.tsx`. Owns all packs-specific state: catalog loading (`listPacks`), search filtering, install flow (folder picker → `installPack` → `addWorkspace` → `switchWorkspace` → `executeTask`), and per-card error display. Follows the same pattern as `SkillsCatalog`. |
+| `src/pages/Home.tsx` | Removed packs-specific state (`packs`, `packsLoading`, `installingId`, `packErrors`, `query`), `filteredPacks` memo, `handleInstall` callback, and `COMPLEXITY_COLORS` constant. Removed unused imports (`pickFolder`, `PackMeta`, `useWorkspaceStore`). Replaced inline packs JSX with `<StarterPacks />`. |
+| `docs/specs/workspace-packs/design.md` | Updated Architecture layer 3 description, Home.tsx layout diagram, and Files Changed table to reflect the extraction. |
+
+**Verification:** `pnpm typecheck` passes with 0 errors. No lint errors.

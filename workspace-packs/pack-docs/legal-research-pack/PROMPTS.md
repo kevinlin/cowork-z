@@ -1,6 +1,6 @@
 # Prompts
 
-Copy and paste these prompts into Tandem in order.
+Copy and paste these prompts into Cowork-Z in order.
 
 ## Prompt 1: Initial Risk Scan
 > "I have a draft employment agreement in reasonable markdown format. Please scan `EMPLOYMENT_AGREEMENT_DRAFT.md` and identify any clauses that might be legally unenforceable or pose a high risk to the employee. Specifically, look at the non-compete and IP assignment clauses."

@@ -1,6 +1,6 @@
 # Legal Research Pack
 
-**Description**: A suite of legal documents designed to test Tandem's ability to perform legal analysis, contract review, and case summarization.
+**Description**: A suite of legal documents designed to test Cowork-Z's ability to perform legal analysis, contract review, and case summarization.
 
 **Complexity**: Intermediate-Advanced
 **Time Estimate**: 20-25 min

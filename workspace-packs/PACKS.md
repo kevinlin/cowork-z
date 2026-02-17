@@ -1,6 +1,6 @@
-# Tandem Workspace Packs Catalog
+# Cowork-Z Workspace Packs Catalog
 
-This catalog provides an overview of all available Tandem Workspace Packs for the Tandem master repository.
+This catalog provides an overview of all available Cowork-Z Workspace Packs for the Cowork-Z master repository.
 
 ---
 
@@ -23,7 +23,7 @@ This catalog provides an overview of all available Tandem Workspace Packs for th
 
 ### Micro-Drama Script Studio Pack
 
-**Purpose**: Demonstrate Tandem's multi-file context, supervised writes, and HTML artifact generation through micro-drama script creation.
+**Purpose**: Demonstrate Cowork-Z's multi-file context, supervised writes, and HTML artifact generation through micro-drama script creation.
 
 **Key Capabilities Showcased**:
 
@@ -39,7 +39,7 @@ This catalog provides an overview of all available Tandem Workspace Packs for th
 - Episode beats document (Markdown)
 - Cast sheet (Markdown)
 
-**Best For**: Content creators, scriptwriters, demonstrating Tandem to stakeholders
+**Best For**: Content creators, scriptwriters, demonstrating Cowork-Z to stakeholders
 
 ---
 
@@ -224,7 +224,7 @@ Metadata and instructions are stored separately to maintain realism:
 pack-docs/<PACK_SLUG>/
 ├── PACK_INFO.md           # Pack metadata and description
 ├── START_HERE.md          # Step-by-step user instructions
-├── PROMPTS.md             # Five copy/paste prompts for Tandem
+├── PROMPTS.md             # Five copy/paste prompts for Cowork-Z
 └── EXPECTED_OUTPUTS.md    # Quality criteria and validation
 ```
 
@@ -276,13 +276,3 @@ To create a new pack:
 - Original text written for the pack
 - Realistic but fictional examples
 - Safe for public distribution
-
----
-
-## Version Information
-
-Last Updated: January 2026
-
-Pack Format Version: 1.0
-
-Tandem Compatible: All current versions

@@ -41,7 +41,7 @@ Ollama requires Docker for all installations. Installation steps:
 
 ---
 
-## Tandem Platform Facts
+## Cowork-Z Platform Facts
 
 **Known Limitations (January 2024)**:
 

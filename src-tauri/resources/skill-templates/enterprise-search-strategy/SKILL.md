@@ -5,7 +5,7 @@ description: Query decomposition and multi-source search orchestration. Breaks n
 
 # Search Strategy
 
-The core intelligence behind Tandem search. Transforms a single natural language question into parallel, source-specific searches and produces ranked, deduplicated results.
+The core intelligence behind Cowork-Z search. Transforms a single natural language question into parallel, source-specific searches and produces ranked, deduplicated results.
 
 ## The Goal
 

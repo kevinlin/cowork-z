@@ -1,9 +1,9 @@
 ---
 name: mode-builder
-description: Create Tandem custom modes through guided questions, then output one valid mode JSON object for preview and apply.
+description: Create Cowork-Z custom modes through guided questions, then output one valid mode JSON object for preview and apply.
 version: 1.0.0
 tags:
-  - tandem
+  - Cowork-Z
   - modes
   - configuration
   - onboarding
@@ -14,7 +14,7 @@ compatibility: opencode
 
 ## Purpose
 
-Help users create a safe, useful Tandem custom mode even if they are not technical.
+Help users create a safe, useful Cowork-Z custom mode even if they are not technical.
 
 ## Core Rules
 

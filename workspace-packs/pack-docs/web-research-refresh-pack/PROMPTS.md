@@ -1,6 +1,6 @@
-# Tandem Prompts - Web Research Refresh Pack
+# Cowork-Z Prompts - Web Research Refresh Pack
 
-Copy and paste these prompts sequentially into Tandem. Each prompt builds on the previous outputs.
+Copy and paste these prompts sequentially into Cowork-Z. Each prompt builds on the previous outputs.
 
 ---
 
@@ -104,7 +104,7 @@ For each claim, perform research and document in outputs/evidence.md:
 
 Use this format for each claim:
 
-### Category: [GitHub Actions / Tauri / Ollama / Tandem]
+### Category: [GitHub Actions / Tauri / Ollama / Cowork-Z]
 
 #### [Specific Claim]
 
@@ -165,7 +165,7 @@ Table showing:
 |------|--------|--------|-------|
 | [Fact] | [Status] | [1] | [Notes] |
 
-#### Tandem Platform
+#### Cowork-Z Platform
 | Fact | Status | Source | Notes |
 |------|--------|--------|-------|
 | [Fact] | [Status] | [1] | [Notes] |

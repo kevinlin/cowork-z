@@ -5,7 +5,7 @@ description: Combines search results from multiple sources into coherent, dedupl
 
 # Knowledge Synthesis
 
-The last mile of Tandem search. Takes raw results from multiple sources and produces a coherent, trustworthy answer.
+The last mile of Cowork-Z search. Takes raw results from multiple sources and produces a coherent, trustworthy answer.
 
 ## The Goal
 

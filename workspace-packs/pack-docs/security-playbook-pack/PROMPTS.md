@@ -1,6 +1,6 @@
-# Tandem Prompts - Security Playbook Pack
+# Cowork-Z Prompts - Security Playbook Pack
 
-Copy and paste these prompts sequentially into Tandem. Each prompt builds on the previous outputs.
+Copy and paste these prompts sequentially into Cowork-Z. Each prompt builds on the previous outputs.
 
 ---
 

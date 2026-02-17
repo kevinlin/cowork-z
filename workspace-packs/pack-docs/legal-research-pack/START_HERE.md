@@ -9,9 +9,9 @@ Welcome to the Legal Research Pack! This pack simulates a realistic legal workfl
    - `EMPLOYMENT_AGREEMENT_DRAFT.md`: A draft contract with some questionable clauses.
    - `CASE_NOTES_SMITH_V_JONES.md`: Notes on an active lawsuit.
 
-2. **Run the Prompts**: Use the prompts in `PROMPTS.md` to guide Tandem through the analysis.
+2. **Run the Prompts**: Use the prompts in `PROMPTS.md` to guide Cowork-Z through the analysis.
 
 3. **Verify**: Check the outputs against the criteria in `EXPECTED_OUTPUTS.md`.
 
 ## Goal
-Demonstrate how Tandem can act as a legal assistant, spotting risks and synthesizing complex legal facts into clear memos.
+Demonstrate how Cowork-Z can act as a legal assistant, spotting risks and synthesizing complex legal facts into clear memos.

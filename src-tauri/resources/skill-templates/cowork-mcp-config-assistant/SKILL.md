@@ -1,16 +1,16 @@
 ---
 name: cowork-mcp-config-assistant
-description: Configure Model Context Protocol (MCP) servers and customize Tandem skills for your organization.
+description: Configure Model Context Protocol (MCP) servers and customize Cowork-Z skills for your organization.
 requires: [python, node]
 ---
 
 # MCP Configuration & Skill Customization
 
-Adapt Tandem skills to your specific organization by replacing customization points with actual tool names, configuring MCP servers, and applying organization-specific customizations.
+Adapt Cowork-Z skills to your specific organization by replacing customization points with actual tool names, configuring MCP servers, and applying organization-specific customizations.
 
 ## Overview
 
-Some skills use placeholders (e.g., `~~Jira`, `~~your-team-channel`) that need to be replaced with your actual tools and values. This assistant helps you identify these points and configure the necessary MCP servers to connect Tandem to your data.
+Some skills use placeholders (e.g., `~~Jira`, `~~your-team-channel`) that need to be replaced with your actual tools and values. This assistant helps you identify these points and configure the necessary MCP servers to connect Cowork-Z to your data.
 
 ## Workflow
 
@@ -21,7 +21,7 @@ Some skills use placeholders (e.g., `~~Jira`, `~~your-team-channel`) that need t
 
 ### 2. Configure MCP Servers
 
-To connect Tandem to your tools, you need to configure MCP servers.
+To connect Cowork-Z to your tools, you need to configure MCP servers.
 
 **Common MCP Servers:**
 
@@ -41,7 +41,7 @@ To connect Tandem to your tools, you need to configure MCP servers.
 
 1. **Find the Server**: Check the [MCP Registry](https://github.com/modelcontextprotocol/servers) for available servers.
 2. **Install**: Follow the installation instructions for the server (usually `npm install` or `pip install`).
-3. **Configure**: Add the server to your Tandem configuration file (usually in settings or a config JSON).
+3. **Configure**: Add the server to your Cowork-Z configuration file (usually in settings or a config JSON).
 
 Example Config Entry:
 
@@ -58,5 +58,5 @@ Example Config Entry:
 ## Tips
 
 - **Start Simple**: Connect one key tool (like your issue tracker or knowledge base) first.
-- **Verify**: Test the connection by asking Tandem to list items from the tool.
+- **Verify**: Test the connection by asking Cowork-Z to list items from the tool.
 - **Iterate**: Add more tools and customizations as you discover needs.

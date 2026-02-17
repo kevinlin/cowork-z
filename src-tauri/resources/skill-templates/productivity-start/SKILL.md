@@ -24,8 +24,8 @@ Check the working directory for:
 
 **If `dashboard.html` doesn't exist:**
 Copy it from the productivity pack. You can find it at:
-`[Tandem Resource Path]/packs/productivity-pack/dashboard.html`
-(Note: Adapt the path to the actual location where packs are stored in the Tandem environment, typically `src-tauri/resources/packs` in dev or similar in prod).
+`[Cowork-Z Resource Path]/packs/productivity-pack/dashboard.html`
+(Note: Adapt the path to the actual location where packs are stored in the Cowork-Z environment, typically `src-tauri/resources/packs` in dev or similar in prod).
 
 **If `CONTEXT.md` and `memory/` don't exist:** This is a fresh setup — after opening the dashboard, begin the memory bootstrap workflow (see below). Place these in the current working directory.
 

@@ -1,6 +1,6 @@
-# Tandem Prompts - Web Starter Audit Pack
+# Cowork-Z Prompts - Web Starter Audit Pack
 
-Copy and paste these prompts sequentially into Tandem. Each prompt builds on the previous outputs.
+Copy and paste these prompts sequentially into Cowork-Z. Each prompt builds on the previous outputs.
 
 ---
 

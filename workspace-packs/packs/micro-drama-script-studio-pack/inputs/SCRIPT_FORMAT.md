@@ -236,7 +236,7 @@ TEXT ON SCREEN: "TO BE CONTINUED..."
 
 ## LLM Formatting Notes
 
-When generating scripts via LLM, use standard Markdown formatting to ensure the scripts render correctly in the Tandem app.
+When generating scripts via LLM, use standard Markdown formatting to ensure the scripts render correctly in the Cowork-Z app.
 
 ### Guidelines for LLM
 

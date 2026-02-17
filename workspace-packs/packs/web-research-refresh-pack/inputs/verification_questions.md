@@ -74,16 +74,16 @@ This document lists the specific facts that need verification from authoritative
 
 ---
 
-## Category 4: Tandem Platform (Public Information Only)
+## Category 4: Cowork-Z Platform (Public Information Only)
 
 ### Q4.1: Platform Capabilities
 
-**Claim to verify**: What are publicly documented Tandem platform capabilities and limitations? Focus only on officially published information.
+**Claim to verify**: What are publicly documented Cowork-Z platform capabilities and limitations? Focus only on officially published information.
 
 **Authoritative sources to check**:
 
-- Tandem official documentation
-- Tandem website
+- Cowork-Z official documentation
+- Cowork-Z website
 
 ### Q4.2: Feature Availability
 
@@ -91,8 +91,8 @@ This document lists the specific facts that need verification from authoritative
 
 **Authoritative sources to check**:
 
-- Tandem documentation
-- Official Tandem communications
+- Cowork-Z documentation
+- Official Cowork-Z communications
 
 ---
 

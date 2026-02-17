@@ -2,9 +2,9 @@
 
 ## Quick Start (10 Minutes)
 
-### Step 1: Open Tandem
+### Step 1: Open Cowork-Z
 
-Launch the Tandem application and ensure you're logged into your workspace.
+Launch the Cowork-Z application and ensure you're logged into your workspace.
 
 ### Step 2: Select Workspace Pack
 
@@ -26,7 +26,7 @@ Scan the inputs/ directory and create a summary document that:
 Save your summary to outputs/workspace_scan.md
 ```
 
-6. Review the files Tandem wants to read
+6. Review the files Cowork-Z wants to read
 7. Approve the read operation
 
 ### Step 4: Proceed Through the Workflow
@@ -51,7 +51,7 @@ Follow prompts sequentially:
 
 ### Read Approvals
 
-When Tandem requests to read files:
+When Cowork-Z requests to read files:
 
 1. Review the list of files
 2. Confirm they match expected inputs (10 papers + questions + glossary)
@@ -59,7 +59,7 @@ When Tandem requests to read files:
 
 ### Write Approvals
 
-When Tandem requests to write:
+When Cowork-Z requests to write:
 
 1. Check the file path (should be in `outputs/`)
 2. Verify the format matches your expectations
@@ -76,7 +76,7 @@ Some prompts require multiple approvals. Review each request individually.
 | Issue                  | Solution                                                 |
 | ---------------------- | -------------------------------------------------------- |
 | Can't find pack folder | Ensure you're in `workspace-packs/packs/` directory      |
-| Files not showing      | Click refresh in Tandem or restart                       |
+| Files not showing      | Click refresh in Cowork-Z or restart                       |
 | Prompt not working     | Ensure you're using exact prompt text from PROMPTS.md    |
 | HTML not rendering     | Open in a modern browser (Chrome, Firefox, Safari, Edge) |
 | Missing papers         | Check inputs/papers/ contains all 10 markdown files      |

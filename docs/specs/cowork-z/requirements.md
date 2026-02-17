@@ -23,29 +23,58 @@ Whether you're a developer protecting proprietary code, a researcher working wit
 
 The following implementation plans document how specific requirements were designed and built:
 
+### cowork-z — Platform & Security
+
 | Plan | Location | Requirements |
 |------|----------|--------------|
-| Sidecar OpenCode Rewrite | [`opencode-sidecar/plan_sidecar-opencode-rewrite.md`](../opencode-sidecar/plan_sidecar-opencode-rewrite.md) | 1.2.1, 1.2.2 |
-| Folder Permission Model | [`opencode-sidecar/plan_folder-permission-model.md`](../opencode-sidecar/plan_folder-permission-model.md) | 1.3.1–1.3.4 |
-| Fix System Prompt Injection | [`opencode-sidecar/plan_fix_system_prompt_injection.md`](../opencode-sidecar/plan_fix_system_prompt_injection.md) | 2.1 |
-| Keyboard Shortcuts | [`ts-frontend/plan_keyboard-shortcuts.md`](../ts-frontend/plan_keyboard-shortcuts.md) | 4.3.1, 4.3.2 |
-| Server Isolation | [`cowork-z/plan_server-isolation.md`](plan_server-isolation.md) | 5.2.1 |
-| Todo Panel in Sidebar | [`plan_todo-panel-in-sidebard.md`](plan_todo-panel-in-sidebard.md) | 3.3 |
-| User Prompt Customization | [`cowork-z/plan_user-prompt-customization.md`](plan_user-prompt-customization.md) | 2.1 |
-| MCP Server Support | `[cowork-z/plan_mcp-server-support.md](plan_mcp-server-support.md)` | 2.3 |
-| Artefacts Panel | [`cowork-z/plan_artefacts-panel.md`](plan_artefacts-panel.md) | 3.4 |
-| Drag-and-Drop in Chat | [`ts-frontend/plan_drag-and-drop-support.md`](../ts-frontend/plan_drag-and-drop-support.md) | 3.5 |
-| Theme Support | [`ts-frontend/plan_theme-support.md`](../ts-frontend/plan_theme-support.md) | 4.2 |
-| About Panel | [`ts-frontend/plan_about_panel.md`](../ts-frontend/plan_about_panel.md) | 4.4 |
-| User Feedback | [`cowork-z/plan_user-feedback.md`](plan_user-feedback.md) | 4.5 (feedback) |
-| Cross-Platform Fixes | [`cowork-z/plan_cross-platform-support.md`](plan_cross-platform-support.md) | 5.1.1–5.1.3 |
-| Missing OpenCode CLI Detection | [`cowork-z/plan_missing-opencode-cli-detection.md`](plan_missing-opencode-cli-detection.md) | 5.3.3 |
-| OpenCode Server API Skill | [`cowork-z/plan_opencode-server-skill.md`](plan_opencode-server-skill.md) | 2.4 |
-| Windows Production Readiness | [`cowork-z/plan_windows-production-readiness.md`](plan_windows-production-readiness.md) | 5.1.1–5.1.3 |
-| OpenRouter Provider Support | [`cowork-z/plan_openrouter-provider-support.md`](plan_openrouter-provider-support.md) | 1.1.3 |
-| Dynamic Model Discovery | [`cowork-z/plan_dynamic-model-discovery-for-direct-api-providers.md`](plan_dynamic-model-discovery-for-direct-api-providers.md) | 1.1.4 |
-| Chat UI Rewrite | [Chat UI Rewrite](../ts-frontend/plan_chat_ui_rewrite.md) | 3.7 |
-| Workspace Starter Packs | [Workspace Packs Plan](../workspace-packs/plan.md) | 7.1–7.3 |
+| Windows Support (Phase 1) | [`cowork-z/plan_windows-support-phase1.md`](plan_windows-support-phase1.md) | 5.1.1–5.1.3 |
+
+### opencode-integration — OpenCode Sidecar Integration
+
+| Plan | Location | Requirements |
+|------|----------|--------------|
+| Sidecar OpenCode Rewrite | [`opencode-integration/plan_sidecar-opencode-rewrite.md`](../opencode-integration/plan_sidecar-opencode-rewrite.md) | 1.2.1, 1.2.2 |
+| Folder Permission Model | [`opencode-integration/plan_folder-permission-model.md`](../opencode-integration/plan_folder-permission-model.md) | 1.3.1–1.3.4 |
+| Fix System Prompt Injection | [`opencode-integration/plan_fix_system_prompt_injection.md`](../opencode-integration/plan_fix_system_prompt_injection.md) | 2.1 |
+| User Prompt Customization | [`opencode-integration/plan_user-prompt-customization.md`](../opencode-integration/plan_user-prompt-customization.md) | 2.1 |
+| MCP Server Support | [`opencode-integration/plan_mcp-server-support.md`](../opencode-integration/plan_mcp-server-support.md) | 2.3 |
+| OpenCode Server API Skill | [`opencode-integration/plan_opencode-server-skill.md`](../opencode-integration/plan_opencode-server-skill.md) | 2.4 |
+| Server Isolation | [`opencode-integration/plan_server-isolation.md`](../opencode-integration/plan_server-isolation.md) | 5.2.1 |
+| OpenRouter Provider Support | [`opencode-integration/plan_openrouter-provider-support.md`](../opencode-integration/plan_openrouter-provider-support.md) | 1.1.3 |
+
+### chat-ux — Chat Experience
+
+| Plan | Location | Requirements |
+|------|----------|--------------|
+| Chat UI Rewrite | [`chat-ux/plan_chat_ui_rewrite.md`](../chat-ux/plan_chat_ui_rewrite.md) | 3.7 |
+| Drag-and-Drop in Chat | [`chat-ux/plan_drag-and-drop-support.md`](../chat-ux/plan_drag-and-drop-support.md) | 3.5 |
+| Rich File & URL Display | [`chat-ux/plan_rich-file-url-display-in-chat.md`](../chat-ux/plan_rich-file-url-display-in-chat.md) | 3.1, 3.2 |
+
+### app-ux — App Experience
+
+| Plan | Location | Requirements |
+|------|----------|--------------|
+| Theme Support | [`app-ux/plan_theme-support.md`](../app-ux/plan_theme-support.md) | 4.2 |
+| Keyboard Shortcuts | [`app-ux/plan_keyboard-shortcuts.md`](../app-ux/plan_keyboard-shortcuts.md) | 4.3.1, 4.3.2 |
+| About Panel | [`app-ux/plan_about_panel.md`](../app-ux/plan_about_panel.md) | 4.4 |
+| User Feedback | [`app-ux/plan_user-feedback.md`](../app-ux/plan_user-feedback.md) | 4.5 |
+| Todo Panel in Sidebar | [`app-ux/plan_todo-panel-in-sidebard.md`](../app-ux/plan_todo-panel-in-sidebard.md) | 3.3 |
+| Artefacts Panel | [`app-ux/plan_artefacts-panel.md`](../app-ux/plan_artefacts-panel.md) | 3.4 |
+| Dynamic Model Discovery | [`app-ux/plan_dynamic-model-discovery-for-direct-api-providers.md`](../app-ux/plan_dynamic-model-discovery-for-direct-api-providers.md) | 1.1.4 |
+| Missing OpenCode CLI Detection | [`app-ux/plan_missing-opencode-cli-detection.md`](../app-ux/plan_missing-opencode-cli-detection.md) | 5.3.3 |
+
+### workspace-as-folder — Workspace-per-Folder Model
+
+| Plan | Location | Requirements |
+|------|----------|--------------|
+| Workspace Phase 1 | [`workspace-as-folder/plan_phase1.md`](../workspace-as-folder/plan_phase1.md) | 6.1–6.3 |
+| Workspace Phase 2 | [`workspace-as-folder/plan_phase2.md`](../workspace-as-folder/plan_phase2.md) | 6.4 |
+
+### workspace-packs — Workspace Starter Packs
+
+| Plan | Location | Requirements |
+|------|----------|--------------|
+| Workspace Starter Packs | [`workspace-packs/plan.md`](../workspace-packs/plan.md) | 7.1–7.3 |
 
 ---
 

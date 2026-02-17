@@ -85,6 +85,7 @@ The application shows a 3-panel workspace for the user:
 | Code | `ts tsx js jsx rs py java c cpp h hpp go rb php swift kt scala sh bash css scss xml sql r` | Syntax-highlighted with line numbers, dark theme |
 | Markdown | `md` | Rendered Markdown with GFM support (tables, strikethrough, etc.); embedded code blocks are syntax-highlighted with a macOS-style header bar |
 | Image | `png jpg jpeg gif svg webp bmp ico` | Centered image, scaled to fit, loaded via Tauri asset protocol |
+| Video | `mp4 webm ogg mov avi mkv m4v` | Native `<video>` player with controls, loaded via Tauri asset protocol |
 | PDF | `pdf` | Embedded native PDF viewer via base64 data URL |
 | HTML | `html htm` | Rendered in a sandboxed iframe; relative asset paths resolve correctly; scripts are allowed but the iframe cannot access the host app |
 | Text | `txt log csv json yaml yml toml ini cfg conf` | Plain monospace text, scrollable |
@@ -156,4 +157,3 @@ The following are explicitly **not** part of the current feature set:
 - Breadcrumb navigation
 - Presentation preview (`.tandem.ppt.json` — Tandem-specific format)
 - Extracted text preview for office documents (DOCX, PPTX, XLSX)
-- Video preview in the file preview panel (videos continue to use inline media thumbnails in chat)

@@ -1,6 +1,6 @@
 import type { DirectoryEntry } from '@/shared/types/workspace';
 
-export type PreviewType = 'code' | 'markdown' | 'image' | 'pdf' | 'html' | 'text' | 'binary';
+export type PreviewType = 'code' | 'markdown' | 'image' | 'video' | 'pdf' | 'html' | 'text' | 'binary';
 
 const CODE_EXTENSIONS = new Set([
   'ts',
@@ -31,6 +31,8 @@ const CODE_EXTENSIONS = new Set([
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico']);
 
+const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'm4v']);
+
 const TEXT_EXTENSIONS = new Set(['txt', 'log', 'csv', 'json', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf']);
 
 /**
@@ -44,6 +46,7 @@ export function getPreviewType(file: DirectoryEntry): PreviewType {
   if (ext === 'md') return 'markdown';
   if (ext === 'pdf') return 'pdf';
   if (IMAGE_EXTENSIONS.has(ext)) return 'image';
+  if (VIDEO_EXTENSIONS.has(ext)) return 'video';
   if (CODE_EXTENSIONS.has(ext)) return 'code';
   if (TEXT_EXTENSIONS.has(ext)) return 'text';
   return 'binary';

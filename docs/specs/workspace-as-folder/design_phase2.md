@@ -4,14 +4,14 @@ Date: 2026-02-17
 
 ## Overview
 
-Phase 2 adds a closable right-side file preview panel to the workspace layout. Clicking a file in the file tree (or a media thumbnail in chat) opens the preview. The panel supports code (syntax-highlighted), markdown, images, PDFs, HTML, plain text, and binary files. It includes fullscreen mode and an "Add to Chat" button.
+Phase 2 adds a closable, resizable right-side file preview panel to the workspace layout. Clicking a file in the file tree (or a media thumbnail in chat) opens the preview. The panel supports code (syntax-highlighted), markdown, images, video, PDFs, HTML, plain text, and binary files. It includes fullscreen mode and an "Add to Chat" button.
 
 This phase also replaces `MediaPreviewModal` — media thumbnails in chat messages open the same file preview panel instead of a modal dialog.
 
 ## Phasing Context
 
 - **Phase 1 (complete):** Workspace lifecycle, switching, file tree browser, permission integration.
-- **Phase 2 (this document):** File preview panel (code highlighting, markdown rendering, images, PDF, HTML), fullscreen mode, "Add to Chat" bridge.
+- **Phase 2 (this document):** File preview panel (code highlighting, markdown rendering, images, video, PDF, HTML), resizable panel, fullscreen mode, "Add to Chat" bridge.
 
 ---
 
@@ -108,7 +108,7 @@ App.tsx
     └── Content (dispatched by preview type)
         ├── CodePreview (react-syntax-highlighter)
         ├── MarkdownPreview (react-markdown + remark-gfm)
-        ├── ImagePreview (convertFileSrc)
+        ├── MediaPreview (convertFileSrc — images and video)
         ├── PdfPreview (readBinaryFile → base64 data URL → embed)
         ├── HtmlPreview (sandboxed iframe)
         ├── TextPreview (monospace pre)
@@ -124,6 +124,7 @@ Extension-based dispatch via `getPreviewType(file: DirectoryEntry)`:
 | `code` | ts tsx js jsx rs py java c cpp h hpp go rb php swift kt scala sh bash css scss xml sql r |
 | `markdown` | md |
 | `image` | png jpg jpeg gif svg webp bmp ico |
+| `video` | mp4 webm ogg mov avi mkv m4v |
 | `pdf` | pdf |
 | `html` | html htm |
 | `text` | txt log csv json yaml yml toml ini cfg conf |
@@ -133,7 +134,7 @@ Extension-based dispatch via `getPreviewType(file: DirectoryEntry)`:
 
 The main panel component. Receives `file: DirectoryEntry`, `onClose()`, and optional `onAddToChat()`.
 
-**Docked mode:** Renders as a right-side panel in the flex layout (`w-[400px]`, `border-l`).
+**Docked mode:** Renders as a right-side panel in the flex layout (default 400px, resizable 280–700px via drag handle), `border-l`.
 
 **Fullscreen mode:** Renders via `createPortal` to `document.body` as a fixed overlay (`fixed inset-0 z-50`). Escape key exits fullscreen. Switching files resets to docked mode.
 
@@ -151,9 +152,9 @@ Uses `react-syntax-highlighter` with `oneDark` theme. Shows line numbers. Extens
 
 Uses `react-markdown` with `remark-gfm` plugin. Code blocks within markdown get syntax highlighting with a macOS-style header bar (three colored dots + language label).
 
-### ImagePreview
+### MediaPreview
 
-Uses `convertFileSrc()` to load images directly via Tauri's asset protocol. This is simpler and more efficient than base64 encoding, and is already proven in `MediaThumbnail`.
+A combined image/video component. Uses `convertFileSrc()` to load media directly via Tauri's asset protocol. Accepts an `isVideo` prop to switch between `<img>` and `<video controls>` rendering. The `<video>` element includes a `<track kind="captions">` for accessibility.
 
 ### PdfPreview
 
@@ -184,7 +185,7 @@ The `App.tsx` layout changes from:
 To:
 
 ```
-[Sidebar] [Main (flex-1)] [FilePreviewPanel (conditional, w-[400px])]
+[Sidebar] [Main (flex-1)] [ResizeHandle] [FilePreviewPanel (conditional, 280–700px)]
 ```
 
 The preview panel is a direct sibling of `<main>` in the flex container. It renders conditionally based on `filePreviewStore.isPreviewOpen`.
@@ -241,5 +242,3 @@ Existing dependencies used: `react-markdown`, `remark-gfm`.
 - Presentation preview (`.tandem.ppt.json`) — Tandem-specific format
 - Extracted text (`read_file_text` for DOCX/PPTX/XLSX) — requires heavy Rust dependencies
 - "Open in Browser" button for HTML files
-- Resizable preview panel (drag-to-resize)
-- Video preview in the preview panel (videos continue to use `MediaThumbnail` inline)

@@ -9,6 +9,7 @@ import {
   Maximize2,
   MessageSquarePlus,
   Minimize2,
+  Video,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -21,11 +22,11 @@ import type { DirectoryEntry } from '@/shared/types/workspace';
 import { BinaryPreview } from './BinaryPreview';
 import { CodePreview } from './CodePreview';
 import { HtmlPreview } from './HtmlPreview';
-import { ImagePreview } from './ImagePreview';
 import { MarkdownPreview } from './MarkdownPreview';
+import { MediaPreview } from './MediaPreview';
 import { PdfPreview } from './PdfPreview';
+import { getPreviewType, type PreviewType } from './preview-utils';
 import { TextPreview } from './TextPreview';
-import { type PreviewType, getPreviewType } from './preview-utils';
 
 interface FilePreviewPanelProps {
   file: DirectoryEntry;
@@ -39,6 +40,8 @@ function getIcon(previewType: PreviewType) {
       return LayoutTemplate;
     case 'image':
       return ImageIcon;
+    case 'video':
+      return Video;
     case 'pdf':
       return FileText;
     case 'code':
@@ -72,7 +75,7 @@ export function FilePreviewPanel({ file, onClose, onAddToChat }: FilePreviewPane
 
   // Load text content for code, markdown, text, html
   useEffect(() => {
-    if (previewType === 'binary' || previewType === 'image' || previewType === 'pdf') {
+    if (previewType === 'binary' || previewType === 'image' || previewType === 'video' || previewType === 'pdf') {
       setIsLoading(false);
       return;
     }
@@ -141,7 +144,9 @@ export function FilePreviewPanel({ file, onClose, onAddToChat }: FilePreviewPane
         return <HtmlPreview baseHref={baseHref} content={content} />;
       }
       case 'image':
-        return <ImagePreview fileName={file.name} filePath={file.path} />;
+        return <MediaPreview fileName={file.name} filePath={file.path} />;
+      case 'video':
+        return <MediaPreview fileName={file.name} filePath={file.path} isVideo />;
       case 'pdf':
         return <PdfPreview fileName={file.name} filePath={file.path} />;
       case 'text':
@@ -159,12 +164,12 @@ export function FilePreviewPanel({ file, onClose, onAddToChat }: FilePreviewPane
     <div
       className={cn(
         expanded ? 'fixed inset-0 z-50 bg-background/95 shadow-2xl backdrop-blur-xl' : 'h-full',
-        expanded ? '' : 'border-l border-border'
+        expanded ? '' : 'border-border border-l'
       )}
     >
       <div className={cn('flex h-full flex-col', expanded ? 'bg-background/95' : 'bg-background')}>
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between border-border border-b px-4 py-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <Icon className="h-5 w-5 shrink-0 text-primary" />
             <div className="min-w-0 flex-1">

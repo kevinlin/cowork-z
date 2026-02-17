@@ -48,7 +48,7 @@ Date: 2026-02-17
 - Create `src/components/file-preview/CodePreview.tsx`
 - Create `src/components/file-preview/MarkdownPreview.tsx`
 - Create `src/components/file-preview/HtmlPreview.tsx`
-- Create `src/components/file-preview/ImagePreview.tsx`
+- Create `src/components/file-preview/MediaPreview.tsx` — combined image/video component (replaces `ImagePreview.tsx`)
 - Create `src/components/file-preview/PdfPreview.tsx`
 - Create `src/components/file-preview/TextPreview.tsx`
 - Create `src/components/file-preview/BinaryPreview.tsx`
@@ -83,9 +83,28 @@ Date: 2026-02-17
 **Files:**
 - Edit `src/components/file-preview/FilePreviewPanel.tsx` — wire "Add to Chat" button
 
-### Task 12: Verification
+### Task 12: Video Preview Support
+
+**Files:**
+- Edit `src/components/file-preview/preview-utils.ts` — add `'video'` to `PreviewType`, add `VIDEO_EXTENSIONS` set
+- Rename `src/components/file-preview/ImagePreview.tsx` → `MediaPreview.tsx` — add `isVideo` prop, render `<video controls>` with `<track kind="captions">` for video files
+- Edit `src/components/file-preview/FilePreviewPanel.tsx` — import `MediaPreview`, add `Video` icon, add `'video'` case to render dispatch and loading skip
+
+### Task 13: Resizable Preview Panel
+
+**Files:**
+- Edit `src/App.tsx` — add drag handle (`role="separator"`) between main and preview panel, mouse-event-based resize (min 280px, max 700px, default 400px), ARIA attributes for accessibility
+
+### Task 14: "Add to Chat" Event Wiring
+
+**Files:**
+- Edit `src/App.tsx` — dispatch `CustomEvent('add-to-chat')` with formatted `@path` reference
+- Edit `src/components/landing/TaskInputBar.tsx` — listen for `add-to-chat` event, insert text at cursor
+- Edit `src/components/chat/ChatInput.tsx` — listen for `add-to-chat` event, insert text at cursor
+
+### Task 15: Verification
 
 - `pnpm typecheck`
 - `cd src-tauri && cargo check`
-- `pnpm dlx ultracite fix src/ src-tauri/sidecar-opencode/`
+- `npx biome check --write` on changed files
 - `pnpm test --run`

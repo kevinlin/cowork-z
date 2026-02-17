@@ -597,6 +597,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
    - **Code** (`ts tsx js jsx rs py java c cpp h hpp go rb php swift kt scala sh bash css scss xml sql r`): Syntax-highlighted with line numbers, dark theme
    - **Markdown** (`md`): Rendered Markdown with GFM support; embedded code blocks are syntax-highlighted with a macOS-style header bar
    - **Image** (`png jpg jpeg gif svg webp bmp ico`): Centered image, scaled to fit, loaded via Tauri asset protocol
+   - **Video** (`mp4 webm ogg mov avi mkv m4v`): Native video player with controls, loaded via Tauri asset protocol
    - **PDF** (`pdf`): Embedded native PDF viewer via base64 data URL
    - **HTML** (`html htm`): Sandboxed iframe with scripts allowed but no host app access
    - **Text** (`txt log csv json yaml yml toml ini cfg conf`): Plain monospace text, scrollable
@@ -625,4 +626,3 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 The following items remain to be implemented:
 
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)
-- [ ] **Video Preview** in the file preview panel

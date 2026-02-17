@@ -73,22 +73,6 @@ Run: `cd src-tauri && cargo check`
 
 **Step 1: Implement `validate_workspace_path`**
 
-```rust
-pub fn validate_workspace_path(folder_path: &str) -> Result<(), String> {
-    let path = std::path::Path::new(folder_path);
-    let canonical = path.to_path_buf(); // Use as-is; canonical requires the path to exist
-
-    if cfg!(target_os = "macos") {
-        validate_macos(folder_path)
-    } else if cfg!(target_os = "windows") {
-        validate_windows(folder_path)
-    } else {
-        // Linux: minimal blocklist
-        validate_linux(folder_path)
-    }
-}
-```
-
 macOS blocklist: `/`, `/System`, `/usr`, `/bin`, `/sbin`, `/etc`, `/var`, `/private`, `/Applications`, exact home dir, `/Volumes` direct children (volume mount roots). Use `dirs::home_dir()` to resolve home. Check with `starts_with` for prefix-blocked paths and exact match for others.
 
 Windows blocklist: drive roots (single letter + `:\`), `C:\Windows`, `C:\Program Files`, `C:\Program Files (x86)`, `C:\ProgramData`, exact home dir. Resolve `%USERPROFILE%` etc. via `dirs::home_dir()`.
@@ -432,21 +416,6 @@ Add a `useEffect` that subscribes to `useWorkspaceStore` and reacts when `active
 2. Call `navigate('/')` (from `useNavigate()`) to return to the home screen so the user sees the task launcher instead of the previous workspace's conversation.
 3. Call `loadTasks()` to reload the workspace-scoped session list.
 
-```typescript
-useEffect(() => {
-  const unsubscribe = useWorkspaceStore.subscribe((state, prevState) => {
-    const currentId = state.activeWorkspace?.id;
-    const prevId = prevState.activeWorkspace?.id;
-    if (currentId && currentId !== prevId) {
-      useTaskStore.getState().reset();
-      navigate('/');
-      loadTasks();
-    }
-  });
-  return unsubscribe;
-}, [loadTasks, navigate]);
-```
-
 The `navigate` dependency is stable (from `useNavigate()`) so this effect won't re-subscribe unnecessarily.
 
 **Step 7: Verify**
@@ -557,6 +526,41 @@ Run: `pnpm typecheck`
 
 ---
 
+## Task 16c: File tree — hidden files & system folders toggle
+
+**Goal:** Add a toggle to show/hide hidden files (dotfiles, OS system entries) in the file tree. Hidden by default. Cross-platform filter covering macOS and Windows naming conventions.
+
+**Files:**
+- Modify: `src/hooks/useFileTree.ts`
+- Modify: `src/components/sidebar/FileTreePanel.tsx`
+- Modify: `docs/specs/workspace-as-folder/design_phase1.md`
+
+**Step 1: Add `filterPredicate` parameter to `useFileTree` hook**
+
+Accept an optional `filterPredicate: (entry: DirectoryEntry) => boolean`. Apply it via a new `filterNodesByPredicate()` helper that recursively removes non-matching entries from the tree. The predicate filter runs before the existing search filter.
+
+**Step 2: Add hidden entry detection in `FileTreePanel.tsx`**
+
+Define `isHiddenEntry(name: string): boolean` that returns `true` for:
+- Names starting with `.` (dotfiles/dotfolders)
+- Names starting with `~$` (macOS/Windows temp edit files, e.g. `~$Document.docx`, `~$Budget.xlsx`)
+- macOS system entries: `.DS_Store`, `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `__MACOSX`, `.DocumentRevisions-V100`, `.TemporaryItems`
+- Windows system entries: `$RECYCLE.BIN`, `System Volume Information`, `Thumbs.db`, `desktop.ini`, `NTUSER.DAT`, `ntuser.dat.LOG1`, `ntuser.dat.LOG2`, `ntuser.ini`
+
+Export `isHiddenEntry`, `getFileIcon`, and `formatFileSize` for unit testing. Unit tests in `FileTreePanel.test.ts` cover all hidden entry categories (dotfiles, `~$` temp files, macOS system, Windows system, visible entries), icon selection by extension/type, and file size formatting.
+
+**Step 3: Add toggle state and UI button**
+
+Add `showHidden` state (default `false`). Create a `hiddenFilter` via `useMemo` that returns `undefined` when `showHidden` is true (show all) or the `isHiddenEntry`-based predicate when false. Pass to `useFileTree(hiddenFilter)`.
+
+Add a 26×26px icon button (Eye/EyeOff) next to the search input. Button is highlighted when `showHidden` is true.
+
+**Step 4: Verify**
+
+Run: `pnpm typecheck` — passes.
+
+---
+
 ## Task 17: Cross-workspace task history and auto-switch
 
 **Goal:** Task History page and Task Launcher show tasks from all workspaces with workspace names. Selecting a task from a different workspace auto-switches before navigation.
@@ -643,41 +647,6 @@ Run: `pnpm tauri dev`
 - Task Launcher (Cmd+K) should show tasks from all workspaces with workspace names
 - Task History page should show tasks from all workspaces with workspace names
 - Selecting a task from a different workspace should auto-switch and navigate to it
-
----
-
-## Task 19: File tree — hidden files & system folders toggle
-
-**Goal:** Add a toggle to show/hide hidden files (dotfiles, OS system entries) in the file tree. Hidden by default. Cross-platform filter covering macOS and Windows naming conventions.
-
-**Files:**
-- Modify: `src/hooks/useFileTree.ts`
-- Modify: `src/components/sidebar/FileTreePanel.tsx`
-- Modify: `docs/specs/workspace-as-folder/design_phase1.md`
-
-**Step 1: Add `filterPredicate` parameter to `useFileTree` hook**
-
-Accept an optional `filterPredicate: (entry: DirectoryEntry) => boolean`. Apply it via a new `filterNodesByPredicate()` helper that recursively removes non-matching entries from the tree. The predicate filter runs before the existing search filter.
-
-**Step 2: Add hidden entry detection in `FileTreePanel.tsx`**
-
-Define `isHiddenEntry(name: string): boolean` that returns `true` for:
-- Names starting with `.` (dotfiles/dotfolders)
-- Names starting with `~$` (macOS/Windows temp edit files, e.g. `~$Document.docx`, `~$Budget.xlsx`)
-- macOS system entries: `.DS_Store`, `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `__MACOSX`, `.DocumentRevisions-V100`, `.TemporaryItems`
-- Windows system entries: `$RECYCLE.BIN`, `System Volume Information`, `Thumbs.db`, `desktop.ini`, `NTUSER.DAT`, `ntuser.dat.LOG1`, `ntuser.dat.LOG2`, `ntuser.ini`
-
-Export `isHiddenEntry`, `getFileIcon`, and `formatFileSize` for unit testing. Unit tests in `FileTreePanel.test.ts` cover all hidden entry categories (dotfiles, `~$` temp files, macOS system, Windows system, visible entries), icon selection by extension/type, and file size formatting.
-
-**Step 3: Add toggle state and UI button**
-
-Add `showHidden` state (default `false`). Create a `hiddenFilter` via `useMemo` that returns `undefined` when `showHidden` is true (show all) or the `isHiddenEntry`-based predicate when false. Pass to `useFileTree(hiddenFilter)`.
-
-Add a 26×26px icon button (Eye/EyeOff) next to the search input. Button is highlighted when `showHidden` is true.
-
-**Step 4: Verify**
-
-Run: `pnpm typecheck` — passes.
 
 ---
 

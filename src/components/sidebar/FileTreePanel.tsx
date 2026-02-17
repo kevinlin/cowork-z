@@ -47,9 +47,12 @@ const SYSTEM_ENTRIES_WINDOWS = new Set([
  * Returns true if the entry is considered "hidden" (dotfile/dotfolder or OS system entry).
  * Works for both macOS and Windows naming conventions.
  */
-function isHiddenEntry(name: string): boolean {
+export function isHiddenEntry(name: string): boolean {
   // Dotfiles/dotfolders (macOS/Linux convention, also common on Windows via Git etc.)
   if (name.startsWith('.')) return true;
+  // macOS/Windows temp edit files (e.g. ~$Document.docx, ~$Budget.xlsx)
+  // Created by Microsoft Office and other apps as lock/temporary files
+  if (name.startsWith('~$')) return true;
   // macOS system entries
   if (SYSTEM_ENTRIES_MACOS.has(name)) return true;
   // Windows system entries (case-insensitive)
@@ -57,7 +60,7 @@ function isHiddenEntry(name: string): boolean {
   return false;
 }
 
-function getFileIcon(entry: { isDirectory: boolean; extension?: string; name: string }, isExpanded: boolean) {
+export function getFileIcon(entry: { isDirectory: boolean; extension?: string; name: string }, isExpanded: boolean) {
   if (entry.isDirectory) {
     return isExpanded ? FolderOpen : Folder;
   }
@@ -69,7 +72,7 @@ function getFileIcon(entry: { isDirectory: boolean; extension?: string; name: st
   return File;
 }
 
-function formatFileSize(bytes: number): string {
+export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;

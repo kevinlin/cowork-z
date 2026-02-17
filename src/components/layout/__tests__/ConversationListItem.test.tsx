@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { Task } from '@/shared';
-import ConversationListItem from './ConversationListItem';
+import ConversationListItem from '../ConversationListItem';
 
 const deleteTask = vi.fn().mockResolvedValue(undefined);
 

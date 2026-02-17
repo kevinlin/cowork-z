@@ -22,7 +22,7 @@ vi.mock('@/lib/analytics', () => ({
   },
 }));
 
-import FeedbackButton from './FeedbackButton';
+import FeedbackButton from '../FeedbackButton';
 
 describe('FeedbackButton', () => {
   it('renders with correct test ID', () => {

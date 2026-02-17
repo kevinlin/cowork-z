@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Artifact } from '@/shared';
-import { ArtifactsPanel } from './ArtifactsPanel';
+import { ArtifactsPanel } from '../ArtifactsPanel';
 
 // Mock the EnhancedLink component
 vi.mock('@/components/markdown/EnhancedLink', () => ({

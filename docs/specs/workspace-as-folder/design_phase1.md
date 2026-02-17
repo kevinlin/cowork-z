@@ -247,8 +247,9 @@ Filtering is performed entirely on the frontend — the Rust `read_directory` co
 An entry is considered "hidden" if any of the following is true:
 
 1. **Dotfiles/dotfolders** (macOS/Linux convention): name starts with `.` (e.g. `.git`, `.DS_Store`, `.env`, `.vscode`)
-2. **macOS system entries**: `.DS_Store`, `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `__MACOSX`, `.DocumentRevisions-V100`, `.TemporaryItems`
-3. **Windows system entries**: `$RECYCLE.BIN`, `System Volume Information`, `Thumbs.db`, `desktop.ini`, `NTUSER.DAT`, `ntuser.dat.LOG1`, `ntuser.dat.LOG2`, `ntuser.ini`
+2. **Temp edit files** (macOS/Windows): name starts with `~$` (e.g. `~$Document.docx`, `~$Budget.xlsx`). Created by Microsoft Office and other apps as lock/temporary files while a document is open for editing.
+3. **macOS system entries**: `.DS_Store`, `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `__MACOSX`, `.DocumentRevisions-V100`, `.TemporaryItems`
+4. **Windows system entries**: `$RECYCLE.BIN`, `System Volume Information`, `Thumbs.db`, `desktop.ini`, `NTUSER.DAT`, `ntuser.dat.LOG1`, `ntuser.dat.LOG2`, `ntuser.ini`
 
 Note: Developer-convention hidden folders like `node_modules`, `__pycache__`, `.venv` etc. are captured by the dotfile rule (if prefixed with `.`) or intentionally left visible (if not prefixed). The filter targets OS-level system entries, not project tooling directories.
 

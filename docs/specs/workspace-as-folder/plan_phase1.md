@@ -663,8 +663,11 @@ Accept an optional `filterPredicate: (entry: DirectoryEntry) => boolean`. Apply 
 
 Define `isHiddenEntry(name: string): boolean` that returns `true` for:
 - Names starting with `.` (dotfiles/dotfolders)
+- Names starting with `~$` (macOS/Windows temp edit files, e.g. `~$Document.docx`, `~$Budget.xlsx`)
 - macOS system entries: `.DS_Store`, `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `__MACOSX`, `.DocumentRevisions-V100`, `.TemporaryItems`
 - Windows system entries: `$RECYCLE.BIN`, `System Volume Information`, `Thumbs.db`, `desktop.ini`, `NTUSER.DAT`, `ntuser.dat.LOG1`, `ntuser.dat.LOG2`, `ntuser.ini`
+
+Export `isHiddenEntry`, `getFileIcon`, and `formatFileSize` for unit testing. Unit tests in `FileTreePanel.test.ts` cover all hidden entry categories (dotfiles, `~$` temp files, macOS system, Windows system, visible entries), icon selection by extension/type, and file size formatting.
 
 **Step 3: Add toggle state and UI button**
 

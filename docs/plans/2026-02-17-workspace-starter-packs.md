@@ -4,13 +4,18 @@
 
 **Goal:** Add a Workspace Starter Packs feature where Home.tsx becomes a packs browser that lets users install guided, copyable workspace folders and auto-start an AI task.
 
-**Architecture:** Port Tandem's `packs.rs` to `src-tauri/src/commands/packs.rs`, wire up three Tauri commands (`packs_list`, `packs_install`, `packs_install_default`), add TypeScript IPC wrappers, then rewrite `Home.tsx` to replace the "Example prompts" section with a 2-column packs grid.
+**Architecture:** Verbatim port of [`frumu-ai/tandem src-tauri/src/packs.rs`](https://github.com/frumu-ai/tandem/blob/main/src-tauri/src/packs.rs) into `src-tauri/src/commands/packs.rs` (3 adaptations: 6-pack catalog, "Cowork-Z Packs" default dir, `println!`/`eprintln!` instead of `tracing`). Wire up three Tauri commands (`packs_list`, `packs_install`, `packs_install_default`), add TypeScript IPC wrappers matching [`frumu-ai/tandem src/lib/tauri.ts`](https://github.com/frumu-ai/tandem/blob/main/src/lib/tauri.ts#L1346-L1376), then rewrite `Home.tsx` to replace the "Example prompts" section with a 2-column packs grid.
 
 **Tech Stack:** Rust (serde, tauri, dirs, std::fs), TypeScript, React, Tauri `invoke()`, `@tauri-apps/plugin-dialog` (via existing `pickFolder()`), Zustand (`useWorkspaceStore`, `useTaskStore`).
 
 ---
 
 ## Task 1: Create the Rust packs module
+
+**Source:** Verbatim port of [`src-tauri/src/packs.rs` from `frumu-ai/tandem`](https://github.com/frumu-ai/tandem/blob/main/src-tauri/src/packs.rs) with three cowork-z adaptations:
+1. Catalog trimmed to the 6 packs that have on-disk content (3 stubs removed)
+2. Default install dir changed from `"Tandem Packs"` → `"Cowork-Z Packs"`
+3. `tracing::info!`/`tracing::warn!` replaced with `println!`/`eprintln!` (tracing crate not in cowork-z)
 
 **Files:**
 - Create: `src-tauri/src/commands/packs.rs`
@@ -20,11 +25,12 @@
 ```rust
 // src-tauri/src/commands/packs.rs
 //! Workspace Starter Packs — catalog, installation, and Tauri command wrappers.
+//! Ported from frumu-ai/tandem src-tauri/src/packs.rs
 
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +44,7 @@ pub struct PackMeta {
     pub tags: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PackInstallResult {
     pub installed_path: String,
 }
@@ -100,101 +106,143 @@ pub fn list_packs() -> Vec<PackMeta> {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/// Recursively copy `from` directory to `to` (created if needed).
+/// Uses `.flatten()` to skip unreadable entries rather than hard-failing.
+fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
+    if !from.exists() {
+        return Err(format!("Source does not exist: {:?}", from));
+    }
+
+    fs::create_dir_all(to).map_err(|e| format!("Failed to create directory {:?}: {}", to, e))?;
+
+    let entries = fs::read_dir(from).map_err(|e| format!("Failed to read {:?}: {}", from, e))?;
+    for entry in entries.flatten() {
+        let file_type = entry
+            .file_type()
+            .map_err(|e| format!("Failed to read file type {:?}: {}", entry.path(), e))?;
+
+        let dest_path = to.join(entry.file_name());
+        if file_type.is_dir() {
+            copy_dir_recursive(&entry.path(), &dest_path)?;
+        } else if file_type.is_file() {
+            fs::copy(entry.path(), &dest_path).map_err(|e| {
+                format!(
+                    "Failed to copy file {:?} -> {:?}: {}",
+                    entry.path(),
+                    dest_path,
+                    e
+                )
+            })?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Find the packs/ and pack-docs/ root directories.
 /// Searches production bundle paths first, then falls back to the repo's
-/// workspace-packs/ directory in debug builds.
-fn resolve_pack_sources(resource_dir: &Path) -> Result<(PathBuf, PathBuf), String> {
-    let packs_root = [
-        resource_dir.join("packs"),
-        resource_dir.join("resources").join("packs"),
-    ]
-    .into_iter()
-    .find(|p| p.exists())
-    .or_else(|| {
-        #[cfg(debug_assertions)]
-        {
-            let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("..")
-                .join("workspace-packs")
-                .join("packs");
-            if p.exists() {
-                return Some(p);
-            }
-        }
-        None
-    })
-    .ok_or_else(|| "Pack source directory not found".to_string())?;
+/// workspace-packs/ directory in debug builds (via CARGO_MANIFEST_DIR).
+fn resolve_pack_sources(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("Failed to get resource directory: {}", e))?;
 
-    let pack_docs_root = [
-        resource_dir.join("pack-docs"),
+    let packs_candidates = vec![
+        resource_dir.join("resources").join("packs"),
+        resource_dir.join("packs"),
+        resource_dir
+            .join("resources")
+            .join("workspace-packs")
+            .join("packs"),
+        resource_dir.join("workspace-packs").join("packs"),
+    ];
+
+    let docs_candidates = vec![
         resource_dir.join("resources").join("pack-docs"),
-    ]
-    .into_iter()
-    .find(|p| p.exists())
-    .or_else(|| {
-        #[cfg(debug_assertions)]
-        {
-            let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("..")
-                .join("workspace-packs")
-                .join("pack-docs");
-            if p.exists() {
-                return Some(p);
+        resource_dir.join("pack-docs"),
+        resource_dir
+            .join("resources")
+            .join("workspace-packs")
+            .join("pack-docs"),
+        resource_dir.join("workspace-packs").join("pack-docs"),
+    ];
+
+    let packs_root = packs_candidates
+        .iter()
+        .find(|p| p.exists())
+        .cloned()
+        .or_else(|| {
+            #[cfg(debug_assertions)]
+            {
+                let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("..")
+                    .join("workspace-packs")
+                    .join("packs");
+                if dev.exists() {
+                    return Some(dev);
+                }
             }
-        }
-        None
-    })
-    .ok_or_else(|| "Pack docs directory not found".to_string())?;
+            None
+        })
+        .ok_or_else(|| {
+            format!(
+                "Pack templates not found. Looked in: {:?}",
+                packs_candidates
+            )
+        })?;
+
+    let pack_docs_root = docs_candidates
+        .iter()
+        .find(|p| p.exists())
+        .cloned()
+        .or_else(|| {
+            #[cfg(debug_assertions)]
+            {
+                let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("..")
+                    .join("workspace-packs")
+                    .join("pack-docs");
+                if dev.exists() {
+                    return Some(dev);
+                }
+            }
+            None
+        })
+        .ok_or_else(|| format!("Pack docs not found. Looked in: {:?}", docs_candidates))?;
 
     Ok((packs_root, pack_docs_root))
 }
 
 /// Return `destination/pack_id`, incrementing to `-2`, `-3`, … if already exists.
-fn choose_destination_dir(destination: &Path, pack_id: &str) -> Result<PathBuf, String> {
-    let base = destination.join(pack_id);
-    if !base.exists() {
-        return Ok(base);
+fn choose_destination_dir(destination_dir: &Path, pack_id: &str) -> Result<PathBuf, String> {
+    let base_name = pack_id;
+    let mut candidate = destination_dir.join(base_name);
+    if !candidate.exists() {
+        return Ok(candidate);
     }
-    for n in 2..=100 {
-        let candidate = destination.join(format!("{}-{}", pack_id, n));
+
+    for i in 2..=100 {
+        candidate = destination_dir.join(format!("{}-{}", base_name, i));
         if !candidate.exists() {
             return Ok(candidate);
         }
     }
-    Err(format!(
-        "No available install directory for pack '{}' (tried -2 through -100)",
-        pack_id
-    ))
+
+    Err("Failed to choose a destination directory (too many conflicts)".to_string())
 }
 
-/// Default install root: `~/Cowork-Z Packs`, falling back to current dir.
-fn default_pack_root() -> Result<PathBuf, String> {
-    dirs::home_dir()
-        .map(|h| h.join("Cowork-Z Packs"))
-        .ok_or_else(|| "Could not determine home directory".to_string())
-}
-
-/// Recursively copy `src` directory into `dest` (dest is created if needed).
-fn copy_dir_recursive(src: &Path, dest: &Path) -> Result<(), String> {
-    fs::create_dir_all(dest)
-        .map_err(|e| format!("Failed to create {:?}: {}", dest, e))?;
-    for entry in
-        fs::read_dir(src).map_err(|e| format!("Failed to read {:?}: {}", src, e))?
-    {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let dest_path = dest.join(entry.file_name());
-        if entry
-            .file_type()
-            .map_err(|e| e.to_string())?
-            .is_dir()
-        {
-            copy_dir_recursive(&entry.path(), &dest_path)?;
-        } else {
-            fs::copy(&entry.path(), &dest_path)
-                .map_err(|e| format!("Failed to copy {:?}: {}", entry.path(), e))?;
-        }
+/// Default install root: `~/Cowork-Z Packs`, falling back to `{app_data_dir}/packs`.
+fn default_pack_root(app: &AppHandle) -> Result<PathBuf, String> {
+    if let Ok(home) = app.path().home_dir() {
+        return Ok(home.join("Cowork-Z Packs"));
     }
-    Ok(())
+
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+    Ok(app_data_dir.join("packs"))
 }
 
 // ── Core install logic ────────────────────────────────────────────────────────
@@ -204,23 +252,40 @@ pub fn install_pack(
     pack_id: &str,
     destination_dir: &str,
 ) -> Result<PackInstallResult, String> {
-    // Validate pack_id against the catalog (prevents path traversal).
+    // Validate pack id exists (prevents path traversal and gives nicer errors).
     if !list_packs().iter().any(|p| p.id == pack_id) {
-        return Err(format!("Unknown pack id: '{}'", pack_id));
+        return Err(format!("Unknown pack: {}", pack_id));
     }
 
-    let destination = Path::new(destination_dir);
-    fs::create_dir_all(destination)
-        .map_err(|e| format!("Failed to create destination dir: {}", e))?;
+    let dest_root = PathBuf::from(destination_dir);
+    if !dest_root.exists() {
+        fs::create_dir_all(&dest_root)
+            .map_err(|e| format!("Failed to create destination {:?}: {}", dest_root, e))?;
+    }
+    if !dest_root.is_dir() {
+        return Err(format!(
+            "Destination is not a directory: {}",
+            destination_dir
+        ));
+    }
 
-    let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
-    let (packs_root, pack_docs_root) = resolve_pack_sources(&resource_dir)?;
+    let (packs_root, pack_docs_root) = resolve_pack_sources(app)?;
+    let source_pack_dir = packs_root.join(pack_id);
+    if !source_pack_dir.exists() {
+        return Err(format!(
+            "Pack template not found on disk: {:?}",
+            source_pack_dir
+        ));
+    }
 
-    let pack_src = packs_root.join(pack_id);
-    let installed_dir = choose_destination_dir(destination, pack_id)?;
+    let install_dir = choose_destination_dir(&dest_root, pack_id)?;
 
-    // Copy the pack template directory.
-    copy_dir_recursive(&pack_src, &installed_dir)?;
+    println!(
+        "[packs] Installing '{}' from {:?} -> {:?}",
+        pack_id, source_pack_dir, install_dir
+    );
+
+    copy_dir_recursive(&source_pack_dir, &install_dir)?;
 
     // Copy documentation files individually (missing files are warnings, not errors).
     let doc_src = pack_docs_root.join(pack_id);
@@ -228,26 +293,28 @@ pub fn install_pack(
         "START_HERE.md",
         "PACK_INFO.md",
         "PROMPTS.md",
+        "CONTRIBUTING.md",
         "EXPECTED_OUTPUTS.md",
     ] {
         let src_file = doc_src.join(doc_file);
         if src_file.exists() {
-            if let Err(e) = fs::copy(&src_file, installed_dir.join(doc_file)) {
-                eprintln!("Warning: failed to copy {}: {}", doc_file, e);
+            let dest_file = install_dir.join(doc_file);
+            if let Err(e) = fs::copy(&src_file, &dest_file) {
+                eprintln!(
+                    "[packs] Warning: failed to copy {} {:?} -> {:?}: {}",
+                    doc_file, src_file, dest_file, e
+                );
             }
         }
     }
 
     Ok(PackInstallResult {
-        installed_path: installed_dir.to_string_lossy().to_string(),
+        installed_path: install_dir.to_string_lossy().to_string(),
     })
 }
 
-pub fn install_pack_default(
-    app: &AppHandle,
-    pack_id: &str,
-) -> Result<PackInstallResult, String> {
-    let root = default_pack_root()?;
+pub fn install_pack_default(app: &AppHandle, pack_id: &str) -> Result<PackInstallResult, String> {
+    let root = default_pack_root(app)?;
     install_pack(app, pack_id, &root.to_string_lossy())
 }
 
@@ -282,13 +349,13 @@ pub fn packs_install_default(
 cd src-tauri && cargo check
 ```
 
-Expected: compiles with 0 errors. If `dirs` crate is missing, add `dirs = "5"` to `Cargo.toml` under `[dependencies]` — but `dirs` is likely already present via `lib.rs` usage.
+Expected: 0 errors. (`dirs` crate is already in `Cargo.toml`.)
 
 ### Step 3: Commit
 
 ```bash
 git add src-tauri/src/commands/packs.rs
-git commit -m "feat: add Rust packs module (catalog + install logic)"
+git commit -m "feat: add Rust packs module (port of frumu-ai/tandem packs.rs)"
 ```
 
 ---
@@ -330,7 +397,25 @@ The block should now end:
         ])
 ```
 
-### Step 3: Add pack resources to `tauri.conf.json`
+### Step 3: Create symlinks for production resource bundling
+
+Tandem's convention: pack files live at `src-tauri/resources/packs/` and `src-tauri/resources/pack-docs/` for production bundling, symlinked to the repo-root `workspace-packs/` directory. In dev, `CARGO_MANIFEST_DIR` fallback is used and no files are needed here.
+
+```bash
+cd src-tauri/resources
+ln -s ../../workspace-packs/packs packs
+ln -s ../../workspace-packs/pack-docs pack-docs
+```
+
+Verify the symlinks resolve correctly:
+
+```bash
+ls src-tauri/resources/packs/
+```
+
+Expected: lists the 6 pack directories (`micro-drama-script-studio-pack`, `research-synthesis-pack`, etc.).
+
+### Step 4: Add pack resources to `tauri.conf.json`
 
 In `src-tauri/tauri.conf.json` line 45, change:
 ```json
@@ -340,14 +425,16 @@ to:
 ```json
 "resources": [
   "resources/skills/**/*",
-  "workspace-packs/packs/**/*",
-  "workspace-packs/pack-docs/**/*"
+  "resources/packs/**/*",
+  "resources/pack-docs/**/*"
 ],
 ```
 
-> **Note:** These resource globs are for production builds. In development (`pnpm tauri dev`), the `#[cfg(debug_assertions)]` path in `resolve_pack_sources()` resolves directly to `workspace-packs/` via `CARGO_MANIFEST_DIR` — no file copying needed for dev.
+At runtime, `resolve_pack_sources()` searches these paths (among others):
+- `{resource_dir}/resources/packs/` ← production bundle path
+- `CARGO_MANIFEST_DIR/../workspace-packs/packs/` ← dev fallback (debug builds only)
 
-### Step 4: Verify compilation
+### Step 5: Verify compilation
 
 ```bash
 cd src-tauri && cargo check
@@ -355,10 +442,10 @@ cd src-tauri && cargo check
 
 Expected: 0 errors.
 
-### Step 5: Commit
+### Step 6: Commit
 
 ```bash
-git add src-tauri/src/commands/mod.rs src-tauri/src/lib.rs src-tauri/tauri.conf.json
+git add src-tauri/src/commands/mod.rs src-tauri/src/lib.rs src-tauri/tauri.conf.json src-tauri/resources/packs src-tauri/resources/pack-docs
 git commit -m "feat: register packs Tauri commands and bundle resources"
 ```
 

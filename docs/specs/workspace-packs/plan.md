@@ -399,7 +399,7 @@ The block should now end:
 
 ### Step 3: Create symlinks for production resource bundling
 
-Tandem's convention: pack files live at `src-tauri/resources/packs/` and `src-tauri/resources/pack-docs/` for production bundling, symlinked to the repo-root `workspace-packs/` directory. In dev, `CARGO_MANIFEST_DIR` fallback is used and no files are needed here.
+`workspace-packs/` at the repo root is the single source of truth. Rather than duplicating content into `src-tauri/resources/`, create symlinks so Tauri's bundler follows them at build time. In dev, `resolve_pack_sources()` already falls back to `CARGO_MANIFEST_DIR/../workspace-packs/` directly — the symlinks are only needed for production bundles.
 
 ```bash
 cd src-tauri/resources

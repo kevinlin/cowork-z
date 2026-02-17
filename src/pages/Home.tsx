@@ -77,7 +77,7 @@ export default function HomePage() {
     <>
       <SettingsDialog onApiKeySaved={handleApiKeySaved} onOpenChange={handleSettingsDialogChange} open={showSettingsDialog} />
       <div className="flex h-full items-center justify-center overflow-y-auto bg-accent p-6">
-        <div className="flex w-full max-w-4xl flex-col items-center gap-8">
+        <div className="flex w-full max-w-5xl flex-col items-center gap-8">
           {/* Main Title */}
           <motion.h1
             animate={{ opacity: 1, y: 0 }}

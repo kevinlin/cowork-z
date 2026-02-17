@@ -96,7 +96,7 @@ export default function StarterPacks() {
       </div>
 
       {/* Pack grid */}
-      <div className="max-h-[400px] overflow-y-auto px-6 pb-4">
+      <div className="max-h-[560px] overflow-y-auto px-6 pb-4">
         {packsLoading ? (
           <p className="py-4 text-center text-muted-foreground text-sm">Loading packs…</p>
         ) : filteredPacks.length === 0 ? (

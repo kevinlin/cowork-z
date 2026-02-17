@@ -136,7 +136,7 @@ The Home screen Card has a tab bar below the task input with two tabs: **Starter
 │  ┌─────────────────────────┐  ┌─────────────────────────┐│
 │  │ competitor-alternatives  │  │ content-strategy        ││
 │  │ description (2 lines)…  │  │ description (2 lines)…  ││
-│  │                [Install] │  │          [Installed ✓]  ││
+│  │ [General]       [Install] │  │ [Marketing]  [Installed ✓]  ││
 │  └─────────────────────────┘  └─────────────────────────┘│
 │  (max-h-[400px] overflow-y-auto)                          │
 └───────────────────────────────────────────────────────────┘
@@ -150,6 +150,23 @@ The Home screen Card has a tab bar below the task input with two tabs: **Starter
 | Installing | `Installing…` | Disabled |
 | Installed, up-to-date | `Installed ✓` + small `Re-install` | Muted badge + ghost link |
 | Installed, needs update | `Re-install` | Amber/warning |
+
+**Category color badges:** Each skill card displays a color-coded category badge (same pattern as `COMPLEXITY_COLORS` in `StarterPacks.tsx`). A `CATEGORY_COLORS` constant maps each category to Tailwind color classes with light/dark mode support:
+
+| Category | Color |
+|----------|-------|
+| Marketing | Pink |
+| Sales | Orange |
+| Finance | Emerald |
+| Enterprise | Purple |
+| Legal | Slate |
+| Product | Blue |
+| Support | Amber |
+| Data | Cyan |
+| Productivity | Violet |
+| General | Muted (default) |
+
+The badge renders as a `rounded-full` pill beneath the skill name/description row, using the same `flex flex-wrap items-center gap-1.5` layout as the complexity/tag row in `StarterPacks.tsx`. Unknown categories fall back to `bg-muted text-muted-foreground`.
 
 **Category tabs:** Dynamically generated from unique categories in the skills list. Horizontally scrollable pill strip. "All" tab always first.
 

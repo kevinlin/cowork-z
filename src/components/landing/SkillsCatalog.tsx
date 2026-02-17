@@ -2,6 +2,19 @@ import { useEffect, useState } from 'react';
 import type { SkillWithStatus } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 
+const CATEGORY_COLORS: Record<string, string> = {
+  Marketing: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400',
+  Sales: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  Finance: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
+  Enterprise: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+  Legal: 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-400',
+  Product: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  Support: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  Data: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400',
+  Productivity: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400',
+  General: 'bg-muted text-muted-foreground',
+};
+
 export default function SkillsCatalog() {
   const [skills, setSkills] = useState<SkillWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +45,7 @@ export default function SkillsCatalog() {
       s.meta.description.toLowerCase().includes(q) ||
       s.meta.category.toLowerCase().includes(q);
     return matchCategory && matchQuery;
-  });
+  }).sort((a, b) => a.meta.name.localeCompare(b.meta.name));
 
   const handleInstall = async (skillId: string) => {
     setInstallingId(skillId);
@@ -85,7 +98,7 @@ export default function SkillsCatalog() {
       </div>
 
       {/* Skill grid */}
-      <div className="max-h-[400px] overflow-y-auto px-6 pb-4">
+      <div className="max-h-[560px] overflow-y-auto px-6 pb-4">
         {loading ? (
           <p className="py-4 text-center text-muted-foreground text-sm">Loading skills…</p>
         ) : loadError ? (
@@ -112,6 +125,15 @@ export default function SkillsCatalog() {
                     status={s.status}
                   />
                 </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${CATEGORY_COLORS[s.meta.category] ?? 'bg-muted text-muted-foreground'}`}
+                  >
+                    {s.meta.category}
+                  </span>
+                </div>
+
                 {errors[s.meta.id] && (
                   <p className="text-destructive text-xs">{errors[s.meta.id]}</p>
                 )}

@@ -996,3 +996,32 @@ git commit -m "docs: mark Skills Catalog requirement complete, update log"
 | `src/components/landing/SkillsCatalog.tsx` | New — React component with category tabs, search, install/re-install |
 | `src/components/landing/__tests__/SkillsCatalog.test.tsx` | New — 8 unit tests |
 | `src/pages/Home.tsx` | Import and render `<SkillsCatalog />` below Starter Packs |
+
+---
+
+## Implementation Log
+
+### 2026-02-17 — Category color badges
+
+**Change:** Added color-coded category badges to each skill card in `SkillsCatalog.tsx`, following the same pattern as `COMPLEXITY_COLORS` in `StarterPacks.tsx`.
+
+**Files modified:**
+- `src/components/landing/SkillsCatalog.tsx` — Added `CATEGORY_COLORS` constant mapping each category to Tailwind color classes (light + dark mode). Rendered a `rounded-full` badge pill beneath each skill card's name/description row showing the skill's category in its assigned color.
+- `docs/specs/app-ux/design_skills-catalog.md` — Documented the category color tagging feature inline: color mapping table, badge rendering details, fallback behavior, and updated wireframe.
+
+**Category → Color mapping:**
+
+| Category | Color |
+|----------|-------|
+| Marketing | Pink |
+| Sales | Orange |
+| Finance | Emerald |
+| Enterprise | Purple |
+| Legal | Slate |
+| Product | Blue |
+| Support | Amber |
+| Data | Cyan |
+| Productivity | Violet |
+| General | Muted (default) |
+
+**Pattern:** Mirrors `StarterPacks.tsx` `COMPLEXITY_COLORS` — a top-level `Record<string, string>` constant mapping display names to Tailwind class strings, consumed via template literal in JSX with a `??` fallback for unknown categories.

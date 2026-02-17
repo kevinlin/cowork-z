@@ -76,6 +76,12 @@ The following implementation plans document how specific requirements were desig
 |------|----------|--------------|
 | Workspace Starter Packs | [`workspace-packs/plan.md`](../workspace-packs/plan.md) | 7.1–7.3 |
 
+### app-ux — Starter Skills
+
+| Plan | Location | Requirements |
+|------|----------|--------------|
+| Skills Catalog | [`app-ux/plan_skills-catalog.md`](../app-ux/plan_skills-catalog.md) | 8.1–8.2 |
+
 ---
 
 ## Requirements
@@ -702,6 +708,60 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 ##### 7.3.3 Error Handling
 1. WHERE pack installation fails, THE SYSTEM SHALL display the error message inline on the affected pack card
 2. WHILE a pack is being installed, THE SYSTEM SHALL disable the Install button and show "Installing…" text
+
+---
+
+### 8. Starter Skills ✅
+
+> **Design:** [Skills Catalog Design](../app-ux/design_skills-catalog.md)
+> **Plan:** [Skills Catalog Plan](../app-ux/plan_skills-catalog.md)
+
+**User Story:** As a user, I want to browse and install bundled AI skill templates from the Home screen, so that I can quickly add reusable skills to my OpenCode global skills directory without manual file management.
+
+#### 8.1 Skills Catalog ✅
+
+**Acceptance Criteria:**
+
+##### 8.1.1 Built-in Skill Library
+1. THE SYSTEM SHALL include a built-in catalog of bundled skill templates in `resources/skill-templates/`, each containing a `SKILL.md` with YAML frontmatter (`name`, `description`)
+2. THE SYSTEM SHALL derive display categories automatically from folder name prefixes (e.g., `marketing-*` → Marketing, `sales-*` → Sales, `enterprise-*` → Enterprise, etc.)
+3. THE SYSTEM SHALL expose the skill catalog via a `skills_list_with_status` Tauri command
+
+##### 8.1.2 Skill Installation
+1. THE SYSTEM SHALL install skills to the OpenCode user-level skills folder: `~/.config/opencode/skills/<skill_id>/`
+2. WHEN the user clicks Install on a skill card, THE SYSTEM SHALL recursively copy the bundled skill template to the target directory
+3. THE SYSTEM SHALL create the target directory if it does not exist
+4. AFTER installation, THE SYSTEM SHALL write a `.coworkz-checksum` file containing the SHA256 hash of the bundled source for future update detection
+
+##### 8.1.3 Update Detection
+1. THE SYSTEM SHALL compute SHA256 checksums over all files in each bundled skill directory (sorted by relative path, excluding `.coworkz-checksum` and hidden files)
+2. THE SYSTEM SHALL compare the bundled checksum with the installed `.coworkz-checksum` to determine if an update is available
+3. WHERE the installed checksum differs from the bundled checksum, THE SYSTEM SHALL display a "Re-install" button (amber/warning style)
+4. THE SYSTEM SHALL allow re-install even when the skill is up-to-date (overwrites the installed folder)
+
+#### 8.2 Home Screen Skills Browser ✅
+
+**Acceptance Criteria:**
+
+##### 8.2.1 Skills Grid
+1. THE SYSTEM SHALL display a "Skills Catalog" section on the Home screen below the Starter Packs section
+2. THE SYSTEM SHALL render skills in a 2-column grid, each card showing name, description, and an install/re-install button
+3. THE SYSTEM SHALL display a loading state while the skill catalog is being fetched
+
+##### 8.2.2 Category Tabs and Search
+1. THE SYSTEM SHALL display horizontally scrollable category tabs ("All" plus dynamically derived categories) for filtering skills
+2. THE SYSTEM SHALL provide a search input that filters skills by name, description, or category in real-time
+3. WHERE no skills match the filter, THE SYSTEM SHALL display a "No skills match your search" message
+
+##### 8.2.3 Button States
+1. FOR uninstalled skills, THE SYSTEM SHALL show a primary "Install" button
+2. WHILE a skill is being installed, THE SYSTEM SHALL disable the button and show "Installing…"
+3. FOR installed up-to-date skills, THE SYSTEM SHALL show an "Installed" badge with a secondary "Re-install" link
+4. FOR installed outdated skills, THE SYSTEM SHALL show an amber "Re-install" button
+
+##### 8.2.4 Error Handling
+1. WHERE skill installation fails, THE SYSTEM SHALL display the error message inline on the affected skill card
+2. WHERE the skills catalog fails to load, THE SYSTEM SHALL display a "Failed to load skills" message
 
 ---
 

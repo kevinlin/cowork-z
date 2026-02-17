@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { hasAnyReadyProvider } from '@/shared';
+import SkillsCatalog from '../components/landing/SkillsCatalog';
 import TaskInputBar from '../components/landing/TaskInputBar';
 import SettingsDialog from '../components/layout/SettingsDialog';
 import { springs } from '../lib/animations';
@@ -21,9 +22,12 @@ const COMPLEXITY_COLORS: Record<string, string> = {
   Advanced: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 };
 
+type HomeTab = 'packs' | 'skills';
+
 export default function HomePage() {
   const [prompt, setPrompt] = useState('');
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState<HomeTab>('packs');
 
   // Packs state
   const [packs, setPacks] = useState<PackMeta[]>([]);
@@ -167,76 +171,103 @@ export default function HomePage() {
                 />
               </CardContent>
 
-              {/* Starter Packs Section */}
-              <div className="border-border border-t">
-                {/* Header row */}
-                <div className="flex items-center justify-between px-6 py-3">
-                  <div>
-                    <span className="font-medium text-foreground text-sm">Starter Packs</span>
-                    <p className="text-muted-foreground text-xs">Guided, copyable folders for real-world tasks.</p>
-                  </div>
-                  <input
-                    className="h-7 w-48 rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search packs…"
-                    type="search"
-                    value={query}
-                  />
-                </div>
-
-                {/* Pack grid */}
-                <div className="max-h-[400px] overflow-y-auto px-6 pb-4">
-                  {packsLoading ? (
-                    <p className="py-4 text-center text-muted-foreground text-sm">Loading packs…</p>
-                  ) : filteredPacks.length === 0 ? (
-                    <p className="py-4 text-center text-muted-foreground text-sm">
-                      {query ? 'No packs match your search.' : 'No packs available.'}
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      {filteredPacks.map((pack) => (
-                        <div
-                          className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4"
-                          key={pack.id}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium text-foreground text-sm leading-snug">{pack.title}</div>
-                              <div className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">{pack.description}</div>
-                            </div>
-                            <button
-                              className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                              disabled={installingId === pack.id}
-                              onClick={() => handleInstall(pack.id)}
-                              type="button"
-                            >
-                              {installingId === pack.id ? 'Installing…' : 'Install'}
-                            </button>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${COMPLEXITY_COLORS[pack.complexity] ?? 'bg-muted text-muted-foreground'}`}
-                            >
-                              {pack.complexity}
-                            </span>
-                            <span className="text-muted-foreground text-xs">{pack.time_estimate}</span>
-                            {pack.tags.slice(0, 4).map((tag) => (
-                              <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs" key={tag}>
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-
-                          {packErrors[pack.id] && (
-                            <p className="text-destructive text-xs">{packErrors[pack.id]}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {/* Tab bar */}
+              <div className="flex border-border border-t">
+                <button
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                    activeTab === 'packs'
+                      ? 'border-primary border-b-2 text-foreground'
+                      : 'border-transparent border-b-2 text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setActiveTab('packs')}
+                  type="button"
+                >
+                  Starter Packs
+                </button>
+                <button
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                    activeTab === 'skills'
+                      ? 'border-primary border-b-2 text-foreground'
+                      : 'border-transparent border-b-2 text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setActiveTab('skills')}
+                  type="button"
+                >
+                  Skills Catalog
+                </button>
               </div>
+
+              {/* Tab content */}
+              {activeTab === 'packs' ? (
+                <div>
+                  {/* Header row */}
+                  <div className="flex items-center justify-between px-6 py-3">
+                    <p className="text-muted-foreground text-xs">Guided, copyable folders for real-world tasks.</p>
+                    <input
+                      className="h-7 w-48 rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search packs…"
+                      type="search"
+                      value={query}
+                    />
+                  </div>
+
+                  {/* Pack grid */}
+                  <div className="max-h-[400px] overflow-y-auto px-6 pb-4">
+                    {packsLoading ? (
+                      <p className="py-4 text-center text-muted-foreground text-sm">Loading packs…</p>
+                    ) : filteredPacks.length === 0 ? (
+                      <p className="py-4 text-center text-muted-foreground text-sm">
+                        {query ? 'No packs match your search.' : 'No packs available.'}
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {filteredPacks.map((pack) => (
+                          <div
+                            className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4"
+                            key={pack.id}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium text-foreground text-sm leading-snug">{pack.title}</div>
+                                <div className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">{pack.description}</div>
+                              </div>
+                              <button
+                                className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={installingId === pack.id}
+                                onClick={() => handleInstall(pack.id)}
+                                type="button"
+                              >
+                                {installingId === pack.id ? 'Installing…' : 'Install'}
+                              </button>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-xs font-medium ${COMPLEXITY_COLORS[pack.complexity] ?? 'bg-muted text-muted-foreground'}`}
+                              >
+                                {pack.complexity}
+                              </span>
+                              <span className="text-muted-foreground text-xs">{pack.time_estimate}</span>
+                              {pack.tags.slice(0, 4).map((tag) => (
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs" key={tag}>
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+
+                            {packErrors[pack.id] && (
+                              <p className="text-destructive text-xs">{packErrors[pack.id]}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <SkillsCatalog />
+              )}
             </Card>
           </motion.div>
         </div>

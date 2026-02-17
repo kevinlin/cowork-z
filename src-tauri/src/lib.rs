@@ -233,6 +233,9 @@ pub fn run() {
             commands::packs::packs_list,
             commands::packs::packs_install,
             commands::packs::packs_install_default,
+            // Skills
+            commands::skills::skills_list_with_status,
+            commands::skills::skills_install,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

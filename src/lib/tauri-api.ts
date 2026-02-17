@@ -1199,6 +1199,35 @@ export async function installPackDefault(packId: string): Promise<PackInstallRes
 }
 
 // ============================================================================
+// Skills
+// ============================================================================
+
+export interface SkillMeta {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+}
+
+export interface SkillStatus {
+  installed: boolean;
+  needs_update: boolean;
+}
+
+export interface SkillWithStatus {
+  meta: SkillMeta;
+  status: SkillStatus;
+}
+
+export async function listSkillsWithStatus(): Promise<SkillWithStatus[]> {
+  return invoke<SkillWithStatus[]>('skills_list_with_status');
+}
+
+export async function installSkill(skillId: string): Promise<void> {
+  return invoke<void>('skills_install', { skillId });
+}
+
+// ============================================================================
 // Compatibility Helpers
 // ============================================================================
 
@@ -1394,5 +1423,9 @@ export function getTauriApi() {
     listPacks,
     installPack,
     installPackDefault,
+
+    // Skills
+    listSkillsWithStatus,
+    installSkill,
   };
 }

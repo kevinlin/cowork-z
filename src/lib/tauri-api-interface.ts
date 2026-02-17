@@ -23,7 +23,7 @@ import type {
   TaskUpdateEvent,
   Workspace,
 } from '@/shared';
-import type { PackInstallResult, PackMeta } from './tauri-api';
+import type { PackInstallResult, PackMeta, SkillWithStatus } from './tauri-api';
 import { getTauriApi, isRunningInTauri } from './tauri-api';
 
 export interface TauriAPI {
@@ -288,6 +288,10 @@ export interface TauriAPI {
   listPacks(): Promise<PackMeta[]>;
   installPack(packId: string, destinationDir: string): Promise<PackInstallResult>;
   installPackDefault(packId: string): Promise<PackInstallResult>;
+
+  // Skills
+  listSkillsWithStatus(): Promise<SkillWithStatus[]>;
+  installSkill(skillId: string): Promise<void>;
 }
 
 const toSyncUnlisten = (promise: Promise<() => void>) => {

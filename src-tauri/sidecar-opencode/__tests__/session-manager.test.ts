@@ -189,7 +189,7 @@ describe('SessionManager', () => {
       const answers = [{ labels: ['Option A'] }];
       await manager.replyToQuestion('task_1', 'que_123', answers);
 
-      expect(client.replyToQuestion).toHaveBeenCalledWith('que_123', answers);
+      expect(client.replyToQuestion).toHaveBeenCalledWith('que_123', answers, undefined);
     });
   });
 

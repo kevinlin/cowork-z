@@ -84,9 +84,10 @@ The `AnimatePresence` collapse from the old "Example prompts" section is removed
 5. `installPack(packId, destinationDir)` is called via IPC.
 6. Rust copies `workspace-packs/packs/<id>/` recursively, then individually copies `START_HERE.md`, `PACK_INFO.md`, `PROMPTS.md`, `EXPECTED_OUTPUTS.md` from `workspace-packs/pack-docs/<id>/`.
 7. Returns `PackInstallResult { installed_path }`.
-8. Frontend calls `addWorkspace(installedPath)` via `workspaceStore.addWorkspace()`.
-9. Task input is seeded: `"Open \`START_HERE.md\` and follow it step-by-step."`.
-10. `startTask({ prompt, taskId })` is called and the app navigates to `/task/:id`.
+8. Frontend calls `addWorkspace(installedPath)` via `workspaceStore.addWorkspace()`, receiving the new `Workspace` object.
+9. Frontend calls `switchWorkspace(workspace.id)` to activate the new workspace (reconnects SSE, reloads file tree and session list).
+10. Task input is seeded: `"Open \`START_HERE.md\` and follow it step-by-step."`.
+11. `startTask({ prompt, taskId })` is called and the app navigates to `/task/:id`.
 
 ---
 

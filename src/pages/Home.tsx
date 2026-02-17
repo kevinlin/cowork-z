@@ -1,90 +1,39 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { hasAnyReadyProvider } from '@/shared';
-// Import use case images for proper bundling in production
-import calendarPrepNotesImg from '/assets/usecases/calendar-prep-notes.png';
-import competitorPricingDeckImg from '/assets/usecases/competitor-pricing-deck.png';
-import eventCalendarBuilderImg from '/assets/usecases/event-calendar-builder.png';
-import inboxPromoCleanupImg from '/assets/usecases/inbox-promo-cleanup.png';
-import jobApplicationAutomationImg from '/assets/usecases/job-application-automation.png';
-import notionApiAuditImg from '/assets/usecases/notion-api-audit.png';
-import prodBrokenLinksImg from '/assets/usecases/prod-broken-links.png';
-import stagingVsProdVisualImg from '/assets/usecases/staging-vs-prod-visual.png';
-import stockPortfolioAlertsImg from '/assets/usecases/stock-portfolio-alerts.png';
 import TaskInputBar from '../components/landing/TaskInputBar';
 import SettingsDialog from '../components/layout/SettingsDialog';
-import { springs, staggerContainer, staggerItem } from '../lib/animations';
+import { springs } from '../lib/animations';
+import { pickFolder } from '../lib/tauri-api';
+import type { PackMeta } from '../lib/tauri-api';
 import { getTauriAPI } from '../lib/tauri-api-interface';
 import { useTaskStore } from '../stores/taskStore';
+import { useWorkspaceStore } from '../stores/workspaceStore';
 
-const USE_CASE_EXAMPLES = [
-  {
-    title: 'Calendar Prep Notes',
-    description: "Review tomorrow's meetings and draft a prep notes doc.",
-    prompt: "Check my Google Calendar for tomorrow's meetings and draft preparation notes in a new Google Doc.",
-    image: calendarPrepNotesImg,
-  },
-  {
-    title: 'Inbox Promo Cleanup',
-    description: 'Clear promotional emails from the last 24 hours.',
-    prompt: 'Go to my Gmail inbox and delete all promotional emails from the last 24 hours.',
-    image: inboxPromoCleanupImg,
-  },
-  {
-    title: 'Competitor Pricing Deck',
-    description: 'Analyze competitor pricing and draft a slide with recommendations.',
-    prompt:
-      "Pull pricing and features from these 5 competitor sites [list URLs], save to a CSV, analyze our pricing gaps, and draft a recommendation slide in Google Slides for Monday's meeting.",
-    image: competitorPricingDeckImg,
-  },
-  {
-    title: 'Notion API Audit',
-    description: 'Scan a Notion wiki for old API mentions with direct links.',
-    prompt: 'Read through this Notion wiki at [URL] and find all mentions of the old API, listing them with page links.',
-    image: notionApiAuditImg,
-  },
-  {
-    title: 'Staging vs Prod Visual Check',
-    description: 'Compare staging and production visuals with screenshots.',
-    prompt: 'Compare my staging site at [URL] to production at [URL] and screenshot any visual differences.',
-    image: stagingVsProdVisualImg,
-  },
-  {
-    title: 'Production Broken Links',
-    description: 'Check my website for broken links.',
-    prompt: 'Open [URL], click through every link, and report any 404 errors.',
-    image: prodBrokenLinksImg,
-  },
-  {
-    title: 'Portfolio Monitoring',
-    description: 'Watch stock prices, and alert on drops and spikes.',
-    prompt: 'Monitor my stock portfolio on [broker site], alert on price drops and spikes.',
-    image: stockPortfolioAlertsImg,
-  },
-  {
-    title: 'Job Application Automation',
-    description: 'Filter jobs and submit applications with saved profiles.',
-    prompt: 'Find job listings from Indeed for [query], sort by salary, and apply to the top 5 using my profile.',
-    image: jobApplicationAutomationImg,
-  },
-  {
-    title: 'Event Calendar Builder',
-    description: 'Select top events and add them to the calendar.',
-    prompt: 'Scrape event listings from Eventbrite, filter by location, and add top 5 to my calendar.',
-    image: eventCalendarBuilderImg,
-  },
-];
+const COMPLEXITY_COLORS: Record<string, string> = {
+  'Beginner-Intermediate': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  Intermediate: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  'Intermediate-Advanced': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+  Advanced: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+};
 
 export default function HomePage() {
   const [prompt, setPrompt] = useState('');
-  const [showExamples, setShowExamples] = useState(true);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+
+  // Packs state
+  const [packs, setPacks] = useState<PackMeta[]>([]);
+  const [packsLoading, setPacksLoading] = useState(true);
+  const [installingId, setInstallingId] = useState<string | null>(null);
+  const [packErrors, setPackErrors] = useState<Record<string, string>>({});
+  const [query, setQuery] = useState('');
+
   const { startTask, isLoading, addTaskUpdate, enqueuePermissionRequest } = useTaskStore();
+  const { addWorkspace, switchWorkspace } = useWorkspaceStore();
   const navigate = useNavigate();
   const api = getTauriAPI();
 
@@ -93,31 +42,48 @@ export default function HomePage() {
     const unsubscribeTask = api.onTaskUpdate((event) => {
       addTaskUpdate(event);
     });
-
     const unsubscribePermission = api.onPermissionRequest((request) => {
       enqueuePermissionRequest(request);
     });
-
     return () => {
       unsubscribeTask();
       unsubscribePermission();
     };
   }, [addTaskUpdate, enqueuePermissionRequest, api]);
 
-  const executeTask = useCallback(async () => {
-    if (!prompt.trim() || isLoading) return;
+  // Load packs catalog on mount
+  useEffect(() => {
+    api
+      .listPacks()
+      .then(setPacks)
+      .catch(() => setPacks([]))
+      .finally(() => setPacksLoading(false));
+  }, [api]);
 
-    const taskId = `task_${Date.now()}`;
-    const task = await startTask({ prompt: prompt.trim(), taskId });
-    if (task) {
-      navigate(`/execution/${task.id}`);
-    }
-  }, [prompt, isLoading, startTask, navigate]);
+  const filteredPacks = packs.filter((p) => {
+    if (!query.trim()) return true;
+    const q = query.toLowerCase();
+    return (
+      p.title.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q) ||
+      p.complexity.toLowerCase().includes(q) ||
+      p.tags.some((t) => t.toLowerCase().includes(q))
+    );
+  });
+
+  const executeTask = useCallback(
+    async (taskPrompt: string) => {
+      const taskId = `task_${Date.now()}`;
+      const task = await startTask({ prompt: taskPrompt, taskId });
+      if (task) {
+        navigate(`/execution/${task.id}`);
+      }
+    },
+    [startTask, navigate],
+  );
 
   const handleSubmit = async () => {
     if (!prompt.trim() || isLoading) return;
-
-    // Check if any provider is ready before sending (skip in E2E mode)
     const isE2EMode = await api.isE2EMode();
     if (!isE2EMode) {
       const settings = await api.getProviderSettings();
@@ -126,8 +92,7 @@ export default function HomePage() {
         return;
       }
     }
-
-    await executeTask();
+    await executeTask(prompt.trim());
   };
 
   const handleSettingsDialogChange = (open: boolean) => {
@@ -135,22 +100,43 @@ export default function HomePage() {
   };
 
   const handleApiKeySaved = async () => {
-    // API key was saved - close dialog and execute the task
     setShowSettingsDialog(false);
     if (prompt.trim()) {
-      await executeTask();
+      await executeTask(prompt.trim());
     }
   };
 
-  const handleExampleClick = (examplePrompt: string) => {
-    setPrompt(examplePrompt);
+  const handleInstall = async (packId: string) => {
+    setInstallingId(packId);
+    setPackErrors((prev) => {
+      const next = { ...prev };
+      delete next[packId];
+      return next;
+    });
+
+    try {
+      const destination = await pickFolder();
+      if (!destination) {
+        setInstallingId(null);
+        return;
+      }
+
+      const result = await api.installPack(packId, destination);
+      const workspace = await addWorkspace(result.installed_path);
+      await switchWorkspace(workspace.id);
+      await executeTask('Open `START_HERE.md` and follow it step-by-step.');
+    } catch (e) {
+      setPackErrors((prev) => ({ ...prev, [packId]: String(e) }));
+    } finally {
+      setInstallingId(null);
+    }
   };
 
   return (
     <>
       <SettingsDialog onApiKeySaved={handleApiKeySaved} onOpenChange={handleSettingsDialogChange} open={showSettingsDialog} />
       <div className="flex h-full items-center justify-center overflow-y-auto bg-accent p-6">
-        <div className="flex w-full max-w-2xl flex-col items-center gap-8">
+        <div className="flex w-full max-w-4xl flex-col items-center gap-8">
           {/* Main Title */}
           <motion.h1
             animate={{ opacity: 1, y: 0 }}
@@ -170,7 +156,6 @@ export default function HomePage() {
           >
             <Card className="flex max-h-[calc(100vh-3rem)] w-full flex-col gap-0 bg-card/95 py-0 shadow-xl backdrop-blur-md">
               <CardContent className="flex-shrink-0 p-6 pb-4">
-                {/* Input Section */}
                 <TaskInputBar
                   autoFocus={true}
                   isLoading={isLoading}
@@ -182,61 +167,75 @@ export default function HomePage() {
                 />
               </CardContent>
 
-              {/* Examples Toggle */}
+              {/* Starter Packs Section */}
               <div className="border-border border-t">
-                <button
-                  className="flex w-full items-center justify-between px-6 py-3 text-muted-foreground text-sm transition-colors duration-200 hover:bg-muted/50 hover:text-foreground"
-                  onClick={() => setShowExamples(!showExamples)}
-                >
-                  <span>Example prompts</span>
-                  <motion.div animate={{ rotate: showExamples ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                    <ChevronDown className="h-4 w-4" />
-                  </motion.div>
-                </button>
+                {/* Header row */}
+                <div className="flex items-center justify-between px-6 py-3">
+                  <div>
+                    <span className="font-medium text-foreground text-sm">Starter Packs</span>
+                    <p className="text-muted-foreground text-xs">Guided, copyable folders for real-world tasks.</p>
+                  </div>
+                  <input
+                    className="h-7 w-48 rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search packs…"
+                    type="search"
+                    value={query}
+                  />
+                </div>
 
-                <AnimatePresence>
-                  {showExamples && (
-                    <motion.div
-                      animate={{ height: 'auto', opacity: 1 }}
-                      className="overflow-hidden"
-                      exit={{ height: 0, opacity: 0 }}
-                      initial={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div
-                        className="max-h-[360px] overflow-y-auto px-6 pt-1 pb-4"
-                        style={{
-                          background: 'linear-gradient(to bottom, hsl(var(--muted)) 0%, hsl(var(--background)) 100%)',
-                          backgroundAttachment: 'fixed',
-                        }}
-                      >
-                        <motion.div animate="animate" className="grid grid-cols-3 gap-3" initial="initial" variants={staggerContainer}>
-                          {USE_CASE_EXAMPLES.map((example, index) => (
-                            <motion.button
-                              className="flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 hover:border-ring hover:bg-muted/50"
-                              data-testid={`home-example-${index}`}
-                              key={index}
-                              onClick={() => handleExampleClick(example.prompt)}
-                              transition={springs.gentle}
-                              variants={staggerItem}
-                              whileHover={{
-                                scale: 1.03,
-                                transition: { duration: 0.15 },
-                              }}
-                              whileTap={{ scale: 0.97 }}
+                {/* Pack grid */}
+                <div className="max-h-[400px] overflow-y-auto px-6 pb-4">
+                  {packsLoading ? (
+                    <p className="py-4 text-center text-muted-foreground text-sm">Loading packs…</p>
+                  ) : filteredPacks.length === 0 ? (
+                    <p className="py-4 text-center text-muted-foreground text-sm">
+                      {query ? 'No packs match your search.' : 'No packs available.'}
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      {filteredPacks.map((pack) => (
+                        <div
+                          className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4"
+                          key={pack.id}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-foreground text-sm leading-snug">{pack.title}</div>
+                              <div className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">{pack.description}</div>
+                            </div>
+                            <button
+                              className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                              disabled={installingId === pack.id}
+                              onClick={() => handleInstall(pack.id)}
+                              type="button"
                             >
-                              <img alt={example.title} className="h-12 w-12 rounded object-cover" src={example.image} />
-                              <div className="flex w-full flex-col items-center gap-1">
-                                <div className="text-center font-medium text-foreground text-xs">{example.title}</div>
-                                <div className="line-clamp-2 text-center text-muted-foreground text-xs">{example.description}</div>
-                              </div>
-                            </motion.button>
-                          ))}
-                        </motion.div>
-                      </div>
-                    </motion.div>
+                              {installingId === pack.id ? 'Installing…' : 'Install'}
+                            </button>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${COMPLEXITY_COLORS[pack.complexity] ?? 'bg-muted text-muted-foreground'}`}
+                            >
+                              {pack.complexity}
+                            </span>
+                            <span className="text-muted-foreground text-xs">{pack.time_estimate}</span>
+                            {pack.tags.slice(0, 4).map((tag) => (
+                              <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs" key={tag}>
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+
+                          {packErrors[pack.id] && (
+                            <p className="text-destructive text-xs">{packErrors[pack.id]}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </AnimatePresence>
+                </div>
               </div>
             </Card>
           </motion.div>

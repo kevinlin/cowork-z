@@ -1170,6 +1170,35 @@ export async function onWorkspaceFsChanged(callback: (data: { changedPath: strin
 }
 
 // ============================================================================
+// Packs
+// ============================================================================
+
+export interface PackMeta {
+  id: string;
+  title: string;
+  description: string;
+  complexity: string;
+  time_estimate: string;
+  tags: string[];
+}
+
+export interface PackInstallResult {
+  installed_path: string;
+}
+
+export async function listPacks(): Promise<PackMeta[]> {
+  return invoke<PackMeta[]>('packs_list');
+}
+
+export async function installPack(packId: string, destinationDir: string): Promise<PackInstallResult> {
+  return invoke<PackInstallResult>('packs_install', { packId, destinationDir });
+}
+
+export async function installPackDefault(packId: string): Promise<PackInstallResult> {
+  return invoke<PackInstallResult>('packs_install_default', { packId });
+}
+
+// ============================================================================
 // Compatibility Helpers
 // ============================================================================
 
@@ -1360,5 +1389,10 @@ export function getTauriApi() {
     readDirectory,
     onWorkspaceChanged,
     onWorkspaceFsChanged,
+
+    // Packs
+    listPacks,
+    installPack,
+    installPackDefault,
   };
 }

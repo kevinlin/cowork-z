@@ -42,7 +42,11 @@
     "externalBin": [
       "binaries/sidecar-opencode"
     ],
-    "resources": ["resources/skills/**/*"],
+    "resources": [
+      "resources/skills/**/*",
+      "resources/packs/**/*",
+      "resources/pack-docs/**/*"
+    ],
     "createUpdaterArtifacts": true,
     "macOS": {
       "entitlements": "./Entitlements.plist"

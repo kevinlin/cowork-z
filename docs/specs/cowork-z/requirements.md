@@ -45,6 +45,7 @@ The following implementation plans document how specific requirements were desig
 | OpenRouter Provider Support | [`cowork-z/plan_openrouter-provider-support.md`](plan_openrouter-provider-support.md) | 1.1.3 |
 | Dynamic Model Discovery | [`cowork-z/plan_dynamic-model-discovery-for-direct-api-providers.md`](plan_dynamic-model-discovery-for-direct-api-providers.md) | 1.1.4 |
 | Chat UI Rewrite | [Chat UI Rewrite](../ts-frontend/plan_chat_ui_rewrite.md) | 3.7 |
+| Workspace Starter Packs | [Workspace Packs Plan](../workspace-packs/plan.md) | 7.1–7.3 |
 
 ---
 
@@ -618,6 +619,60 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. WHEN clicked, THE SYSTEM SHALL insert the file path as an `@path` reference into the active chat input (task launcher on the Home page, follow-up input on the Execution page)
 3. THE SYSTEM SHALL insert the reference at the current cursor position with appropriate whitespace padding
 4. AFTER insertion, THE SYSTEM SHALL focus the chat input and place the cursor after the inserted reference
+
+---
+
+### 7. Workspace Starter Packs ✅
+
+> **Design:** [Workspace Packs Design](../workspace-packs/design.md)
+> **Plan:** [Workspace Packs Plan](../workspace-packs/plan.md)
+
+**User Story:** As a user, I want to browse and install pre-built workspace starter packs from the Home screen, so that I can quickly start guided, real-world tasks without setting up files from scratch.
+
+#### 7.1 Pack Catalog ✅
+
+**Acceptance Criteria:**
+
+##### 7.1.1 Built-in Pack Library
+1. THE SYSTEM SHALL include a built-in catalog of 6 workspace starter packs covering writing, research, security, legal, and audit domains
+2. EACH pack SHALL define metadata: id, title, description, complexity level, time estimate, and tags
+3. THE SYSTEM SHALL expose the pack catalog via a `packs_list` Tauri command
+
+##### 7.1.2 Pack Content
+1. EACH pack SHALL include template files in `workspace-packs/packs/<pack-id>/` and documentation files in `workspace-packs/pack-docs/<pack-id>/`
+2. THE SYSTEM SHALL bundle pack files as Tauri resources for production builds and fall back to the repo-root `workspace-packs/` directory in debug builds
+3. DOCUMENTATION files SHALL include `START_HERE.md`, `PACK_INFO.md`, `PROMPTS.md`, and optionally `CONTRIBUTING.md` and `EXPECTED_OUTPUTS.md`
+
+#### 7.2 Pack Installation ✅
+
+**Acceptance Criteria:**
+
+##### 7.2.1 Install Flow
+1. WHEN the user clicks Install on a pack card, THE SYSTEM SHALL open the native folder picker to choose a destination directory
+2. THE SYSTEM SHALL recursively copy the pack template and documentation files into a new subdirectory named after the pack id
+3. WHERE a directory with the same name already exists, THE SYSTEM SHALL append an incrementing suffix (`-2`, `-3`, … up to `-100`)
+4. AFTER successful installation, THE SYSTEM SHALL add the installed directory as a new workspace, switch to it (reconnecting SSE and reloading the file tree), and auto-start an AI task with the prompt "Open `START_HERE.md` and follow it step-by-step."
+
+##### 7.2.2 Default Installation
+1. THE SYSTEM SHALL provide a `packs_install_default` command that installs to `~/Cowork-Z Packs/` (falling back to `{app_data_dir}/packs` if the home directory is unavailable)
+2. THE SYSTEM SHALL validate pack IDs against the catalog to prevent path traversal
+
+#### 7.3 Home Screen Packs Browser ✅
+
+**Acceptance Criteria:**
+
+##### 7.3.1 Packs Grid
+1. THE SYSTEM SHALL display a "Starter Packs" section on the Home screen below the task input bar, replacing the previous "Example prompts" section
+2. THE SYSTEM SHALL render packs in a 2-column grid, each card showing title, description, complexity badge, time estimate, tags, and an Install button
+3. THE SYSTEM SHALL display a loading state while the pack catalog is being fetched
+
+##### 7.3.2 Search and Filter
+1. THE SYSTEM SHALL provide a search input that filters packs by title, description, complexity, or tags in real-time
+2. WHERE no packs match the search query, THE SYSTEM SHALL display a "No packs match your search" message
+
+##### 7.3.3 Error Handling
+1. WHERE pack installation fails, THE SYSTEM SHALL display the error message inline on the affected pack card
+2. WHILE a pack is being installed, THE SYSTEM SHALL disable the Install button and show "Installing…" text
 
 ---
 

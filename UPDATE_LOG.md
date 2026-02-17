@@ -2,8 +2,9 @@
 
 ## v0.5.0
 
-- **6.1~6.3 Workspace-as-Folder** — Workspace-per-folder model where each workspace is a unique directory that becomes the AI agent's CWD, scopes sessions, and provides a file tree browser.
+- **6.1-6.3 Workspace-as-Folder** — Workspace-per-folder model where each workspace is a unique directory that becomes the AI agent's CWD, scopes sessions, and provides a file tree browser.
 - **6.4 File Preview Panel** — Resizable right-side panel for previewing code (syntax-highlighted), Markdown, images, video, PDF, HTML, and text files from the file tree or chat media thumbnails; fullscreen mode; "Add to Chat" button inserts `@path` reference into chat input.
+- **7.1–7.3 Workspace Starter Packs** — Home screen now features a "Starter Packs" browser (replacing the old example prompts) with a 2-column grid of 6 guided workspace packs. Users can search/filter packs, install them to any folder via the native picker, and the app auto-creates a workspace and starts an AI task from the pack's START_HERE.md.
 
 ## v0.4.5
 

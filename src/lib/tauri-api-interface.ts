@@ -23,6 +23,7 @@ import type {
   TaskUpdateEvent,
   Workspace,
 } from '@/shared';
+import type { PackInstallResult, PackMeta } from './tauri-api';
 import { getTauriApi, isRunningInTauri } from './tauri-api';
 
 export interface TauriAPI {
@@ -282,6 +283,11 @@ export interface TauriAPI {
   readDirectory(path: string): Promise<DirectoryEntry[]>;
   onWorkspaceChanged?(callback: (data: { workspace: Workspace }) => void): () => void;
   onWorkspaceFsChanged?(callback: (data: { changedPath: string }) => void): () => void;
+
+  // Packs
+  listPacks(): Promise<PackMeta[]>;
+  installPack(packId: string, destinationDir: string): Promise<PackInstallResult>;
+  installPackDefault(packId: string): Promise<PackInstallResult>;
 }
 
 const toSyncUnlisten = (promise: Promise<() => void>) => {

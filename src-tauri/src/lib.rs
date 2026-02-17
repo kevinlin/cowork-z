@@ -229,6 +229,10 @@ pub fn run() {
             commands::workspaces::switch_workspace,
             commands::workspaces::read_directory,
             commands::workspaces::initialize_workspace,
+            // Packs
+            commands::packs::packs_list,
+            commands::packs::packs_install,
+            commands::packs::packs_install_default,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -586,7 +586,7 @@ export default function HomePage() {
   const [query, setQuery] = useState('');
 
   const { startTask, isLoading, addTaskUpdate, enqueuePermissionRequest } = useTaskStore();
-  const { addWorkspace } = useWorkspaceStore();
+  const { addWorkspace, switchWorkspace } = useWorkspaceStore();
   const navigate = useNavigate();
   const api = getTauriAPI();
 
@@ -675,7 +675,8 @@ export default function HomePage() {
       }
 
       const result = await api.installPack(packId, destination);
-      await addWorkspace(result.installed_path);
+      const workspace = await addWorkspace(result.installed_path);
+      await switchWorkspace(workspace.id);
       await executeTask("Open `START_HERE.md` and follow it step-by-step.");
     } catch (e) {
       setPackErrors((prev) => ({ ...prev, [packId]: String(e) }));

@@ -9,12 +9,11 @@ vi.mock('@/lib/tauri-api', () => ({
   convertFileSrc: vi.fn((path: string) => `asset://${path}`),
 }));
 
-// Mock the Dialog component to avoid Radix portal issues in tests
-vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) => (open ? <div data-testid="dialog">{children}</div> : null),
-  DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+// Mock the file preview store
+vi.mock('@/stores/filePreviewStore', () => ({
+  useFilePreviewStore: vi.fn((selector: (s: Record<string, unknown>) => unknown) =>
+    selector({ openPreviewByPath: vi.fn() })
+  ),
 }));
 
 describe('MediaGallery', () => {

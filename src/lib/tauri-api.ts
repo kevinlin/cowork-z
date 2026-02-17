@@ -77,6 +77,29 @@ export function convertFileSrc(filePath: string): string {
 }
 
 // ============================================================================
+// File Preview
+// ============================================================================
+
+/**
+ * Read UTF-8 text content from a file.
+ * @param path Absolute file path
+ * @param maxSize Maximum file size in bytes (default 1 MB)
+ */
+export async function readFileContent(path: string, maxSize?: number): Promise<string> {
+  return invoke<string>('read_file_content', { path, maxSize });
+}
+
+/**
+ * Read binary content from a file as a base64-encoded string.
+ * Used for images, PDFs, and other binary formats.
+ * @param path Absolute file path
+ * @param maxSize Maximum file size in bytes (default 10 MB)
+ */
+export async function readBinaryFile(path: string, maxSize?: number): Promise<string> {
+  return invoke<string>('read_binary_file', { path, maxSize });
+}
+
+// ============================================================================
 // Dialog / Folder Picker
 // ============================================================================
 

@@ -2,6 +2,7 @@ pub mod api_keys;
 pub mod app_info;
 pub mod azure_foundry;
 pub mod bedrock;
+pub mod files;
 pub mod folder_permissions;
 pub mod litellm;
 pub mod logging;

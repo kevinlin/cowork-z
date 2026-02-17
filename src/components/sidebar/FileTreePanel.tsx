@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type FileTreeNode, useFileTree } from '@/hooks/useFileTree';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { cn } from '@/lib/utils';
+import type { DirectoryEntry } from '@/shared/types/workspace';
+import { useFilePreviewStore } from '@/stores/filePreviewStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const CODE_EXTENSIONS = new Set(['ts', 'tsx', 'js', 'jsx', 'rs', 'py', 'java', 'c', 'cpp', 'go', 'rb', 'swift', 'kt']);
@@ -100,18 +102,20 @@ interface TreeRowProps {
   node: FileTreeNode;
   depth: number;
   onToggle: (path: string) => void;
-  onSelect: (path: string) => void;
+  onSelect: (entry: DirectoryEntry) => void;
+  selectedPath?: string;
 }
 
-function TreeRow({ node, depth, onToggle, onSelect }: TreeRowProps) {
+function TreeRow({ node, depth, onToggle, onSelect, selectedPath }: TreeRowProps) {
   const { entry, isExpanded, isLoading } = node;
   const Icon = getFileIcon(entry, isExpanded);
+  const isSelected = !entry.isDirectory && entry.path === selectedPath;
 
   const handleClick = () => {
     if (entry.isDirectory) {
       onToggle(entry.path);
     } else {
-      onSelect(entry.path);
+      onSelect(entry);
     }
   };
 
@@ -129,7 +133,8 @@ function TreeRow({ node, depth, onToggle, onSelect }: TreeRowProps) {
           'flex w-full items-center gap-1 rounded-sm px-1 py-0.5 text-left text-xs',
           'transition-colors hover:bg-accent hover:text-accent-foreground',
           'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-          'cursor-grab active:cursor-grabbing'
+          'cursor-grab active:cursor-grabbing',
+          isSelected && 'bg-accent text-accent-foreground'
         )}
         draggable
         onClick={handleClick}
@@ -153,7 +158,7 @@ function TreeRow({ node, depth, onToggle, onSelect }: TreeRowProps) {
       {isExpanded && node.children && (
         <div>
           {node.children.map((child) => (
-            <TreeRow depth={depth + 1} key={child.entry.path} node={child} onSelect={onSelect} onToggle={onToggle} />
+            <TreeRow depth={depth + 1} key={child.entry.path} node={child} onSelect={onSelect} onToggle={onToggle} selectedPath={selectedPath} />
           ))}
         </div>
       )}
@@ -163,6 +168,7 @@ function TreeRow({ node, depth, onToggle, onSelect }: TreeRowProps) {
 
 export default function FileTreePanel() {
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+  const { selectedFile, openPreview } = useFilePreviewStore();
   const [showHidden, setShowHidden] = useState(false);
 
   const hiddenFilter = useMemo(() => {
@@ -195,15 +201,12 @@ export default function FileTreePanel() {
     };
   }, [refreshRoot]);
 
-  const handleSelect = useCallback((path: string) => {
-    // For now, reveal file in finder
-    try {
-      const api = getTauriAPI();
-      api.revealInFinder(path);
-    } catch {
-      // ignore
-    }
-  }, []);
+  const handleSelect = useCallback(
+    (entry: DirectoryEntry) => {
+      openPreview(entry);
+    },
+    [openPreview]
+  );
 
   if (!activeWorkspace) {
     return <div className="px-3 py-8 text-center text-muted-foreground text-sm">No workspace selected</div>;
@@ -249,7 +252,9 @@ export default function FileTreePanel() {
         ) : nodes.length === 0 ? (
           <div className="px-2 py-8 text-center text-muted-foreground text-xs">{searchQuery ? 'No files found' : 'Empty directory'}</div>
         ) : (
-          nodes.map((node) => <TreeRow depth={0} key={node.entry.path} node={node} onSelect={handleSelect} onToggle={toggleExpand} />)
+          nodes.map((node) => (
+            <TreeRow depth={0} key={node.entry.path} node={node} onSelect={handleSelect} onToggle={toggleExpand} selectedPath={selectedFile?.path} />
+          ))
         )}
       </div>
     </div>

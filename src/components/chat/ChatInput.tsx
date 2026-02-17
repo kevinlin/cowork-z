@@ -1,9 +1,10 @@
 import { CornerDownLeft, Square } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { DragDropTextarea } from '@/components/ui/drag-drop-input';
 import { Input } from '@/components/ui/input';
+import { insertAtCursor } from '@/lib/file-utils';
 
 interface ChatInputProps {
   isRunning: boolean;
@@ -31,6 +32,27 @@ export function ChatInput({
   const navigate = useNavigate();
   const [followUp, setFollowUp] = useState('');
   const followUpInputRef = useRef<HTMLTextAreaElement>(null);
+  const cursorPositionRef = useRef(0);
+  const followUpRef = useRef(followUp);
+  followUpRef.current = followUp;
+
+  // Listen for "Add to Chat" events from the file preview panel
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ text: string }>).detail;
+      if (!detail?.text) return;
+      const { newText, newCursorPosition } = insertAtCursor(followUpRef.current, detail.text, cursorPositionRef.current);
+      setFollowUp(newText);
+      setTimeout(() => {
+        if (followUpInputRef.current) {
+          followUpInputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+          followUpInputRef.current.focus();
+        }
+      }, 0);
+    };
+    window.addEventListener('add-to-chat', handler);
+    return () => window.removeEventListener('add-to-chat', handler);
+  }, []);
 
   const handleFollowUp = () => {
     if (!followUp.trim()) return;
@@ -69,9 +91,16 @@ export function ChatInput({
               className="flex-1"
               data-testid="execution-follow-up-input"
               disabled={isLoading}
-              onChange={(e) => setFollowUp(e.target.value)}
+              onChange={(e) => {
+                cursorPositionRef.current = e.target.selectionStart ?? 0;
+                setFollowUp(e.target.value);
+              }}
+              onClick={(e) => {
+                cursorPositionRef.current = e.currentTarget.selectionStart ?? 0;
+              }}
               onFilesDropped={(newValue, newCursorPosition) => {
                 setFollowUp(newValue);
+                cursorPositionRef.current = newCursorPosition;
                 setTimeout(() => {
                   if (followUpInputRef.current) {
                     followUpInputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
@@ -85,6 +114,9 @@ export function ChatInput({
                   e.preventDefault();
                   handleFollowUp();
                 }
+              }}
+              onKeyUp={(e) => {
+                cursorPositionRef.current = e.currentTarget.selectionStart ?? 0;
               }}
               placeholder={
                 taskStatus === 'interrupted'

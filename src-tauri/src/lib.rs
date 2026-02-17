@@ -218,6 +218,9 @@ pub fn run() {
             // App Updates
             commands::updates::check_for_update,
             commands::updates::install_update,
+            // File preview
+            commands::files::read_file_content,
+            commands::files::read_binary_file,
             // Workspaces
             commands::workspaces::list_workspaces,
             commands::workspaces::get_active_workspace,

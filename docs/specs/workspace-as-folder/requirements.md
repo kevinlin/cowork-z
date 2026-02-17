@@ -2,12 +2,12 @@
 
 ## Overview
 
-The application shows a 3-panels workspace for user:
-1. The left panal provides a two-tabbed panels:
-   - Sessions tab  for viewing/resuming conversations
-   - Files tab for browsing and previewing files within the active project directory. The panel displays a hierarchical file tree;
-1. The chat UI shows the conversations for the active section;
-1. The closable right panel renders an inline preview of the selected file.
+The application shows a 3-panel workspace for the user:
+1. The left panel provides two-tabbed panels:
+   - Sessions tab for viewing/resuming conversations
+   - Files tab for browsing and previewing files within the active project directory. The panel displays a hierarchical file tree.
+2. The chat UI shows the conversations for the active session.
+3. A closable, resizable right panel renders an inline preview of the selected file.
 
 ---
 
@@ -55,6 +55,13 @@ The application shows a 3-panels workspace for user:
 | Data/Config | `json yaml yml toml` | JSON File |
 | Everything else | — | Text File |
 
+### Drag-and-Drop from File Tree
+
+- Files can be dragged from the file tree into the chat input areas (task launcher and follow-up input).
+- Dropped files are inserted as `@path/to/file` references at the cursor position.
+- Paths containing spaces are automatically quoted: `@"path/to/file with spaces.txt"`.
+- Visual feedback (ring highlight) is shown when hovering over the drop target.
+
 ---
 
 ## File Preview
@@ -62,7 +69,14 @@ The application shows a 3-panels workspace for user:
 ### Opening and Closing
 
 - Clicking a file in the tree opens its preview in the right panel.
+- Clicking a media thumbnail (image/video) in a chat message opens the preview panel for that file.
 - A close button (X) dismisses the preview panel.
+
+### Resizable Panel
+
+- The preview panel has a drag handle on its left edge for horizontal resizing.
+- The panel width is constrained between a minimum (280px) and maximum (700px), with a default of 400px.
+- The drag handle highlights on hover to indicate interactivity.
 
 ### Supported Preview Types
 
@@ -70,18 +84,16 @@ The application shows a 3-panels workspace for user:
 |------|-----------|-----------|
 | Code | `ts tsx js jsx rs py java c cpp h hpp go rb php swift kt scala sh bash css scss xml sql r` | Syntax-highlighted with line numbers, dark theme |
 | Markdown | `md` | Rendered Markdown with GFM support (tables, strikethrough, etc.); embedded code blocks are syntax-highlighted with a macOS-style header bar |
-| Image | `png jpg jpeg gif svg webp bmp ico` | Centered image, scaled to fit |
-| PDF | `pdf` | Embedded native PDF viewer |
+| Image | `png jpg jpeg gif svg webp bmp ico` | Centered image, scaled to fit, loaded via Tauri asset protocol |
+| PDF | `pdf` | Embedded native PDF viewer via base64 data URL |
 | HTML | `html htm` | Rendered in a sandboxed iframe; relative asset paths resolve correctly; scripts are allowed but the iframe cannot access the host app |
-| Presentation | `*.tandem.ppt.json` | Full slide viewer (see Presentation Preview) |
 | Text | `txt log csv json yaml yml toml ini cfg conf` | Plain monospace text, scrollable |
-| Extracted Text | `pdf docx pptx xlsx xls ods xlsb rtf` | Backend-extracted text content (up to 25 MB / 200,000 chars), displayed as plain text |
 | Binary | Everything else | Generic file icon with file name and size; no content preview |
 
 ### Fullscreen / Expand Mode
 
 - A maximize/minimize toggle in the preview header switches between docked and fullscreen mode.
-- In fullscreen, the preview covers the entire viewport.
+- In fullscreen, the preview covers the entire viewport as a portal overlay with backdrop blur.
 - Pressing **Escape** exits fullscreen.
 - Switching to a different file automatically resets to docked mode.
 
@@ -89,40 +101,6 @@ The application shows a 3-panels workspace for user:
 
 - A spinner is shown while file content is being fetched.
 - If loading fails, an error icon and message replace the content area.
-
----
-
-## Presentation Preview
-
-A dedicated viewer for `.tandem.ppt.json` files (Tandem's JSON format for AI-generated presentations).
-
-### Slide Viewer
-
-- Renders slides in a 16:9 aspect-ratio canvas.
-- Four slide layouts: `title`, `section`, `content`, `blank`.
-- Four visual themes: `light`, `dark`, `corporate`, `minimal`.
-
-### Navigation
-
-- Previous/Next buttons (disabled at first/last slide).
-- **Left/Right arrow keys** navigate between slides.
-- Slide counter displays "Slide X of Y".
-
-### Thumbnails
-
-- A horizontal filmstrip at the bottom shows all slides.
-- Clicking a thumbnail jumps to that slide.
-- The active slide thumbnail has a distinct border highlight.
-
-### Speaker Notes
-
-- If a slide has notes, a collapsible "Speaker Notes" section appears at the bottom.
-- Toggled by clicking the section header.
-
-### Export
-
-- An "Export to PPTX" button opens a native save dialog defaulting to `<filename>.pptx`.
-- On first load, the presentation is automatically exported to `.pptx` in the same directory.
 
 ---
 
@@ -139,7 +117,9 @@ On refresh, expanded directories are re-read recursively while preserving the cu
 
 ## Chat Integration
 
-- An **"Add to Chat"** button in the preview header sends the previewed file as context to the chat input.
+- An **"Add to Chat"** button in the preview header inserts the previewed file as an `@path` reference into the active chat input (task launcher input on the Home page, follow-up input on the Execution page).
+- The path is inserted at the current cursor position with appropriate whitespace padding.
+- After insertion, the chat input receives focus and the cursor is placed after the inserted reference.
 - This is the primary bridge between the Files tab and the Chat workspace.
 
 ---
@@ -164,24 +144,16 @@ On refresh, expanded directories are re-read recursively while preserving the cu
 
 ---
 
-## Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| Escape | Exit fullscreen preview |
-| Left Arrow | Previous slide (presentation preview) |
-| Right Arrow | Next slide (presentation preview) |
-
----
-
 ## Not Supported
 
 The following are explicitly **not** part of the current feature set:
 
 - File mutations (rename, delete, move, copy, create)
 - Context menus / right-click actions
-- Drag-and-drop
 - Multi-file selection
 - List or grid view alternatives
 - User-configurable sort order
 - Breadcrumb navigation
+- Presentation preview (`.tandem.ppt.json` — Tandem-specific format)
+- Extracted text preview for office documents (DOCX, PPTX, XLSX)
+- Video preview in the file preview panel (videos continue to use inline media thumbnails in chat)

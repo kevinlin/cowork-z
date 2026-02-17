@@ -39,6 +39,9 @@ dirs = "5.0"
 # Secure storage (OS Keychain)
 keyring = "2"
 
+# Base64 encoding for binary file preview
+base64 = "0.22"
+
 # Filesystem watching
 notify = "7"
 notify-debouncer-mini = "0.5"

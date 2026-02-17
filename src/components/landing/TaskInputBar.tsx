@@ -51,6 +51,24 @@ export default function TaskInputBar({
     }
   }, [autoFocus]);
 
+  // Listen for "Add to Chat" events from the file preview panel
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ text: string }>).detail;
+      if (!detail?.text) return;
+      const { newText, newCursorPosition } = insertAtCursor(valueRef.current, detail.text, cursorPositionRef.current);
+      onChangeRef.current(newText);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+          textareaRef.current.focus();
+        }
+      }, 0);
+    };
+    window.addEventListener('add-to-chat', handler);
+    return () => window.removeEventListener('add-to-chat', handler);
+  }, []);
+
   // Auto-resize textarea
   useEffect(() => {
     const textarea = textareaRef.current;

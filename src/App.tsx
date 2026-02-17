@@ -1,26 +1,29 @@
 'use client';
 
+import { listen } from '@tauri-apps/api/event';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { FilePreviewPanel } from './components/file-preview';
 import AboutDialog from './components/layout/AboutDialog';
 import OpenCodeCliMissingDialog from './components/layout/OpenCodeCliMissingDialog';
 import SettingsDialog from './components/layout/SettingsDialog';
-import UpdateDialog from './components/layout/UpdateDialog';
 // Components
 import Sidebar from './components/layout/Sidebar';
+import UpdateDialog from './components/layout/UpdateDialog';
 import { TaskLauncher } from './components/TaskLauncher';
 import { useAppUpdate } from './hooks/useAppUpdate';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTheme } from './hooks/useTheme';
 import { analytics } from './lib/analytics';
 import { springs, variants } from './lib/animations';
-import { listen } from '@tauri-apps/api/event';
+import { formatPathForChat } from './lib/file-utils';
 import { isRunningInTauri, setOnboardingComplete } from './lib/tauri-api';
 import ExecutionPage from './pages/Execution';
 // Pages
 import HomePage from './pages/Home';
+import { useFilePreviewStore } from './stores/filePreviewStore';
 import { useTaskStore } from './stores/taskStore';
 
 type AppStatus = 'loading' | 'ready' | 'error';
@@ -33,6 +36,53 @@ export default function App() {
 
   // Get store actions
   const { openLauncher, showSettings, setShowSettings, showAbout, setShowAbout, showCliMissing, setShowCliMissing } = useTaskStore();
+
+  // File preview state
+  const { selectedFile, isPreviewOpen, closePreview } = useFilePreviewStore();
+
+  const handleAddFileToChat = useCallback((file: { path: string }) => {
+    const formatted = formatPathForChat(file.path);
+    if (formatted) {
+      window.dispatchEvent(new CustomEvent('add-to-chat', { detail: { text: formatted } }));
+    }
+  }, []);
+
+  // ── Resizable preview panel ───────────────────────────────────────
+  const PREVIEW_MIN_WIDTH = 280;
+  const PREVIEW_MAX_WIDTH = 700;
+  const PREVIEW_DEFAULT_WIDTH = 400;
+  const [previewWidth, setPreviewWidth] = useState(PREVIEW_DEFAULT_WIDTH);
+  const isResizing = useRef(false);
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing.current = true;
+      const startX = e.clientX;
+      const startWidth = previewWidth;
+
+      const onMouseMove = (ev: MouseEvent) => {
+        if (!isResizing.current) return;
+        const delta = startX - ev.clientX;
+        const newWidth = Math.min(PREVIEW_MAX_WIDTH, Math.max(PREVIEW_MIN_WIDTH, startWidth + delta));
+        setPreviewWidth(newWidth);
+      };
+
+      const onMouseUp = () => {
+        isResizing.current = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    },
+    [previewWidth]
+  );
 
   // Theme — load persisted theme, detect OS dark-mode on first launch
   const { themeId, switchTheme } = useTheme();
@@ -167,6 +217,26 @@ export default function App() {
           </Routes>
         </AnimatePresence>
       </main>
+      {isPreviewOpen && selectedFile && (
+        <>
+          {/* Drag handle for resizing the preview panel */}
+          <div
+            aria-label="Resize file preview"
+            aria-valuemax={PREVIEW_MAX_WIDTH}
+            aria-valuemin={PREVIEW_MIN_WIDTH}
+            aria-valuenow={previewWidth}
+            className="group relative w-0 shrink-0 cursor-col-resize"
+            onMouseDown={handleResizeStart}
+            role="separator"
+            tabIndex={0}
+          >
+            <div className="absolute top-0 bottom-0 -left-1 z-10 w-2 transition-colors group-hover:bg-primary/20 group-active:bg-primary/30" />
+          </div>
+          <div className="shrink-0" style={{ width: previewWidth }}>
+            <FilePreviewPanel file={selectedFile} onAddToChat={handleAddFileToChat} onClose={closePreview} />
+          </div>
+        </>
+      )}
       <TaskLauncher />
       <SettingsDialog onOpenChange={setShowSettings} onSwitchTheme={switchTheme} open={showSettings} themeId={themeId} />
       <AboutDialog onOpenChange={setShowAbout} open={showAbout} />

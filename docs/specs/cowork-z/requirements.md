@@ -514,11 +514,11 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 ### 6. Workspace & File Browser
 
 > **Full specification:** [Workspace-as-Folder Requirements](../workspace-as-folder/requirements.md)
-> **Design:** [Workspace-as-Folder Design (Phase 1)](../workspace-as-folder/design_phase1.md)
+> **Design:** [Workspace-as-Folder Design (Phase 1)](../workspace-as-folder/design_phase1.md), [Workspace-as-Folder Design (Phase 2)](../workspace-as-folder/design_phase2.md)
 
-**User Story:** As a user, I want each project folder to be its own workspace with a file browser and scoped session history, so that I can keep my AI interactions organized by project and browse files the agent creates or modifies.
+**User Story:** As a user, I want each project folder to be its own workspace with a file browser, file preview, and scoped session history, so that I can keep my AI interactions organized by project and browse files the agent creates or modifies.
 
-#### 6.1 Workspace Lifecycle
+#### 6.1 Workspace Lifecycle ✅
 
 **Acceptance Criteria:**
 
@@ -540,7 +540,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. THE SYSTEM SHALL filter the sidebar session list to show only sessions belonging to the active workspace
 3. WHEN a task starts, THE SYSTEM SHALL pass the active workspace folder as the `working_directory` to the sidecar
 
-#### 6.2 File Tree Browser
+#### 6.2 File Tree Browser ✅
 
 **Acceptance Criteria:**
 
@@ -558,7 +558,13 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL watch the active workspace directory for filesystem changes using the `notify` crate, debounced at 200ms
 2. WHEN changes are detected, THE SYSTEM SHALL emit a `workspace:fs_changed` event and refresh only the affected expanded directories, preserving expand/collapse state
 
-#### 6.3 Workspace Permissions
+##### 6.2.4 Drag-and-Drop from File Tree
+1. THE SYSTEM SHALL allow dragging files from the file tree into chat input areas (task launcher and follow-up input)
+2. WHEN a file is dropped, THE SYSTEM SHALL insert the path as an `@path/to/file` reference at the cursor position
+3. WHERE a path contains spaces, THE SYSTEM SHALL wrap it in quotes: `@"path/to/file with spaces.txt"`
+4. THE SYSTEM SHALL display visual feedback (ring highlight) when hovering over the drop target
+
+#### 6.3 Workspace Permissions ✅
 
 **Acceptance Criteria:**
 
@@ -570,11 +576,53 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL rename the existing "Folders" panel to "External Folders" for granting access to directories outside the workspace
 2. THE SYSTEM SHALL remove the implicit default permissions for `~/Downloads` and `~/Desktop` (the workspace folder replaces this concept)
 
+#### 6.4 File Preview Panel ✅
+
+**User Story:** As a user, I want to preview files from the file tree or chat messages without leaving the app, so that I can quickly inspect content the agent references or creates.
+
+**Acceptance Criteria:**
+
+##### 6.4.1 Preview Opening
+1. WHEN the user clicks a file in the file tree, THE SYSTEM SHALL open the file preview in a right-side panel
+2. WHEN the user clicks a media thumbnail (image/video) in a chat message, THE SYSTEM SHALL open the file preview panel for that file
+3. THE SYSTEM SHALL display a close button (X) in the preview header to dismiss the panel
+
+##### 6.4.2 Resizable Panel
+1. THE SYSTEM SHALL provide a drag handle on the left edge of the preview panel for horizontal resizing
+2. THE SYSTEM SHALL constrain the panel width between a minimum (280px) and maximum (700px), defaulting to 400px
+3. THE SYSTEM SHALL display a visual indicator on hover to signal that the handle is interactive
+
+##### 6.4.3 Preview Types
+1. THE SYSTEM SHALL detect the preview type from the file extension and render accordingly:
+   - **Code** (`ts tsx js jsx rs py java c cpp h hpp go rb php swift kt scala sh bash css scss xml sql r`): Syntax-highlighted with line numbers, dark theme
+   - **Markdown** (`md`): Rendered Markdown with GFM support; embedded code blocks are syntax-highlighted with a macOS-style header bar
+   - **Image** (`png jpg jpeg gif svg webp bmp ico`): Centered image, scaled to fit, loaded via Tauri asset protocol
+   - **PDF** (`pdf`): Embedded native PDF viewer via base64 data URL
+   - **HTML** (`html htm`): Sandboxed iframe with scripts allowed but no host app access
+   - **Text** (`txt log csv json yaml yml toml ini cfg conf`): Plain monospace text, scrollable
+   - **Binary** (everything else): Generic file icon with file name and size; no content preview
+
+##### 6.4.4 Fullscreen Mode
+1. THE SYSTEM SHALL provide a maximize/minimize toggle in the preview header
+2. IN fullscreen mode, THE SYSTEM SHALL render the preview as a portal overlay covering the entire viewport with backdrop blur
+3. WHEN the user presses **Escape**, THE SYSTEM SHALL exit fullscreen mode
+4. WHEN the user switches to a different file, THE SYSTEM SHALL reset to docked mode
+
+##### 6.4.5 Loading and Error States
+1. THE SYSTEM SHALL display a spinner while file content is being fetched
+2. WHERE loading fails, THE SYSTEM SHALL display an error icon and message in the content area
+
+##### 6.4.6 Add to Chat
+1. THE SYSTEM SHALL provide an "Add to Chat" button in the preview header
+2. WHEN clicked, THE SYSTEM SHALL insert the file path as an `@path` reference into the active chat input (task launcher on the Home page, follow-up input on the Execution page)
+3. THE SYSTEM SHALL insert the reference at the current cursor position with appropriate whitespace padding
+4. AFTER insertion, THE SYSTEM SHALL focus the chat input and place the cursor after the inserted reference
+
 ---
 
 ## Outstanding Feature TODO
 
 The following items remain to be implemented:
 
-- [ ] **Windows Production Readiness** — Fix runtime bugs (PATH resolution, dev command), CI hardening (Windows smoke tests, installer verification), and code signing (Req 5.1.1–5.1.3). *Log path fix completed in v0.4.4.*
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)
+- [ ] **Video Preview** in the file preview panel

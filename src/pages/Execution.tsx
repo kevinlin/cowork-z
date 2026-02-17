@@ -142,7 +142,21 @@ export default function ExecutionPage() {
       setDebugLogs([]);
     }
 
+    // Use a cancelled flag to handle the race between cleanup and async
+    // listener registration. When React Strict Mode double-mounts, cleanup
+    // runs synchronously before the async .then() resolves, leaving dangling
+    // listeners. With this flag, stale listeners are immediately unsubscribed
+    // when their promise resolves after cleanup has already run.
+    let cancelled = false;
     const unlisteners: (() => void)[] = [];
+
+    const track = (unsub: () => void) => {
+      if (cancelled) {
+        unsub();
+      } else {
+        unlisteners.push(unsub);
+      }
+    };
 
     api
       .onTaskUpdate((event) => {
@@ -159,7 +173,7 @@ export default function ExecutionPage() {
           setCurrentToolInput(null);
         }
       })
-      .then((unsub) => unlisteners.push(unsub));
+      .then(track);
 
     api
       .onTaskUpdateBatch((event) => {
@@ -175,20 +189,20 @@ export default function ExecutionPage() {
           }
         }
       })
-      .then((unsub) => unlisteners.push(unsub));
+      .then(track);
 
     api
       .onPermissionRequest((request) => {
         enqueuePermissionRequest(request);
       })
-      .then((unsub) => unlisteners.push(unsub));
+      .then(track);
 
     // Subscribe to question requests
     api
       .onQuestionRequest((request) => {
         setQuestionRequest(request);
       })
-      .then((unsub) => unlisteners.push(unsub));
+      .then(track);
 
     api
       .onTaskStatusChange((data) => {
@@ -196,16 +210,17 @@ export default function ExecutionPage() {
           updateTaskStatus(data.taskId, data.status);
         }
       })
-      .then((unsub) => unlisteners.push(unsub));
+      .then(track);
 
     api
       .onDebugLog((log) => {
         const entry = log as DebugLogEntry;
         setDebugLogs((prev) => [...prev, entry]);
       })
-      .then((unsub) => unlisteners.push(unsub));
+      .then(track);
 
     return () => {
+      cancelled = true;
       unlisteners.forEach((unsub) => unsub());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

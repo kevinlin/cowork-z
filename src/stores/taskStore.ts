@@ -60,6 +60,8 @@ interface TaskState {
   permissionRequest: PermissionRequest | null;
   /** Patterns already approved by the user this session — used to auto-approve duplicates */
   approvedPatterns: Set<string>;
+  /** Permission IDs that have already been replied to — prevents duplicate replies from stale listeners */
+  repliedPermissionIds: Set<string>;
 
   // Todos (per task)
   todos: Map<string, Todo[]>;
@@ -326,6 +328,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   permissionRequests: [],
   permissionRequest: null,
   approvedPatterns: new Set<string>(),
+  repliedPermissionIds: new Set<string>(),
   todos: new Map<string, Todo[]>(),
 
   setTodos: (taskId: string, todos: Todo[]) => {
@@ -651,13 +654,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   enqueuePermissionRequest: (request) => {
-    const { approvedPatterns, permissionRequests } = get();
+    const { approvedPatterns, permissionRequests, repliedPermissionIds } = get();
+
+    // Deduplicate: ignore if this request ID is already in the queue or already replied to
+    if (repliedPermissionIds.has(request.id) || permissionRequests.some((r) => r.id === request.id)) {
+      return;
+    }
 
     // Auto-approve if ALL patterns in this request have already been approved
     const requestPatterns = request.patterns ?? [];
     const allPatternsApproved = requestPatterns.length > 0 && requestPatterns.every((p) => approvedPatterns.has(p));
 
     if (allPatternsApproved) {
+      // Mark as replied before sending to prevent duplicate replies from stale listeners
+      set({ repliedPermissionIds: new Set([...repliedPermissionIds, request.id]) });
       // Fire-and-forget auto-approval
       void api.respondToPermission({
         requestId: request.id,
@@ -674,9 +684,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   respondToPermission: async (response: PermissionResponse) => {
-    const { permissionRequests, approvedPatterns, folderPermissions } = get();
+    const { permissionRequests, approvedPatterns, folderPermissions, repliedPermissionIds } = get();
     const current = permissionRequests[0];
     if (!current) return;
+
+    // Guard: skip if this permission was already replied to (e.g. auto-approved by a stale listener)
+    if (repliedPermissionIds.has(current.id)) {
+      // Pop the already-replied request from the queue and move on
+      const remaining = permissionRequests.slice(1);
+      set({ permissionRequests: remaining, permissionRequest: remaining[0] ?? null });
+      return;
+    }
+
+    // Mark as replied before sending
+    set({ repliedPermissionIds: new Set([...repliedPermissionIds, current.id]) });
 
     // Attach patterns from the current permission request so Rust can persist adhoc grants
     const responseWithPatterns: PermissionResponse = {
@@ -729,12 +750,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const remaining = permissionRequests.slice(1);
 
     // Auto-approve any remaining requests whose patterns are now all approved
-    const { approvedPatterns: latestApproved } = get();
+    const { approvedPatterns: latestApproved, repliedPermissionIds: latestReplied } = get();
     const stillPending: PermissionRequest[] = [];
+    const newReplied = new Set(latestReplied);
     for (const req of remaining) {
+      if (newReplied.has(req.id)) continue;
       const reqPatterns = req.patterns ?? [];
       const allApproved = reqPatterns.length > 0 && reqPatterns.every((p) => latestApproved.has(p));
       if (allApproved) {
+        newReplied.add(req.id);
         void api.respondToPermission({
           requestId: req.id,
           taskId: req.taskId,
@@ -745,6 +769,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         stillPending.push(req);
       }
     }
+    set({ repliedPermissionIds: newReplied });
 
     set({ permissionRequests: stillPending, permissionRequest: stillPending[0] ?? null });
   },
@@ -1114,6 +1139,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       permissionRequests: [],
       permissionRequest: null,
       approvedPatterns: new Set<string>(),
+      repliedPermissionIds: new Set<string>(),
       startupStage: null,
       startupStageTaskId: null,
       showSettings: false,

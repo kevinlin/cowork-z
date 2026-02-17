@@ -684,3 +684,27 @@ Run: `pnpm typecheck` — passes.
 2. **Tests pass:** `pnpm test --run` + `cd src-tauri && cargo test` + `cd src-tauri/sidecar-opencode && pnpm test`
 3. **Manual test:** `pnpm tauri dev` — verify workspace switcher, file tree, session scoping, CWD passed to sidecar
 4. **Edge cases:** missing folder fallback, restricted path rejection, re-adding removed workspace restores sessions
+
+---
+
+## Implementation Log
+
+### Bugfix: Permission reply causes agent to hang (2026-02-17)
+
+**Symptom:** After granting a permission request (e.g., allowing access to an external directory), the AI agent stopped responding — only heartbeat events were received.
+
+**Root cause (two issues):**
+
+1. **Duplicate permission replies (frontend):** React Strict Mode double-mounting caused the `Execution.tsx` `useEffect` to register duplicate Tauri event listeners. Since `listen()` returns a Promise but `useEffect` cleanup runs synchronously, the stale listener from the first mount survived cleanup and fired alongside the second mount's listener. This caused the same permission request to be enqueued twice in `taskStore.ts`, leading to multiple `POST /permission/{id}/reply` calls to the OpenCode server.
+
+2. **Missing `directory` query parameter (sidecar):** The `SessionManager.replyToPermission()` method was calling `OpenCodeClient.replyToPermission()` without passing the session's `directory`. OpenCode's permission reply endpoint requires `?directory=<workspace_path>` to route the reply to the correct session instance. Without it, the server bootstrapped a new instance in the log directory, and the waiting session never received the reply.
+
+**Fix (3 files):**
+
+| File | Change |
+|------|--------|
+| `src/pages/Execution.tsx` | Added `cancelled` flag pattern to `useEffect` for proper async listener cleanup |
+| `src/stores/taskStore.ts` | Added `repliedPermissionIds: Set<string>` to deduplicate replies; guard checks in `enqueuePermissionRequest` and `respondToPermission` |
+| `src-tauri/sidecar-opencode/src/session-manager.ts` | Pass `managed.session.directory` to `replyToPermission()` and `replyToQuestion()` API calls |
+
+**Design impact:** Added "Permission & Question Reply Routing" and "Duplicate Permission Reply Prevention" sections to `design_phase1.md` (Section 3).

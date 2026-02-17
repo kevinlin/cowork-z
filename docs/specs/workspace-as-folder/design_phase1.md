@@ -100,6 +100,22 @@ OpenCode scopes SSE events per-directory. The sidecar's EventStream **must** con
 
 The `workingDirectory` from each task payload is passed through `initialize()` to the `EventStream` constructor. On subsequent tasks, if the directory changes (workspace switch), the EventStream disconnects and reconnects with the new directory scope via `reconnectWithDirectory()`. This ensures the sidecar receives session events for whichever workspace is currently active.
 
+### Permission & Question Reply Routing
+
+OpenCode's `POST /permission/{id}/reply` and `POST /question/{id}/reply` endpoints require a `?directory=<workspace_path>` query parameter to route the reply to the correct session instance. Without it, the server bootstraps a new instance in its default directory (the log directory), and the waiting session never receives the reply — causing the agent to hang indefinitely after the user grants a permission.
+
+The sidecar's `SessionManager` resolves this by looking up the managed session for the task and extracting its `directory` field (populated from the `POST /session` response at session creation time). This directory is then passed as a query parameter:
+
+The same pattern applies to `replyToQuestion`.
+
+### Duplicate Permission Reply Prevention
+
+The frontend prevents duplicate permission replies through two mechanisms:
+
+1. **Async listener cleanup (Execution.tsx):** Tauri's `listen()` returns a Promise, but React's `useEffect` cleanup runs synchronously. Under React Strict Mode double-mounting, a stale listener from the first mount can survive cleanup and fire alongside the second mount's listener. A `cancelled` flag pattern ensures stale async listeners are immediately unsubscribed when their promise resolves after cleanup:
+
+2. **Replied-ID tracking (taskStore.ts):** A `repliedPermissionIds: Set<string>` in the Zustand store tracks every permission ID that has been replied to. Both `enqueuePermissionRequest` and `respondToPermission` check this set before sending a reply, preventing duplicates from any source (stale listeners, auto-approve of duplicated queue entries, or rapid user clicks).
+
 ### Missing Folder Handling
 
 On switch (or app launch), Rust checks if the workspace folder exists. If not:

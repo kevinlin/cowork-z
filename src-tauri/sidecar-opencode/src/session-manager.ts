@@ -343,13 +343,17 @@ export class SessionManager extends EventEmitter {
   }
 
   async replyToPermission(taskId: string, requestId: string, reply: 'once' | 'always' | 'reject', message?: string): Promise<void> {
-    logger.info('Replying to permission', { taskId, requestId, reply });
-    await this.client.replyToPermission(requestId, reply, { message });
+    const managed = this.sessions.get(taskId);
+    const directory = managed?.session?.directory;
+    logger.info('Replying to permission', { taskId, requestId, reply, directory });
+    await this.client.replyToPermission(requestId, reply, { message, directory });
   }
 
   async replyToQuestion(taskId: string, requestId: string, answers: Array<{ labels: string[]; customText?: string }>): Promise<void> {
-    logger.info('Replying to question', { taskId, requestId, answers });
-    await this.client.replyToQuestion(requestId, answers);
+    const managed = this.sessions.get(taskId);
+    const directory = managed?.session?.directory;
+    logger.info('Replying to question', { taskId, requestId, answers, directory });
+    await this.client.replyToQuestion(requestId, answers, directory);
   }
 
   private cleanup(taskId: string): void {

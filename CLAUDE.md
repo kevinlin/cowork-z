@@ -205,6 +205,19 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
   - App-level: `Cmd+,` (settings), `Cmd+N` (new task), `Cmd+K` (launcher)
   - Chat-level: `Cmd+Enter` (send), `Escape` (cancel)
 
+## Tauri Drag-and-Drop Constraint
+
+**Tauri 2.x intercepts ALL drag events at the native webview level.** This means HTML5 `dragover`, `dragleave`, and `drop` DOM events **never fire** for intra-webview drags (e.g., dragging from a sidebar component to an input). Tauri's `onDragDropEvent` fires instead, with `paths: []` for intra-app drags (vs. populated `paths` for OS-level Finder/Desktop drops).
+
+**Do NOT use HTML5 Drag and Drop API** for intra-app drag-and-drop in Tauri. It will silently fail — the drag ghost appears and `dragstart` fires, but the drop target never receives `dragover`/`drop`.
+
+**Pattern for intra-app drag-and-drop:**
+1. On `dragStart`: store the payload in a module-level variable (e.g., `pendingDragPath` in `FileTreePanel.tsx`)
+2. On Tauri `onDragDropEvent` `drop`: if `paths` is empty, check the module-level variable for the intra-app payload
+3. Export getter/setter functions (`getPendingDragPath()`, `clearPendingDragPath()`) for drop targets to consume
+
+See `src/components/sidebar/FileTreePanel.tsx` (drag source) and `src/components/ui/drag-drop-input.tsx` / `src/components/landing/TaskInputBar.tsx` (drop targets) for the reference implementation.
+
 ## Expected Build Warnings
 
 **pnpm esbuild build script warning**: This is a security feature, not a bug. The warning appears because pnpm prevents automatic execution of build scripts to protect against supply chain attacks. The esbuild binary is already installed and functional - everything works correctly. This warning can be safely ignored. If you prefer to suppress it, run `pnpm approve-builds` in the sidecar directory.

@@ -507,6 +507,56 @@ Run: `pnpm typecheck`
 
 ---
 
+## Task 16b: File tree drag-and-drop to chat input
+
+**Goal:** Users can drag files/folders from the `FileTreePanel` sidebar and drop them into the task input (`TaskInputBar` on the home page) or the follow-up input (`ChatInput`/`DragDropTextarea` on the execution page) to insert `@path` references.
+
+**Files:**
+- Modify: `src/components/sidebar/FileTreePanel.tsx` (make rows draggable, export pending drag path)
+- Modify: `src/components/ui/drag-drop-input.tsx` (handle intra-app drop in Tauri listener)
+- Modify: `src/components/landing/TaskInputBar.tsx` (handle intra-app drop in Tauri listener)
+
+**Important Tauri constraint:** Tauri intercepts ALL drag events at the native webview level. HTML5 `dragover`/`drop` DOM events never fire for intra-webview drags. Instead, Tauri's `onDragDropEvent` fires with `paths: []`. The solution uses a module-level variable to pass the dragged path from the drag source to the drop handler.
+
+**Step 1: Make `TreeRow` draggable and export pending drag path from `FileTreePanel.tsx`**
+
+Export a module-level pending drag path with getter/setter:
+```typescript
+export const FILE_TREE_MIME = 'application/x-cowork-file-path';
+
+let pendingDragPath: string | null = null;
+export function getPendingDragPath(): string | null { return pendingDragPath; }
+export function clearPendingDragPath(): void { pendingDragPath = null; }
+```
+
+Add `draggable` attribute and `onDragStart` handler to the `TreeRow` `<button>`:
+```typescript
+const handleDragStart = (e: React.DragEvent) => {
+  pendingDragPath = entry.path;
+  e.dataTransfer.setData(FILE_TREE_MIME, entry.path);
+  e.dataTransfer.setData('text/plain', entry.path);
+  e.dataTransfer.effectAllowed = 'copy';
+};
+```
+
+Add `cursor-grab active:cursor-grabbing` classes for visual affordance.
+
+**Step 2: Handle intra-app drop in `DragDropTextarea`'s Tauri listener**
+
+Import `getPendingDragPath` and `clearPendingDragPath` from `FileTreePanel`. In the existing `onDragDropEvent` handler, after the `drop` event fires with empty `paths`, check `getPendingDragPath()`. If a pending path exists, format it via `formatPathForChat()`, insert at cursor via `insertAtCursor()`, and call `onFilesDropped`. Clear the pending path after use.
+
+No HTML5 drag event handlers are needed — Tauri handles both OS-level and intra-app drops.
+
+**Step 3: Handle intra-app drop in `TaskInputBar`'s Tauri listener**
+
+Same pattern as Step 2: import `getPendingDragPath`/`clearPendingDragPath`, check for pending path when `drop` fires with empty `paths`, format and insert.
+
+**Step 4: Verify**
+
+Run: `pnpm typecheck`
+
+---
+
 ## Task 17: Cross-workspace task history and auto-switch
 
 **Goal:** Task History page and Task Launcher show tasks from all workspaces with workspace names. Selecting a task from a different workspace auto-switches before navigation.

@@ -160,6 +160,10 @@ This project uses **Ultracite** (Biome engine) for formatting and linting. Run `
 
 Textarea inputs (User Prompt, MCP Servers JSON) must use `defaultValue` + `useRef` to avoid re-renders during typing. See `src/components/settings/McpServersSettings.tsx` for reference.
 
+### Tauri Drag-and-Drop Constraint
+
+Tauri 2.x intercepts ALL drag events at the native webview level. HTML5 `dragover`/`drop` DOM events **never fire** for intra-webview drags. Tauri's `onDragDropEvent` fires instead with `paths: []` for intra-app drags. Do NOT use HTML5 Drag and Drop API for intra-app drag-and-drop — use a module-level variable to pass the payload from `dragStart` to the Tauri drop handler. See `FileTreePanel.tsx` and `drag-drop-input.tsx` for the pattern.
+
 ### Sidecar Constraints
 
 - Sidecar must use **CommonJS** (not ESM) — the `pkg` bundler fails with ESM

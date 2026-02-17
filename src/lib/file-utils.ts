@@ -176,8 +176,10 @@ export function formatPathForChat(path: string): string | null {
 }
 
 /**
- * Inserts text at the cursor position in a string.
- * Returns the new text and the new cursor position.
+ * Inserts text at the cursor position in a string, automatically adding
+ * whitespace padding so the inserted text doesn't merge with adjacent words.
+ * Returns the new text and the new cursor position (placed after the insert
+ * and any trailing pad).
  */
 export function insertAtCursor(
   currentText: string,
@@ -186,8 +188,13 @@ export function insertAtCursor(
 ): { newText: string; newCursorPosition: number } {
   const before = currentText.slice(0, cursorPosition);
   const after = currentText.slice(cursorPosition);
-  const newText = before + insertText + after;
-  const newCursorPosition = cursorPosition + insertText.length;
+
+  const needsLeadingSpace = before.length > 0 && !/\s$/.test(before);
+  const needsTrailingSpace = after.length > 0 && !/^\s/.test(after);
+
+  const padded = (needsLeadingSpace ? ' ' : '') + insertText + (needsTrailingSpace ? ' ' : '');
+  const newText = before + padded + after;
+  const newCursorPosition = cursorPosition + padded.length;
 
   return { newText, newCursorPosition };
 }

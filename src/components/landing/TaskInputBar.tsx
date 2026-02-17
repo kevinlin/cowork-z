@@ -3,6 +3,7 @@
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { CornerDownLeft, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { clearPendingDragPath, getPendingDragPath } from '@/components/sidebar/FileTreePanel';
 import { formatPathForChat, insertAtCursor } from '@/lib/file-utils';
 import { cn } from '@/lib/utils';
 import { analytics } from '../../lib/analytics';
@@ -68,26 +69,39 @@ export default function TaskInputBar({
       .onDragDropEvent((event) => {
         if (cancelled) return;
 
-        if (event.payload.type === 'over') {
+        if (event.payload.type === 'over' || event.payload.type === 'enter') {
           setIsDraggingOver(true);
         } else if (event.payload.type === 'drop') {
           setIsDraggingOver(false);
 
           const paths: string[] = event.payload.paths;
+
+          // Intra-app drag from file tree: Tauri fires drop with empty paths
+          const pendingPath = getPendingDragPath();
+          if (paths.length === 0 && pendingPath) {
+            clearPendingDragPath();
+            const formatted = formatPathForChat(pendingPath);
+            if (!formatted) return;
+            const { newText, newCursorPosition } = insertAtCursor(valueRef.current, formatted, cursorPositionRef.current);
+            onChangeRef.current(newText);
+            setTimeout(() => {
+              if (textareaRef.current) {
+                textareaRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+                textareaRef.current.focus();
+              }
+            }, 0);
+            return;
+          }
+
           if (paths.length === 0) return;
 
-          const formattedPaths = paths
-            .map((p) => formatPathForChat(p))
-            .filter((p): p is string => p !== null);
+          // OS-level drop (Finder)
+          const formattedPaths = paths.map((p) => formatPathForChat(p)).filter((p): p is string => p !== null);
 
           if (formattedPaths.length === 0) return;
 
           const insertText = formattedPaths.join(' ');
-          const { newText, newCursorPosition } = insertAtCursor(
-            valueRef.current,
-            insertText,
-            cursorPositionRef.current
-          );
+          const { newText, newCursorPosition } = insertAtCursor(valueRef.current, insertText, cursorPositionRef.current);
 
           onChangeRef.current(newText);
 
@@ -99,7 +113,7 @@ export default function TaskInputBar({
             }
           }, 0);
         } else {
-          // cancelled
+          // cancelled / leave
           setIsDraggingOver(false);
         }
       })
@@ -126,12 +140,9 @@ export default function TaskInputBar({
     [onChange]
   );
 
-  const handleSelectionChange = useCallback(
-    (e: React.MouseEvent<HTMLTextAreaElement> | React.KeyboardEvent<HTMLTextAreaElement>) => {
-      setCursorPosition(e.currentTarget.selectionStart ?? 0);
-    },
-    []
-  );
+  const handleSelectionChange = useCallback((e: React.MouseEvent<HTMLTextAreaElement> | React.KeyboardEvent<HTMLTextAreaElement>) => {
+    setCursorPosition(e.currentTarget.selectionStart ?? 0);
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Ignore Enter during IME composition (Chinese/Japanese input)

@@ -117,7 +117,7 @@ describe('DragDropTextarea', () => {
     expect(onFilesDropped).not.toHaveBeenCalled();
   });
 
-  it('should insert at cursor position with existing text', async () => {
+  it('should insert at cursor position with existing text and auto-pad spaces', async () => {
     const onFilesDropped = vi.fn();
     render(<DragDropTextarea data-testid="dnd-textarea" onFilesDropped={onFilesDropped} value="Hello world" />);
     const textarea = screen.getByTestId('dnd-textarea') as HTMLTextAreaElement;
@@ -132,8 +132,8 @@ describe('DragDropTextarea', () => {
       dragDropCallback?.({ payload: { type: 'drop', paths: ['/Users/test/file.txt'] } });
     });
 
-    // "@/Users/test/file.txt" inserted at position 5
-    expect(onFilesDropped).toHaveBeenCalledWith('Hello@/Users/test/file.txt world', 26);
+    // "@/Users/test/file.txt" inserted at position 5 with auto leading space
+    expect(onFilesDropped).toHaveBeenCalledWith('Hello @/Users/test/file.txt world', 27);
   });
 
   it('should forward onChange to parent', async () => {

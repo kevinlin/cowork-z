@@ -204,6 +204,18 @@ Rust watches the workspace folder using the `notify` crate (or Tauri's fs-watch 
 
 AI sidecar file operations also trigger a tree refresh (debounced at 150ms) to ensure the tree stays current even if OS notifications are unreliable.
 
+### Drag-and-Drop to Chat Input
+
+Files and folders in the tree are draggable. Dropping a tree item onto either the home-page task input (`TaskInputBar`) or the execution-page follow-up input (`ChatInput` / `DragDropTextarea`) inserts an `@path` reference at the cursor position.
+
+**Mechanism:**
+
+1. Each `TreeRow` sets `draggable` on its `<button>` element. On `dragStart`, the file's absolute path is stored in a module-level variable (`pendingDragPath`) exported from `FileTreePanel`. The `dataTransfer` is also populated with a custom MIME type `application/x-cowork-file-path` and a `text/plain` fallback (used for the native drag ghost image).
+2. Tauri intercepts all drag events at the native webview level — HTML5 `dragover`/`drop` DOM events never fire for intra-webview drags. Instead, Tauri's `onDragDropEvent` fires with `paths: []` for intra-app drags (vs. populated `paths` for OS-level Finder drops). Drop targets (`DragDropTextarea`, `TaskInputBar`) detect this case: when `drop` fires with empty `paths`, they check `getPendingDragPath()`. If a pending path exists, it is formatted via `formatPathForChat()` (producing `@path` or `@"path with spaces"`) and inserted at the cursor position using `insertAtCursor()`.
+3. A visual ring highlight (`ring-2 ring-ring`) appears on the drop target while dragging over it — the same indicator used for Tauri native (Finder) drag-and-drop, driven by the Tauri `over`/`enter` events.
+
+**Note:** Both intra-app (file tree) and OS-level (Finder) drops are handled by the same Tauri `onDragDropEvent` listener. The distinction is made by checking whether `paths` is empty (intra-app, read from `pendingDragPath`) or populated (Finder, paths provided by the OS).
+
 ### No Preview (Phase 1)
 
 Clicking a file in the tree selects/highlights it but does not open a preview panel. Phase 2 adds the right-side file preview.
@@ -212,7 +224,6 @@ Clicking a file in the tree selects/highlights it but does not open a preview pa
 
 - File mutations (rename, delete, move, copy, create)
 - Context menus / right-click actions
-- Drag-and-drop
 - Multi-file selection
 - List or grid view alternatives
 - User-configurable sort order

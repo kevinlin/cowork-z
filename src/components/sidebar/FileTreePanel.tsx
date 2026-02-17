@@ -1,17 +1,6 @@
 'use client';
 
-import {
-  ChevronRight,
-  File,
-  FileCode,
-  FileJson,
-  FileText,
-  Folder,
-  FolderOpen,
-  Image,
-  Loader2,
-  Search,
-} from 'lucide-react';
+import { ChevronRight, File, FileCode, FileJson, FileText, Folder, FolderOpen, Image, Loader2, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { type FileTreeNode, useFileTree } from '@/hooks/useFileTree';
@@ -41,6 +30,29 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Custom MIME type for intra-app file tree drag-and-drop. */
+export const FILE_TREE_MIME = 'application/x-cowork-file-path';
+
+/**
+ * Module-level state for intra-app drag-and-drop.
+ *
+ * Tauri intercepts all drag events at the native webview level, which prevents
+ * HTML5 dragover/drop DOM events from reaching React handlers. Instead, the
+ * Tauri `onDragDropEvent` fires with `paths: []` for intra-webview drags.
+ *
+ * We store the dragged path here on dragStart and read it from the Tauri drop
+ * handler when `paths` is empty.
+ */
+let pendingDragPath: string | null = null;
+
+export function getPendingDragPath(): string | null {
+  return pendingDragPath;
+}
+
+export function clearPendingDragPath(): void {
+  pendingDragPath = null;
+}
+
 interface TreeRowProps {
   node: FileTreeNode;
   depth: number;
@@ -60,24 +72,30 @@ function TreeRow({ node, depth, onToggle, onSelect }: TreeRowProps) {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    pendingDragPath = entry.path;
+    e.dataTransfer.setData(FILE_TREE_MIME, entry.path);
+    e.dataTransfer.setData('text/plain', entry.path);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
   return (
     <>
       <button
         className={cn(
           'flex w-full items-center gap-1 rounded-sm px-1 py-0.5 text-left text-xs',
-          'hover:bg-accent hover:text-accent-foreground transition-colors',
-          'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+          'transition-colors hover:bg-accent hover:text-accent-foreground',
+          'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+          'cursor-grab active:cursor-grabbing'
         )}
+        draggable
         onClick={handleClick}
+        onDragStart={handleDragStart}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
         title={entry.path}
         type="button"
       >
-        {entry.isDirectory && (
-          <ChevronRight
-            className={cn('h-3 w-3 shrink-0 transition-transform', isExpanded && 'rotate-90')}
-          />
-        )}
+        {entry.isDirectory && <ChevronRight className={cn('h-3 w-3 shrink-0 transition-transform', isExpanded && 'rotate-90')} />}
         {!entry.isDirectory && <span className="w-3" />}
         {isLoading ? (
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
@@ -92,13 +110,7 @@ function TreeRow({ node, depth, onToggle, onSelect }: TreeRowProps) {
       {isExpanded && node.children && (
         <div>
           {node.children.map((child) => (
-            <TreeRow
-              depth={depth + 1}
-              key={child.entry.path}
-              node={child}
-              onSelect={onSelect}
-              onToggle={onToggle}
-            />
+            <TreeRow depth={depth + 1} key={child.entry.path} node={child} onSelect={onSelect} onToggle={onToggle} />
           ))}
         </div>
       )}
@@ -170,19 +182,9 @@ export default function FileTreePanel() {
         ) : error ? (
           <div className="px-2 py-4 text-center text-destructive text-xs">{error}</div>
         ) : nodes.length === 0 ? (
-          <div className="px-2 py-8 text-center text-muted-foreground text-xs">
-            {searchQuery ? 'No files found' : 'Empty directory'}
-          </div>
+          <div className="px-2 py-8 text-center text-muted-foreground text-xs">{searchQuery ? 'No files found' : 'Empty directory'}</div>
         ) : (
-          nodes.map((node) => (
-            <TreeRow
-              depth={0}
-              key={node.entry.path}
-              node={node}
-              onSelect={handleSelect}
-              onToggle={toggleExpand}
-            />
-          ))
+          nodes.map((node) => <TreeRow depth={0} key={node.entry.path} node={node} onSelect={handleSelect} onToggle={toggleExpand} />)
         )}
       </div>
     </div>

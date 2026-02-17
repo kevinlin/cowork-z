@@ -223,25 +223,31 @@ describe('formatPathForChat', () => {
 });
 
 describe('insertAtCursor', () => {
-  it('should insert at the start (position 0)', () => {
+  it('should insert at the start (position 0) with auto trailing space', () => {
     const result = insertAtCursor('existing text', '@/path/file', 0);
-    expect(result.newText).toBe('@/path/fileexisting text');
-    expect(result.newCursorPosition).toBe(11);
+    expect(result.newText).toBe('@/path/file existing text');
+    expect(result.newCursorPosition).toBe(12);
   });
 
-  it('should insert at the end', () => {
+  it('should insert at the end after whitespace (no extra padding)', () => {
     const result = insertAtCursor('Hello ', '@/path/file', 6);
     expect(result.newText).toBe('Hello @/path/file');
     expect(result.newCursorPosition).toBe(17);
   });
 
-  it('should insert in the middle', () => {
-    const result = insertAtCursor('Hello world', ' @/path/file ', 5);
-    expect(result.newText).toBe('Hello @/path/file  world');
-    expect(result.newCursorPosition).toBe(18);
+  it('should auto-pad when inserting between non-whitespace and whitespace', () => {
+    const result = insertAtCursor('Hello world', '@/path/file', 5);
+    expect(result.newText).toBe('Hello @/path/file world');
+    expect(result.newCursorPosition).toBe(17);
   });
 
-  it('should insert into empty string', () => {
+  it('should not double-pad when adjacent chars are already whitespace', () => {
+    const result = insertAtCursor('Hello  world', '@/path/file', 6);
+    expect(result.newText).toBe('Hello @/path/file world');
+    expect(result.newCursorPosition).toBe(17);
+  });
+
+  it('should insert into empty string without padding', () => {
     const result = insertAtCursor('', '@/path/file', 0);
     expect(result.newText).toBe('@/path/file');
     expect(result.newCursorPosition).toBe(11);
@@ -251,8 +257,14 @@ describe('insertAtCursor', () => {
     const first = insertAtCursor('', '@/first', 0);
     expect(first.newText).toBe('@/first');
 
-    const second = insertAtCursor(first.newText, ' @/second', first.newCursorPosition);
+    const second = insertAtCursor(first.newText, '@/second', first.newCursorPosition);
     expect(second.newText).toBe('@/first @/second');
     expect(second.newCursorPosition).toBe(16);
+  });
+
+  it('should add leading space when cursor is after non-whitespace at end', () => {
+    const result = insertAtCursor('Hello', '@/path/file', 5);
+    expect(result.newText).toBe('Hello @/path/file');
+    expect(result.newCursorPosition).toBe(17);
   });
 });

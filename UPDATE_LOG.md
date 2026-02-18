@@ -2,6 +2,7 @@
 
 ## v0.5.2
 
+- **3.1 Rich File Display — Enhanced media path detection** — `extractMediaPaths` now auto-detects bare file paths for macOS/Linux (`/path/to/file`), home-relative (`~/path/to/file`), and Windows (`C:\path\to\file`) without requiring `file://` prefix; bare paths are also extracted from inside code blocks
 - **Fix: Starter Packs not found on Windows** — Replaced git symlinks for pack resources (`src-tauri/resources/packs`, `pack-docs`) with direct copies from `workspace-packs/`; simplified `resolve_pack_sources()` to a single deterministic path
 - **Install success toasts** — Successful starter pack installation shows a toast with the pack title and a prompt hint; successful skill install/re-install shows a toast confirming the skill is available to the agent
 - Reduce gap (top) for text message bubbles

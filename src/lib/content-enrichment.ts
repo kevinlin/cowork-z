@@ -233,20 +233,41 @@ export function extractMediaPaths(content: string): string[] {
     addIfPreviewable(`/${rawPath}`);
   }
 
-  // 2. Extract bare absolute paths (outside code blocks only)
-  const codeRanges = buildCodeRanges(content);
+  // 2. Extract bare absolute paths (everywhere, including code blocks).
+  //    Thumbnails are rendered separately and don't modify code block text,
+  //    so it's safe to scan inside fenced/inline code.  The addIfPreviewable
+  //    helper already filters to image/video extensions, avoiding false positives.
 
-  // 2a. Simple paths (no spaces)
+  // 2a. Simple Unix/macOS paths (no spaces)
   const pathRe = /(?:\/[\w.+-]+)+(?:\/[\w.+-]*)?/g;
   while ((m = pathRe.exec(content)) !== null) {
-    if (isInsideCode(codeRanges, m.index)) continue;
+    // Skip if part of a ~/... or C:/... path (handled by later regexes)
+    if (m.index > 0) {
+      const prev = content[m.index - 1];
+      if (prev === '~' || prev === ':') continue;
+    }
     addIfPreviewable(m[0]);
   }
 
-  // 2b. Paths with spaces (must end with a file extension)
+  // 2b. Unix/macOS paths with spaces (must end with a file extension)
   const spacePathRe = /(?:\/(?:[^\s/][^/\n]*[^\s/]|[^\s/]))(?:\/(?:[^\s/][^/\n]*[^\s/]|[^\s/]))*\.\w+/g;
   while ((m = spacePathRe.exec(content)) !== null) {
-    if (isInsideCode(codeRanges, m.index)) continue;
+    if (m.index > 0) {
+      const prev = content[m.index - 1];
+      if (prev === '~' || prev === ':') continue;
+    }
+    addIfPreviewable(m[0]);
+  }
+
+  // 2c. Home-relative paths: ~/dir/file.ext
+  const homePathRe = /~\/[\w.+-][^\s<>)\]`]*/g;
+  while ((m = homePathRe.exec(content)) !== null) {
+    addIfPreviewable(m[0]);
+  }
+
+  // 2d. Windows paths: C:\dir\file.ext or D:/dir/file.ext
+  const winPathRe = /[A-Za-z]:[\\/](?:[^\\/\s<>)]+[\\/])*[^\\/\s<>)]+\.\w+/g;
+  while ((m = winPathRe.exec(content)) !== null) {
     addIfPreviewable(m[0]);
   }
 

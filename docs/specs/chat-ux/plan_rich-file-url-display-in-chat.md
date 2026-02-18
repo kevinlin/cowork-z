@@ -123,12 +123,14 @@ This approach avoids modifying the stored message content, preserving original d
 
 **`extractMediaPaths` — special handling**:
 - Scans for `file:///` URLs **everywhere** including inside code blocks (agents commonly list file URLs in fenced code blocks; thumbnails are rendered separately and don't modify the code block text)
-- Scans for bare absolute paths only outside code blocks
+- Scans for bare absolute Unix/macOS paths **everywhere** including inside code blocks — `addIfPreviewable` filters to image/video extensions, avoiding false positives in code
+- Scans for home-relative paths (`~/dir/file.ext`) everywhere
+- Scans for bare Windows paths (`C:\dir\file.ext`, `D:/dir/file.ext`) everywhere — reuses the same `winPathRe` regex from `enrichContentWithLinks`
 - Deduplicates paths
 
 **Test File**: `src/lib/__tests__/content-enrichment.test.ts`
 
-> **Implementation Note**: File path detection was expanded from a single simple-path regex to three regex passes: (1) space-aware paths with file extensions, (2) simple paths without spaces, (3) Windows paths. The broader space-aware regex runs first so it captures the longest possible match (e.g., `/Users/name/My Documents/report.pdf`), and the simple regex skips positions already covered. The `extractMediaPaths` `fileUrlRe` was also broadened from `/file:\/\/\/([\w.+/-]+)/g` to `/file:\/\/\/([^\n<>)\]\`]+)/g` to capture paths with spaces and special characters. Total test count increased from 25 to 31.
+> **Implementation Note**: File path detection was expanded from a single simple-path regex to three regex passes: (1) space-aware paths with file extensions, (2) simple paths without spaces, (3) Windows paths. The broader space-aware regex runs first so it captures the longest possible match (e.g., `/Users/name/My Documents/report.pdf`), and the simple regex skips positions already covered. The `extractMediaPaths` `fileUrlRe` was also broadened from `/file:\/\/\/([\w.+/-]+)/g` to `/file:\/\/\/([^\n<>)\]\`]+)/g` to capture paths with spaces and special characters. `extractMediaPaths` was further enhanced to detect bare paths everywhere (including inside code blocks), added home-relative (`~/`) path detection and Windows path detection. Total test count increased from 25 to 38.
 
 ---
 

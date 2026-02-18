@@ -137,10 +137,10 @@ describe('extractMediaPaths', () => {
     expect(paths).toEqual([]);
   });
 
-  it('should skip bare paths inside code blocks', () => {
+  it('should extract bare media paths inside code blocks', () => {
     const content = '```\n/Users/name/image.png\n```';
     const paths = extractMediaPaths(content);
-    expect(paths).toEqual([]);
+    expect(paths).toEqual(['/Users/name/image.png']);
   });
 
   it('should extract media from file:/// URLs inside code blocks', () => {
@@ -201,5 +201,42 @@ describe('extractMediaPaths', () => {
     const content = 'Image at /Users/name/My Photos/vacation pic.jpg here';
     const paths = extractMediaPaths(content);
     expect(paths).toEqual(['/Users/name/My Photos/vacation pic.jpg']);
+  });
+
+  it('should extract bare paths inside code blocks', () => {
+    const content = '```\n/Users/name/image.png\n/Users/name/photo.jpg\n```';
+    const paths = extractMediaPaths(content);
+    expect(paths).toContain('/Users/name/image.png');
+    expect(paths).toContain('/Users/name/photo.jpg');
+  });
+
+  it('should extract media from home-relative paths', () => {
+    const content = 'Screenshot at ~/Desktop/screenshot.png here';
+    const paths = extractMediaPaths(content);
+    expect(paths).toEqual(['~/Desktop/screenshot.png']);
+  });
+
+  it('should skip non-previewable home-relative paths', () => {
+    const content = 'Config at ~/config.json';
+    const paths = extractMediaPaths(content);
+    expect(paths).toEqual([]);
+  });
+
+  it('should extract media from Windows paths with backslashes', () => {
+    const content = 'Screenshot at C:\\Users\\name\\Desktop\\screenshot.png here';
+    const paths = extractMediaPaths(content);
+    expect(paths).toEqual(['C:\\Users\\name\\Desktop\\screenshot.png']);
+  });
+
+  it('should extract media from Windows paths with forward slashes', () => {
+    const content = 'Image: D:/Projects/assets/logo.jpg';
+    const paths = extractMediaPaths(content);
+    expect(paths).toEqual(['D:/Projects/assets/logo.jpg']);
+  });
+
+  it('should skip non-previewable Windows paths', () => {
+    const content = 'Config at C:\\Users\\name\\config.json';
+    const paths = extractMediaPaths(content);
+    expect(paths).toEqual([]);
   });
 });

@@ -32,32 +32,38 @@ pub struct SkillWithStatus {
 
 /// Derive display category from folder-name prefix.
 pub fn derive_category(id: &str) -> &'static str {
-    if id.starts_with("marketing-") {
-        return "Marketing";
+    if id.starts_with("data-") {
+        return "Data";
     }
-    if id.starts_with("sales-") {
-        return "Sales";
+    if id.starts_with("design-") {
+        return "Design";
     }
-    if id.starts_with("finance-") {
-        return "Finance";
+    if id.starts_with("doc-") {
+        return "Document";
     }
     if id.starts_with("enterprise-") {
         return "Enterprise";
     }
+    if id.starts_with("finance-") {
+        return "Finance";
+    }
     if id.starts_with("legal-") {
         return "Legal";
+    }
+    if id.starts_with("marketing-") {
+        return "Marketing";
     }
     if id.starts_with("product-") {
         return "Product";
     }
-    if id.starts_with("support-") {
-        return "Support";
-    }
-    if id.starts_with("data-") {
-        return "Data";
-    }
     if id.starts_with("productivity-") {
         return "Productivity";
+    }
+    if id.starts_with("sales-") {
+        return "Sales";
+    }
+    if id.starts_with("support-") {
+        return "Support";
     }
     "General"
 }

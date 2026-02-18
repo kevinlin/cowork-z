@@ -227,7 +227,6 @@ For each item:
 
 ## Quick Reference
 
-- Reference template: skills/development-estimation/references/estimate.md
 - Preferred output: P50/P80 effort plus derived calendar via stated capacity
 - Default unit: engineer-days (hours only for sub-day tasks)
 

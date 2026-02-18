@@ -90,16 +90,15 @@ Card
 7. Returns `PackInstallResult { installed_path }`.
 8. Frontend calls `addWorkspace(installedPath)` via `workspaceStore.addWorkspace()`, receiving the new `Workspace` object.
 9. Frontend calls `switchWorkspace(workspace.id)` to activate the new workspace (reconnects SSE, reloads file tree and session list).
-10. Task input is seeded: `"Open \`START_HERE.md\` and follow it step-by-step."`.
-11. `startTask({ prompt, taskId })` is called and the app navigates to `/task/:id`.
+10. Task input is seeded via `onPromptSeed`: `"Open \`START_HERE.md\` and follow it step-by-step."`. The task is **not** auto-started — the user stays on the Home page with the prompt pre-filled and can review or edit before submitting.
 
 ---
 
 ### Post-Install State
 
 - The installed pack folder becomes a registered cowork-z workspace.
-- A task is immediately started with the `START_HERE.md` prompt.
-- The user lands on the Execution page with the AI ready to guide them through the pack.
+- The task input bar is pre-filled with the `START_HERE.md` prompt but the task is **not** auto-started.
+- The user stays on the Home page and can review, edit, or submit the seeded prompt at their discretion.
 
 ---
 
@@ -110,7 +109,6 @@ Card
 | User cancels folder picker | `null` returned, no-op, `installingId` cleared |
 | Rust install fails (missing source dir, IO error) | Error string shown in pack card error state; `installingId` cleared |
 | `addWorkspace` fails | Toast error shown; pack files are already copied — user can manually add the folder |
-| `startTask` fails after install | Workspace is registered; user lands on Home with new workspace active and can type manually |
 
 ---
 

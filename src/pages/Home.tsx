@@ -46,7 +46,7 @@ export default function HomePage() {
         navigate(`/execution/${task.id}`);
       }
     },
-    [startTask, navigate],
+    [startTask, navigate]
   );
 
   const handleSubmit = async () => {
@@ -111,7 +111,7 @@ export default function HomePage() {
               {/* Tab bar */}
               <div className="flex border-border border-t">
                 <button
-                  className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  className={`flex-1 px-4 py-2.5 font-medium text-sm transition-colors ${
                     activeTab === 'packs'
                       ? 'border-primary border-b-2 text-foreground'
                       : 'border-transparent border-b-2 text-muted-foreground hover:text-foreground'
@@ -122,7 +122,7 @@ export default function HomePage() {
                   Starter Packs
                 </button>
                 <button
-                  className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  className={`flex-1 px-4 py-2.5 font-medium text-sm transition-colors ${
                     activeTab === 'skills'
                       ? 'border-primary border-b-2 text-foreground'
                       : 'border-transparent border-b-2 text-muted-foreground hover:text-foreground'
@@ -135,11 +135,7 @@ export default function HomePage() {
               </div>
 
               {/* Tab content */}
-              {activeTab === 'packs' ? (
-                <StarterPacks />
-              ) : (
-                <SkillsCatalog />
-              )}
+              {activeTab === 'packs' ? <StarterPacks onPromptSeed={setPrompt} /> : <SkillsCatalog />}
             </Card>
           </motion.div>
         </div>

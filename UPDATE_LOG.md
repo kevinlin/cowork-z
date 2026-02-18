@@ -1,5 +1,9 @@
 # UPDATE LOG
 
+## v0.5.1
+
+- 
+
 ## v0.5.0
 
 - **6.1-6.3 Workspace-as-Folder** — Workspace-per-folder model where each workspace is a unique directory that becomes the AI agent's CWD, scopes sessions, and provides a file tree browser.

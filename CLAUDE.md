@@ -50,8 +50,8 @@ pnpm test --run               # Vitest (CI mode, single run)
 pnpm test:coverage            # Vitest with coverage
 
 # Linting & formatting (Ultracite / Biome)
-pnpm dlx ultracite fix src/ src-tauri/sidecar-opencode/
-pnpm dlx ultracite check src/ src-tauri/sidecar-opencode/
+pnpm ultracite:fix                # or: pnpm dlx ultracite fix src/ src-tauri/sidecar-opencode/
+pnpm ultracite:check              # or: pnpm dlx ultracite check src/ src-tauri/sidecar-opencode/
 
 # Production build
 pnpm tauri build
@@ -119,7 +119,7 @@ OpenCode server endpoints used by sidecar: `GET /event` (SSE), `POST /session/{i
 - **`src/lib/tauri-api-interface.ts`** — `TauriAPI` interface abstracting the backend. Wraps `getTauriApi()` from `tauri-api.ts` with synchronous event unlisteners.
 - **`src/stores/taskStore.ts`** — Zustand store for all app state: tasks, permissions, questions, UI state.
 - **`src-tauri/src/lib.rs`** — App entry point (`run()`), plugin registration, menu setup, and `invoke_handler` command registration.
-- **`src-tauri/src/commands/`** — Tauri command handlers, organized by domain: `tasks.rs`, `settings.rs`, `api_keys.rs`, `providers.rs`, `folder_permissions.rs`, `ollama.rs`, `bedrock.rs`, `azure_foundry.rs`, `litellm.rs`, `opencode_cli.rs`, `updates.rs`, `app_info.rs`, `logging.rs`.
+- **`src-tauri/src/commands/`** — Tauri command handlers, organized by domain: `tasks.rs`, `settings.rs`, `api_keys.rs`, `providers.rs`, `folder_permissions.rs`, `ollama.rs`, `bedrock.rs`, `azure_foundry.rs`, `litellm.rs`, `opencode_cli.rs`, `updates.rs`, `app_info.rs`, `logging.rs`, `files.rs`, `packs.rs`, `skills.rs`, `workspaces.rs`.
 - **`src-tauri/src/db/`** — SQLite persistence layer: `tasks.rs`, `settings.rs`, `providers.rs`, `folder_permissions.rs`, `migrations.rs`.
 - **`src-tauri/src/sidecar.rs`** — Sidecar process lifecycle, IPC serialization (`SidecarCommand` enum), and event routing.
 - **`src-tauri/src/types.rs`** — Shared Rust types (serializable structs for IPC).
@@ -183,7 +183,9 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 
 **Custom Hooks**
 - `src/hooks/useFileTree.ts` — Lazy-loading file tree with search and filtering predicates
-- `src/hooks/useKeyboardShortcuts.tsx` — App-level and chat-level shortcuts
+- `src/hooks/useKeyboardShortcuts.ts` — App-level and chat-level shortcuts
+- `src/hooks/useTheme.ts` — Theme management (light/dark mode)
+- `src/hooks/useAppUpdate.ts` — Auto-update check on app launch
 
 **Shared Types**
 - `src/shared/types/task.ts` — `Task`, `TaskMessage`, `TaskStatus`, `TaskProgress`, `Todo`, `Artifact`, `PartialMessage`
@@ -205,7 +207,7 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 - OpenCode must be installed globally: `npm install -g opencode-ai`
 - Provider configuration forms are in `src/components/settings/` (Anthropic, OpenAI, Google, Bedrock, Azure Foundry, Ollama, OpenRouter, LiteLLM)
 - Reference Electron app source preserved at `apps/desktop/` for reference
-- Keyboard shortcuts implemented via `src/hooks/useKeyboardShortcuts.tsx`:
+- Keyboard shortcuts implemented via `src/hooks/useKeyboardShortcuts.ts`:
   - App-level: `Cmd+,` (settings), `Cmd+N` (new task), `Cmd+K` (launcher)
   - Chat-level: `Cmd+Enter` (send), `Escape` (cancel)
 

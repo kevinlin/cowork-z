@@ -34,7 +34,9 @@ src/                          # React/TypeScript frontend
     workspace.ts              # Workspace, DirectoryEntry types
   hooks/
     useFileTree.ts            # Lazy-loading file tree with search and filter predicates
-    useKeyboardShortcuts.tsx  # Cmd+, Cmd+N, Cmd+K, Cmd+Enter, Escape
+    useKeyboardShortcuts.ts   # Cmd+, Cmd+N, Cmd+K, Cmd+Enter, Escape
+    useTheme.ts               # Theme management (light/dark mode)
+    useAppUpdate.ts           # Auto-update check on app launch
 
 src-tauri/                    # Rust/Tauri backend
   src/
@@ -43,7 +45,8 @@ src-tauri/                    # Rust/Tauri backend
       tasks.rs, settings.rs, api_keys.rs, providers.rs,
       folder_permissions.rs, ollama.rs, bedrock.rs,
       azure_foundry.rs, litellm.rs, opencode_cli.rs,
-      updates.rs, app_info.rs, logging.rs
+      updates.rs, app_info.rs, logging.rs, files.rs,
+      packs.rs, skills.rs, workspaces.rs
     db/                       # SQLite persistence layer
       tasks.rs, settings.rs, providers.rs,
       folder_permissions.rs, migrations.rs
@@ -107,8 +110,8 @@ pnpm test --run               # Vitest single run
 pnpm test:coverage            # Vitest with coverage
 
 # Linting and formatting (Ultracite / Biome)
-pnpm dlx ultracite fix src/ src-tauri/sidecar-opencode/
-pnpm dlx ultracite check src/ src-tauri/sidecar-opencode/
+pnpm ultracite:fix                # or: pnpm dlx ultracite fix src/ src-tauri/sidecar-opencode/
+pnpm ultracite:check              # or: pnpm dlx ultracite check src/ src-tauri/sidecar-opencode/
 ```
 
 ## Testing

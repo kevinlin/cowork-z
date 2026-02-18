@@ -22,7 +22,7 @@ Add a Workspace Starter Packs feature to cowork-z. Packs are guided, copyable wo
    "resources/packs/**/*"
    "resources/pack-docs/**/*"
    ```
-   `src-tauri/resources/packs` and `src-tauri/resources/pack-docs` are **symlinks** pointing to `../../workspace-packs/packs` and `../../workspace-packs/pack-docs` respectively. `workspace-packs/` at the repo root is the single source of truth — no content duplication. In dev, `resolve_pack_sources()` falls back to `CARGO_MANIFEST_DIR/../workspace-packs/` (debug-only). In prod, the bundler follows the symlinks and includes the content under `resources/packs/` and `resources/pack-docs/`.
+   `src-tauri/resources/packs` and `src-tauri/resources/pack-docs` are **direct copies** of `workspace-packs/packs` and `workspace-packs/pack-docs` from the repo root, checked into git. Both locations contain the same content; `workspace-packs/` is the authoring directory and the copies under `src-tauri/resources/` are what Tauri bundles. This avoids cross-platform symlink issues (git symlinks are stored as plain text files on Windows and do not resolve as directories). `resolve_pack_sources()` looks for packs at `<resource_dir>/resources/packs` — a single deterministic path for both dev and prod.
 
 3. **Frontend** — `tauri-api.ts` and `tauri-api-interface.ts` gain `PackMeta`, `PackInstallResult`, `listPacks()`, `installPack()`, `installPackDefault()`. `Home.tsx` uses a tabbed layout (`packs` | `skills`). The packs tab renders `StarterPacks` (`src/components/landing/StarterPacks.tsx`), a self-contained component that owns its own state (catalog loading, search filtering, install flow, error display) — mirroring the `SkillsCatalog` component pattern. `Home.tsx` no longer contains packs-specific state or logic.
 
@@ -119,8 +119,8 @@ Card
 | `src-tauri/src/commands/packs.rs` | **New** — port of Tandem's packs module (PackMeta, PackInstallResult, list_packs, install_pack, install_pack_default, resolve_pack_sources, copy_dir_recursive, choose_destination_dir, default_pack_root) |
 | `src-tauri/src/commands/mod.rs` | Add `pub mod packs;` |
 | `src-tauri/src/lib.rs` | Add `commands::packs::packs_list`, `commands::packs::packs_install`, `commands::packs::packs_install_default` to `generate_handler!` |
-| `src-tauri/resources/packs` | **New symlink** → `../../workspace-packs/packs` (Tauri bundles via `resources/packs/**/*`) |
-| `src-tauri/resources/pack-docs` | **New symlink** → `../../workspace-packs/pack-docs` (Tauri bundles via `resources/pack-docs/**/*`) |
+| `src-tauri/resources/packs/` | **Copied directory** from `workspace-packs/packs/` (tracked in git; Tauri bundles via `resources/packs/**/*`) |
+| `src-tauri/resources/pack-docs/` | **Copied directory** from `workspace-packs/pack-docs/` (tracked in git; Tauri bundles via `resources/pack-docs/**/*`) |
 | `src-tauri/tauri.conf.json` | Add `"resources/packs/**/*"` and `"resources/pack-docs/**/*"` to `bundle.resources` |
 | `src/lib/tauri-api.ts` | Add `PackMeta`, `PackInstallResult` interfaces; `listPacks()`, `installPack()`, `installPackDefault()` functions |
 | `src/lib/tauri-api-interface.ts` | Add `listPacks`, `installPack`, `installPackDefault` to `TauriAPI` interface and implementation |

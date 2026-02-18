@@ -248,3 +248,19 @@ pnpm tauri dev
 | `docs/specs/workspace-packs/design.md` | Updated Architecture layer 3 description, Home.tsx layout diagram, and Files Changed table to reflect the extraction. |
 
 **Verification:** `pnpm typecheck` passes with 0 errors. No lint errors.
+
+### Bugfix: Pack resources not found on Windows (2026-02-18)
+
+**Symptom:** Installing a starter pack failed with `Pack template not found on disk` pointing to an empty `resources/packs/` directory inside the Tauri resource dir.
+
+**Root cause:** `src-tauri/resources/packs` and `src-tauri/resources/pack-docs` were git symlinks (`../../workspace-packs/packs` and `../../workspace-packs/pack-docs`). On Windows, git stores symlinks as plain text files containing the target path — they do not resolve as directories. The Tauri build script's glob patterns failed on empty/missing directories, and even when placeholder directories were created, they contained no pack content.
+
+**Fix (3 files):**
+
+| File | Change |
+|------|--------|
+| `src-tauri/resources/packs/` | Replaced symlink with direct copy of `workspace-packs/packs/`, tracked in git |
+| `src-tauri/resources/pack-docs/` | Replaced symlink with direct copy of `workspace-packs/pack-docs/`, tracked in git |
+| `src-tauri/src/commands/packs.rs` | Simplified `resolve_pack_sources()` — removed multi-path fallback chain and debug-only `CARGO_MANIFEST_DIR` resolution; packs are now always at `<resource_dir>/resources/packs` |
+
+**Design impact:** Updated resource bundling description in `docs/specs/workspace-packs/design.md` — symlinks replaced with direct copies tracked in git.

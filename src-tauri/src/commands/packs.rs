@@ -115,76 +115,35 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
 }
 
 /// Find the packs/ and pack-docs/ root directories.
-/// Searches production bundle paths first, then falls back to the repo's
-/// workspace-packs/ directory in debug builds (via CARGO_MANIFEST_DIR).
+///
+/// Pack content is copied directly into `src-tauri/resources/` at development
+/// time (from the repo-root `workspace-packs/` directory) and bundled into the
+/// app resources at build time via `tauri.conf.json`.  The Tauri resource
+/// directory layout places them at `<resource_dir>/resources/packs` (and
+/// `pack-docs`).
 fn resolve_pack_sources(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
     let resource_dir = app
         .path()
         .resource_dir()
         .map_err(|e| format!("Failed to get resource directory: {}", e))?;
 
-    let packs_candidates = vec![
-        resource_dir.join("resources").join("packs"),
-        resource_dir.join("packs"),
-        resource_dir
-            .join("resources")
-            .join("workspace-packs")
-            .join("packs"),
-        resource_dir.join("workspace-packs").join("packs"),
-    ];
+    let packs_root = resource_dir.join("resources").join("packs");
+    if !packs_root.exists() {
+        return Err(format!(
+            "Pack templates not found at {:?}. Ensure workspace-packs/ contents \
+             have been copied to src-tauri/resources/.",
+            packs_root
+        ));
+    }
 
-    let docs_candidates = vec![
-        resource_dir.join("resources").join("pack-docs"),
-        resource_dir.join("pack-docs"),
-        resource_dir
-            .join("resources")
-            .join("workspace-packs")
-            .join("pack-docs"),
-        resource_dir.join("workspace-packs").join("pack-docs"),
-    ];
-
-    let packs_root = packs_candidates
-        .iter()
-        .find(|p| p.exists())
-        .cloned()
-        .or_else(|| {
-            #[cfg(debug_assertions)]
-            {
-                let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("..")
-                    .join("workspace-packs")
-                    .join("packs");
-                if dev.exists() {
-                    return Some(dev);
-                }
-            }
-            None
-        })
-        .ok_or_else(|| {
-            format!(
-                "Pack templates not found. Looked in: {:?}",
-                packs_candidates
-            )
-        })?;
-
-    let pack_docs_root = docs_candidates
-        .iter()
-        .find(|p| p.exists())
-        .cloned()
-        .or_else(|| {
-            #[cfg(debug_assertions)]
-            {
-                let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("..")
-                    .join("workspace-packs")
-                    .join("pack-docs");
-                if dev.exists() {
-                    return Some(dev);
-                }
-            }
-            None
-        })
-        .ok_or_else(|| format!("Pack docs not found. Looked in: {:?}", docs_candidates))?;
+    let pack_docs_root = resource_dir.join("resources").join("pack-docs");
+    if !pack_docs_root.exists() {
+        return Err(format!(
+            "Pack docs not found at {:?}. Ensure workspace-packs/ contents \
+             have been copied to src-tauri/resources/.",
+            pack_docs_root
+        ));
+    }
 
     Ok((packs_root, pack_docs_root))
 }

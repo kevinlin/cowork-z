@@ -13,10 +13,12 @@ import SettingsDialog from './components/layout/SettingsDialog';
 import Sidebar from './components/layout/Sidebar';
 import UpdateDialog from './components/layout/UpdateDialog';
 import { TaskLauncher } from './components/TaskLauncher';
+import { Toaster } from 'sonner';
 import { useAppUpdate } from './hooks/useAppUpdate';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTheme } from './hooks/useTheme';
 import { analytics } from './lib/analytics';
+import { getThemeById } from './lib/themes';
 import { springs, variants } from './lib/animations';
 import { formatPathForChat } from './lib/file-utils';
 import { isRunningInTauri, setOnboardingComplete } from './lib/tauri-api';
@@ -238,6 +240,7 @@ export default function App() {
         </>
       )}
       <TaskLauncher />
+      <Toaster position="bottom-right" theme={getThemeById(themeId).isDark ? 'dark' : 'light'} />
       <SettingsDialog onOpenChange={setShowSettings} onSwitchTheme={switchTheme} open={showSettings} themeId={themeId} />
       <AboutDialog onOpenChange={setShowAbout} open={showAbout} />
       <OpenCodeCliMissingDialog onOpenChange={setShowCliMissing} open={showCliMissing} />

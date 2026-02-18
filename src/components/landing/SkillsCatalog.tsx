@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { SkillWithStatus } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 
@@ -55,9 +56,15 @@ export default function SkillsCatalog() {
       return next;
     });
     try {
+      const wasInstalled = skills.find((s) => s.meta.id === skillId)?.status.installed;
       await api.installSkill(skillId);
       const updated = await api.listSkillsWithStatus();
       setSkills(updated);
+
+      const skill = updated.find((s) => s.meta.id === skillId);
+      toast.success(skill ? `${skill.meta.name} ${wasInstalled ? 're-installed' : 'installed'}` : 'Skill installed', {
+        description: 'Skill is now available to the AI agent.',
+      });
     } catch (e) {
       setErrors((prev) => ({ ...prev, [skillId]: String(e) }));
     } finally {

@@ -90,13 +90,15 @@ Card
 7. Returns `PackInstallResult { installed_path }`.
 8. Frontend calls `addWorkspace(installedPath)` via `workspaceStore.addWorkspace()`, receiving the new `Workspace` object.
 9. Frontend calls `switchWorkspace(workspace.id)` to activate the new workspace (reconnects SSE, reloads file tree and session list).
-10. Task input is seeded via `onPromptSeed`: `"Open \`START_HERE.md\` and follow it step-by-step."`. The task is **not** auto-started — the user stays on the Home page with the prompt pre-filled and can review or edit before submitting.
+10. A success toast is shown via `sonner` (e.g. "Research Synthesis installed — Workspace created — edit the prompt below and press Enter to begin.").
+11. Task input is seeded via `onPromptSeed`: `"Open \`START_HERE.md\` and follow it step-by-step."`. The task is **not** auto-started — the user stays on the Home page with the prompt pre-filled and can review or edit before submitting.
 
 ---
 
 ### Post-Install State
 
 - The installed pack folder becomes a registered cowork-z workspace.
+- A success toast confirms installation with the pack title and a hint to press Enter.
 - The task input bar is pre-filled with the `START_HERE.md` prompt but the task is **not** auto-started.
 - The user stays on the Home page and can review, edit, or submit the seeded prompt at their discretion.
 
@@ -124,8 +126,10 @@ Card
 | `src-tauri/tauri.conf.json` | Add `"resources/packs/**/*"` and `"resources/pack-docs/**/*"` to `bundle.resources` |
 | `src/lib/tauri-api.ts` | Add `PackMeta`, `PackInstallResult` interfaces; `listPacks()`, `installPack()`, `installPackDefault()` functions |
 | `src/lib/tauri-api-interface.ts` | Add `listPacks`, `installPack`, `installPackDefault` to `TauriAPI` interface and implementation |
-| `src/components/landing/StarterPacks.tsx` | **New** — Self-contained packs catalog component (search, grid, install flow, error display). Mirrors `SkillsCatalog` pattern. |
+| `src/components/landing/StarterPacks.tsx` | **New** — Self-contained packs catalog component (search, grid, install flow, success toast via `sonner`, error display). Mirrors `SkillsCatalog` pattern. |
 | `src/pages/Home.tsx` | Rewrite: widen container, remove USE_CASE_EXAMPLES + image imports, add tab bar (`packs` / `skills`), delegate to `<StarterPacks />` and `<SkillsCatalog />` |
+| `src/App.tsx` | Add `<Toaster>` from `sonner` (theme-aware, bottom-right) for app-wide toast notifications |
+| `package.json` | Add `sonner` dependency |
 
 ---
 

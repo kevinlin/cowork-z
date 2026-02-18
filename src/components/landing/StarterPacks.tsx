@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { PackMeta } from '@/lib/tauri-api';
 import { pickFolder } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
@@ -62,6 +63,12 @@ export default function StarterPacks({ onPromptSeed }: StarterPacksProps) {
       const result = await api.installPack(packId, destination);
       const workspace = await addWorkspace(result.installed_path);
       await switchWorkspace(workspace.id);
+
+      const pack = packs.find((p) => p.id === packId);
+      toast.success(pack ? `${pack.title} installed` : 'Starter pack installed', {
+        description: 'Workspace created — edit the prompt below and press Enter to begin.',
+      });
+
       onPromptSeed?.('Open `START_HERE.md` and follow it step-by-step.');
     } catch (e) {
       setPackErrors((prev) => ({ ...prev, [packId]: String(e) }));

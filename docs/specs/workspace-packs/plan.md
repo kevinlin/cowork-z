@@ -237,30 +237,12 @@ pnpm tauri dev
 
 ### 2026-02-17 — Extract StarterPacks component
 
-**Task:** Extract the inline packs catalog from `Home.tsx` (lines 202–267) into a self-contained `StarterPacks` component.
+Extracted the inline packs catalog from `Home.tsx` into a self-contained `StarterPacks` component (`src/components/landing/StarterPacks.tsx`). Owns all packs-specific state: catalog loading, search filtering, install flow (folder picker → `installPack` → `addWorkspace` → `switchWorkspace` → prompt seed), and per-card error display. Mirrors the `SkillsCatalog` pattern. `Home.tsx` now delegates entirely to child components.
 
-**Changes:**
+### 2026-02-18 — Fix: Pack resources not found on Windows
 
-| File | Change |
-|------|--------|
-| `src/components/landing/StarterPacks.tsx` | **New** — Self-contained packs catalog component extracted from `Home.tsx`. Owns all packs-specific state: catalog loading (`listPacks`), search filtering, install flow (folder picker → `installPack` → `addWorkspace` → `switchWorkspace` → `executeTask`), and per-card error display. Follows the same pattern as `SkillsCatalog`. |
-| `src/pages/Home.tsx` | Removed packs-specific state (`packs`, `packsLoading`, `installingId`, `packErrors`, `query`), `filteredPacks` memo, `handleInstall` callback, and `COMPLEXITY_COLORS` constant. Removed unused imports (`pickFolder`, `PackMeta`, `useWorkspaceStore`). Replaced inline packs JSX with `<StarterPacks />`. |
-| `docs/specs/workspace-packs/design.md` | Updated Architecture layer 3 description, Home.tsx layout diagram, and Files Changed table to reflect the extraction. |
+Git symlinks for `src-tauri/resources/packs` and `pack-docs` resolved as plain text files on Windows, causing `Pack template not found on disk` errors. Replaced symlinks with direct copies tracked in git. Simplified `resolve_pack_sources()` to a single deterministic path (`<resource_dir>/resources/packs`). Updated design.md resource bundling section accordingly.
 
-**Verification:** `pnpm typecheck` passes with 0 errors. No lint errors.
+### 2026-02-18 — Add success toast after pack installation
 
-### Bugfix: Pack resources not found on Windows (2026-02-18)
-
-**Symptom:** Installing a starter pack failed with `Pack template not found on disk` pointing to an empty `resources/packs/` directory inside the Tauri resource dir.
-
-**Root cause:** `src-tauri/resources/packs` and `src-tauri/resources/pack-docs` were git symlinks (`../../workspace-packs/packs` and `../../workspace-packs/pack-docs`). On Windows, git stores symlinks as plain text files containing the target path — they do not resolve as directories. The Tauri build script's glob patterns failed on empty/missing directories, and even when placeholder directories were created, they contained no pack content.
-
-**Fix (3 files):**
-
-| File | Change |
-|------|--------|
-| `src-tauri/resources/packs/` | Replaced symlink with direct copy of `workspace-packs/packs/`, tracked in git |
-| `src-tauri/resources/pack-docs/` | Replaced symlink with direct copy of `workspace-packs/pack-docs/`, tracked in git |
-| `src-tauri/src/commands/packs.rs` | Simplified `resolve_pack_sources()` — removed multi-path fallback chain and debug-only `CARGO_MANIFEST_DIR` resolution; packs are now always at `<resource_dir>/resources/packs` |
-
-**Design impact:** Updated resource bundling description in `docs/specs/workspace-packs/design.md` — symlinks replaced with direct copies tracked in git.
+Added `sonner` toast library and a theme-aware `<Toaster>` to `App.tsx`. After a successful pack install, `StarterPacks.tsx` now shows a success toast with the pack title and a hint to press Enter. Updated design.md Install Flow (step 10), Post-Install State, and Files Changed table.

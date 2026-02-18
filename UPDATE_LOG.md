@@ -2,7 +2,8 @@
 
 ## v0.5.1
 
-- 
+- **Skills Catalog Reorganization** — Renamed skill template folders with category prefixes (e.g., `social-content` → `marketing-social-content`, `canvas-design` → `design-canvas-design`) for consistent categorization; removed broken reference to non-existent `references/estimate.md` in `development-estimation` skill.
+
 
 ## v0.5.0
 

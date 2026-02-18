@@ -4,6 +4,7 @@
 
 - **Fix: Starter Packs not found on Windows** — Replaced git symlinks for pack resources (`src-tauri/resources/packs`, `pack-docs`) with direct copies from `workspace-packs/`; simplified `resolve_pack_sources()` to a single deterministic path
 - **Install success toasts** — Successful starter pack installation shows a toast with the pack title and a prompt hint; successful skill install/re-install shows a toast confirming the skill is available to the agent
+- Reduce gap (top) for text message bubbles
 
 ## v0.5.1
 

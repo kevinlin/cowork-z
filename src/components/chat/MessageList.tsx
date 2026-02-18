@@ -114,7 +114,7 @@ export function MessageList({
             // Use tighter spacing (4px) between consecutive tool messages, normal (16px) otherwise
             const isTool = message.type === 'tool';
             const prevIsTool = index > 0 && filteredMessages[index - 1].type === 'tool';
-            const gapClass = index === 0 ? '' : isTool && prevIsTool ? 'mt-1' : 'mt-4';
+            const gapClass = index === 0 ? '' : isTool && prevIsTool ? 'mt-1' : '';
 
             return (
               <div className={cn(gapClass)} key={message.id}>

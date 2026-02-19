@@ -6,6 +6,8 @@
 - **3.8 Slash Command Skill Invocation** — Typing `/` at the start of the task input or chat follow-up input opens an autocomplete popover of installed skills; selecting a skill renders it as a visual pill above the textarea, and on submit the prompt is prefixed with `/<skill-id>` for the agent to invoke the skill
 - **4.2 New Themes: Nordic Light & Deep Space** — Added two new themes: Nordic Light (Scandinavian-inspired light theme and Deep Space (dark theme with blue-shifted backgrounds
 - **Fix: CodePreview dark highlighting on light themes** — Code preview panel now uses `oneLight` syntax theme for light app themes and `oneDark` for dark themes, reacting to theme switches in real time via `useSyncExternalStore`
+- **Fix: CodePrvidew file mapping** - Map file extensions ('json', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf') as code instead of text files
+
 
 ## v0.5.2
 

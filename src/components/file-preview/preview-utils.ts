@@ -3,37 +3,44 @@ import type { DirectoryEntry } from '@/shared/types/workspace';
 export type PreviewType = 'code' | 'markdown' | 'image' | 'video' | 'pdf' | 'html' | 'text' | 'binary';
 
 const CODE_EXTENSIONS = new Set([
-  'ts',
-  'tsx',
-  'js',
-  'jsx',
-  'rs',
-  'py',
-  'java',
+  'bash',
   'c',
+  'cfg',
+  'conf',
   'cpp',
+  'css',
+  'go',
   'h',
   'hpp',
-  'go',
-  'rb',
-  'php',
-  'swift',
+  'ini',
+  'java',
+  'js',
+  'json',
+  'jsx',
   'kt',
-  'scala',
-  'sh',
-  'bash',
-  'css',
-  'scss',
-  'xml',
-  'sql',
+  'php',
+  'py',
   'r',
+  'rb',
+  'rs',
+  'scala',
+  'scss',
+  'sh',
+  'sql',
+  'swift',
+  'toml',
+  'ts',
+  'tsx',
+  'xml',
+  'yaml',
+  'yml',
 ]);
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico']);
 
 const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'm4v']);
 
-const TEXT_EXTENSIONS = new Set(['txt', 'log', 'csv', 'json', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf']);
+const TEXT_EXTENSIONS = new Set(['txt', 'log', 'csv']);
 
 /**
  * Determine the preview type for a file based on its extension.

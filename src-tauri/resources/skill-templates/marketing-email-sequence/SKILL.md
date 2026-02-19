@@ -1,4 +1,5 @@
 ---
+name: marketing-email-sequence
 description: Design and draft multi-email sequences for nurture flows, onboarding, drip campaigns, and more
 argument-hint: "[sequence type]"
 ---

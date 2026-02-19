@@ -3,7 +3,7 @@
     THIS IS A TEMPLATE THAT SHOULD BE USED EVERY TIME AND MODIFIED.
     WHAT TO KEEP:
     ✓ Overall structure (header, sidebar, main content)
-    ✓ Template theme (colors, fonts, layout)
+    ✓ Anthropic branding (colors, fonts, layout)
     ✓ Seed navigation section (always include this)
     ✓ Self-contained artifact (everything inline)
 
@@ -25,15 +25,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        /* Theme colors */
+        /* Anthropic Brand Colors */
         :root {
-            --theme-dark: #141413;
-            --theme-light: #faf9f5;
-            --theme-muted: #b0aea5;
-            --theme-border: #e8e6dc;
-            --theme-accent: #d97757;
-            --theme-accent2: #6a9bcc;
-            --theme-accent3: #788c5d;
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
         }
 
         * {
@@ -44,9 +44,9 @@
 
         body {
             font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, var(--theme-light) 0%, #f5f3ee 100%);
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
             min-height: 100vh;
-            color: var(--theme-dark);
+            color: var(--anthropic-dark);
         }
 
         .container {
@@ -73,12 +73,12 @@
             font-family: 'Lora', serif;
             font-size: 24px;
             font-weight: 500;
-            color: var(--theme-dark);
+            color: var(--anthropic-dark);
             margin-bottom: 8px;
         }
 
         .sidebar .subtitle {
-            color: var(--theme-muted);
+            color: var(--anthropic-mid-gray);
             font-size: 14px;
             margin-bottom: 32px;
             line-height: 1.4;
@@ -92,7 +92,7 @@
         .control-section h3 {
             font-size: 16px;
             font-weight: 600;
-            color: var(--theme-dark);
+            color: var(--anthropic-dark);
             margin-bottom: 16px;
             display: flex;
             align-items: center;
@@ -101,26 +101,26 @@
 
         .control-section h3::before {
             content: '•';
-            color: var(--theme-accent);
+            color: var(--anthropic-orange);
             font-weight: bold;
         }
 
         /* Seed Controls */
         .seed-input {
             width: 100%;
-            background: var(--theme-light);
+            background: var(--anthropic-light);
             padding: 12px;
             border-radius: 8px;
             font-family: 'Courier New', monospace;
             font-size: 14px;
             margin-bottom: 12px;
-            border: 1px solid var(--theme-border);
+            border: 1px solid var(--anthropic-light-gray);
             text-align: center;
         }
 
         .seed-input:focus {
             outline: none;
-            border-color: var(--theme-accent);
+            border-color: var(--anthropic-orange);
             box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
             background: white;
         }
@@ -145,7 +145,7 @@
             display: block;
             font-size: 14px;
             font-weight: 500;
-            color: var(--theme-dark);
+            color: var(--anthropic-dark);
             margin-bottom: 8px;
         }
 
@@ -158,7 +158,7 @@
         .slider-container input[type="range"] {
             flex: 1;
             height: 4px;
-            background: var(--theme-border);
+            background: var(--anthropic-light-gray);
             border-radius: 2px;
             outline: none;
             -webkit-appearance: none;
@@ -168,7 +168,7 @@
             -webkit-appearance: none;
             width: 16px;
             height: 16px;
-            background: var(--theme-accent);
+            background: var(--anthropic-orange);
             border-radius: 50%;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -182,7 +182,7 @@
         .slider-container input[type="range"]::-moz-range-thumb {
             width: 16px;
             height: 16px;
-            background: var(--theme-accent);
+            background: var(--anthropic-orange);
             border-radius: 50%;
             border: none;
             cursor: pointer;
@@ -192,7 +192,7 @@
         .value-display {
             font-family: 'Courier New', monospace;
             font-size: 12px;
-            color: var(--theme-muted);
+            color: var(--anthropic-mid-gray);
             min-width: 60px;
             text-align: right;
         }
@@ -205,7 +205,7 @@
         .color-group label {
             display: block;
             font-size: 12px;
-            color: var(--theme-muted);
+            color: var(--anthropic-mid-gray);
             margin-bottom: 4px;
         }
 
@@ -228,12 +228,12 @@
         .color-value {
             font-family: 'Courier New', monospace;
             font-size: 12px;
-            color: var(--theme-muted);
+            color: var(--anthropic-mid-gray);
         }
 
         /* Buttons */
         .button {
-            background: var(--theme-accent);
+            background: var(--anthropic-orange);
             color: white;
             border: none;
             padding: 10px 16px;
@@ -255,7 +255,7 @@
         }
 
         .button.secondary {
-            background: var(--theme-accent2);
+            background: var(--anthropic-blue);
         }
 
         .button.secondary:hover {
@@ -263,7 +263,7 @@
         }
 
         .button.tertiary {
-            background: var(--theme-accent3);
+            background: var(--anthropic-green);
         }
 
         .button.tertiary:hover {
@@ -309,7 +309,7 @@
             align-items: center;
             justify-content: center;
             font-size: 18px;
-            color: var(--theme-muted);
+            color: var(--anthropic-mid-gray);
         }
 
         /* Responsive - Stack on mobile */
@@ -493,7 +493,7 @@
             generateFlowField();
 
             // Clear background
-            background(250, 249, 245); // Light background
+            background(250, 249, 245); // Anthropic light background
         }
 
         function generateFlowField() {

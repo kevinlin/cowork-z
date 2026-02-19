@@ -1,5 +1,5 @@
 ---
-name: seo-audit
+name: marketing-seo-audit
 description: Run a comprehensive SEO audit — keyword research, on-page analysis, content gaps, technical checks, and competitor comparison
 argument-hint: "<url or topic> [audit type]"
 ---

@@ -1,4 +1,5 @@
 ---
+name: productivity-update
 description: Sync tasks and refresh memory from your current activity
 argument-hint: "[--comprehensive]"
 ---

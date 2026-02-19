@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * Sync local skill templates from upstream anthropics/knowledge-work-plugins.
+ * Sync local skill templates from multiple upstream repos.
+ *
+ * Sources (checked in order, first match wins):
+ *   1. anthropics/knowledge-work-plugins  — category-mapped skills + commands
+ *   2. anthropics/skills                  — skills/  directory
+ *   3. ComposioHQ/awesome-claude-skills   — root-level directories
  *
  * Usage: node scripts/sync-skills.mjs [--dry-run]
  *
@@ -10,14 +15,32 @@
  */
 
 import { readdir, mkdir, writeFile } from 'node:fs/promises';
-import { resolve, dirname, posix } from 'node:path';
-
-const REPO = 'anthropics/knowledge-work-plugins';
-const BRANCH = 'main';
-const TREE_URL = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`;
-const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
+import { resolve, dirname } from 'node:path';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '..', 'src-tauri', 'resources', 'skill-templates');
+
+const UPSTREAM_SOURCES = [
+  {
+    repo: 'anthropics/knowledge-work-plugins',
+    branch: 'main',
+    label: 'knowledge-work-plugins',
+    type: 'category-mapped',
+  },
+  {
+    repo: 'anthropics/skills',
+    branch: 'main',
+    label: 'anthropics/skills',
+    type: 'skills-subdir',
+    prefix: 'skills/',
+  },
+  {
+    repo: 'ComposioHQ/awesome-claude-skills',
+    branch: 'master',
+    label: 'ComposioHQ/awesome-claude-skills',
+    type: 'root-level',
+    prefix: '',
+  },
+];
 
 const CATEGORY_MAP = {
   data: 'data',
@@ -33,29 +56,34 @@ const CATEGORY_MAP = {
 
 const SKIP_PREFIXES = ['design', 'doc', 'development'];
 
-const SKIP_PATHS = ['.DS_Store', '.claude-plugin/'];
+const SKIP_PATHS = ['.DS_Store', '.claude-plugin/', 'composio-skills/', 'connect-apps-plugin/', 'connect-apps/', 'connect/', 'template-skill/'];
 
 const dryRun = process.argv.includes('--dry-run');
 
-async function fetchTree() {
+// ── GitHub helpers ──────────────────────────────────────────
+
+function githubHeaders() {
   const headers = { 'User-Agent': 'cowork-z-sync' };
   if (process.env.GITHUB_TOKEN) {
     headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
+  return headers;
+}
 
-  const res = await fetch(TREE_URL, { headers });
+async function fetchTree(repo, branch) {
+  const url = `https://api.github.com/repos/${repo}/git/trees/${branch}?recursive=1`;
+  const res = await fetch(url, { headers: githubHeaders() });
   if (!res.ok) {
-    throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+    throw new Error(`GitHub API ${res.status} for ${repo}: ${await res.text()}`);
   }
-
   const data = await res.json();
   if (data.truncated) {
-    console.warn('⚠️  GitHub tree was truncated — very large repos may miss some files');
+    console.warn(`  ⚠️  Tree truncated for ${repo}`);
   }
   return data.tree;
 }
 
-function buildUpstreamIndex(tree) {
+function buildIndex(tree) {
   const index = new Map();
   for (const entry of tree) {
     if (entry.type !== 'blob') continue;
@@ -64,6 +92,17 @@ function buildUpstreamIndex(tree) {
   }
   return index;
 }
+
+async function downloadFile(repo, branch, remotePath) {
+  const url = `https://raw.githubusercontent.com/${repo}/${branch}/${remotePath}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Download failed ${res.status}: ${url}`);
+  }
+  return Buffer.from(await res.arrayBuffer());
+}
+
+// ── Matching ────────────────────────────────────────────────
 
 function extractPrefix(folderName) {
   for (const prefix of Object.keys(CATEGORY_MAP)) {
@@ -74,27 +113,24 @@ function extractPrefix(folderName) {
   return null;
 }
 
-function findUpstreamMatch(folderName, index) {
+function findCategoryMappedMatch(folderName, index) {
   const extracted = extractPrefix(folderName);
 
   if (extracted) {
     const { prefix, remaining } = extracted;
     const upstreamCat = CATEGORY_MAP[prefix];
 
-    // i. Skill directory: {upstream-cat}/skills/{remaining-name}/
     const skillPrefix = `${upstreamCat}/skills/${remaining}/`;
     const skillFiles = [...index.keys()].filter((p) => p.startsWith(skillPrefix));
     if (skillFiles.length > 0) {
       return { type: 'skill', files: skillFiles, basePath: skillPrefix };
     }
 
-    // ii. Command file: {upstream-cat}/commands/{remaining-name}.md
     const commandPath = `${upstreamCat}/commands/${remaining}.md`;
     if (index.has(commandPath)) {
       return { type: 'command', files: [commandPath], basePath: commandPath };
     }
 
-    // iii. Skill with full local name: {upstream-cat}/skills/{full-local-name}/
     const fullSkillPrefix = `${upstreamCat}/skills/${folderName}/`;
     const fullSkillFiles = [...index.keys()].filter((p) => p.startsWith(fullSkillPrefix));
     if (fullSkillFiles.length > 0) {
@@ -102,7 +138,6 @@ function findUpstreamMatch(folderName, index) {
     }
   }
 
-  // iv. Full-name search across ALL upstream categories
   for (const upstreamCat of Object.values(CATEGORY_MAP)) {
     const skillPrefix = `${upstreamCat}/skills/${folderName}/`;
     const skillFiles = [...index.keys()].filter((p) => p.startsWith(skillPrefix));
@@ -119,20 +154,35 @@ function findUpstreamMatch(folderName, index) {
   return null;
 }
 
-async function downloadFile(remotePath) {
-  const url = `${RAW_BASE}/${remotePath}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Download failed ${res.status}: ${url}`);
+function findPrefixedMatch(folderName, index, dirPrefix) {
+  const stripped = folderName.replace(/^[a-z]+-/, '');
+  for (const name of [folderName, stripped]) {
+    const prefix = `${dirPrefix}${name}/`;
+    const files = [...index.keys()].filter((p) => p.startsWith(prefix));
+    if (files.length > 0) {
+      return { type: 'skill', files, basePath: prefix };
+    }
   }
-  return Buffer.from(await res.arrayBuffer());
+  return null;
 }
 
-async function syncSkill(folderName, match) {
+// ── Frontmatter injection (commands only) ───────────────────
+
+function injectNameIntoFrontmatter(text, folderName) {
+  if (!text.startsWith('---')) return `---\nname: ${folderName}\n---\n${text}`;
+  const end = text.indexOf('\n---', 3);
+  if (end === -1) return text;
+  return `---\nname: ${folderName}\n${text.slice(4, end)}\n---${text.slice(end + 4)}`;
+}
+
+// ── Sync ────────────────────────────────────────────────────
+
+async function syncSkill(folderName, match, repo, branch) {
   const localDir = resolve(TEMPLATES_DIR, folderName);
 
   if (match.type === 'command') {
-    const content = await downloadFile(match.files[0]);
+    const raw = await downloadFile(repo, branch, match.files[0]);
+    const content = injectNameIntoFrontmatter(raw.toString('utf-8'), folderName);
     const dest = resolve(localDir, 'SKILL.md');
     await mkdir(localDir, { recursive: true });
     await writeFile(dest, content);
@@ -143,7 +193,7 @@ async function syncSkill(folderName, match) {
   for (const filePath of match.files) {
     const relativePath = filePath.slice(match.basePath.length);
     const dest = resolve(localDir, relativePath);
-    const content = await downloadFile(filePath);
+    const content = await downloadFile(repo, branch, filePath);
     await mkdir(dirname(dest), { recursive: true });
     await writeFile(dest, content);
     count++;
@@ -151,15 +201,21 @@ async function syncSkill(folderName, match) {
   return count;
 }
 
+// ── Main ────────────────────────────────────────────────────
+
 async function main() {
   console.log(`\n🔄 Skill Sync — ${dryRun ? 'DRY RUN' : 'LIVE'}`);
-  console.log(`   Upstream: ${REPO} (${BRANCH})`);
-  console.log(`   Local:    ${TEMPLATES_DIR}\n`);
+  console.log(`   Local: ${TEMPLATES_DIR}\n`);
 
-  console.log('📡 Fetching upstream repo tree...');
-  const tree = await fetchTree();
-  const index = buildUpstreamIndex(tree);
-  console.log(`   ${index.size} files indexed\n`);
+  console.log('📡 Fetching upstream repo trees...');
+  const sources = [];
+  for (const src of UPSTREAM_SOURCES) {
+    const tree = await fetchTree(src.repo, src.branch);
+    const index = buildIndex(tree);
+    console.log(`   ${src.label}: ${index.size} files`);
+    sources.push({ ...src, index });
+  }
+  console.log('');
 
   const localFolders = (await readdir(TEMPLATES_DIR, { withFileTypes: true }))
     .filter((d) => d.isDirectory())
@@ -181,7 +237,20 @@ async function main() {
       continue;
     }
 
-    const match = findUpstreamMatch(folder, index);
+    let match = null;
+    let matchedSource = null;
+
+    for (const src of sources) {
+      if (src.type === 'category-mapped') {
+        match = findCategoryMappedMatch(folder, src.index);
+      } else {
+        match = findPrefixedMatch(folder, src.index, src.prefix);
+      }
+      if (match) {
+        matchedSource = src;
+        break;
+      }
+    }
 
     if (!match) {
       console.log(`  ❌ ${folder} (no upstream match)`);
@@ -190,16 +259,17 @@ async function main() {
     }
 
     const label = match.type === 'command' ? 'command' : `skill (${match.files.length} files)`;
+    const sourceTag = matchedSource.label;
 
     if (dryRun) {
-      console.log(`  ✅ ${folder} → ${match.type}: ${match.basePath} [${label}]`);
+      console.log(`  ✅ ${folder} → ${match.type}: ${match.basePath} [${label}] (${sourceTag})`);
       synced.push(folder);
       continue;
     }
 
     try {
-      const fileCount = await syncSkill(folder, match);
-      console.log(`  ✅ ${folder} → synced ${fileCount} file(s) [${label}]`);
+      const fileCount = await syncSkill(folder, match, matchedSource.repo, matchedSource.branch);
+      console.log(`  ✅ ${folder} → synced ${fileCount} file(s) [${label}] (${sourceTag})`);
       synced.push(folder);
     } catch (err) {
       console.log(`  ❌ ${folder} → download error: ${err.message}`);
@@ -220,11 +290,7 @@ async function main() {
   if (missing.length > 0) {
     console.log('\nMissing skills (no upstream match found):');
     for (const name of missing) {
-      const extracted = extractPrefix(name);
-      const guess = extracted
-        ? `${CATEGORY_MAP[extracted.prefix] ?? extracted.prefix}/skills/${extracted.remaining}/`
-        : `<unknown-category>/skills/${name}/`;
-      console.log(`  - ${name}  (tried: ${guess})`);
+      console.log(`  - ${name}`);
     }
   }
 

@@ -1,4 +1,5 @@
 ---
+name: data-create-viz
 description: Create publication-quality visualizations with Python
 argument-hint: "<data source> [chart type]"
 ---

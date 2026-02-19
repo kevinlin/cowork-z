@@ -1,4 +1,5 @@
 ---
+name: productivity-start
 description: Initialize the productivity system and open the dashboard
 ---
 

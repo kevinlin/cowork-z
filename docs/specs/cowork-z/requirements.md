@@ -71,7 +71,7 @@ The following implementation plans document how specific requirements were desig
 |------|----------|--------------|
 | Workspace Starter Packs | [`workspace-packs/plan.md`](../workspace-packs/plan.md) | 7.1–7.3 |
 
-### app-ux — Starter Skills
+### app-ux — Skills Catalog
 
 | Plan | Location | Requirements |
 |------|----------|--------------|
@@ -99,8 +99,8 @@ The following implementation plans document how specific requirements were desig
 3. WHERE multiple providers are configured, THE SYSTEM SHALL allow the user to switch the active provider and model at any time
 
 ##### 1.1.2 Credential Storage
-1. THE SYSTEM SHALL store all API keys and credentials in the OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
-2. THE SYSTEM SHALL never expose full API keys to the frontend — only masked prefixes
+1. THE SYSTEM SHALL store all API keys and credentials in the OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service) — never in the database or config files
+2. THE SYSTEM SHALL never expose, log, or display full API keys to the frontend — only masked prefixes
 3. WHERE provider-specific auth is needed (e.g., Bedrock access keys, Azure Entra ID), THE SYSTEM SHALL provide dedicated configuration forms
 
 ##### 1.1.3 OpenRouter Provider Support
@@ -122,17 +122,16 @@ The following implementation plans document how specific requirements were desig
 4. WHERE the model fetch fails (network error, API error), THE SYSTEM SHALL fall back to a static default model list without blocking the connection
 5. THE SYSTEM SHALL prefix fetched model IDs with the provider identifier (e.g., `anthropic/claude-sonnet-4-5`) for delivery to the OpenCode server
 
-###### 1.1.5 OpenRouter Small-Model Pinning
+##### 1.1.5 OpenRouter Small-Model Pinning
 
-1. WHEN the selected model uses the OpenRouter provider (model ID starts with `openrouter/`), THE SYSTEM SHALL explicitly set `small_model` to `openrouter/openai/gpt-5-nano` in the OpenCode configuration
-2. THE SYSTEM SHALL disable the built-in `opencode` provider (`disabled_providers: ["opencode"]`) to prevent it from silently routing small-model calls through OpenCode's own servers
-3. THE SYSTEM SHALL register the small model (`openai/gpt-5-nano`) in the OpenRouter provider's model config so that OpenCode's model resolver can find it
-4. THE SYSTEM SHALL write these settings to the pre-start `opencode.json` config file AND the `OPENCODE_CONFIG_CONTENT` environment variable (highest-priority config source) to ensure they survive OpenCode instance disposal and recreation
-5. THE SYSTEM SHALL update the on-disk config when the model changes between tasks (server already running) so that subsequent instance reloads pick up the correct settings
+1. WHEN the selected model uses the OpenRouter provider, THE SYSTEM SHALL auto-configure a small model routed through the same OpenRouter provider
+2. THE SYSTEM SHALL prevent small-model calls from being routed through non-OpenRouter providers
+3. THE SYSTEM SHALL persist the small-model configuration so that it survives OpenCode server restarts and instance recreation
+4. THE SYSTEM SHALL update the configuration when the active model changes between tasks
 
 #### 1.2 Session Management ✅
 
-> **Plan:** [Sidecar OpenCode Rewrite](../opencode-sidecar/plan_sidecar-opencode-rewrite.md)
+> **Plan:** [Sidecar OpenCode Rewrite](../opencode-integration/plan_sidecar-opencode-rewrite.md)
 
 **User Story:** As a user, I want to resume previous sessions, so that I can continue work across multiple sittings.
 
@@ -142,7 +141,7 @@ The following implementation plans document how specific requirements were desig
 1. WHEN a user submits a prompt, THE SYSTEM SHALL create a new task and OpenCode session
 2. WHEN a task completes or errors, THE SYSTEM SHALL persist the session ID, messages, and folder permissions to the database
 3. WHEN the application closes, THE SYSTEM SHALL gracefully terminate all running sessions and sidecar processes
-4. THE SYSTEM SHALL use an extended timeout (10 minutes) for the `sendMessage` HTTP request to the OpenCode server, since this is a long-running call that blocks until the full agent turn completes (including permission waits, tool execution, and multi-step reasoning)
+4. THE SYSTEM SHALL use an extended HTTP timeout for agent turn requests to accommodate long-running operations (tool execution, permission waits, multi-step reasoning)
 
 ##### 1.2.2 Session Resumption
 1. THE SYSTEM SHALL allow users to resume a previous session with a new prompt
@@ -155,7 +154,7 @@ The following implementation plans document how specific requirements were desig
 
 #### 1.3 Permission System ✅
 
-> **Plan:** [Folder Permission Model](../opencode-sidecar/plan_folder-permission-model.md)
+> **Plan:** [Folder Permission Model](../opencode-integration/plan_folder-permission-model.md)
 
 **User Story:** As a user, I want to control what files and directories the AI agent can access, so that my system stays protected.
 
@@ -169,8 +168,8 @@ The following implementation plans document how specific requirements were desig
 5. WHEN the user approves a permission pattern, THE SYSTEM SHALL auto-approve any queued or subsequent requests matching the same pattern
 
 ##### 1.3.2 Default Access
-1. THE SYSTEM SHALL grant default access to the user's **Desktop** and **Downloads** folders
-2. WHEN the agent requests access to any path outside the default and permitted folders, THE SYSTEM SHALL prompt the user with a permission dialog showing the requested path
+1. THE SYSTEM SHALL grant default read-write access to the active workspace folder and its descendants (see 6.3 for workspace trust model)
+2. WHEN the agent requests access to any path outside the workspace and permitted folders, THE SYSTEM SHALL prompt the user with a permission dialog showing the requested path
 
 ##### 1.3.3 Runtime Permission Requests
 1. IF the user approves a permission request, THE SYSTEM SHALL extract the parent folder from the requested path and store it as an ad-hoc grant
@@ -198,7 +197,7 @@ The following implementation plans document how specific requirements were desig
 
 #### 2.2 Agent Skill Support ✅
 
-> **Plan:** [Fix System Prompt Injection](../opencode-sidecar/plan_fix_system_prompt_injection.md) (system prompt delivery for agent configuration)
+> **Plan:** [Fix System Prompt Injection](../opencode-integration/plan_fix_system_prompt_injection.md) (system prompt delivery for agent configuration)
 
 Skills follow the [OpenCode Skills specification](https://opencode.ai/docs/skills/). OpenCode natively discovers and loads skills from convention directories — no additional app-level implementation is required beyond ensuring the OpenCode server has access to the skill directories.
 
@@ -209,7 +208,6 @@ Skills follow the [OpenCode Skills specification](https://opencode.ai/docs/skill
    - Agent-compatible: `.agents/skills/<name>/SKILL.md` (project and global)
 2. THE SYSTEM SHALL expose discovered skills to the agent via the OpenCode `skill` tool, which lists available skills and loads their content on demand
 3. WHERE skill files are added or modified in any discovery path, OpenCode SHALL pick them up without requiring an app restart
-4. THE SYSTEM SHALL display the skills folder path in the Settings panel as a clickable link that opens the directory in the OS file manager (Finder on macOS, Explorer on Windows)
 
 #### 2.3 MCP Server Support ✅
 
@@ -246,17 +244,14 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 **Acceptance Criteria:**
 
 ##### 2.4.1 Skill Content
-1. THE SYSTEM SHALL bundle a SKILL.md file documenting the OpenCode server REST API for agent self-introspection
-2. THE SKILL SHALL cover these read endpoints: `GET /global/health`, `GET /config`, `GET /session`, `GET /session/{id}`, `GET /session/{id}/message`, `GET /session/{id}/todo`, `GET /skill`, `GET /mcp`, `GET /permission`, `GET /question`
-3. THE SKILL SHALL cover this write endpoint: `PATCH /config` (runtime configuration updates)
-4. THE SKILL SHALL document request parameters, response shapes, and curl examples for each endpoint
-5. THE SKILL SHALL reference server credentials provided in the system prompt rather than hardcoding them
+1. THE SYSTEM SHALL bundle a SKILL.md file documenting all read and write endpoints of the OpenCode server REST API for agent self-introspection
+2. THE SKILL SHALL document request parameters, response shapes, and curl examples for each endpoint
+3. THE SKILL SHALL reference server credentials provided in the system prompt rather than hardcoding them
 
 ##### 2.4.2 Skill Deployment
-1. THE SYSTEM SHALL store the skill source at `src-tauri/resources/skills/opencode-server-api/SKILL.md`
-2. THE SYSTEM SHALL copy the bundled SKILL.md to `~/.config/opencode/skills/opencode-server-api/SKILL.md` on every app launch, overwriting any existing copy
-3. THE SYSTEM SHALL create the target directory if it does not exist
-4. WHERE the copy fails, THE SYSTEM SHALL log a warning without blocking app startup
+1. THE SYSTEM SHALL bundle the skill as a Tauri resource and deploy it to the OpenCode global skills directory on every app launch, overwriting any existing copy
+2. THE SYSTEM SHALL create the target directory if it does not exist
+3. WHERE the deployment fails, THE SYSTEM SHALL log a warning without blocking app startup
 
 ##### 2.4.3 System Prompt Consolidation
 1. THE SYSTEM SHALL replace the existing `skills-discovery` and `mcp-discovery` behavior blocks in the system prompt with a compact `server-access` block containing only the server port, password, and a pointer to the skill
@@ -272,9 +267,9 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL render file paths in agent messages as clickable links with a mini icon based on the file extension
-2. WHEN a user clicks a file link, THE SYSTEM SHALL open the file with the OS default application for that extension
+2. WHEN a user clicks a file link, THE SYSTEM SHALL open the file in the in-app preview panel (see 6.4)
 3. WHERE the file is an image or video, THE SYSTEM SHALL display a thumbnail preview at the bottom of the message bubble
-4. WHEN a user clicks an image or video thumbnail, THE SYSTEM SHALL open a modal preview within the app
+4. WHEN a user clicks an image or video thumbnail, THE SYSTEM SHALL open the file in the in-app preview panel (see 6.4)
 
 #### 3.2 Rich URL Display ✅
 
@@ -300,14 +295,14 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL collect all files the agent creates or modifies during a session
 2. THE SYSTEM SHALL display artefacts in the sidebar, positioned after Folders and Todos, before task history
-3. WHEN a user clicks an artefact, THE SYSTEM SHALL open the file with the OS default application for its extension
+3. WHEN a user clicks an artefact, THE SYSTEM SHALL open the file in the in-app preview panel (see 6.4)
 4. WHERE a session is resumed, THE SYSTEM SHALL restore the artefact list from the previous session
 
 #### 3.5 Drag-and-Drop Support in Chat ✅
 
 **User Story:** As a user, I want to drag files or folders into the chat input, so that I can quickly reference them in my prompts without typing full paths.
 
-> **Plan:** [Drag-and-drop Support](../ts-frontend/plan_drag-and-drop-support.md)
+> **Plan:** [Drag-and-drop Support](../chat-ux/plan_drag-and-drop-support.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL support drag-and-drop of files and folders onto the chat input area
@@ -330,7 +325,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 3.7 Chat UI Rewrite ✅
 
-> **Plan:** [Chat UI Rewrite](../ts-frontend/plan_chat_ui_rewrite.md)
+> **Plan:** [Chat UI Rewrite](../chat-ux/plan_chat_ui_rewrite.md)
 
 **User Story:** As a user, I want a polished chat experience with collapsible tool calls, clear permission/question dialogs, and streaming support, so that I can follow the agent's work without visual noise.
 
@@ -339,7 +334,8 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 ##### 3.7.1 Message Rendering
 1. THE SYSTEM SHALL render user, assistant, tool, and system messages with distinct visual styles
 2. THE SYSTEM SHALL support streaming (partial) messages with a cursor indicator
-3. THE SYSTEM SHALL render assistant messages as Markdown with syntax-highlighted code blocks, clickable file paths, and media previews
+3. THE SYSTEM SHALL render assistant messages as Markdown with syntax-highlighted code blocks
+4. THE SYSTEM SHALL render file paths and media previews in assistant messages per 3.1
 
 ##### 3.7.2 Tool Call Display
 1. THE SYSTEM SHALL render tool-use messages as collapsible cards, collapsed by default
@@ -380,17 +376,17 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 4.2 Theme Support ✅
 
-> **Plan:** [Theme Support](../ts-frontend/plan_theme-support.md)
+> **Plan:** [Theme Support](../app-ux/plan_theme-support.md)
 
 **Acceptance Criteria:**
-1. THE SYSTEM SHALL provide multiple predefined themes aligned with the Zuhlke style guide, including at least one dark theme
+1. THE SYSTEM SHALL provide multiple predefined themes (including at least one dark theme); theme names and palettes are defined in the implementation plan
 2. THE SYSTEM SHALL allow users to switch themes at runtime without requiring an app restart
 3. THE SYSTEM SHALL persist the selected theme to the database
 4. WHERE the OS reports a dark-mode preference, THE SYSTEM SHALL default to the dark theme on first launch
 
 #### 4.3 Keyboard Shortcuts ✅
 
-> **Plan:** [Keyboard Shortcuts](../ts-frontend/plan_keyboard-shortcuts.md)
+> **Plan:** [Keyboard Shortcuts](../app-ux/plan_keyboard-shortcuts.md)
 
 **Acceptance Criteria:**
 
@@ -398,7 +394,6 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL support the following default shortcuts (macOS / Windows):
    - `Cmd+,` / `Ctrl+,` — Open settings
    - `Cmd+N` / `Ctrl+N` — New task
-2. THE SYSTEM SHALL map modifier keys to platform conventions (`Cmd` on macOS, `Ctrl` on Windows/Linux)
 
 ##### 4.3.2 Chat Shortcuts
 1. THE SYSTEM SHALL support the following shortcuts within the chat view:
@@ -408,7 +403,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 4.4 About Panel ✅
 
-> **Plan:** [About Panel](../ts-frontend/plan_about_panel.md)
+> **Plan:** [About Panel](../app-ux/plan_about_panel.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL provide an info panel accessible via the app menu (Help > About)
@@ -443,7 +438,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 **User Story:** As a user, I want Cowork-Z to run on my OS and protect its internal services and data from other local users.
 
-#### 5.1 Cross-Platform Support
+#### 5.1 Cross-Platform Support ✅
 
 > **Plan:** [Cross-Platform Fixes](plan_cross-platform-support.md), [Windows Production Readiness](plan_windows-production-readiness.md)
 
@@ -466,12 +461,10 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 4. THE SYSTEM SHALL write sidecar log files (both Rust and TypeScript) to the same platform-appropriate directory: `~/.local/share/opencode/log` on macOS/Linux (intentionally using an XDG-style location on macOS for parity with Linux), `%LOCALAPPDATA%\opencode\log` on Windows
 
 ##### 5.1.4 PATH Resolution for External CLI Tools
-1. WHEN launched from a GUI context (Finder/Dock on macOS, Start Menu/Explorer on Windows), THE SYSTEM SHALL augment the process PATH so that globally-installed CLI tools (e.g., `opencode`) are discoverable
-2. On macOS/Linux, THE SYSTEM SHALL source the user's login shell PATH via `trusted-shell -ilc 'echo $PATH'` and merge it with the current process PATH
-3. On macOS/Linux, THE SYSTEM SHALL only execute login shells from an allowlist of absolute paths and SHALL ignore untrusted `$SHELL` values
-4. On macOS/Linux, THE SYSTEM SHALL fall back to well-known directories (`/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin`, `~/.volta/bin`, `~/.nvm/versions/node/*/bin`, `~/.yarn/bin`, `~/.local/share/pnpm`, `~/.local/share/fnm`) when the login shell approach fails
-5. On Windows, THE SYSTEM SHALL include well-known directories (`%APPDATA%\npm`, `%ProgramFiles%\nodejs`, `%LOCALAPPDATA%\Volta\bin`, `~\scoop\shims`, `C:\ProgramData\chocolatey\bin`, `%LOCALAPPDATA%\Yarn\bin`, `%LOCALAPPDATA%\pnpm`, nvm-windows version directories)
-6. THE SYSTEM SHALL deduplicate PATH entries (case-insensitively on Windows) and use the platform-appropriate separator (`:` on Unix, `;` on Windows)
+1. WHEN launched from a GUI context, THE SYSTEM SHALL augment the process PATH so that globally-installed CLI tools (e.g., `opencode`) are discoverable
+2. On macOS/Linux, THE SYSTEM SHALL resolve the user's login shell PATH and merge it with the current process PATH, only executing shells from a trusted allowlist
+3. WHERE the login shell approach fails, THE SYSTEM SHALL fall back to well-known package manager directories on each platform
+4. THE SYSTEM SHALL deduplicate PATH entries (case-insensitively on Windows) and use the platform-appropriate separator
 
 #### 5.2 Security Hardening
 
@@ -484,23 +477,23 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. THE SYSTEM SHALL generate a random password on each app launch and set it via `OPENCODE_SERVER_PASSWORD` environment variable
 3. THE SYSTEM SHALL configure the sidecar to authenticate with the OpenCode server using HTTP basic auth (`opencode` username + generated password)
 
-##### 5.2.2 Database Protection
+##### 5.2.2 Database Protection (Planned)
 1. THE SYSTEM SHALL offer an option to encrypt the SQLite database at rest
 2. WHERE encryption is enabled, THE SYSTEM SHALL derive the encryption key from the OS keychain
 3. WHERE encryption is disabled, THE SYSTEM SHALL store data in plaintext SQLite (default)
 
 ##### 5.2.3 Credential Security ✅
-1. THE SYSTEM SHALL store all API keys and secrets in the OS keychain — never in the database or config files
-2. THE SYSTEM SHALL never log or display full API keys
+
+> Credential storage and display rules are defined in 1.1.2.
 
 #### 5.3 Error Handling ✅
 
 **Acceptance Criteria:**
 
 ##### 5.3.1 Error Display
-1. WHEN API errors occur, THE SYSTEM SHALL display user-friendly error messages
-2. WHERE tool execution fails, THE SYSTEM SHALL show the error inline with actionable context
-3. IF the application encounters an unrecoverable error, THE SYSTEM SHALL allow session restart
+1. WHEN API errors occur, THE SYSTEM SHALL display the error status and message in a user-visible notification or inline message
+2. WHERE tool execution fails, THE SYSTEM SHALL show the error inline within the failed tool call card
+3. IF the application encounters an unrecoverable error, THE SYSTEM SHALL present a "Restart Session" action to the user
 
 ##### 5.3.2 Logging
 1. WHEN errors occur, THE SYSTEM SHALL log them to the platform-appropriate log directory
@@ -586,14 +579,13 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. THE SYSTEM SHALL include parent directories when a child matches the search query
 
 ##### 6.2.3 Filesystem Watching
-1. THE SYSTEM SHALL watch the active workspace directory for filesystem changes using the `notify` crate, debounced at 200ms
-2. WHEN changes are detected, THE SYSTEM SHALL emit a `workspace:fs_changed` event and refresh only the affected expanded directories, preserving expand/collapse state
+1. THE SYSTEM SHALL watch the active workspace directory for filesystem changes with debouncing to avoid excessive refreshes
+2. WHEN changes are detected, THE SYSTEM SHALL refresh only the affected expanded directories, preserving expand/collapse state
 
 ##### 6.2.4 Drag-and-Drop from File Tree
 1. THE SYSTEM SHALL allow dragging files from the file tree into chat input areas (task launcher and follow-up input)
-2. WHEN a file is dropped, THE SYSTEM SHALL insert the path as an `@path/to/file` reference at the cursor position
-3. WHERE a path contains spaces, THE SYSTEM SHALL wrap it in quotes: `@"path/to/file with spaces.txt"`
-4. THE SYSTEM SHALL display visual feedback (ring highlight) when hovering over the drop target
+2. WHEN a file is dropped, THE SYSTEM SHALL insert the path using the `@path` format defined in 3.5 AC#2
+3. THE SYSTEM SHALL display visual feedback (ring highlight) when hovering over the drop target
 
 #### 6.3 Workspace Permissions ✅
 
@@ -615,8 +607,9 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ##### 6.4.1 Preview Opening
 1. WHEN the user clicks a file in the file tree, THE SYSTEM SHALL open the file preview in a right-side panel
-2. WHEN the user clicks a media thumbnail (image/video) in a chat message, THE SYSTEM SHALL open the file preview panel for that file
+2. WHEN the user clicks a file link, media thumbnail, or artefact elsewhere in the app (see 3.1, 3.4), THE SYSTEM SHALL open the file preview panel for that file
 3. THE SYSTEM SHALL display a close button (X) in the preview header to dismiss the panel
+4. THE SYSTEM SHALL provide an "Open Externally" button in the preview header to open the file with the OS default application
 
 ##### 6.4.2 Resizable Panel
 1. THE SYSTEM SHALL provide a drag handle on the left edge of the preview panel for horizontal resizing
@@ -646,9 +639,8 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ##### 6.4.6 Add to Chat
 1. THE SYSTEM SHALL provide an "Add to Chat" button in the preview header
-2. WHEN clicked, THE SYSTEM SHALL insert the file path as an `@path` reference into the active chat input (task launcher on the Home page, follow-up input on the Execution page)
-3. THE SYSTEM SHALL insert the reference at the current cursor position with appropriate whitespace padding
-4. AFTER insertion, THE SYSTEM SHALL focus the chat input and place the cursor after the inserted reference
+2. WHEN clicked, THE SYSTEM SHALL insert the file path using the `@path` format defined in 3.5 AC#2 into the active chat input (task launcher on the Home page, follow-up input on the Execution page)
+3. AFTER insertion, THE SYSTEM SHALL focus the chat input and place the cursor after the inserted reference
 
 ---
 

@@ -1,19 +1,21 @@
 ---
-name: finance-journal-entry
 description: Prepare journal entries with proper debits, credits, and supporting detail
+argument-hint: "<entry type> [period]"
 ---
 
 # Journal Entry Preparation
 
-> If you see unfamiliar placeholders or need to check which tools are connected, please ask about available integrations.
+> If you see unfamiliar placeholders or need to check which tools are connected, see [CONNECTORS.md](../CONNECTORS.md).
 
-**Important**: This skill assists with journal entry workflows but does not provide financial advice. All entries should be reviewed by qualified financial professionals before posting.
+**Important**: This command assists with journal entry workflows but does not provide financial advice. All entries should be reviewed by qualified financial professionals before posting.
 
 Prepare journal entries with proper debits, credits, supporting detail, and review documentation.
 
 ## Usage
 
-You can ask to prepare a journal entry for a specific purpose (e.g., "Prepare an accrual JE for December" or "Create a depreciation entry").
+```
+/je <type> <period>
+```
 
 ### Arguments
 
@@ -29,19 +31,16 @@ You can ask to prepare a journal entry for a specific purpose (e.g., "Prepare an
 
 ### 1. Gather Source Data
 
-If an ERP or data warehouse is connected:
-
+If ~~erp or ~~data warehouse is connected:
 - Pull the trial balance for the specified period
 - Pull subledger detail for the relevant accounts
 - Pull prior period entries of the same type for reference
 - Identify the current GL balances for affected accounts
 
 If no data source is connected:
-
-> Connect an ERP or data warehouse to pull GL data automatically. You can also paste trial balance data or upload a spreadsheet.
+> Connect ~~erp or ~~data warehouse to pull GL data automatically. You can also paste trial balance data or upload a spreadsheet.
 
 Prompt the user to provide:
-
 - Trial balance or GL balances for affected accounts
 - Subledger detail or supporting schedules
 - Prior period entries for reference (optional)
@@ -51,28 +50,24 @@ Prompt the user to provide:
 Based on the JE type:
 
 **AP Accrual:**
-
 - Identify goods/services received but not invoiced by period end
 - Calculate accrual amounts from PO receipts, contracts, or estimates
 - Debit: Expense accounts (or asset accounts for capitalizable items)
 - Credit: Accrued liabilities
 
 **Fixed Assets:**
-
 - Pull the fixed asset register or depreciation schedule
 - Calculate period depreciation by asset class and method (straight-line, declining balance, units of production)
 - Debit: Depreciation expense (by department/cost center)
 - Credit: Accumulated depreciation
 
 **Prepaid:**
-
 - Pull the prepaid amortization schedule
 - Calculate the period amortization for each prepaid item
 - Debit: Expense accounts (by type — insurance, software, rent, etc.)
 - Credit: Prepaid expense accounts
 
 **Payroll:**
-
 - Calculate accrued salaries for days worked but not yet paid
 - Calculate accrued benefits (health, retirement contributions, PTO)
 - Calculate employer payroll tax accruals
@@ -81,7 +76,6 @@ Based on the JE type:
 - Credit: Accrued payroll, accrued benefits, accrued payroll taxes
 
 **Revenue:**
-
 - Review contracts and performance obligations
 - Calculate revenue to recognize based on delivery/performance
 - Adjust deferred revenue balances
@@ -129,7 +123,6 @@ Before finalizing, verify:
 ### 5. Output
 
 Provide:
-
 1. The formatted journal entry
 2. Supporting calculations
 3. Comparison to prior period entry of the same type (if available)

@@ -16,7 +16,6 @@ You are a compliance assistant for an in-house legal team. You help with privacy
 **Scope**: Applies to processing of personal data of individuals in the EU/EEA, regardless of where the processing organization is located.
 
 **Key Obligations for In-House Legal Teams**:
-
 - **Lawful basis**: Identify and document lawful basis for each processing activity (consent, contract, legitimate interest, legal obligation, vital interest, public task)
 - **Data subject rights**: Respond to access, rectification, erasure, portability, restriction, and objection requests within 30 days (extendable by 60 days for complex requests)
 - **Data protection impact assessments (DPIAs)**: Required for processing likely to result in high risk to individuals
@@ -26,7 +25,6 @@ You are a compliance assistant for an in-house legal team. You help with privacy
 - **DPO requirement**: Appoint a Data Protection Officer if required (public authority, large-scale processing of special categories, large-scale systematic monitoring)
 
 **Common In-House Legal Touchpoints**:
-
 - Reviewing vendor DPAs for GDPR compliance
 - Advising product teams on privacy by design requirements
 - Responding to supervisory authority inquiries
@@ -38,7 +36,6 @@ You are a compliance assistant for an in-house legal team. You help with privacy
 **Scope**: Applies to businesses that collect personal information of California residents and meet revenue, data volume, or data sale thresholds.
 
 **Key Obligations**:
-
 - **Right to know**: Consumers can request disclosure of personal information collected, used, and shared
 - **Right to delete**: Consumers can request deletion of their personal information
 - **Right to opt-out**: Consumers can opt out of the sale or sharing of personal information
@@ -49,21 +46,20 @@ You are a compliance assistant for an in-house legal team. You help with privacy
 - **Service provider agreements**: Contracts with service providers must restrict use of PI to the specified business purpose
 
 **Response Timelines**:
-
 - Acknowledge receipt within 10 business days
 - Respond substantively within 45 calendar days (extendable by 45 days with notice)
 
 ### Other Key Regulations to Monitor
 
-| Regulation                  | Jurisdiction     | Key Differentiators                                                                              |
-| --------------------------- | ---------------- | ------------------------------------------------------------------------------------------------ |
-| **LGPD** (Brazil)           | Brazil           | Similar to GDPR; requires DPO appointment; National Data Protection Authority (ANPD) enforcement |
-| **POPIA** (South Africa)    | South Africa     | Information Regulator oversight; required registration of processing                             |
-| **PIPEDA** (Canada)         | Canada (federal) | Consent-based framework; OPC oversight; being modernized                                         |
-| **PDPA** (Singapore)        | Singapore        | Do Not Call registry; mandatory breach notification; PDPC enforcement                            |
-| **Privacy Act** (Australia) | Australia        | Australian Privacy Principles (APPs); notifiable data breaches scheme                            |
-| **PIPL** (China)            | China            | Strict cross-border transfer rules; data localization requirements; CAC oversight                |
-| **UK GDPR**                 | United Kingdom   | Post-Brexit UK version; ICO oversight; similar to EU GDPR with UK-specific adequacy              |
+| Regulation | Jurisdiction | Key Differentiators |
+|---|---|---|
+| **LGPD** (Brazil) | Brazil | Similar to GDPR; requires DPO appointment; National Data Protection Authority (ANPD) enforcement |
+| **POPIA** (South Africa) | South Africa | Information Regulator oversight; required registration of processing |
+| **PIPEDA** (Canada) | Canada (federal) | Consent-based framework; OPC oversight; being modernized |
+| **PDPA** (Singapore) | Singapore | Do Not Call registry; mandatory breach notification; PDPC enforcement |
+| **Privacy Act** (Australia) | Australia | Australian Privacy Principles (APPs); notifiable data breaches scheme |
+| **PIPL** (China) | China | Strict cross-border transfer rules; data localization requirements; CAC oversight |
+| **UK GDPR** | United Kingdom | Post-Brexit UK version; ICO oversight; similar to EU GDPR with UK-specific adequacy |
 
 ## DPA Review Checklist
 
@@ -112,14 +108,14 @@ When reviewing a Data Processing Agreement or Data Processing Addendum, verify t
 
 ### Common DPA Issues
 
-| Issue                                                          | Risk                                       | Standard Position                                 |
-| -------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------- |
-| Blanket sub-processor authorization without notification       | Loss of control over processing chain      | Require notification with right to object         |
-| Breach notification timeline > 72 hours                        | May prevent timely regulatory notification | Require notification within 24-48 hours           |
-| No audit rights (or audit rights only via third-party reports) | Cannot verify compliance                   | Accept SOC 2 Type II + right to audit upon cause  |
-| Data deletion timeline not specified                           | Data retained indefinitely                 | Require deletion within 30-90 days of termination |
-| No data processing locations specified                         | Data could be processed anywhere           | Require disclosure of processing locations        |
-| Outdated SCCs                                                  | Invalid transfer mechanism                 | Require current EU SCCs (2021 version)            |
+| Issue | Risk | Standard Position |
+|---|---|---|
+| Blanket sub-processor authorization without notification | Loss of control over processing chain | Require notification with right to object |
+| Breach notification timeline > 72 hours | May prevent timely regulatory notification | Require notification within 24-48 hours |
+| No audit rights (or audit rights only via third-party reports) | Cannot verify compliance | Accept SOC 2 Type II + right to audit upon cause |
+| Data deletion timeline not specified | Data retained indefinitely | Require deletion within 30-90 days of termination |
+| No data processing locations specified | Data could be processed anywhere | Require disclosure of processing locations |
+| Outdated SCCs | Invalid transfer mechanism | Require current EU SCCs (2021 version) |
 
 ## Data Subject Request Handling
 
@@ -157,19 +153,18 @@ When a data subject request is received:
 
 ### Response Timelines
 
-| Regulation | Initial Acknowledgment                  | Substantive Response | Extension              |
-| ---------- | --------------------------------------- | -------------------- | ---------------------- |
-| GDPR       | Not specified (best practice: promptly) | 30 days              | +60 days (with notice) |
-| CCPA/CPRA  | 10 business days                        | 45 calendar days     | +45 days (with notice) |
-| UK GDPR    | Not specified (best practice: promptly) | 30 days              | +60 days (with notice) |
-| LGPD       | Not specified                           | 15 days              | Limited extensions     |
+| Regulation | Initial Acknowledgment | Substantive Response | Extension |
+|---|---|---|---|
+| GDPR | Not specified (best practice: promptly) | 30 days | +60 days (with notice) |
+| CCPA/CPRA | 10 business days | 45 calendar days | +45 days (with notice) |
+| UK GDPR | Not specified (best practice: promptly) | 30 days | +60 days (with notice) |
+| LGPD | Not specified | 15 days | Limited extensions |
 
 ### Exemptions and Exceptions
 
 Before fulfilling a request, check whether any exemptions apply:
 
 **Common exemptions across regulations**:
-
 - Legal claims defense or establishment
 - Legal obligations requiring retention
 - Public interest or official authority
@@ -177,7 +172,6 @@ Before fulfilling a request, check whether any exemptions apply:
 - Archiving in the public interest or scientific/historical research
 
 **Organization-specific considerations**:
-
 - Litigation hold: Data subject to a legal hold cannot be deleted
 - Regulatory retention: Financial records, employment records, and other categories may have mandatory retention periods
 - Third-party rights: Fulfilling the request might adversely affect the rights of others
@@ -196,7 +190,6 @@ Before fulfilling a request, check whether any exemptions apply:
 ### What to Monitor
 
 Maintain awareness of developments in:
-
 - **Regulatory guidance**: New or updated guidance from supervisory authorities (ICO, CNIL, FTC, state AGs, etc.)
 - **Enforcement actions**: Fines, orders, and settlements that signal regulatory priorities
 - **Legislative changes**: New privacy laws, amendments to existing laws, implementing regulations
@@ -214,7 +207,6 @@ Maintain awareness of developments in:
 ### Escalation Criteria
 
 Escalate regulatory developments to senior counsel or leadership when:
-
 - A new regulation or guidance directly affects the organization's core business activities
 - An enforcement action in the organization's sector signals heightened regulatory scrutiny
 - A compliance deadline is approaching that requires organizational changes

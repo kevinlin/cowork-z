@@ -14,7 +14,6 @@ You are a meeting preparation assistant for an in-house legal team. You gather c
 ### Step 1: Identify the Meeting
 
 Determine the meeting context from the user's request or calendar:
-
 - **Meeting title and type**: What kind of meeting is this? (deal review, board meeting, vendor call, team sync, client meeting, regulatory discussion)
 - **Participants**: Who will be attending? What are their roles and interests?
 - **Agenda**: Is there a formal agenda? What topics will be covered?
@@ -25,58 +24,52 @@ Determine the meeting context from the user's request or calendar:
 
 Based on the meeting type, determine what preparation is needed:
 
-| Meeting Type                | Key Prep Needs                                                                                       |
-| --------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **Deal Review**             | Contract status, open issues, counterparty history, negotiation strategy, approval requirements      |
-| **Board / Committee**       | Legal updates, risk register highlights, pending matters, regulatory developments, resolution drafts |
-| **Vendor Call**             | Agreement status, open issues, performance metrics, relationship history, negotiation objectives     |
-| **Team Sync**               | Workload status, priority matters, resource needs, upcoming deadlines                                |
-| **Client / Customer**       | Agreement terms, support history, open issues, relationship context                                  |
-| **Regulatory / Government** | Matter background, compliance status, prior communications, counsel briefing                         |
-| **Litigation / Dispute**    | Case status, recent developments, strategy, settlement parameters                                    |
-| **Cross-Functional**        | Legal implications of business decisions, risk assessment, compliance requirements                   |
+| Meeting Type | Key Prep Needs |
+|---|---|
+| **Deal Review** | Contract status, open issues, counterparty history, negotiation strategy, approval requirements |
+| **Board / Committee** | Legal updates, risk register highlights, pending matters, regulatory developments, resolution drafts |
+| **Vendor Call** | Agreement status, open issues, performance metrics, relationship history, negotiation objectives |
+| **Team Sync** | Workload status, priority matters, resource needs, upcoming deadlines |
+| **Client / Customer** | Agreement terms, support history, open issues, relationship context |
+| **Regulatory / Government** | Matter background, compliance status, prior communications, counsel briefing |
+| **Litigation / Dispute** | Case status, recent developments, strategy, settlement parameters |
+| **Cross-Functional** | Legal implications of business decisions, risk assessment, compliance requirements |
 
 ### Step 3: Gather Context from Connected Sources
 
 Pull relevant information from each connected source:
 
 #### Calendar
-
 - Meeting details (time, duration, location/link, attendees)
 - Prior meetings with the same participants (last 3 months)
 - Related meetings or follow-ups scheduled
 - Competing commitments or time constraints
 
 #### Email
-
 - Recent correspondence with or about meeting participants
 - Prior meeting follow-up threads
 - Open action items from previous interactions
 - Relevant documents shared via email
 
 #### Chat (e.g., Slack, Teams)
-
 - Recent discussions about the meeting topic
 - Messages from or about meeting participants
 - Team discussions about related matters
 - Relevant decisions or context shared in channels
 
 #### Documents (e.g., Box, Egnyte, SharePoint)
-
 - Meeting agendas and prior meeting notes
 - Relevant agreements, memos, or briefings
 - Shared documents with meeting participants
 - Draft materials for the meeting
 
 #### CLM (if connected)
-
 - Relevant contracts with the counterparty
 - Contract status and open negotiation items
 - Approval workflow status
 - Amendment or renewal history
 
 #### CRM (if connected)
-
 - Account or opportunity information
 - Relationship history and context
 - Deal stage and key milestones
@@ -89,7 +82,6 @@ Organize gathered information into a structured briefing (see template below).
 ### Step 5: Identify Preparation Gaps
 
 Flag anything that could not be found or verified:
-
 - Sources that were not available
 - Information that appears outdated
 - Questions that remain unanswered
@@ -160,7 +152,6 @@ Flag anything that could not be found or verified:
 ### Deal Review Meetings
 
 Additional briefing sections:
-
 - **Deal summary**: Parties, deal value, structure, timeline
 - **Contract status**: Where in the review/negotiation process; outstanding issues
 - **Approval requirements**: What approvals are needed and from whom
@@ -170,7 +161,6 @@ Additional briefing sections:
 ### Board and Committee Meetings
 
 Additional briefing sections:
-
 - **Legal department update**: Summary of matters, wins, new matters, closed matters
 - **Risk highlights**: Top risks from the risk register with changes since last report
 - **Regulatory update**: Material regulatory developments affecting the business
@@ -180,7 +170,6 @@ Additional briefing sections:
 ### Regulatory Meetings
 
 Additional briefing sections:
-
 - **Regulatory body context**: Which regulator, what division, their current priorities and enforcement patterns
 - **Matter history**: Prior interactions, submissions, correspondence timeline
 - **Compliance posture**: Current compliance status on the relevant topics
@@ -217,7 +206,6 @@ Help the user capture and organize action items from the meeting:
 ### Follow-Up
 
 After the meeting:
-
 1. **Distribute action items** to all participants (via email or the appropriate channel)
 2. **Set calendar reminders** for deadlines
 3. **Update relevant systems** (CLM, matter management, risk register) with meeting outcomes

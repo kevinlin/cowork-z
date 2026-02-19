@@ -1,27 +1,25 @@
 ---
-name: data-explore-data
 description: Profile and explore a dataset to understand its shape, quality, and patterns
+argument-hint: "<table or file>"
 ---
 
-# Explore Data
+# /explore-data - Profile and Explore a Dataset
 
-> If you see unfamiliar placeholders or need to check which tools are connected, please ask about available integrations.
+> If you see unfamiliar placeholders or need to check which tools are connected, see [CONNECTORS.md](../CONNECTORS.md).
 
 Generate a comprehensive data profile for a table or uploaded file. Understand its shape, quality, and patterns before diving into analysis.
 
 ## Usage
 
-You can ask to explore a dataset (e.g., "Explore the users table" or "Profile this CSV file").
+```
+/explore-data <table_name or file>
+```
 
-### Arguments
-
-- `table or file` — The table name or file to explore
-
-### Workflow
+## Workflow
 
 ### 1. Access the Data
 
-**If a data warehouse is connected:**
+**If a data warehouse MCP server is connected:**
 
 1. Resolve the table name (handle schema prefixes, suggest matches if ambiguous)
 2. Query table metadata: column names, types, descriptions if available
@@ -42,14 +40,12 @@ You can ask to explore a dataset (e.g., "Explore the users table" or "Profile th
 Run the following profiling checks:
 
 **Table-level metrics:**
-
 - Total row count
 - Column count and types breakdown
 - Approximate table size (if available from metadata)
 - Date range coverage (min/max of date columns)
 
 **Column-level metrics for each column:**
-
 - Data type (and whether it matches expected type)
 - Null count and null rate (%)
 - Distinct count and cardinality (distinct / total)

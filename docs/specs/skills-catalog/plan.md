@@ -349,3 +349,15 @@ Added a success toast (via `sonner`) after a skill is installed or re-installed.
 
 **Files modified:**
 - `src/components/landing/SkillsCatalog.tsx` — Import `toast` from `sonner`; after successful `installSkill` + `listSkillsWithStatus`, show `toast.success()` with the skill name and install/re-install distinction.
+
+### 2026-02-19 — Upstream skill sync script
+
+Added `scripts/sync-skills.mjs` to synchronize local skill templates from the upstream
+`anthropics/knowledge-work-plugins` repository. The script fetches the GitHub repo tree,
+maps local skill folder names to upstream paths (commands or skills), downloads matched
+content, and reports unmatched local skills.
+
+**Files created:**
+- `scripts/sync-skills.mjs` — Node.js ESM script with `--dry-run` support; uses GitHub
+  tree API + raw.githubusercontent.com downloads; category prefix mapping for 9 upstream
+  categories

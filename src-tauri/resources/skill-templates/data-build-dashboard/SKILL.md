@@ -1,24 +1,21 @@
 ---
-name: data-build-dashboard
 description: Build an interactive HTML dashboard with charts, filters, and tables
+argument-hint: "<description> [data source]"
 ---
 
-# Build Interactive Dashboards
+# /build-dashboard - Build Interactive Dashboards
 
-> If you see unfamiliar placeholders or need to check which tools are connected, please ask about available integrations.
+> If you see unfamiliar placeholders or need to check which tools are connected, see [CONNECTORS.md](../CONNECTORS.md).
 
 Build a self-contained interactive HTML dashboard with charts, filters, tables, and professional styling. Opens directly in a browser -- no server or dependencies required.
 
 ## Usage
 
-You can ask to build a dashboard with a description (e.g., "Build a sales dashboard" or "Create a support ticket dashboard").
+```
+/build-dashboard <description of dashboard> [data source]
+```
 
-### Arguments
-
-- `description` — Description of the dashboard purpose and content
-- `data source` — (Optional) The data to use
-
-### Workflow
+## Workflow
 
 ### 1. Understand the Dashboard Requirements
 
@@ -33,17 +30,14 @@ Determine:
 ### 2. Gather the Data
 
 **If data warehouse is connected:**
-
 1. Query the necessary data
 2. Embed the results as JSON within the HTML file
 
 **If data is pasted or uploaded:**
-
 1. Parse and clean the data
 2. Embed as JSON in the dashboard
 
 **If working from a description without data:**
-
 1. Create a realistic sample dataset matching the described schema
 2. Note in the dashboard that it uses sample data
 3. Provide instructions for swapping in real data
@@ -70,7 +64,6 @@ Follow a standard dashboard layout pattern:
 ```
 
 **Adapt the layout to the content:**
-
 - 2-4 KPI cards at the top for headline numbers
 - 1-3 charts in the middle section for trends and breakdowns
 - Optional detail table at the bottom for drill-down data
@@ -81,7 +74,6 @@ Follow a standard dashboard layout pattern:
 Generate a single self-contained HTML file that includes:
 
 **Structure (HTML):**
-
 - Semantic HTML5 layout
 - Responsive grid using CSS Grid or Flexbox
 - Filter controls (dropdowns, date pickers, toggles)
@@ -90,7 +82,6 @@ Generate a single self-contained HTML file that includes:
 - Data table with sortable headers
 
 **Styling (CSS):**
-
 - Professional color scheme (clean whites, grays, with accent colors for data)
 - Card-based layout with subtle shadows
 - Consistent typography (system fonts for fast loading)
@@ -98,7 +89,6 @@ Generate a single self-contained HTML file that includes:
 - Print-friendly styles
 
 **Interactivity (JavaScript):**
-
 - Chart.js for interactive charts (included via CDN)
 - Filter dropdowns that update all charts and tables simultaneously
 - Sortable table columns
@@ -106,7 +96,6 @@ Generate a single self-contained HTML file that includes:
 - Number formatting (commas, currency, percentages)
 
 **Data (embedded JSON):**
-
 - All data embedded directly in the HTML as JavaScript variables
 - No external data fetches required
 - Dashboard works completely offline
@@ -124,25 +113,22 @@ Use Chart.js for all charts. Common dashboard chart patterns:
 ### 6. Add Interactivity
 
 **Filters:**
-
 ```javascript
 // All filters update a central filter state
 // Charts and tables re-render when filters change
 function applyFilters() {
-  const filtered = data.filter((row) => matchesFilters(row));
-  updateKPIs(filtered);
-  updateCharts(filtered);
-  updateTable(filtered);
+    const filtered = data.filter(row => matchesFilters(row));
+    updateKPIs(filtered);
+    updateCharts(filtered);
+    updateTable(filtered);
 }
 ```
 
 **Table sorting:**
-
 - Click column headers to sort ascending/descending
 - Visual indicator for current sort column and direction
 
 **Tooltips:**
-
 - Charts show detailed values on hover
 - KPI cards show comparison to previous period
 
@@ -160,34 +146,42 @@ The generated HTML file follows this structure:
 ```html
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>[Dashboard Title]</title>
-    <script
-      src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"
-      integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
-      crossorigin="anonymous"
-    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
     <style>
-      /* Professional dashboard CSS */
+        /* Professional dashboard CSS */
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div class="dashboard">
-      <header><!-- Title and filters --></header>
-      <section class="kpis"><!-- KPI cards --></section>
-      <section class="charts"><!-- Chart containers --></section>
-      <section class="details"><!-- Data table --></section>
+        <header><!-- Title and filters --></header>
+        <section class="kpis"><!-- KPI cards --></section>
+        <section class="charts"><!-- Chart containers --></section>
+        <section class="details"><!-- Data table --></section>
     </div>
     <script>
-      const DATA = [
-        /* embedded JSON data */
-      ];
-      // Dashboard initialization and interactivity
+        const DATA = [/* embedded JSON data */];
+        // Dashboard initialization and interactivity
     </script>
-  </body>
+</body>
 </html>
+```
+
+## Examples
+
+```
+/build-dashboard Monthly sales dashboard with revenue trend, top products, and regional breakdown. Data is in the orders table.
+```
+
+```
+/build-dashboard Here's our support ticket data [pastes CSV]. Build a dashboard showing volume by priority, response time trends, and resolution rates.
+```
+
+```
+/build-dashboard Create a template executive dashboard for a SaaS company showing MRR, churn, new customers, and NPS. Use sample data.
 ```
 
 ## Tips

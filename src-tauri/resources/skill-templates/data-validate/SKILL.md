@@ -1,23 +1,28 @@
 ---
-name: data-validate
 description: QA an analysis before sharing -- methodology, accuracy, and bias checks
+argument-hint: "<analysis to review>"
 ---
 
-# Validate Analysis
+# /validate - Validate Analysis Before Sharing
 
-> If you see unfamiliar placeholders or need to check which tools are connected, please ask about available integrations.
+> If you see unfamiliar placeholders or need to check which tools are connected, see [CONNECTORS.md](../CONNECTORS.md).
 
 Review an analysis for accuracy, methodology, and potential biases before sharing with stakeholders. Generates a confidence assessment and improvement suggestions.
 
 ## Usage
 
-You can ask to validate an analysis (e.g., "Validate this report" or "Check my query logic").
+```
+/validate <analysis to review>
+```
 
-### Arguments
+The analysis can be:
+- A document or report in the conversation
+- A file (markdown, notebook, spreadsheet)
+- SQL queries and their results
+- Charts and their underlying data
+- A description of methodology and findings
 
-- `analysis to review` — A document, report, SQL query, chart, or description of methodology
-
-### Workflow
+## Workflow
 
 ### 1. Review Methodology and Assumptions
 
@@ -34,13 +39,11 @@ Examine:
 Systematically review for:
 
 **Data completeness:**
-
 - Missing data that could skew results (e.g., nulls in key fields, missing time periods)
 - Data freshness issues (is the most recent data actually complete or still loading?)
 - Survivorship bias (are you only looking at entities that "survived" to the analysis date?)
 
 **Statistical issues:**
-
 - Simpson's paradox (trend reverses when data is aggregated vs. segmented)
 - Correlation presented as causation without supporting evidence
 - Small sample sizes leading to unreliable conclusions
@@ -48,21 +51,18 @@ Systematically review for:
 - Multiple testing / cherry-picking significant results
 
 **Aggregation errors:**
-
 - Double-counting from improper joins (many-to-many explosions)
 - Incorrect denominators in rate calculations
 - Mixing granularity levels (e.g., user-level metrics averaged with account-level)
 - Revenue recognized vs. billed vs. collected confusion
 
 **Time-related issues:**
-
 - Seasonality not accounted for in comparisons
 - Incomplete periods included in averages (e.g., partial month compared to full months)
 - Timezone inconsistencies between data sources
 - Look-ahead bias (using future information to explain past events)
 
 **Selection and scope:**
-
 - Cherry-picked time ranges that favor a particular narrative
 - Excluded segments without justification
 - Changing definitions mid-analysis
@@ -146,9 +146,23 @@ Rate the analysis on a 3-level scale:
 - ...
 ```
 
+## Examples
+
+```
+/validate Review this quarterly revenue analysis before I send it to the exec team: [analysis]
+```
+
+```
+/validate Check my churn analysis -- I'm comparing Q4 churn rates to Q3 but Q4 has a shorter measurement window
+```
+
+```
+/validate Here's a SQL query and its results for our conversion funnel. Does the logic look right? [query + results]
+```
+
 ## Tips
 
-- Run validation before any high-stakes presentation or decision
+- Run /validate before any high-stakes presentation or decision
 - Even quick analyses benefit from a sanity check -- it takes a minute and can save your credibility
 - If the validation finds issues, fix them and re-validate
 - Share the validation output alongside your analysis to build stakeholder confidence

@@ -54,8 +54,6 @@ const CATEGORY_MAP = {
   productivity: 'productivity',
 };
 
-const SKIP_PREFIXES = ['design', 'doc', 'development'];
-
 const SKIP_PATHS = ['.DS_Store', '.claude-plugin/', 'composio-skills/', 'connect-apps-plugin/', 'connect-apps/', 'connect/', 'template-skill/'];
 
 const dryRun = process.argv.includes('--dry-run');
@@ -225,18 +223,10 @@ async function main() {
   console.log(`📂 ${localFolders.length} local skill folders\n`);
 
   const synced = [];
-  const skipped = [];
   const missing = [];
   const errors = [];
 
   for (const folder of localFolders) {
-    const shouldSkip = SKIP_PREFIXES.some((p) => folder.startsWith(`${p}-`));
-    if (shouldSkip) {
-      console.log(`  ⏭️  ${folder} (cowork-z original, skipped)`);
-      skipped.push(folder);
-      continue;
-    }
-
     let match = null;
     let matchedSource = null;
 
@@ -281,7 +271,6 @@ async function main() {
   console.log('SUMMARY');
   console.log('='.repeat(60));
   console.log(`  ✅ Synced:  ${synced.length}`);
-  console.log(`  ⏭️  Skipped: ${skipped.length} (cowork-z originals)`);
   console.log(`  ❌ Missing: ${missing.length}`);
   if (errors.length > 0) {
     console.log(`  💥 Errors:  ${errors.length}`);

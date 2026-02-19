@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
+import type { SkillMeta } from '@/lib/tauri-api';
 import { hasAnyReadyProvider } from '@/shared';
 import SkillsCatalog from '../components/landing/SkillsCatalog';
 import StarterPacks from '../components/landing/StarterPacks';
@@ -17,6 +18,7 @@ type HomeTab = 'packs' | 'skills';
 
 export default function HomePage() {
   const [prompt, setPrompt] = useState('');
+  const [selectedSkill, setSelectedSkill] = useState<SkillMeta | null>(null);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<HomeTab>('packs');
 
@@ -59,7 +61,9 @@ export default function HomePage() {
         return;
       }
     }
-    await executeTask(prompt.trim());
+    const finalPrompt = selectedSkill ? `/${selectedSkill.id} ${prompt.trim()}`.trimEnd() : prompt.trim();
+    setSelectedSkill(null);
+    await executeTask(finalPrompt);
   };
 
   const handleSettingsDialogChange = (open: boolean) => {
@@ -102,8 +106,10 @@ export default function HomePage() {
                   isLoading={isLoading}
                   large={true}
                   onChange={setPrompt}
+                  onSkillChange={setSelectedSkill}
                   onSubmit={handleSubmit}
                   placeholder="Describe a task and let AI handle the rest"
+                  selectedSkill={selectedSkill}
                   value={prompt}
                 />
               </CardContent>

@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { DragDropTextarea } from '@/components/ui/drag-drop-input';
 import { Input } from '@/components/ui/input';
+import { SkillAutocompletePopover } from '@/components/ui/skill-autocomplete-popover';
+import { SkillPill } from '@/components/ui/skill-pill';
+import { useSkillAutocomplete } from '@/hooks/useSkillAutocomplete';
 import { insertAtCursor } from '@/lib/file-utils';
 
 interface ChatInputProps {
@@ -36,6 +39,12 @@ export function ChatInput({
   const followUpRef = useRef(followUp);
   followUpRef.current = followUp;
 
+  const skillAutocomplete = useSkillAutocomplete({
+    text: followUp,
+    onTextChange: setFollowUp,
+    disabled: !canFollowUp,
+  });
+
   // Listen for "Add to Chat" events from the file preview panel
   useEffect(() => {
     const handler = (e: Event) => {
@@ -56,8 +65,10 @@ export function ChatInput({
 
   const handleFollowUp = () => {
     if (!followUp.trim()) return;
-    onSend(followUp);
+    const composed = skillAutocomplete.composePrompt();
+    onSend(composed);
     setFollowUp('');
+    skillAutocomplete.clearSkill();
   };
 
   // Running state input with Stop button
@@ -86,55 +97,73 @@ export function ChatInput({
     return (
       <div className="flex-shrink-0 border-border border-t bg-card/50 px-6 py-4">
         <div className="mx-auto max-w-4xl">
-          <div className="flex gap-3">
-            <DragDropTextarea
-              className="flex-1"
-              data-testid="execution-follow-up-input"
-              disabled={isLoading}
-              onChange={(e) => {
-                cursorPositionRef.current = e.target.selectionStart ?? 0;
-                setFollowUp(e.target.value);
-              }}
-              onClick={(e) => {
-                cursorPositionRef.current = e.currentTarget.selectionStart ?? 0;
-              }}
-              onFilesDropped={(newValue, newCursorPosition) => {
-                setFollowUp(newValue);
-                cursorPositionRef.current = newCursorPosition;
-                setTimeout(() => {
-                  if (followUpInputRef.current) {
-                    followUpInputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
-                    followUpInputRef.current.focus();
-                  }
-                }, 0);
-              }}
-              onKeyDown={(e) => {
-                if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleFollowUp();
-                }
-              }}
-              onKeyUp={(e) => {
-                cursorPositionRef.current = e.currentTarget.selectionStart ?? 0;
-              }}
-              placeholder={
-                taskStatus === 'interrupted'
-                  ? hasSession
-                    ? 'Give new instructions...'
-                    : 'Send a new instruction to retry...'
-                  : taskStatus === 'completed'
-                    ? 'Give new instructions...'
-                    : 'Ask for something...'
-              }
-              ref={followUpInputRef}
-              rows={1}
-              value={followUp}
+          <div className="relative flex flex-col gap-1.5">
+            <SkillAutocompletePopover
+              highlightedIndex={skillAutocomplete.highlightedIndex}
+              isOpen={skillAutocomplete.isPopoverOpen}
+              onHighlightChange={skillAutocomplete.setHighlightedIndex}
+              onSelect={skillAutocomplete.selectSkill}
+              skills={skillAutocomplete.filteredSkills}
             />
-            <Button disabled={!followUp.trim() || isLoading} onClick={handleFollowUp} variant="outline">
-              <CornerDownLeft className="mr-1.5 h-4 w-4" />
-              Send
-            </Button>
+
+            {skillAutocomplete.selectedSkill && (
+              <div className="flex items-center">
+                <SkillPill onRemove={skillAutocomplete.clearSkill} skill={skillAutocomplete.selectedSkill} />
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <DragDropTextarea
+                className="flex-1"
+                data-testid="execution-follow-up-input"
+                disabled={isLoading}
+                onChange={(e) => {
+                  cursorPositionRef.current = e.target.selectionStart ?? 0;
+                  setFollowUp(e.target.value);
+                }}
+                onClick={(e) => {
+                  cursorPositionRef.current = e.currentTarget.selectionStart ?? 0;
+                }}
+                onFilesDropped={(newValue, newCursorPosition) => {
+                  setFollowUp(newValue);
+                  cursorPositionRef.current = newCursorPosition;
+                  setTimeout(() => {
+                    if (followUpInputRef.current) {
+                      followUpInputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+                      followUpInputRef.current.focus();
+                    }
+                  }, 0);
+                }}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                  skillAutocomplete.handleKeyDown(e);
+                  if (e.defaultPrevented) return;
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleFollowUp();
+                  }
+                }}
+                onKeyUp={(e) => {
+                  cursorPositionRef.current = e.currentTarget.selectionStart ?? 0;
+                }}
+                placeholder={
+                  taskStatus === 'interrupted'
+                    ? hasSession
+                      ? 'Give new instructions...'
+                      : 'Send a new instruction to retry...'
+                    : taskStatus === 'completed'
+                      ? 'Give new instructions...'
+                      : 'Ask for something...'
+                }
+                ref={followUpInputRef}
+                rows={1}
+                value={followUp}
+              />
+              <Button disabled={!followUp.trim() || isLoading} onClick={handleFollowUp} variant="outline">
+                <CornerDownLeft className="mr-1.5 h-4 w-4" />
+                Send
+              </Button>
+            </div>
           </div>
         </div>
       </div>

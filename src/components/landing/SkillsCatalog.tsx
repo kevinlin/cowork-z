@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { SkillWithStatus } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
+import { useSkillsStore } from '@/stores/skillsStore';
 
 const CATEGORY_COLORS: Record<string, string> = {
   Marketing: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400',
@@ -37,16 +38,18 @@ export default function SkillsCatalog() {
 
   const categories = ['All', ...Array.from(new Set(skills.map((s) => s.meta.category))).sort()];
 
-  const filtered = skills.filter((s) => {
-    const matchCategory = activeCategory === 'All' || s.meta.category === activeCategory;
-    const q = query.toLowerCase();
-    const matchQuery =
-      !q ||
-      s.meta.name.toLowerCase().includes(q) ||
-      s.meta.description.toLowerCase().includes(q) ||
-      s.meta.category.toLowerCase().includes(q);
-    return matchCategory && matchQuery;
-  }).sort((a, b) => a.meta.name.localeCompare(b.meta.name));
+  const filtered = skills
+    .filter((s) => {
+      const matchCategory = activeCategory === 'All' || s.meta.category === activeCategory;
+      const q = query.toLowerCase();
+      const matchQuery =
+        !q ||
+        s.meta.name.toLowerCase().includes(q) ||
+        s.meta.description.toLowerCase().includes(q) ||
+        s.meta.category.toLowerCase().includes(q);
+      return matchCategory && matchQuery;
+    })
+    .sort((a, b) => a.meta.name.localeCompare(b.meta.name));
 
   const handleInstall = async (skillId: string) => {
     setInstallingId(skillId);
@@ -65,6 +68,7 @@ export default function SkillsCatalog() {
       toast.success(skill ? `${skill.meta.name} ${wasInstalled ? 're-installed' : 'installed'}` : 'Skill installed', {
         description: 'Skill is now available to the AI agent.',
       });
+      useSkillsStore.getState().fetchInstalledSkills();
     } catch (e) {
       setErrors((prev) => ({ ...prev, [skillId]: String(e) }));
     } finally {
@@ -78,7 +82,7 @@ export default function SkillsCatalog() {
       <div className="flex items-center justify-between px-6 py-3">
         <p className="text-muted-foreground text-xs">Install reusable AI skill templates globally.</p>
         <input
-          className="h-7 w-48 rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-7 w-48 rounded-md border border-border bg-background px-2 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search skills…"
           type="search"
@@ -90,10 +94,8 @@ export default function SkillsCatalog() {
       <div className="flex gap-1 overflow-x-auto px-6 pb-2">
         {categories.map((cat) => (
           <button
-            className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              activeCategory === cat
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            className={`shrink-0 rounded-full px-3 py-1 font-medium text-xs transition-colors ${
+              activeCategory === cat ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
             key={cat}
             onClick={() => setActiveCategory(cat)}
@@ -117,33 +119,24 @@ export default function SkillsCatalog() {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map((s) => (
-              <div
-                className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4"
-                key={s.meta.id}
-              >
+              <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4" key={s.meta.id}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-foreground text-sm leading-snug">{s.meta.name}</div>
                     <div className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">{s.meta.description}</div>
                   </div>
-                  <SkillButton
-                    installing={installingId === s.meta.id}
-                    onInstall={() => handleInstall(s.meta.id)}
-                    status={s.status}
-                  />
+                  <SkillButton installing={installingId === s.meta.id} onInstall={() => handleInstall(s.meta.id)} status={s.status} />
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${CATEGORY_COLORS[s.meta.category] ?? 'bg-muted text-muted-foreground'}`}
+                    className={`rounded-full px-2 py-0.5 font-medium text-xs ${CATEGORY_COLORS[s.meta.category] ?? 'bg-muted text-muted-foreground'}`}
                   >
                     {s.meta.category}
                   </span>
                 </div>
 
-                {errors[s.meta.id] && (
-                  <p className="text-destructive text-xs">{errors[s.meta.id]}</p>
-                )}
+                {errors[s.meta.id] && <p className="text-destructive text-xs">{errors[s.meta.id]}</p>}
               </div>
             ))}
           </div>
@@ -199,11 +192,7 @@ function SkillButton({ status, installing, onInstall }: SkillButtonProps) {
   return (
     <div className="flex flex-col items-end gap-1">
       <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">Installed</span>
-      <button
-        className="text-muted-foreground text-xs underline hover:text-foreground"
-        onClick={onInstall}
-        type="button"
-      >
+      <button className="text-muted-foreground text-xs underline hover:text-foreground" onClick={onInstall} type="button">
         Re-install
       </button>
     </div>

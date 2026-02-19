@@ -4,10 +4,14 @@ import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { CornerDownLeft, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { clearPendingDragPath, getPendingDragPath } from '@/components/sidebar/FileTreePanel';
+import { SkillAutocompletePopover } from '@/components/ui/skill-autocomplete-popover';
+import { SkillPill } from '@/components/ui/skill-pill';
+import { useSkillAutocomplete } from '@/hooks/useSkillAutocomplete';
 import { formatPathForChat, insertAtCursor } from '@/lib/file-utils';
 import { cn } from '@/lib/utils';
 import { analytics } from '../../lib/analytics';
 import { getTauriAPI } from '../../lib/tauri-api-interface';
+import type { SkillMeta } from '@/lib/tauri-api';
 
 interface TaskInputBarProps {
   value: string;
@@ -18,6 +22,8 @@ interface TaskInputBarProps {
   disabled?: boolean;
   large?: boolean;
   autoFocus?: boolean;
+  selectedSkill?: SkillMeta | null;
+  onSkillChange?: (skill: SkillMeta | null) => void;
 }
 
 export default function TaskInputBar({
@@ -29,12 +35,29 @@ export default function TaskInputBar({
   disabled = false,
   large = false,
   autoFocus = false,
+  selectedSkill: controlledSkill,
+  onSkillChange,
 }: TaskInputBarProps) {
   const isDisabled = disabled || isLoading;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const api = getTauriAPI();
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
+
+  const skillAutocomplete = useSkillAutocomplete({
+    text: value,
+    onTextChange: onChange,
+    disabled: isDisabled,
+  });
+
+  // Sync hook's selection state to parent when in controlled mode
+  useEffect(() => {
+    if (onSkillChange) {
+      onSkillChange(skillAutocomplete.selectedSkill);
+    }
+  }, [skillAutocomplete.selectedSkill, onSkillChange]);
+
+  const selectedSkill = controlledSkill !== undefined ? controlledSkill : skillAutocomplete.selectedSkill;
 
   // Refs to access latest values inside the Tauri event callback
   const valueRef = useRef(value);
@@ -163,8 +186,9 @@ export default function TaskInputBar({
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Ignore Enter during IME composition (Chinese/Japanese input)
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    skillAutocomplete.handleKeyDown(e);
+    if (e.defaultPrevented) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSubmit();
@@ -174,44 +198,60 @@ export default function TaskInputBar({
   return (
     <div
       className={cn(
-        'relative flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 shadow-sm transition-all duration-200 ease-accomplish focus-within:border-ring focus-within:ring-1 focus-within:ring-ring',
+        'relative flex flex-col gap-1.5 rounded-xl border border-border bg-background px-3 py-2.5 shadow-sm transition-all duration-200 ease-accomplish focus-within:border-ring focus-within:ring-1 focus-within:ring-ring',
         isDraggingOver && 'ring-2 ring-ring ring-offset-2 ring-offset-background'
       )}
     >
-      {/* Text input */}
-      <textarea
-        className={`max-h-[200px] flex-1 resize-none bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${large ? 'text-[20px]' : 'text-sm'}`}
-        data-testid="task-input-textarea"
-        disabled={isDisabled}
-        onChange={handleTextareaChange}
-        onClick={handleSelectionChange}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleSelectionChange}
-        placeholder={placeholder}
-        ref={textareaRef}
-        rows={1}
-        value={value}
+      <SkillAutocompletePopover
+        highlightedIndex={skillAutocomplete.highlightedIndex}
+        isOpen={skillAutocomplete.isPopoverOpen}
+        onHighlightChange={skillAutocomplete.setHighlightedIndex}
+        onSelect={skillAutocomplete.selectSkill}
+        position="below"
+        skills={skillAutocomplete.filteredSkills}
       />
 
-      {/* Submit button */}
-      <button
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all duration-200 ease-accomplish hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
-        data-testid="task-input-submit"
-        disabled={!value.trim() || isDisabled}
-        onClick={() => {
-          analytics.trackSubmitTask();
-          api.logEvent({
-            level: 'info',
-            message: 'Task input submit clicked',
-            context: { prompt: value },
-          });
-          onSubmit();
-        }}
-        title="Submit"
-        type="button"
-      >
-        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CornerDownLeft className="h-4 w-4" />}
-      </button>
+      {selectedSkill && (
+        <div className="flex items-center">
+          <SkillPill onRemove={skillAutocomplete.clearSkill} skill={selectedSkill} />
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+        <textarea
+          className={`max-h-[200px] flex-1 resize-none bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${large ? 'text-[20px]' : 'text-sm'}`}
+          data-testid="task-input-textarea"
+          disabled={isDisabled}
+          onChange={handleTextareaChange}
+          onClick={handleSelectionChange}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleSelectionChange}
+          placeholder={placeholder}
+          ref={textareaRef}
+          rows={1}
+          value={value}
+        />
+
+        {/* Submit button */}
+        <button
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all duration-200 ease-accomplish hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+          data-testid="task-input-submit"
+          disabled={!value.trim() || isDisabled}
+          onClick={() => {
+            analytics.trackSubmitTask();
+            api.logEvent({
+              level: 'info',
+              message: 'Task input submit clicked',
+              context: { prompt: value },
+            });
+            onSubmit();
+          }}
+          title="Submit"
+          type="button"
+        >
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CornerDownLeft className="h-4 w-4" />}
+        </button>
+      </div>
     </div>
   );
 }

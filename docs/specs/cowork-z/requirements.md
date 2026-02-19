@@ -44,6 +44,7 @@ The following implementation plans document how specific requirements were desig
 | Chat UI Rewrite | [`chat-ux/plan_chat_ui_rewrite.md`](../chat-ux/plan_chat_ui_rewrite.md) | 3.7 |
 | Drag-and-Drop in Chat | [`chat-ux/plan_drag-and-drop-support.md`](../chat-ux/plan_drag-and-drop-support.md) | 3.5 |
 | Rich File & URL Display | [`chat-ux/plan_rich-file-url-display-in-chat.md`](../chat-ux/plan_rich-file-url-display-in-chat.md) | 3.1, 3.2 |
+| Slash Command Skill Invocation | [`chat-ux/plan_slash-command-skill-invocation.md`](../chat-ux/plan_slash-command-skill-invocation.md) | 3.8 |
 
 ### app-ux — App Experience
 
@@ -352,6 +353,22 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL decompose the chat view into focused components: MessageList, MessageBubble, ToolCallCard, PermissionModal, QuestionDialog, ChatInput, and ThinkingIndicator
 2. THE SYSTEM SHALL keep all Tauri event subscriptions in the page-level component (Execution.tsx) and pass state to child components via props
 
+#### 3.8 Slash Command Invocation ✅
+
+> **Plan:** [Slash Command Skill Invocation](../chat-ux/plan_slash-command-skill-invocation.md)
+
+**User Story:** As a user, I want a way to invoke installed skills directly from the task input or chat follow-up input, similar to Claude Code's `/` slash command.
+
+**Acceptance Criteria:**
+
+1. WHEN the user types `/` at the start of the task input or chat follow-up input, THE SYSTEM SHALL display a popover autocomplete menu listing installed skills
+2. THE SYSTEM SHALL filter the displayed skills in real-time as the user types characters after `/`, matching against skill name, ID, and description (case-insensitive)
+3. THE SYSTEM SHALL allow skill selection via mouseclick or Tab key
+4. AFTER selection, THE SYSTEM SHALL render the skill as a visual pill/chip above the textarea, visually distinct from input text, with an X button to remove
+5. THE SYSTEM SHALL allow only one skill per message
+6. WHEN submitting with a selected skill, THE SYSTEM SHALL construct the prompt as `/<skill-id> <user-text>` and send it through the existing prompt flow
+7. THE SYSTEM SHALL support keyboard navigation in the popover (ArrowUp/Down to navigate, Tab/Enter to select, Escape to dismiss)
+
 ---
 
 ### 4. App Experience
@@ -640,7 +657,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL display a spinner while file content is being fetched
 2. WHERE loading fails, THE SYSTEM SHALL display an error icon and message in the content area
 
----x`x`
+---
 
 ### 7. Workspace Starter Packs ✅
 

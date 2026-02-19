@@ -2,6 +2,7 @@
 
 ## v0.5.4
 
+- **Rename sidebar "Tasks" section to "Todos"** — The CollapsibleSection in the sidebar that displays the agent's todo items is now labeled "Todos" instead of "Tasks" to avoid confusion with the task/session concept; empty state updated to "No active todos"
 - 
 
 ## v0.5.3 (2026-02-19)

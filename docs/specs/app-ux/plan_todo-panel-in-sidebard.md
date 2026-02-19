@@ -2,7 +2,7 @@
 
 ## Context
 
-The Sidebar's "Tasks" CollapsibleSection was a placeholder showing "Coming soon...". The OpenCode server exposes a todo API (`GET /session/{sessionID}/todo`) and real-time SSE events (`todo.updated`) that provide a structured list of the agent's planned and in-progress work items. This plan wires that data through all five layers of the stack (OpenCode SSE → Sidecar → Rust → Frontend) and renders it inside the Sidebar's Tasks collapsible section.
+The Sidebar's "Todos" CollapsibleSection was a placeholder showing "Coming soon...". The OpenCode server exposes a todo API (`GET /session/{sessionID}/todo`) and real-time SSE events (`todo.updated`) that provide a structured list of the agent's planned and in-progress work items. This plan wires that data through all five layers of the stack (OpenCode SSE → Sidecar → Rust → Frontend) and renders it inside the Sidebar's Todos collapsible section.
 
 ## Data Flow
 
@@ -24,14 +24,6 @@ Initial fetch path: `getSessionTodos()` invoke -> Rust -> Sidecar `get_session_t
 ### Step 1: Add shared Todo type
 
 **File: `src/shared/types/task.ts`**
-```typescript
-export interface Todo {
-  id: string;
-  content: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-  priority: 'high' | 'medium' | 'low';
-}
-```
 
 ### Step 2: Add sidecar IPC types
 
@@ -98,11 +90,11 @@ A compact, memoized component designed for sidebar width:
 **File: `src/components/layout/Sidebar.tsx`**
 
 - Import `TodoPanel` and read todos from store: `useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? EMPTY_TODOS)` (stable empty array to prevent unnecessary re-renders)
-- Replace the "Coming soon..." placeholder in the Tasks CollapsibleSection
-- Use controlled open state (`tasksOpen` + `useEffect`) to auto-expand when todos arrive — avoids component remounting
-- Pass `open={tasksOpen}` and `onOpenChange={setTasksOpen}` to `CollapsibleSection`
+- Replace the "Coming soon..." placeholder in the Todos CollapsibleSection
+- Use controlled open state (`todosOpen` + `useEffect`) to auto-expand when todos arrive — avoids component remounting
+- Pass `open={todosOpen}` and `onOpenChange={setTodosOpen}` to `CollapsibleSection`
 
-> **Bug fix (2026-02-08):** The original implementation used `key={String(hasTodos)}` to force a remount of `CollapsibleSection` when todos appeared. This caused the component to be destroyed and recreated, relying on `defaultOpen` (mount-time only) rather than reacting to live prop changes. If the user manually collapsed the section, subsequent todo updates would not re-expand it. Fixed by adding controlled mode support (`open` / `onOpenChange` props) to `CollapsibleSection` and using a `useEffect` in Sidebar that sets `tasksOpen = true` when `hasTodos` transitions to `true`.
+> **Bug fix (2026-02-08):** The original implementation used `key={String(hasTodos)}` to force a remount of `CollapsibleSection` when todos appeared. This caused the component to be destroyed and recreated, relying on `defaultOpen` (mount-time only) rather than reacting to live prop changes. If the user manually collapsed the section, subsequent todo updates would not re-expand it. Fixed by adding controlled mode support (`open` / `onOpenChange` props) to `CollapsibleSection` and using a `useEffect` in Sidebar that sets `todosOpen = true` when `hasTodos` transitions to `true`.
 
 ### Step 10b: Initial fetch in Execution page
 

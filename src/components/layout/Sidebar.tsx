@@ -40,11 +40,11 @@ export default function Sidebar() {
 
   const [activeTab, setActiveTab] = useState<SidebarTab>('sessions');
 
-  // Controlled open state for Tasks section — auto-expand when todos arrive
-  const [tasksOpen, setTasksOpen] = useState(hasTodos);
+  // Controlled open state for Todos section — auto-expand when todos arrive
+  const [todosOpen, setTodosOpen] = useState(hasTodos);
   useEffect(() => {
     if (hasTodos) {
-      setTasksOpen(true);
+      setTodosOpen(true);
     }
   }, [hasTodos]);
 
@@ -237,12 +237,12 @@ export default function Sidebar() {
           {/* External Folders Panel */}
           <FoldersPanel />
 
-          {/* Tasks Panel - Shows current task's todos, auto-expands when todos appear */}
-          <CollapsibleSection onOpenChange={setTasksOpen} open={tasksOpen} title="Tasks">
+          {/* Todos Panel - Shows current task's todos, auto-expands when todos appear */}
+          <CollapsibleSection onOpenChange={setTodosOpen} open={todosOpen} title="Todos">
             {hasTodos ? (
               <TodoPanel todos={currentTaskTodos} />
             ) : (
-              <div className="px-2 py-3 text-center text-muted-foreground text-xs">No active tasks</div>
+              <div className="px-2 py-3 text-center text-muted-foreground text-xs">No active todos</div>
             )}
           </CollapsibleSection>
         </div>

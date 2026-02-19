@@ -72,11 +72,11 @@ The following implementation plans document how specific requirements were desig
 |------|----------|--------------|
 | Workspace Starter Packs | [`workspace-packs/plan.md`](../workspace-packs/plan.md) | 7.1–7.3 |
 
-### app-ux — Skills Catalog
+### skills-catalog — Skills Catalog
 
 | Plan | Location | Requirements |
 |------|----------|--------------|
-| Skills Catalog | [`app-ux/plan_skills-catalog.md`](../app-ux/plan_skills-catalog.md) | 8.1–8.2 |
+| Skills Catalog | [`skills-catalog/plan.md`](../skills-catalog/plan.md) | 8.1–8.2 |
 
 ---
 
@@ -708,8 +708,8 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ### 8. Starter Skills ✅
 
-> **Design:** [Skills Catalog Design](../app-ux/design_skills-catalog.md)
-> **Plan:** [Skills Catalog Plan](../app-ux/plan_skills-catalog.md)
+> **Design:** [Skills Catalog Design](../skills-catalog/design.md)
+> **Plan:** [Skills Catalog Plan](../skills-catalog/plan.md)
 
 **User Story:** As a user, I want to browse and install bundled AI skill templates from the Home screen, so that I can quickly add reusable skills to my OpenCode global skills directory without manual file management.
 

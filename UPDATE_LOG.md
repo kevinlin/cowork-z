@@ -4,6 +4,7 @@
 
 - **3.1/6.4.1 Unified file click behavior** — File path links in chat messages and artefact clicks now open the in-app preview panel instead of Finder; added "Open Externally" button to the preview panel header for opening files with the OS default application
 - **3.8 Slash Command Skill Invocation** — Typing `/` at the start of the task input or chat follow-up input opens an autocomplete popover of installed skills; selecting a skill renders it as a visual pill above the textarea, and on submit the prompt is prefixed with `/<skill-id>` for the agent to invoke the skill
+- **Fix: CodePreview dark highlighting on light themes** — Code preview panel now uses `oneLight` syntax theme for light app themes and `oneDark` for dark themes, reacting to theme switches in real time via `useSyncExternalStore`
 
 ## v0.5.2
 

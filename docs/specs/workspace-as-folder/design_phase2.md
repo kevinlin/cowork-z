@@ -146,7 +146,7 @@ The main panel component. Receives `file: DirectoryEntry`, `onClose()`, and opti
 
 ### CodePreview
 
-Uses `react-syntax-highlighter` with `oneDark` theme. Shows line numbers. Extension-to-language mapping via `getLanguageFromExtension()`.
+Uses `react-syntax-highlighter` with theme-aware highlighting: `oneLight` for light themes, `oneDark` for dark themes. The component observes the `dark` class on `<html>` (toggled by `applyTheme()`) via `useSyncExternalStore` + `MutationObserver` to reactively switch styles. Shows line numbers. Extension-to-language mapping via `getLanguageFromExtension()`.
 
 ### MarkdownPreview
 

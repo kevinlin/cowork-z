@@ -1,7 +1,18 @@
+import { useSyncExternalStore } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import { getLanguageFromExtension } from './preview-utils';
+
+function subscribeToClassList(callback: () => void) {
+  const observer = new MutationObserver(callback);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  return () => observer.disconnect();
+}
+
+function getIsDark() {
+  return document.documentElement.classList.contains('dark');
+}
 
 interface CodePreviewProps {
   content: string;
@@ -9,6 +20,8 @@ interface CodePreviewProps {
 }
 
 export function CodePreview({ content, extension }: CodePreviewProps) {
+  const isDark = useSyncExternalStore(subscribeToClassList, getIsDark);
+
   return (
     <div className="h-full overflow-y-auto">
       <SyntaxHighlighter
@@ -20,7 +33,7 @@ export function CodePreview({ content, extension }: CodePreviewProps) {
         }}
         language={getLanguageFromExtension(extension)}
         showLineNumbers
-        style={oneDark}
+        style={isDark ? oneDark : oneLight}
       >
         {content}
       </SyntaxHighlighter>

@@ -1,5 +1,9 @@
 # UPDATE LOG
 
+## v0.5.3
+
+- 
+
 ## v0.5.2
 
 - **3.1 Rich File Display — Enhanced media path detection** — `extractMediaPaths` now auto-detects bare file paths for macOS/Linux (`/path/to/file`), home-relative (`~/path/to/file`), and Windows (`C:\path\to\file`) without requiring `file://` prefix; bare paths are also extracted from inside code blocks

@@ -610,6 +610,9 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. WHEN the user clicks a file link, media thumbnail, or artefact elsewhere in the app (see 3.1, 3.4), THE SYSTEM SHALL open the file preview panel for that file
 3. THE SYSTEM SHALL display a close button (X) in the preview header to dismiss the panel
 4. THE SYSTEM SHALL provide an "Open Externally" button in the preview header to open the file with the OS default application
+5. THE SYSTEM SHALL provide an "Add to Chat" button in the preview header that inserts the file path using the `@path` format defined in 3.5 AC#2 into the active chat input, then focuses the input
+
+> **Plan:** [Unify File Click Behavior to In-App Preview](../workspace-as-folder/plan_unify-file-click-behavior.md)
 
 ##### 6.4.2 Resizable Panel
 1. THE SYSTEM SHALL provide a drag handle on the left edge of the preview panel for horizontal resizing
@@ -637,12 +640,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL display a spinner while file content is being fetched
 2. WHERE loading fails, THE SYSTEM SHALL display an error icon and message in the content area
 
-##### 6.4.6 Add to Chat
-1. THE SYSTEM SHALL provide an "Add to Chat" button in the preview header
-2. WHEN clicked, THE SYSTEM SHALL insert the file path using the `@path` format defined in 3.5 AC#2 into the active chat input (task launcher on the Home page, follow-up input on the Execution page)
-3. AFTER insertion, THE SYSTEM SHALL focus the chat input and place the cursor after the inserted reference
-
----
+---x`x`
 
 ### 7. Workspace Starter Packs ✅
 

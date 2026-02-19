@@ -9,7 +9,7 @@ import { invoke, convertFileSrc as tauriConvertFileSrc } from '@tauri-apps/api/c
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { homeDir } from '@tauri-apps/api/path';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
+import { openPath, openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
 
 import type {
   ApiKeyConfig,
@@ -62,6 +62,11 @@ export async function openExternal(url: string): Promise<void> {
 
 export async function revealInFinder(path: string): Promise<void> {
   await revealItemInDir(path);
+}
+
+/** Open a local file with the OS default application. */
+export async function openFilePath(path: string): Promise<void> {
+  await openPath(path);
 }
 
 // ============================================================================
@@ -1287,6 +1292,7 @@ export function getTauriApi() {
 
     // Shell
     openExternal,
+    openFilePath,
     revealInFinder,
 
     // Task operations

@@ -2,7 +2,8 @@
 
 ## v0.5.3
 
-- 
+- **3.1/6.4.1 Unified file click behavior** — File path links in chat messages and artefact clicks now open the in-app preview panel instead of Finder; added "Open Externally" button to the preview panel header for opening files with the OS default application
+
 
 ## v0.5.2
 

@@ -2,8 +2,8 @@
  * EnhancedLink — custom ReactMarkdown link and code components.
  *
  * Renders links with appropriate icons (file type or globe) and
- * intercepts click events to use Tauri APIs:
- * - File paths → revealInFinder()
+ * intercepts click events:
+ * - File paths → open in-app preview panel
  * - URLs → openExternal()
  *
  * Also provides a custom `code` component that detects file:///
@@ -18,6 +18,7 @@ import type { Components } from 'react-markdown';
 import { getFileCategory, getFileExtension, isAbsolutePath, isPathSafe } from '@/lib/file-utils';
 import { getFileIcon, getUrlIcon } from '@/lib/icon-utils';
 import * as api from '@/lib/tauri-api';
+import { useFilePreviewStore } from '@/stores/filePreviewStore';
 
 /** Cache the home directory so we only fetch it once. */
 let cachedHomeDir: string | null = null;
@@ -86,11 +87,7 @@ const EnhancedLink = memo(function EnhancedLink({ href, children }: EnhancedLink
           console.warn('[EnhancedLink] Blocked unsafe path:', path);
           return;
         }
-        try {
-          await api.revealInFinder(path);
-        } catch (err) {
-          console.error('[EnhancedLink] Failed to reveal in Finder:', err);
-        }
+        useFilePreviewStore.getState().openPreviewByPath(path);
       } else {
         try {
           await api.openExternal(href);

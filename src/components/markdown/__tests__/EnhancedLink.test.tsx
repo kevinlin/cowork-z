@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMarkdownComponents, EnhancedLink } from '../EnhancedLink';
 
 // Mock the tauri-api module
@@ -10,9 +10,17 @@ vi.mock('@/lib/tauri-api', () => ({
   getHomeDir: vi.fn(() => Promise.resolve('/Users/testuser')),
 }));
 
+const mockOpenPreviewByPath = vi.fn();
+vi.mock('@/stores/filePreviewStore', () => ({
+  useFilePreviewStore: { getState: () => ({ openPreviewByPath: mockOpenPreviewByPath }) },
+}));
+
 import * as api from '@/lib/tauri-api';
 
 describe('EnhancedLink', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
   it('should render with globe icon for http URLs', () => {
     render(<EnhancedLink href="https://example.com">example.com</EnhancedLink>);
     expect(screen.getByText('example.com')).toBeInTheDocument();
@@ -33,12 +41,12 @@ describe('EnhancedLink', () => {
     expect(api.openExternal).toHaveBeenCalledWith('https://example.com');
   });
 
-  it('should call revealInFinder for file paths on click', async () => {
+  it('should open preview panel for file paths on click', async () => {
     render(<EnhancedLink href="file:///Users/name/file.txt">/Users/name/file.txt</EnhancedLink>);
     const link = screen.getByRole('link');
     fireEvent.click(link);
     await waitFor(() => {
-      expect(api.revealInFinder).toHaveBeenCalledWith('/Users/name/file.txt');
+      expect(mockOpenPreviewByPath).toHaveBeenCalledWith('/Users/name/file.txt');
     });
   });
 
@@ -50,7 +58,7 @@ describe('EnhancedLink', () => {
     await waitFor(() => {
       expect(warnSpy).toHaveBeenCalled();
     });
-    expect(api.revealInFinder).not.toHaveBeenCalledWith('/Users/name/../../etc/passwd');
+    expect(mockOpenPreviewByPath).not.toHaveBeenCalled();
     warnSpy.mockRestore();
   });
 

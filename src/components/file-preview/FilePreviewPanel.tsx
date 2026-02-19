@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  ExternalLink,
   File,
   FileCode,
   FileText,
@@ -113,6 +114,14 @@ export function FilePreviewPanel({ file, onClose, onAddToChat }: FilePreviewPane
     }
   }, [file, onAddToChat]);
 
+  const handleOpenExternal = useCallback(async () => {
+    try {
+      await api.openFilePath(file.path);
+    } catch (err) {
+      console.error('[FilePreviewPanel] Failed to open externally:', err);
+    }
+  }, [file.path]);
+
   const renderPreview = () => {
     if (isLoading) {
       return (
@@ -185,6 +194,14 @@ export function FilePreviewPanel({ file, onClose, onAddToChat }: FilePreviewPane
               type="button"
             >
               {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </button>
+            <button
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              onClick={handleOpenExternal}
+              title="Open with default application"
+              type="button"
+            >
+              <ExternalLink className="h-4 w-4" />
             </button>
             {onAddToChat && (
               <button

@@ -34,23 +34,6 @@ Whether you're a developer protecting proprietary code, a researcher with sensit
 
 ### 🔒 Private by design
 
-#### Multi-Provider Flexibility
-
-Connect to **13+ AI providers** and switch between them at any time:
-
-**Direct API** — Anthropic, OpenAI, Google Gemini, xAI, DeepSeek, Z.AI\
-**Cloud Platforms** — AWS Bedrock, Azure AI Foundry\
-**Local Models** — Ollama\
-**Proxy Services** — OpenRouter, LiteLLM
-
-Credentials are stored in the **OS Keychain** (macOS Keychain, Windows Credential Manager, Linux Secret Service) — never in plain text files.
-
-<p align="center">
-  <img src="assets/Screenshot_MultiProvider.png" alt="Cowork-Z — Provider Settings" width="700" />
-  <br />
-  <em>Connect to any provider — credentials stored in the OS Keychain</em>
-</p>
-
 #### Sandboxed Permissions
 
 Your files never leave your machine. The agent reads and writes locally — nothing is uploaded to cloud servers. You control exactly what it can access:
@@ -63,6 +46,23 @@ Your files never leave your machine. The agent reads and writes locally — noth
   <img src="assets/Screenshot_PermissionRequest.png" alt="Cowork-Z — Runtime permission dialog" width="700" />
   <br />
   <em>The agent asks before accessing folders outside your approved list</em>
+</p>
+
+#### Multi-Provider Flexibility
+
+Connect to **13+ AI providers** and switch between them at any time:
+
+**Direct API** — Anthropic, OpenAI, Google Gemini, xAI, DeepSeek, Z.AI\
+**Cloud Platforms** — AWS Bedrock, Azure AI Foundry\
+**Proxy Services** — OpenRouter, LiteLLM\
+**Local Models** — Ollama
+
+Credentials are stored in the **OS Keychain** (macOS Keychain, Windows Credential Manager, Linux Secret Service) — never in plain text files.
+
+<p align="center">
+  <img src="assets/Screenshot_MultiProvider.png" alt="Cowork-Z — Provider Settings" width="700" />
+  <br />
+  <em>Connect to any provider — credentials stored in the OS Keychain</em>
 </p>
 
 ---

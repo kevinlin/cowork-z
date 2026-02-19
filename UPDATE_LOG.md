@@ -1,6 +1,10 @@
 # UPDATE LOG
 
-## v0.5.3
+## v0.5.4
+
+- 
+
+## v0.5.3 (2026-02-19)
 
 - **3.1/6.4.1 Unified file click behavior** — File path links in chat messages and artefact clicks now open the in-app preview panel instead of Finder; added "Open Externally" button to the preview panel header for opening files with the OS default application
 - **3.8 Slash Command Skill Invocation** — Typing `/` at the start of the task input or chat follow-up input opens an autocomplete popover of installed skills; selecting a skill renders it as a visual pill above the textarea, and on submit the prompt is prefixed with `/<skill-id>` for the agent to invoke the skill
@@ -8,8 +12,7 @@
 - **Fix: CodePreview dark highlighting on light themes** — Code preview panel now uses `oneLight` syntax theme for light app themes and `oneDark` for dark themes, reacting to theme switches in real time via `useSyncExternalStore`
 - **Fix: CodePrvidew file mapping** - Map file extensions ('json', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf') as code instead of text files
 
-
-## v0.5.2
+## v0.5.2 (2026-02-18)
 
 - **3.1 Rich File Display — Enhanced media path detection** — `extractMediaPaths` now auto-detects bare file paths for macOS/Linux (`/path/to/file`), home-relative (`~/path/to/file`), and Windows (`C:\path\to\file`) without requiring `file://` prefix; bare paths are also extracted from inside code blocks
 - **Fix: Starter Packs not found on Windows** — Replaced git symlinks for pack resources (`src-tauri/resources/packs`, `pack-docs`) with direct copies from `workspace-packs/`; simplified `resolve_pack_sources()` to a single deterministic path
@@ -20,14 +23,14 @@
 
 - **Skills Catalog Reorganization** — Renamed skill template folders with category prefixes (e.g., `social-content` → `marketing-social-content`, `canvas-design` → `design-canvas-design`) for consistent categorization; removed broken reference to non-existent `references/estimate.md` in `development-estimation` skill.
 
-## v0.5.0
+## v0.5.0 (2026-02-17)
 
 - **6.1-6.3 Workspace-as-Folder** — Workspace-per-folder model where each workspace is a unique directory that becomes the AI agent's CWD, scopes sessions, and provides a file tree browser.
 - **6.4 File Preview Panel** — Resizable right-side panel for previewing code (syntax-highlighted), Markdown, images, video, PDF, HTML, and text files from the file tree or chat media thumbnails; fullscreen mode; "Add to Chat" button inserts `@path` reference into chat input.
 - **7.1–7.3 Workspace Starter Packs** — Home screen now features a "Starter Packs" browser (replacing the old example prompts) with 6 guided workspace packs. Users can search/filter packs, install them to any folder, and the app auto-creates a workspace and starts a task from the pack's START_HERE.md.
 - **8.1–8.2 Starter Skills** — Browsable Skills Catalog on the Home screen below Starter Packs with category tabs, search, and install/re-install. Skills are bundled as templates and installed to `~/.config/opencode/skills/` with SHA256 checksum-based update detection.
 
-## v0.4.5
+## v0.4.5 (2026-02-17)
 
 - **3.7.2 Tool Call Display** - Tool-use messages now render as collapsible cards showing tool name and input summary when collapsed, full input/output when expanded.
 - **3.7.3 Question Handling** - Added `task:question_request` event handling with a dedicated question dialog. Streaming, permissions, and all existing functionality preserved.

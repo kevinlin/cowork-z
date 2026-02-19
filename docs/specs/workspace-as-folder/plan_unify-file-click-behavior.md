@@ -25,24 +25,8 @@ The updated requirements (3.1, 6.4.1) specify that all file clicks should open t
 Add a new icon-only button to the preview header, between the fullscreen toggle and "Add to Chat":
 
 - Add `ExternalLink` to the lucide-react import (line 1-14)
-- Add `handleOpenExternal` callback after `handleAddToChat` (after line 114):
-  ```ts
-  const handleOpenExternal = useCallback(async () => {
-    try { await api.openFilePath(file.path); }
-    catch (err) { console.error('[FilePreviewPanel] Failed to open externally:', err); }
-  }, [file.path]);
-  ```
-- Insert button after line 188 (after fullscreen toggle, before Add to Chat):
-  ```tsx
-  <button
-    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-    onClick={handleOpenExternal}
-    title="Open with default application"
-    type="button"
-  >
-    <ExternalLink className="h-4 w-4" />
-  </button>
-  ```
+- Add `handleOpenExternal` callback after `handleAddToChat` (after line 114)
+- Insert button after line 188 (after fullscreen toggle, before Add to Chat)
 - `api` already imported on line 18; `file.path` is always absolute
 
 **Button order:** Fullscreen | Open Externally (new) | Add to Chat | Close
@@ -52,35 +36,18 @@ Add a new icon-only button to the preview header, between the fullscreen toggle 
 **Why:** Tauri's `openUrl()` (used by `openExternal`) blocks `file://` URLs by default. The opener plugin provides a separate `openPath()` function specifically for opening local files with the OS default application.
 
 - Add `openPath` to the import from `@tauri-apps/plugin-opener`
-- Add `openFilePath` wrapper:
-  ```ts
-  export async function openFilePath(path: string): Promise<void> {
-    await openPath(path);
-  }
-  ```
+- Add `openFilePath` wrapper
 - Add `openFilePath` to the `getTauriApi()` return object
 
 ### 2b. `src-tauri/capabilities/default.json` — Grant `open_path` permission with scope
 
 **Why:** The opener plugin's default permission denies `open_path`. Adding `opener:allow-open-path` enables the command, but it also requires an explicit path scope — without one, all calls are rejected at runtime with "Not allowed to open path".
 
-- Add permission with wildcard scope:
-  ```json
-  {
-    "identifier": "opener:allow-open-path",
-    "allow": [{ "path": "**" }]
-  }
-  ```
+- Add permission with wildcard scope
 
 ### 3. `src/components/markdown/__tests__/EnhancedLink.test.tsx` — Update tests
 
-- Add mock for the store:
-  ```ts
-  const mockOpenPreviewByPath = vi.fn();
-  vi.mock('@/stores/filePreviewStore', () => ({
-    useFilePreviewStore: { getState: () => ({ openPreviewByPath: mockOpenPreviewByPath }) },
-  }));
-  ```
+- Add mock for the store
 - Add `beforeEach(() => { vi.clearAllMocks(); })` inside the `describe` block
 - **Line 36-43:** Rename test to `'should open preview panel for file paths on click'`, assert `mockOpenPreviewByPath` called with path
 - **Line 53:** Change `api.revealInFinder` assertion to `mockOpenPreviewByPath`

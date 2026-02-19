@@ -8,25 +8,7 @@ This feature adds a `/skill` autocomplete popover to both input surfaces (TaskIn
 
 ## Requirement Addition
 
-Add `3.8 Slash Command Invocation` to `docs/specs/cowork-z/requirements.md` under section 3:
-
-```markdown
-#### 3.8 Slash Command Invocation
-
-> **Plan:** [Slash Command Skill Invocation](../chat-ux/plan_slash-command-skill-invocation.md)
-
-**User Story:** As a user, I want a way to invoke installed skills directly from the task input or chat follow-up input, similar to Claude Code's `/` slash command.
-
-**Acceptance Criteria:**
-
-1. WHEN the user types `/` at the start of the task input or chat follow-up input, THE SYSTEM SHALL display a popover autocomplete menu listing installed skills
-2. THE SYSTEM SHALL filter the displayed skills in real-time as the user types characters after `/`, matching against skill name, ID, and description (case-insensitive)
-3. THE SYSTEM SHALL allow skill selection via mouseclick or Tab key
-4. AFTER selection, THE SYSTEM SHALL render the skill as a visual pill/chip above the textarea, visually distinct from input text, with an X button to remove
-5. THE SYSTEM SHALL allow only one skill per message
-6. WHEN submitting with a selected skill, THE SYSTEM SHALL construct the prompt as `/<skill-id> <user-text>` and send it through the existing prompt flow
-7. THE SYSTEM SHALL support keyboard navigation in the popover (ArrowUp/Down to navigate, Tab/Enter to select, Escape to dismiss)
-```
+Add `3.8 Slash Command Invocation` to `docs/specs/cowork-z/requirements.md` under section 3
 
 ## Implementation Plan
 
@@ -36,14 +18,6 @@ Add `3.8 Slash Command Invocation` to `docs/specs/cowork-z/requirements.md` unde
 
 A small Zustand store to cache installed skills globally, so both input components and the SkillsCatalog can share the same data.
 
-```typescript
-interface SkillsState {
-  installedSkills: SkillMeta[];
-  isLoaded: boolean;
-  fetchInstalledSkills: () => Promise<void>;
-}
-```
-
 - `fetchInstalledSkills()` calls `api.listSkillsWithStatus()`, filters to `status.installed === true`, extracts `.meta` array
 - Deduplicate fetch calls (guard against concurrent fetches)
 
@@ -52,13 +26,6 @@ interface SkillsState {
 **File:** `src/components/ui/skill-pill.tsx` (new)
 
 Pure presentational component displaying a selected skill as a chip.
-
-```typescript
-interface SkillPillProps {
-  skill: SkillMeta;
-  onRemove: () => void;
-}
-```
 
 - Shows skill name (from `skill.name`)
 - X icon button (lucide `X`) to remove
@@ -70,17 +37,6 @@ interface SkillPillProps {
 **File:** `src/components/ui/skill-autocomplete-popover.tsx` (new)
 
 Renders the filtered skill list relative to the input.
-
-```typescript
-interface SkillAutocompletePopoverProps {
-  isOpen: boolean;
-  skills: SkillMeta[];
-  highlightedIndex: number;
-  onSelect: (skill: SkillMeta) => void;
-  onHighlightChange: (index: number) => void;
-  position?: 'above' | 'below';
-}
-```
 
 - Supports configurable positioning via `position` prop (default `'above'`):
   - `'above'`: `absolute bottom-full left-0 right-0 mb-2` — used by ChatInput (bottom of screen)
@@ -99,31 +55,6 @@ interface SkillAutocompletePopoverProps {
 
 Core shared logic for slash command detection, filtering, selection, and keyboard navigation.
 
-**Input:**
-```typescript
-interface UseSkillAutocompleteOptions {
-  text: string;                          // Current textarea value
-  onTextChange: (text: string) => void;  // Update textarea value
-  disabled?: boolean;
-}
-```
-
-**Output:**
-```typescript
-interface SkillAutocompleteResult {
-  selectedSkill: SkillMeta | null;
-  clearSkill: () => void;
-  isPopoverOpen: boolean;
-  filteredSkills: SkillMeta[];
-  highlightedIndex: number;
-  setHighlightedIndex: (i: number) => void;
-  selectSkill: (skill: SkillMeta) => void;
-  handleKeyDown: (e: React.KeyboardEvent) => void;
-  composePrompt: () => string;
-  hasSkill: boolean;
-}
-```
-
 **Key logic:**
 - Popover opens when `text.startsWith('/') && !selectedSkill`
 - Query = `text.slice(1)` — filters installed skills by case-insensitive substring match on id, name, description
@@ -136,11 +67,7 @@ interface SkillAutocompleteResult {
 
 **File:** `src/components/landing/TaskInputBar.tsx` (modify)
 
-Add two optional props:
-```typescript
-selectedSkill?: SkillMeta | null;
-onSkillChange?: (skill: SkillMeta | null) => void;
-```
+Add two optional props: `selectedSkill`, `onSkillChange`
 
 Changes:
 - Container div uses `relative` positioning and `flex-col` layout for pill + input row stacking

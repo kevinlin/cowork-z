@@ -46,7 +46,7 @@ jest.mock('node:net', () => ({
     listen: jest.fn((port: number, host: string, callback: () => void) => {
       setTimeout(() => callback(), 0);
     }),
-    address: jest.fn(() => ({ port: 12345 })),
+    address: jest.fn(() => ({ port: 12_345 })),
     close: jest.fn((callback: () => void) => {
       setTimeout(() => callback(), 0);
     }),
@@ -75,13 +75,13 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
     mockReadFileSync.mockReset();
     mockWriteFileSync.mockReset();
     mockMkdirSync.mockReset();
-    
+
     // Clear module cache to ensure fresh imports
     jest.resetModules();
-    
+
     // Restore environment
     process.env = { ...originalEnv };
-    
+
     // Mock platform as Unix-like
     Object.defineProperty(process, 'platform', {
       value: 'darwin',
@@ -105,14 +105,14 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-    
+
     // Restore platform
     Object.defineProperty(process, 'platform', {
       value: originalPlatform,
       writable: true,
       configurable: true,
     });
-    
+
     // Restore environment
     process.env = originalEnv;
   });
@@ -126,7 +126,7 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       // Trigger getAugmentedPath by starting server
       await pm.ensureServerRunning();
 
@@ -165,22 +165,14 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
       // Should fall back to /bin/bash, not use the untrusted $SHELL
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        '/bin/bash',
-        ['-ilc', 'echo $PATH'],
-        expect.any(Object)
-      );
-      
+      expect(mockExecFileSync).toHaveBeenCalledWith('/bin/bash', ['-ilc', 'echo $PATH'], expect.any(Object));
+
       // Should NOT be called with the untrusted shell
-      expect(mockExecFileSync).not.toHaveBeenCalledWith(
-        '/tmp/evil-shell',
-        expect.any(Array),
-        expect.any(Object)
-      );
+      expect(mockExecFileSync).not.toHaveBeenCalledWith('/tmp/evil-shell', expect.any(Array), expect.any(Object));
     });
 
     it('should fall back to first existing allowlisted shell when $SHELL is not set', async () => {
@@ -194,14 +186,10 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        '/usr/bin/bash',
-        ['-ilc', 'echo $PATH'],
-        expect.any(Object)
-      );
+      expect(mockExecFileSync).toHaveBeenCalledWith('/usr/bin/bash', ['-ilc', 'echo $PATH'], expect.any(Object));
     });
 
     it('should fall back to first existing allowlisted shell when $SHELL does not exist', async () => {
@@ -217,14 +205,10 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        '/bin/bash',
-        ['-ilc', 'echo $PATH'],
-        expect.any(Object)
-      );
+      expect(mockExecFileSync).toHaveBeenCalledWith('/bin/bash', ['-ilc', 'echo $PATH'], expect.any(Object));
     });
 
     it('should handle fs.existsSync errors gracefully and continue to fallback', async () => {
@@ -240,15 +224,11 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
       // Should fall back to /bin/bash despite the error
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        '/bin/bash',
-        ['-ilc', 'echo $PATH'],
-        expect.any(Object)
-      );
+      expect(mockExecFileSync).toHaveBeenCalledWith('/bin/bash', ['-ilc', 'echo $PATH'], expect.any(Object));
     });
 
     it('should return undefined when no allowlisted shell exists', async () => {
@@ -259,7 +239,7 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
       // execFileSync should not be called when no shell is found
@@ -276,14 +256,10 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        '/bin/bash',
-        ['-ilc', 'echo $PATH'],
-        expect.any(Object)
-      );
+      expect(mockExecFileSync).toHaveBeenCalledWith('/bin/bash', ['-ilc', 'echo $PATH'], expect.any(Object));
     });
 
     it('should use -ilc arguments for zsh', async () => {
@@ -294,14 +270,10 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        '/bin/zsh',
-        ['-ilc', 'echo $PATH'],
-        expect.any(Object)
-      );
+      expect(mockExecFileSync).toHaveBeenCalledWith('/bin/zsh', ['-ilc', 'echo $PATH'], expect.any(Object));
     });
 
     it('should use -ilc arguments for /bin/sh', async () => {
@@ -312,14 +284,10 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        '/bin/sh',
-        ['-ilc', 'echo $PATH'],
-        expect.any(Object)
-      );
+      expect(mockExecFileSync).toHaveBeenCalledWith('/bin/sh', ['-ilc', 'echo $PATH'], expect.any(Object));
     });
   });
 
@@ -332,7 +300,7 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
       expect(mockExecFileSync).toHaveBeenCalled();
@@ -356,7 +324,7 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
       expect(mockExecFileSync).toHaveBeenCalled();
@@ -370,7 +338,7 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
       expect(mockExecFileSync).toHaveBeenCalled();
@@ -386,7 +354,7 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
       expect(mockExecFileSync).toHaveBeenCalled();
@@ -399,14 +367,14 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
         writable: true,
         configurable: true,
       });
-      
+
       process.env.SHELL = '/bin/bash';
       process.env.PATH = 'C:\\Windows\\System32;C:\\Windows';
       mockExistsSync.mockReturnValue(true);
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
       // Should NOT call execFileSync on Windows
@@ -415,14 +383,7 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
   });
 
   describe('security: allowlist enforcement', () => {
-    const untrustedShells = [
-      '/tmp/malicious',
-      '/home/user/evil-shell',
-      '../../../bin/bash',
-      'bash',
-      './shell',
-      '/opt/custom/shell',
-    ];
+    const untrustedShells = ['/tmp/malicious', '/home/user/evil-shell', '../../../bin/bash', 'bash', './shell', '/opt/custom/shell'];
 
     it.each(untrustedShells)('should reject untrusted shell: %s', async (untrustedShell) => {
       process.env.SHELL = untrustedShell;
@@ -437,33 +398,17 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
       // Should fall back to /bin/bash
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        '/bin/bash',
-        ['-ilc', 'echo $PATH'],
-        expect.any(Object)
-      );
-      
+      expect(mockExecFileSync).toHaveBeenCalledWith('/bin/bash', ['-ilc', 'echo $PATH'], expect.any(Object));
+
       // Should NOT use the untrusted shell
-      expect(mockExecFileSync).not.toHaveBeenCalledWith(
-        untrustedShell,
-        expect.any(Array),
-        expect.any(Object)
-      );
+      expect(mockExecFileSync).not.toHaveBeenCalledWith(untrustedShell, expect.any(Array), expect.any(Object));
     });
 
-    const allowedShells = [
-      '/bin/zsh',
-      '/bin/bash',
-      '/bin/sh',
-      '/usr/bin/zsh',
-      '/usr/bin/bash',
-      '/usr/bin/sh',
-      '/opt/homebrew/bin/bash',
-    ];
+    const allowedShells = ['/bin/zsh', '/bin/bash', '/bin/sh', '/usr/bin/zsh', '/usr/bin/bash', '/usr/bin/sh', '/opt/homebrew/bin/bash'];
 
     it.each(allowedShells)('should accept allowlisted shell: %s', async (allowedShell) => {
       process.env.SHELL = allowedShell;
@@ -473,14 +418,10 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
 
       const { ProcessManager } = await import('../src/process-manager');
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
-      
+
       await pm.ensureServerRunning();
 
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        allowedShell,
-        ['-ilc', 'echo $PATH'],
-        expect.any(Object)
-      );
+      expect(mockExecFileSync).toHaveBeenCalledWith(allowedShell, ['-ilc', 'echo $PATH'], expect.any(Object));
     });
   });
 });

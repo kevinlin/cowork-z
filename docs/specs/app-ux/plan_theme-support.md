@@ -4,7 +4,7 @@
 
 Cowork-Z currently has a single light theme with a green primary color (`#213c20`). The app uses CSS custom properties in HSL format (defined in `src/styles/globals.css`) consumed by Tailwind via `hsl(var(--primary))` etc. All components use semantic Tailwind classes (`bg-primary`, `text-foreground`, `border-border`), making the app well-prepared for theming by simply swapping CSS variable values.
 
-This plan adds 4 predefined themes (2 light, 2 dark) with the Zuhlke brand purple alongside the existing green, runtime switching, SQLite persistence, and OS dark-mode detection on first launch.
+This plan adds 6 predefined themes (3 light, 3 dark) with the Zuhlke brand purple alongside the existing green, plus Nordic and Deep Space themes, runtime switching, SQLite persistence, and OS dark-mode detection on first launch.
 
 ## Themes
 
@@ -14,6 +14,8 @@ This plan adds 4 predefined themes (2 light, 2 dark) with the Zuhlke brand purpl
 | Classic Dark | `classic-dark` | Green `#4a8a47` (lighter for contrast) | Yes |
 | Zuhlke Light | `zuhlke-light` | Purple `#985b9c` (from branding) | No |
 | Zuhlke Dark | `zuhlke-dark` | Purple `#b87fbc` (lighter for contrast) | Yes |
+| Nordic Light | `nordic-light` | Blue `#2563eb` (Fjord Blue, Scandinavian-inspired) | No |
+| Deep Space | `deep-space` | Violet `#8b5cf6` (Nebula Violet, blue-shifted dark) | Yes |
 
 No gradient colors on message bubbles. Message bubbles use solid `bg-primary` / `bg-card` as they do today.
 
@@ -21,7 +23,7 @@ No gradient colors on message bubbles. Message bubbles use solid `bg-primary` / 
 
 ### Step 1: Theme definitions — NEW `src/lib/themes.ts`
 
-Define `ThemeId` type, `ThemeDefinition` interface, `THEMES` array with all 4 themes, `getThemeById()` helper, and `applyTheme()` function.
+Define `ThemeId` type, `ThemeDefinition` interface, `THEMES` array with all 6 themes, `getThemeById()` helper, and `applyTheme()` function.
 
 - `applyTheme()` iterates `theme.variables` and calls `document.documentElement.style.setProperty('--' + key, value)` for each, then toggles `class="dark"` on `<html>` based on `theme.isDark`
 - Each theme defines all 17 CSS variable values (background, foreground, card, primary, secondary, muted, accent, destructive, border, input, ring + their foreground variants)
@@ -71,7 +73,7 @@ Add `darkMode: 'class'` to the config object. This activates existing `dark:` pr
 
 ### Step 9: Theme picker UI — `src/components/layout/SettingsDialog.tsx`
 
-Add a "Theme" section between Provider Grid and User Prompt sections (shown when a provider is selected). Contains a 4-column grid of clickable theme cards, each showing:
+Add a "Theme" section between Provider Grid and User Prompt sections (shown when a provider is selected). Contains a grid of clickable theme cards, each showing:
 - Color swatch preview (background + primary color split, using inline `hsl()` from theme definition so each card always shows its own colors)
 - Theme label
 - Active indicator (primary ring/border)
@@ -136,7 +138,7 @@ Replace hardcoded color classes with semantic equivalents in these files:
 2. `pnpm typecheck` — Frontend compiles with new theme types + API
 3. `pnpm tauri dev` — Launch app, verify:
    - Default theme loads (Classic Light for light OS, Classic Dark for dark OS)
-   - Settings dialog shows theme picker with 4 cards
+   - Settings dialog shows theme picker with 6 cards
    - Clicking each theme card immediately switches the entire app
    - Switching to dark themes: backgrounds go dark, text goes light, sidebar/message bubbles/panels all adapt
    - Switching back to light: everything reverts

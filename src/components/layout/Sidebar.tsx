@@ -150,11 +150,7 @@ export default function Sidebar() {
 
   return (
     <>
-      <div
-        className="relative flex h-screen flex-col border-border border-r bg-card pt-3"
-        ref={sidebarRef}
-        style={{ width: sidebarWidth }}
-      >
+      <div className="relative flex h-screen flex-col border-border border-r bg-card pt-3" ref={sidebarRef} style={{ width: sidebarWidth }}>
         {/* Resize Handle */}
         <div className={`sidebar-resize-handle ${isResizing ? 'active' : ''}`} onMouseDown={handleResizeStart} />
 
@@ -184,10 +180,8 @@ export default function Sidebar() {
         {/* Tab Switcher */}
         <div className="flex border-border border-b">
           <button
-            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
-              activeTab === 'sessions'
-                ? 'border-primary border-b-2 text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
+            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 font-medium text-xs transition-colors ${
+              activeTab === 'sessions' ? 'border-primary border-b-2 text-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setActiveTab('sessions')}
             type="button"
@@ -196,10 +190,8 @@ export default function Sidebar() {
             Sessions
           </button>
           <button
-            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
-              activeTab === 'files'
-                ? 'border-primary border-b-2 text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
+            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 font-medium text-xs transition-colors ${
+              activeTab === 'files' ? 'border-primary border-b-2 text-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setActiveTab('files')}
             type="button"

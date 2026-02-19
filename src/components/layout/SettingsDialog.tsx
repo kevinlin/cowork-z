@@ -387,14 +387,11 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved, them
                           onClick={() => onSwitchTheme?.(theme.id)}
                         >
                           {/* Color swatch: background + primary split */}
-                          <div
-                            className="h-10 w-full overflow-hidden rounded-md"
-                            style={{ display: 'flex' }}
-                          >
+                          <div className="h-10 w-full overflow-hidden rounded-md" style={{ display: 'flex' }}>
                             <div style={{ flex: 1, backgroundColor: bg, borderRight: `1px solid ${fg}20` }} />
                             <div style={{ flex: 1, backgroundColor: primary }} />
                           </div>
-                          <span className="text-xs font-medium text-foreground">{theme.label}</span>
+                          <span className="font-medium text-foreground text-xs">{theme.label}</span>
                         </button>
                       );
                     })}

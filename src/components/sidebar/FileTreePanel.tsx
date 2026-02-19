@@ -161,7 +161,14 @@ function TreeRow({ node, depth, onToggle, onSelect, selectedPath }: TreeRowProps
       {isExpanded && node.children && (
         <div>
           {node.children.map((child) => (
-            <TreeRow depth={depth + 1} key={child.entry.path} node={child} onSelect={onSelect} onToggle={onToggle} selectedPath={selectedPath} />
+            <TreeRow
+              depth={depth + 1}
+              key={child.entry.path}
+              node={child}
+              onSelect={onSelect}
+              onToggle={onToggle}
+              selectedPath={selectedPath}
+            />
           ))}
         </div>
       )}
@@ -256,7 +263,14 @@ export default function FileTreePanel() {
           <div className="px-2 py-8 text-center text-muted-foreground text-xs">{searchQuery ? 'No files found' : 'Empty directory'}</div>
         ) : (
           nodes.map((node) => (
-            <TreeRow depth={0} key={node.entry.path} node={node} onSelect={handleSelect} onToggle={toggleExpand} selectedPath={selectedFile?.path} />
+            <TreeRow
+              depth={0}
+              key={node.entry.path}
+              node={node}
+              onSelect={handleSelect}
+              onToggle={toggleExpand}
+              selectedPath={selectedFile?.path}
+            />
           ))
         )}
       </div>

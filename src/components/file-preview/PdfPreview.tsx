@@ -60,9 +60,5 @@ export function PdfPreview({ filePath, fileName }: PdfPreviewProps) {
     );
   }
 
-  return (
-    <div className="h-full w-full">
-      {dataUrl && <embed className="h-full w-full" src={dataUrl} type="application/pdf" />}
-    </div>
-  );
+  return <div className="h-full w-full">{dataUrl && <embed className="h-full w-full" src={dataUrl} type="application/pdf" />}</div>;
 }

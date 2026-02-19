@@ -10,7 +10,14 @@ interface SkillAutocompletePopoverProps {
   position?: 'above' | 'below';
 }
 
-export function SkillAutocompletePopover({ isOpen, skills, highlightedIndex, onSelect, onHighlightChange, position = 'above' }: SkillAutocompletePopoverProps) {
+export function SkillAutocompletePopover({
+  isOpen,
+  skills,
+  highlightedIndex,
+  onSelect,
+  onHighlightChange,
+  position = 'above',
+}: SkillAutocompletePopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -27,7 +34,9 @@ export function SkillAutocompletePopover({ isOpen, skills, highlightedIndex, onS
 
   if (skills.length === 0) {
     return (
-      <div className={`absolute right-0 left-0 z-50 ${positionClasses} rounded-md border bg-popover p-3 text-center text-popover-foreground text-sm shadow-md`}>
+      <div
+        className={`absolute right-0 left-0 z-50 ${positionClasses} rounded-md border bg-popover p-3 text-center text-popover-foreground text-sm shadow-md`}
+      >
         No skills match
       </div>
     );

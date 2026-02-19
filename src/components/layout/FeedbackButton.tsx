@@ -1,11 +1,6 @@
 import { Bug, Lightbulb, MessageSquareHeart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { analytics } from '@/lib/analytics';
 import { buildBugReportUrl, buildFeatureRequestUrl } from '@/lib/feedback';
 import { openExternal } from '@/lib/tauri-api';

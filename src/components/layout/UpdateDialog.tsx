@@ -3,8 +3,8 @@
 import { CheckCircle, Download, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { UpdateInfo } from '@/lib/tauri-api';
 import type { UpdateStatus } from '@/hooks/useAppUpdate';
+import type { UpdateInfo } from '@/lib/tauri-api';
 
 interface UpdateDialogProps {
   open: boolean;
@@ -16,15 +16,7 @@ interface UpdateDialogProps {
   onRetry: () => void;
 }
 
-export default function UpdateDialog({
-  open,
-  onOpenChange,
-  status,
-  updateInfo,
-  error,
-  onInstall,
-  onRetry,
-}: UpdateDialogProps) {
+export default function UpdateDialog({ open, onOpenChange, status, updateInfo, error, onInstall, onRetry }: UpdateDialogProps) {
   const canClose = status !== 'downloading';
 
   return (
@@ -59,19 +51,13 @@ export default function UpdateDialog({
                 <Download className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="font-medium text-foreground">
-                  Version {updateInfo.version} is available
-                </p>
-                <p className="text-muted-foreground text-sm">
-                  You're currently running v{updateInfo.currentVersion}
-                </p>
+                <p className="font-medium text-foreground">Version {updateInfo.version} is available</p>
+                <p className="text-muted-foreground text-sm">You're currently running v{updateInfo.currentVersion}</p>
               </div>
             </div>
             {updateInfo.body && (
               <div className="max-h-40 overflow-y-auto rounded-md bg-muted/50 p-3">
-                <p className="whitespace-pre-wrap text-muted-foreground text-sm">
-                  {updateInfo.body}
-                </p>
+                <p className="whitespace-pre-wrap text-muted-foreground text-sm">{updateInfo.body}</p>
               </div>
             )}
           </div>
@@ -82,9 +68,7 @@ export default function UpdateDialog({
           <div className="flex flex-col items-center gap-3 py-6">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="font-medium text-foreground">Downloading and installing…</p>
-            <p className="text-muted-foreground text-sm">
-              The app will restart automatically when complete.
-            </p>
+            <p className="text-muted-foreground text-sm">The app will restart automatically when complete.</p>
           </div>
         )}
 
@@ -93,9 +77,7 @@ export default function UpdateDialog({
           <div className="flex flex-col items-center gap-3 py-6">
             <XCircle className="h-8 w-8 text-destructive" />
             <p className="font-medium text-foreground">Update check failed</p>
-            <p className="text-center text-muted-foreground text-sm">
-              {error || 'An unknown error occurred.'}
-            </p>
+            <p className="text-center text-muted-foreground text-sm">{error || 'An unknown error occurred.'}</p>
           </div>
         )}
 

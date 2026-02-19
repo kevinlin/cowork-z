@@ -11,9 +11,7 @@ vi.mock('@/lib/tauri-api', () => ({
 
 // Mock the file preview store
 vi.mock('@/stores/filePreviewStore', () => ({
-  useFilePreviewStore: vi.fn((selector: (s: Record<string, unknown>) => unknown) =>
-    selector({ openPreviewByPath: vi.fn() })
-  ),
+  useFilePreviewStore: vi.fn((selector: (s: Record<string, unknown>) => unknown) => selector({ openPreviewByPath: vi.fn() })),
 }));
 
 describe('MediaGallery', () => {

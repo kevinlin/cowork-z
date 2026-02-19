@@ -18,11 +18,11 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
               if (langMatch) {
                 return (
                   <div className="overflow-hidden rounded-lg border border-border bg-muted/50">
-                    <div className="flex items-center gap-2 border-b border-border bg-muted/70 px-3 py-2">
+                    <div className="flex items-center gap-2 border-border border-b bg-muted/70 px-3 py-2">
                       <span className="h-2 w-2 rounded-full bg-red-400/80" />
                       <span className="h-2 w-2 rounded-full bg-yellow-400/80" />
                       <span className="h-2 w-2 rounded-full bg-green-400/80" />
-                      <span className="ml-2 text-[0.65rem] uppercase tracking-widest text-muted-foreground">{langMatch[1]}</span>
+                      <span className="ml-2 text-[0.65rem] text-muted-foreground uppercase tracking-widest">{langMatch[1]}</span>
                     </div>
                     <SyntaxHighlighter
                       customStyle={{ margin: 0, background: 'transparent', padding: '1rem' }}

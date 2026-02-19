@@ -3,13 +3,7 @@
 import { AlertTriangle, Copy, ExternalLink } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface OpenCodeCliMissingDialogProps {
   open: boolean;
@@ -58,34 +52,19 @@ export default function OpenCodeCliMissingDialog({ open, onOpenChange }: OpenCod
             <p className="mb-2 font-medium text-foreground text-sm">Install with npm:</p>
             <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2">
               <code className="flex-1 font-mono text-sm">{INSTALL_COMMAND}</code>
-              <Button
-                className="h-7 w-7 shrink-0"
-                onClick={handleCopy}
-                size="icon"
-                title="Copy to clipboard"
-                variant="ghost"
-              >
+              <Button className="h-7 w-7 shrink-0" onClick={handleCopy} size="icon" title="Copy to clipboard" variant="ghost">
                 <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
-            {copied && (
-              <p className="mt-1 text-muted-foreground text-xs">Copied to clipboard</p>
-            )}
+            {copied && <p className="mt-1 text-muted-foreground text-xs">Copied to clipboard</p>}
           </div>
 
           {/* Help text */}
-          <p className="text-muted-foreground text-sm">
-            After installing, you may need to restart Cowork-Z for the CLI to be detected.
-          </p>
+          <p className="text-muted-foreground text-sm">After installing, you may need to restart Cowork-Z for the CLI to be detected.</p>
 
           {/* Actions */}
           <div className="flex items-center justify-between">
-            <Button
-              className="gap-1.5 text-muted-foreground"
-              onClick={handleOpenDocs}
-              size="sm"
-              variant="link"
-            >
+            <Button className="gap-1.5 text-muted-foreground" onClick={handleOpenDocs} size="sm" variant="link">
               <ExternalLink className="h-3.5 w-3.5" />
               OpenCode Docs
             </Button>

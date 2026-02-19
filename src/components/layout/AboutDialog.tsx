@@ -17,7 +17,9 @@ export default function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
 
   useEffect(() => {
     if (open) {
-      getVersion().then(setVersion).catch(() => setVersion(null));
+      getVersion()
+        .then(setVersion)
+        .catch(() => setVersion(null));
     }
   }, [open]);
 
@@ -31,18 +33,14 @@ export default function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
         {/* Version badge */}
         {version && (
           <div className="flex items-center gap-2">
-            <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-primary text-sm">
-              v{version}
-            </span>
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-primary text-sm">v{version}</span>
           </div>
         )}
 
         {/* Changelog */}
         <div className="max-h-[50vh] overflow-y-auto pr-2">
           <div className="prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {changelogRaw}
-            </ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{changelogRaw}</ReactMarkdown>
           </div>
         </div>
       </DialogContent>

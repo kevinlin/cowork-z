@@ -8,10 +8,10 @@ import { SkillAutocompletePopover } from '@/components/ui/skill-autocomplete-pop
 import { SkillPill } from '@/components/ui/skill-pill';
 import { useSkillAutocomplete } from '@/hooks/useSkillAutocomplete';
 import { formatPathForChat, insertAtCursor } from '@/lib/file-utils';
+import type { SkillMeta } from '@/lib/tauri-api';
 import { cn } from '@/lib/utils';
 import { analytics } from '../../lib/analytics';
 import { getTauriAPI } from '../../lib/tauri-api-interface';
-import type { SkillMeta } from '@/lib/tauri-api';
 
 interface TaskInputBarProps {
   value: string;

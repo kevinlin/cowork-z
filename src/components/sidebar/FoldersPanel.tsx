@@ -54,7 +54,7 @@ function FolderItem({ path, displayPath, accessLevel, isDefault, source, onRemov
     <div
       className={cn(
         'group flex items-center gap-1.5 rounded-md px-2 py-1.5',
-        'text-sm text-foreground hover:bg-accent hover:text-accent-foreground',
+        'text-foreground text-sm hover:bg-accent hover:text-accent-foreground',
         'transition-colors duration-200',
         isDefault && 'opacity-75'
       )}
@@ -164,7 +164,7 @@ export default function FoldersPanel() {
       {/* Access level picker overlay */}
       {showAccessPicker && pendingFolderPath && (
         <div className="mb-2 rounded-md border border-border bg-muted p-2">
-          <div className="mb-1.5 truncate text-xs text-muted-foreground" title={pendingFolderPath}>
+          <div className="mb-1.5 truncate text-muted-foreground text-xs" title={pendingFolderPath}>
             {formatFolderPath(pendingFolderPath, homeDirectory)}
           </div>
           <div className="flex gap-1.5">

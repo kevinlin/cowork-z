@@ -1,12 +1,12 @@
 /**
  * Theme definitions for Cowork-Z
  *
- * 4 predefined themes: 2 green (classic), 2 purple (Zühlke).
+ * 6 predefined themes: 2 green (classic), 2 purple (Zühlke), 1 Nordic, 1 Deep Space.
  * Each theme defines all CSS custom-property values consumed by
  * Tailwind via hsl(var(--property)).
  */
 
-export type ThemeId = 'classic-light' | 'classic-dark' | 'zuhlke-light' | 'zuhlke-dark';
+export type ThemeId = 'classic-light' | 'classic-dark' | 'zuhlke-light' | 'zuhlke-dark' | 'nordic-light' | 'deep-space';
 
 export interface ThemeDefinition {
   id: ThemeId;
@@ -140,8 +140,72 @@ const zuhlkeDark: ThemeDefinition = {
   },
 };
 
+/**
+ * Nordic Light — clean Scandinavian-inspired light theme
+ * Primary: #2563eb (Fjord Blue) → HSL 217 84% 53%
+ * Font stack: Inter
+ */
+const nordicLight: ThemeDefinition = {
+  id: 'nordic-light',
+  label: 'Nordic Light',
+  isDark: false,
+  variables: {
+    background: '213 33% 99%', // #fbfcfd
+    foreground: '215 28% 17%', // #1f2937
+    card: '210 40% 98%', // #f8fafc
+    'card-foreground': '215 28% 17%',
+    popover: '210 40% 98%',
+    'popover-foreground': '215 28% 17%',
+    primary: '217 84% 53%', // #2563eb
+    'primary-foreground': '0 0% 100%',
+    secondary: '214 32% 91%', // #dbeafe
+    'secondary-foreground': '217 50% 30%',
+    muted: '210 20% 95%', // #f0f4f8
+    'muted-foreground': '215 14% 46%', // #6b7280
+    accent: '214 32% 91%', // #dbeafe
+    'accent-foreground': '215 28% 17%',
+    destructive: '0 72% 51%', // #ef4444
+    'destructive-foreground': '0 0% 100%',
+    border: '214 20% 90%', // #e2e8f0
+    input: '214 20% 85%', // #cbd5e1
+    ring: '217 84% 53%', // match primary
+  },
+};
+
+/**
+ * Deep Space — dark theme with blue undertones
+ * Primary: #8b5cf6 (Nebula Violet) → HSL 258 90% 66%
+ * Font stack: Source Code Pro
+ */
+const deepSpace: ThemeDefinition = {
+  id: 'deep-space',
+  label: 'Deep Space',
+  isDark: true,
+  variables: {
+    background: '240 29% 8%', // #0f0f1a
+    foreground: '215 28% 90%', // #e2e8f0
+    card: '240 20% 11%', // #17172a
+    'card-foreground': '215 28% 90%',
+    popover: '240 20% 11%',
+    'popover-foreground': '215 28% 90%',
+    primary: '258 90% 66%', // #8b5cf6
+    'primary-foreground': '0 0% 100%',
+    secondary: '258 20% 20%', // muted violet
+    'secondary-foreground': '258 40% 80%',
+    muted: '240 15% 14%', // #1e1e2e
+    'muted-foreground': '215 16% 47%', // #64748b
+    accent: '240 15% 17%', // #2a2a3d
+    'accent-foreground': '215 28% 90%',
+    destructive: '0 72% 51%',
+    'destructive-foreground': '0 0% 100%',
+    border: '240 12% 19%', // #2d2d3f
+    input: '240 12% 24%', // #383850
+    ring: '258 70% 58%', // slightly muted violet ring
+  },
+};
+
 /** All available themes */
-export const THEMES: ThemeDefinition[] = [classicLight, classicDark, zuhlkeLight, zuhlkeDark];
+export const THEMES: ThemeDefinition[] = [classicLight, classicDark, zuhlkeLight, zuhlkeDark, nordicLight, deepSpace];
 
 /** Look up a theme by its ID. Returns Classic Light as fallback. */
 export function getThemeById(id: string): ThemeDefinition {

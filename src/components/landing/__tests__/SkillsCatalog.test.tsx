@@ -16,12 +16,7 @@ vi.mock('@/lib/tauri-api-interface', () => ({
 
 import SkillsCatalog from '../SkillsCatalog';
 
-const makeSkill = (
-  id: string,
-  category: string,
-  installed = false,
-  needs_update = false,
-): SkillWithStatus => ({
+const makeSkill = (id: string, category: string, installed = false, needs_update = false): SkillWithStatus => ({
   meta: { id, name: id, description: `desc for ${id}`, category },
   status: { installed, needs_update },
 });
@@ -72,10 +67,7 @@ describe('SkillsCatalog', () => {
   });
 
   it('filters by search query', async () => {
-    mockListSkillsWithStatus.mockResolvedValue([
-      makeSkill('competitor-alternatives', 'General'),
-      makeSkill('copywriting', 'General'),
-    ]);
+    mockListSkillsWithStatus.mockResolvedValue([makeSkill('competitor-alternatives', 'General'), makeSkill('copywriting', 'General')]);
     render(<SkillsCatalog />);
     await waitFor(() => screen.getByText('competitor-alternatives'));
 
@@ -86,9 +78,7 @@ describe('SkillsCatalog', () => {
   });
 
   it('calls installSkill when Install button clicked', async () => {
-    mockListSkillsWithStatus.mockResolvedValue([
-      makeSkill('brainstorming', 'General'),
-    ]);
+    mockListSkillsWithStatus.mockResolvedValue([makeSkill('brainstorming', 'General')]);
     render(<SkillsCatalog />);
     await waitFor(() => screen.getByText('brainstorming'));
 
@@ -97,9 +87,7 @@ describe('SkillsCatalog', () => {
   });
 
   it('shows Installed badge for installed up-to-date skill', async () => {
-    mockListSkillsWithStatus.mockResolvedValue([
-      makeSkill('brainstorming', 'General', true, false),
-    ]);
+    mockListSkillsWithStatus.mockResolvedValue([makeSkill('brainstorming', 'General', true, false)]);
     render(<SkillsCatalog />);
     await waitFor(() => {
       expect(screen.getByText(/installed/i)).toBeInTheDocument();
@@ -107,9 +95,7 @@ describe('SkillsCatalog', () => {
   });
 
   it('shows Re-install button for outdated skill', async () => {
-    mockListSkillsWithStatus.mockResolvedValue([
-      makeSkill('brainstorming', 'General', true, true),
-    ]);
+    mockListSkillsWithStatus.mockResolvedValue([makeSkill('brainstorming', 'General', true, true)]);
     render(<SkillsCatalog />);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /re-install/i })).toBeInTheDocument();

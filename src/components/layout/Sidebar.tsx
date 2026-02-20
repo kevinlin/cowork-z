@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { FolderTree, Info, MessageSquare, MessageSquarePlus, Search, Settings } from 'lucide-react';
+import { FolderTree, MessageSquare, MessageSquarePlus, Search, Settings } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileTreePanel from '@/components/sidebar/FileTreePanel';
@@ -33,7 +33,7 @@ type SidebarTab = 'sessions' | 'files';
 
 export default function Sidebar() {
   const navigate = useNavigate();
-  const { tasks, loadTasks, updateTaskStatus, addTaskUpdate, openLauncher, setShowSettings, setShowAbout } = useTaskStore();
+  const { tasks, loadTasks, updateTaskStatus, addTaskUpdate, openLauncher, setShowSettings } = useTaskStore();
   const api = getTauriAPI();
   const currentTaskTodos = useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? EMPTY_TODOS);
   const hasTodos = currentTaskTodos.length > 0;
@@ -254,18 +254,9 @@ export default function Sidebar() {
             <img alt="Openwork" src={logoImage} style={{ height: '20px', paddingLeft: '6px' }} />
           </div>
 
-          {/* Feedback, About & Settings - Bottom Right */}
+          {/* Feedback & Settings - Bottom Right */}
           <div className="flex items-center gap-1">
             <FeedbackButton />
-            <Button
-              data-testid="sidebar-about-button"
-              onClick={() => setShowAbout(true)}
-              size="icon"
-              title="About Cowork-Z"
-              variant="ghost"
-            >
-              <Info className="h-4 w-4" />
-            </Button>
             <Button
               data-testid="sidebar-settings-button"
               onClick={() => {

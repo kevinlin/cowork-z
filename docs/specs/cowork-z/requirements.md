@@ -52,6 +52,7 @@ The following implementation plans document how specific requirements were desig
 |------|----------|--------------|
 | Theme Support | [`app-ux/plan_theme-support.md`](../app-ux/plan_theme-support.md) | 4.2 |
 | Keyboard Shortcuts | [`app-ux/plan_keyboard-shortcuts.md`](../app-ux/plan_keyboard-shortcuts.md) | 4.3.1, 4.3.2 |
+| Keyboard Shortcuts Help Modal | [`app-ux/plan_keyboard-shortcuts-help-modal.md`](../app-ux/plan_keyboard-shortcuts-help-modal.md) | 4.3.3 |
 | About Panel | [`app-ux/plan_about_panel.md`](../app-ux/plan_about_panel.md) | 4.4 |
 | User Feedback | [`app-ux/plan_user-feedback.md`](../app-ux/plan_user-feedback.md) | 4.5 |
 | Todo Panel in Sidebar | [`app-ux/plan_todo-panel-in-sidebard.md`](../app-ux/plan_todo-panel-in-sidebard.md) | 3.3 |
@@ -417,6 +418,15 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
    - `Cmd+Enter` / `Ctrl+Enter` — Send message
    - `Escape` — Cancel running task
 2. WHERE the input field is focused, THE SYSTEM SHALL not intercept shortcuts that conflict with standard text editing (`Cmd+A`, `Cmd+C`, etc.)
+
+##### 4.3.3 Keyboard Shortcuts Help ✅
+
+> **Plan:** [Keyboard Shortcuts Help Modal](../app-ux/plan_keyboard-shortcuts-help-modal.md)
+
+1. THE SYSTEM SHALL display a modal dialog listing all keyboard shortcuts, grouped by category (App, Chat)
+2. THE SYSTEM SHALL trigger the modal via `Shift+?` keyboard shortcut or Help > Keyboard Shortcuts menu item
+3. THE SYSTEM SHALL dismiss the modal when the user presses Escape or clicks outside
+4. THE SYSTEM SHALL display platform-appropriate modifier keys (⌘ on macOS, Ctrl on Windows/Linux)
 
 #### 4.4 About Panel ✅
 

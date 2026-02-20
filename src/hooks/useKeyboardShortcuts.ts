@@ -4,6 +4,13 @@ interface ShortcutActions {
   openSettings: () => void;
   newTask: () => void;
   openLauncher: () => void;
+  openKeyboardShortcuts: () => void;
+}
+
+function isEditableTarget(e: KeyboardEvent): boolean {
+  const tag = (e.target as HTMLElement)?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+  return (e.target as HTMLElement)?.isContentEditable === true;
 }
 
 /**
@@ -13,6 +20,7 @@ interface ShortcutActions {
  * - Cmd+, / Ctrl+, — Open settings
  * - Cmd+N / Ctrl+N — New task
  * - Cmd+K / Ctrl+K — Open task launcher
+ * - Shift+? — Open keyboard shortcuts help
  *
  * Platform modifier is handled automatically (metaKey on macOS, ctrlKey on Windows/Linux).
  */
@@ -21,11 +29,19 @@ export function useKeyboardShortcuts(actions: ShortcutActions) {
   const stableActions = useMemo(
     () => actions,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [actions.openSettings, actions.newTask, actions.openLauncher]
+    [actions.openSettings, actions.newTask, actions.openLauncher, actions.openKeyboardShortcuts]
   );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Shift+? (no Cmd/Ctrl required) — must come before the mod guard
+      if (e.key === '?' && e.shiftKey && !e.metaKey && !e.ctrlKey) {
+        if (isEditableTarget(e)) return;
+        e.preventDefault();
+        stableActions.openKeyboardShortcuts();
+        return;
+      }
+
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
 

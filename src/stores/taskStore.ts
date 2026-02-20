@@ -83,6 +83,10 @@ interface TaskState {
   showAbout: boolean;
   setShowAbout: (show: boolean) => void;
 
+  // Keyboard shortcuts dialog
+  showKeyboardShortcuts: boolean;
+  setShowKeyboardShortcuts: (show: boolean) => void;
+
   // OpenCode CLI missing dialog
   showCliMissing: boolean;
   setShowCliMissing: (show: boolean) => void;
@@ -355,6 +359,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   setShowSettings: (show: boolean) => set({ showSettings: show }),
   showAbout: false,
   setShowAbout: (show: boolean) => set({ showAbout: show }),
+  showKeyboardShortcuts: false,
+  setShowKeyboardShortcuts: (show: boolean) => set({ showKeyboardShortcuts: show }),
   showCliMissing: false,
   setShowCliMissing: (show: boolean) => set({ showCliMissing: show }),
   isLauncherOpen: false,
@@ -1144,6 +1150,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       startupStageTaskId: null,
       showSettings: false,
       showAbout: false,
+      showKeyboardShortcuts: false,
       showCliMissing: false,
       isLauncherOpen: false,
       folderPermissions: [],

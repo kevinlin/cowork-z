@@ -8,6 +8,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { Toaster } from 'sonner';
 import { FilePreviewPanel } from './components/file-preview';
 import AboutDialog from './components/layout/AboutDialog';
+import KeyboardShortcutsDialog from './components/layout/KeyboardShortcutsDialog';
 import OpenCodeCliMissingDialog from './components/layout/OpenCodeCliMissingDialog';
 import SettingsDialog from './components/layout/SettingsDialog';
 // Components
@@ -37,7 +38,17 @@ export default function App() {
   const navigate = useNavigate();
 
   // Get store actions
-  const { openLauncher, showSettings, setShowSettings, showAbout, setShowAbout, showCliMissing, setShowCliMissing } = useTaskStore();
+  const {
+    openLauncher,
+    showSettings,
+    setShowSettings,
+    showAbout,
+    setShowAbout,
+    showKeyboardShortcuts,
+    setShowKeyboardShortcuts,
+    showCliMissing,
+    setShowCliMissing,
+  } = useTaskStore();
 
   // File preview state
   const { selectedFile, isPreviewOpen, closePreview } = useFilePreviewStore();
@@ -105,6 +116,19 @@ export default function App() {
     };
   }, [setShowAbout]);
 
+  // Listen for native "show-keyboard-shortcuts" menu event from Rust
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen('show-keyboard-shortcuts', () => {
+      setShowKeyboardShortcuts(true);
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      unlisten?.();
+    };
+  }, [setShowKeyboardShortcuts]);
+
   // Track page views on route changes
   useEffect(() => {
     analytics.trackPageView(location.pathname);
@@ -121,10 +145,15 @@ export default function App() {
     navigate('/');
   }, [navigate]);
 
+  const handleOpenKeyboardShortcuts = useCallback(() => {
+    setShowKeyboardShortcuts(true);
+  }, [setShowKeyboardShortcuts]);
+
   useKeyboardShortcuts({
     openSettings: handleOpenSettings,
     newTask: handleNewTask,
     openLauncher,
+    openKeyboardShortcuts: handleOpenKeyboardShortcuts,
   });
 
   useEffect(() => {
@@ -243,6 +272,7 @@ export default function App() {
       <Toaster position="bottom-right" theme={getThemeById(themeId).isDark ? 'dark' : 'light'} />
       <SettingsDialog onOpenChange={setShowSettings} onSwitchTheme={switchTheme} open={showSettings} themeId={themeId} />
       <AboutDialog onOpenChange={setShowAbout} open={showAbout} />
+      <KeyboardShortcutsDialog onOpenChange={setShowKeyboardShortcuts} open={showKeyboardShortcuts} />
       <OpenCodeCliMissingDialog onOpenChange={setShowCliMissing} open={showCliMissing} />
       <UpdateDialog
         error={appUpdate.error}

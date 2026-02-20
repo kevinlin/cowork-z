@@ -96,12 +96,17 @@ pub fn run() {
                 .id("show-about")
                 .build(app)?;
 
+            let keyboard_shortcuts_item = MenuItemBuilder::new("Keyboard Shortcuts")
+                .id("show-keyboard-shortcuts")
+                .build(app)?;
+
             let check_updates_item = MenuItemBuilder::new("Check for Updates…")
                 .id("check-for-updates")
                 .build(app)?;
 
             let help_menu = SubmenuBuilder::new(app, "Help")
                 .item(&show_about_item)
+                .item(&keyboard_shortcuts_item)
                 .separator()
                 .item(&check_updates_item)
                 .build()?;
@@ -116,6 +121,9 @@ pub fn run() {
                 match event.id().0.as_str() {
                     "show-about" => {
                         let _ = app_handle.emit("show-about", ());
+                    }
+                    "show-keyboard-shortcuts" => {
+                        let _ = app_handle.emit("show-keyboard-shortcuts", ());
                     }
                     "check-for-updates" => {
                         let _ = app_handle.emit("check-for-updates", ());

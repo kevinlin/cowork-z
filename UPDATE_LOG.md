@@ -2,7 +2,8 @@
 
 ## v0.5.5
 
-- 
+- **4.3.3 Keyboard Shortcuts Help** — Added a help modal (`Shift+?` or Help > Keyboard Shortcuts) that lists all app and chat keyboard shortcuts grouped by category with platform-appropriate modifier keys
+
 
 ## v0.5.4
 

@@ -504,6 +504,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 1. THE SYSTEM SHALL bind the OpenCode server to a random available port on `127.0.0.1` instead of a fixed port
 2. THE SYSTEM SHALL generate a random password on each app launch and set it via `OPENCODE_SERVER_PASSWORD` environment variable
 3. THE SYSTEM SHALL configure the sidecar to authenticate with the OpenCode server using HTTP basic auth (`opencode` username + generated password)
+4. ON WINDOWS, THE SYSTEM SHALL query excluded/reserved port ranges (Hyper-V / WinNAT via `netsh interface ipv4 show excludedportrange protocol=tcp`) and retry port selection if the OS-assigned ephemeral port falls within a reserved range
 
 ##### 5.2.2 Database Protection (Planned)
 1. THE SYSTEM SHALL offer an option to encrypt the SQLite database at rest

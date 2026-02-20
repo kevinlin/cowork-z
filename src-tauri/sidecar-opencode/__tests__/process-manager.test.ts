@@ -372,13 +372,16 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
       process.env.PATH = 'C:\\Windows\\System32;C:\\Windows';
       mockExistsSync.mockReturnValue(true);
 
-      const { ProcessManager } = await import('../src/process-manager');
+      const { ProcessManager, _resetExcludedRangesCache } = await import('../src/process-manager');
+      _resetExcludedRangesCache();
       const pm = new ProcessManager({ cliPath: 'opencode', password: 'test' });
 
       await pm.ensureServerRunning();
 
-      // Should NOT call execFileSync on Windows
-      expect(mockExecFileSync).not.toHaveBeenCalled();
+      // Should NOT call execFileSync with a login shell on Windows.
+      // It IS expected to call execFileSync with 'netsh' for excluded port range detection.
+      const shellCalls = mockExecFileSync.mock.calls.filter((call: unknown[]) => call[0] !== 'netsh');
+      expect(shellCalls).toHaveLength(0);
     });
   });
 

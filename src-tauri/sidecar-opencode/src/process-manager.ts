@@ -213,23 +213,97 @@ function getAugmentedPath(): string {
 }
 
 /**
+ * Parse the output of `netsh interface ipv4 show excludedportrange protocol=tcp`
+ * into an array of [start, end] tuples.
+ *
+ * Example netsh output lines:
+ *   "    50331    50430      *"
+ *   "    55498    55597      *  administratively prohibited"
+ */
+function parseExcludedPortRanges(output: string): [number, number][] {
+  const ranges: [number, number][] = [];
+  for (const line of output.split('\n')) {
+    const match = line.match(/^\s+(\d+)\s+(\d+)\s/);
+    if (match) {
+      ranges.push([Number(match[1]), Number(match[2])]);
+    }
+  }
+  return ranges;
+}
+
+/**
+ * On Windows, Hyper-V / WinNAT can reserve ephemeral port ranges that look
+ * available to the OS but fail with access errors when actually used.
+ * Returns the excluded ranges (cached for the process lifetime).
+ */
+let _excludedRangesCache: [number, number][] | null = null;
+
+function getWindowsExcludedPortRanges(): [number, number][] {
+  if (_excludedRangesCache !== null) return _excludedRangesCache;
+  try {
+    const output = execFileSync('netsh', ['interface', 'ipv4', 'show', 'excludedportrange', 'protocol=tcp'], {
+      timeout: 5000,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    _excludedRangesCache = parseExcludedPortRanges(output);
+    if (_excludedRangesCache.length > 0) {
+      logger.debug('Windows excluded port ranges', { ranges: _excludedRangesCache });
+    }
+  } catch {
+    logger.debug('Failed to query Windows excluded port ranges, skipping check');
+    _excludedRangesCache = [];
+  }
+  return _excludedRangesCache;
+}
+
+function isPortInExcludedRange(port: number, ranges: [number, number][]): boolean {
+  return ranges.some(([start, end]) => port >= start && port <= end);
+}
+
+/** Exported for testing — reset the cached excluded-port-range list. */
+export function _resetExcludedRangesCache(): void {
+  _excludedRangesCache = null;
+}
+
+/**
  * Find a random available port by binding to port 0 on 127.0.0.1.
  * The OS assigns an ephemeral port, which is returned after the temporary server is closed.
+ *
+ * On Windows, the port is checked against Hyper-V / WinNAT excluded port ranges
+ * (queried via `netsh`) and retried if it falls within a reserved range.
  */
-export function getAvailablePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.listen(0, '127.0.0.1', () => {
-      const addr = server.address();
-      if (addr && typeof addr !== 'string') {
-        const port = addr.port;
-        server.close(() => resolve(port));
-      } else {
-        server.close(() => reject(new Error('Failed to get available port')));
-      }
+export function getAvailablePort(maxRetries = 10): Promise<number> {
+  const isWindows = process.platform === 'win32';
+  const excludedRanges = isWindows ? getWindowsExcludedPortRanges() : [];
+
+  const tryBind = (attemptsLeft: number): Promise<number> =>
+    new Promise((resolve, reject) => {
+      const server = net.createServer();
+      server.listen(0, '127.0.0.1', () => {
+        const addr = server.address();
+        if (addr && typeof addr !== 'string') {
+          const port = addr.port;
+          server.close(() => {
+            if (isWindows && isPortInExcludedRange(port, excludedRanges)) {
+              logger.debug(`Port ${port} falls in a Windows excluded range, retrying (${attemptsLeft - 1} left)`);
+              if (attemptsLeft <= 1) {
+                reject(new Error(`All ${maxRetries} port attempts fell in Windows excluded ranges`));
+              } else {
+                resolve(tryBind(attemptsLeft - 1));
+              }
+            } else {
+              resolve(port);
+            }
+          });
+        } else {
+          server.close(() => reject(new Error('Failed to get available port')));
+        }
+      });
+      server.on('error', reject);
     });
-    server.on('error', reject);
-  });
+
+  return tryBind(maxRetries);
 }
 
 /**

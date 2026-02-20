@@ -1,5 +1,4 @@
 // Google Analytics tracking utilities
-// GA Measurement ID: G-RQWHYJ5NEG
 
 declare global {
   interface Window {
@@ -8,7 +7,7 @@ declare global {
   }
 }
 
-const GA_MEASUREMENT_ID = 'G-RQWHYJ5NEG';
+const GA_MEASUREMENT_ID = 'G-HGZ4QQSVPF';
 
 /**
  * Track a page view

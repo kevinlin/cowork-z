@@ -306,6 +306,16 @@ pub fn skills_install(app: AppHandle, skill_id: String) -> Result<(), String> {
     install_skill(&app, &skill_id)
 }
 
+#[tauri::command]
+pub fn skills_get_template_path(app: AppHandle, skill_id: String) -> Result<String, String> {
+    let templates_dir = resolve_templates_dir(&app)?;
+    let skill_md = templates_dir.join(&skill_id).join("SKILL.md");
+    if !skill_md.exists() {
+        return Err(format!("SKILL.md not found for '{}'", skill_id));
+    }
+    Ok(skill_md.to_string_lossy().to_string())
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

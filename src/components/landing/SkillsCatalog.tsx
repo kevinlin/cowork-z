@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { SkillWithStatus } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
+import { useFilePreviewStore } from '@/stores/filePreviewStore';
 import { useSkillsStore } from '@/stores/skillsStore';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -50,6 +51,15 @@ export default function SkillsCatalog() {
       return matchCategory && matchQuery;
     })
     .sort((a, b) => a.meta.name.localeCompare(b.meta.name));
+
+  const handleView = async (skillId: string) => {
+    try {
+      const path = await api.getSkillTemplatePath(skillId);
+      useFilePreviewStore.getState().openPreviewByPath(path);
+    } catch (e) {
+      toast.error('Failed to open skill preview', { description: String(e) });
+    }
+  };
 
   const handleInstall = async (skillId: string) => {
     setInstallingId(skillId);
@@ -128,12 +138,19 @@ export default function SkillsCatalog() {
                   <SkillButton installing={installingId === s.meta.id} onInstall={() => handleInstall(s.meta.id)} status={s.status} />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex items-center justify-between">
                   <span
                     className={`rounded-full px-2 py-0.5 font-medium text-xs ${CATEGORY_COLORS[s.meta.category] ?? 'bg-muted text-muted-foreground'}`}
                   >
                     {s.meta.category}
                   </span>
+                  <button
+                    className="text-muted-foreground text-xs hover:text-foreground"
+                    onClick={() => handleView(s.meta.id)}
+                    type="button"
+                  >
+                    View
+                  </button>
                 </div>
 
                 {errors[s.meta.id] && <p className="text-destructive text-xs">{errors[s.meta.id]}</p>}

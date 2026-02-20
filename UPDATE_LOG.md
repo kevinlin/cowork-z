@@ -5,7 +5,7 @@
 - **4.3.3 Keyboard Shortcuts Help** — Added a help modal (`Shift+?` or Help > Keyboard Shortcuts) that lists all app and chat keyboard shortcuts grouped by category with platform-appropriate modifier keys
 - **Agent system prompt improvement** — Replaced rigid Plan/Execution text-based planning format with tool-driven workflow
 - **Remove message-utils** — Removed `extractUserFacingContent` utility and its tests; assistant messages now display full content without stripping Plan/Execution sections (no longer needed after system prompt change)
-
+- **8.2.5 View Skill** — Added "View" button to skill cards in the Skills Catalog that opens the skill's SKILL.md in the in-app file preview panel, letting users read the full skill definition before installing
 
 ## v0.5.4
 

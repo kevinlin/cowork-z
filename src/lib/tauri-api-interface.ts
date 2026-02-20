@@ -292,6 +292,7 @@ export interface TauriAPI {
   // Skills
   listSkillsWithStatus(): Promise<SkillWithStatus[]>;
   installSkill(skillId: string): Promise<void>;
+  getSkillTemplatePath(skillId: string): Promise<string>;
 }
 
 const toSyncUnlisten = (promise: Promise<() => void>) => {

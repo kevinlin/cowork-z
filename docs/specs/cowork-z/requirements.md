@@ -78,6 +78,7 @@ The following implementation plans document how specific requirements were desig
 | Plan | Location | Requirements |
 |------|----------|--------------|
 | Skills Catalog | [`skills-catalog/plan.md`](../skills-catalog/plan.md) | 8.1–8.2 |
+| View Skill | [`skills-catalog/plan_view-skill.md`](../skills-catalog/plan_view-skill.md) | 8.2.5 |
 
 ---
 
@@ -767,6 +768,14 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 ##### 8.2.4 Error Handling
 1. WHERE skill installation fails, THE SYSTEM SHALL display the error message inline on the affected skill card
 2. WHERE the skills catalog fails to load, THE SYSTEM SHALL display a "Failed to load skills" message
+
+##### 8.2.5 Skill Preview ✅
+
+> **Plan:** [View Skill](../skills-catalog/plan_view-skill.md)
+
+1. THE SYSTEM SHALL display a "View" link on each skill card in the Skills Catalog
+2. WHEN the user clicks "View", THE SYSTEM SHALL resolve the bundled skill template's `SKILL.md` path via a backend command and open it in the in-app file preview panel (see 6.4)
+3. THE SYSTEM SHALL display an error toast if the skill template path cannot be resolved
 
 ---
 

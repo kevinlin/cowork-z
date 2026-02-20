@@ -244,6 +244,7 @@ pub fn run() {
             // Skills
             commands::skills::skills_list_with_status,
             commands::skills::skills_install,
+            commands::skills::skills_get_template_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

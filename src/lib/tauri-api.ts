@@ -1232,6 +1232,10 @@ export async function installSkill(skillId: string): Promise<void> {
   return invoke<void>('skills_install', { skillId });
 }
 
+export async function getSkillTemplatePath(skillId: string): Promise<string> {
+  return invoke<string>('skills_get_template_path', { skillId });
+}
+
 // ============================================================================
 // Compatibility Helpers
 // ============================================================================
@@ -1433,5 +1437,6 @@ export function getTauriApi() {
     // Skills
     listSkillsWithStatus,
     installSkill,
+    getSkillTemplatePath,
   };
 }

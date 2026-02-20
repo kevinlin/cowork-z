@@ -770,8 +770,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ---
 
-## Outstanding Feature TODO
+## TODO Features
 
-The following items remain to be implemented:
-
+- [ ] **Skills Manager** - A new page that let user to browse, search and install/skills from a number of registered source repos
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

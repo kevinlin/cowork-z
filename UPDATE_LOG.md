@@ -2,7 +2,7 @@
 
 ## v0.5.6
 
-- **Fix for Windows** - Add About button to sidebar for discoverability
+- **Fix About menu on Windows** - Add About button to sidebar for discoverability
 - **Simplified Chinese README** — Added `README.zh-CN.md` with a full Simplified Chinese translation of the README; added language switcher links between the English and Chinese versions
 - **5.2.1 Windows excluded port range avoidance** — `getAvailablePort()` now queries Windows excluded/reserved port ranges (Hyper-V / WinNAT) via `netsh` and retries if the OS-assigned ephemeral port falls within a reserved range, preventing silent bind failures on Windows
 

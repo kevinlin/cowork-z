@@ -71,8 +71,20 @@ pub fn run() {
             }
 
             // Build native menu bar
+            let show_about_item = MenuItemBuilder::new("About Cowork-Z")
+                .id("show-about")
+                .build(app)?;
+
+            let keyboard_shortcuts_item = MenuItemBuilder::new("Keyboard Shortcuts")
+                .id("show-keyboard-shortcuts")
+                .build(app)?;
+
+            let check_updates_item = MenuItemBuilder::new("Check for Updates…")
+                .id("check-for-updates")
+                .build(app)?;
+
             let app_menu = SubmenuBuilder::new(app, "Cowork-Z")
-                .about(None)
+                .item(&show_about_item)
                 .separator()
                 .quit()
                 .build()?;
@@ -92,20 +104,7 @@ pub fn run() {
                 .item(&PredefinedMenuItem::close_window(app, None)?)
                 .build()?;
 
-            let show_about_item = MenuItemBuilder::new("About Cowork-Z")
-                .id("show-about")
-                .build(app)?;
-
-            let keyboard_shortcuts_item = MenuItemBuilder::new("Keyboard Shortcuts")
-                .id("show-keyboard-shortcuts")
-                .build(app)?;
-
-            let check_updates_item = MenuItemBuilder::new("Check for Updates…")
-                .id("check-for-updates")
-                .build(app)?;
-
             let help_menu = SubmenuBuilder::new(app, "Help")
-                .item(&show_about_item)
                 .item(&keyboard_shortcuts_item)
                 .separator()
                 .item(&check_updates_item)

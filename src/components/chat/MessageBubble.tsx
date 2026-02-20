@@ -10,7 +10,6 @@ import { StreamingText } from '@/components/ui/streaming-text';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { springs } from '@/lib/animations';
 import { enrichContentWithLinks, extractMediaPaths } from '@/lib/content-enrichment';
-import { extractUserFacingContent } from '@/lib/message-utils';
 import { cn } from '@/lib/utils';
 import type { TaskMessage } from '@/shared';
 import { ToolCallCard } from './ToolCallCard';
@@ -50,12 +49,7 @@ export const MessageBubble = memo(
     const isSystem = message.type === 'system';
     const isAssistant = message.type === 'assistant';
 
-    const displayContent = useMemo(() => {
-      if (isAssistant) {
-        return extractUserFacingContent(message.content);
-      }
-      return message.content;
-    }, [isAssistant, message.content]);
+    const displayContent = message.content;
 
     const markdownComponents = useMemo(() => createMarkdownComponents(), []);
 

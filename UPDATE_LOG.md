@@ -3,6 +3,8 @@
 ## v0.5.5
 
 - **4.3.3 Keyboard Shortcuts Help** — Added a help modal (`Shift+?` or Help > Keyboard Shortcuts) that lists all app and chat keyboard shortcuts grouped by category with platform-appropriate modifier keys
+- **Agent system prompt improvement** — Replaced rigid Plan/Execution text-based planning format with tool-driven workflow
+- **Remove message-utils** — Removed `extractUserFacingContent` utility and its tests; assistant messages now display full content without stripping Plan/Execution sections (no longer needed after system prompt change)
 
 
 ## v0.5.4

@@ -18,6 +18,8 @@
   <img src="assets/ScreenRecording_LocatePhotos.gif" alt="Cowork-Z — AI agent locating and organizing photos locally" width="800" />
 </p>
 
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/<your_bmac_username>)
+
 ---
 
 ## Why Cowork-Z?

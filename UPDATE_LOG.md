@@ -2,7 +2,9 @@
 
 ## v0.5.6
 
-- 
+- **Fix for Windows** - Add About button to sidebar for discoverability
+- **Simplified Chinese README** — Added `README.zh-CN.md` with a full Simplified Chinese translation of the README; added language switcher links between the English and Chinese versions
+
 
 ## v0.5.5
 

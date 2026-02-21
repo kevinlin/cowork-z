@@ -1,3 +1,5 @@
+![Cowork-Z](src-tauri/icons/128x128.png)
+
 # UPDATE LOG
 
 ## v0.5.8

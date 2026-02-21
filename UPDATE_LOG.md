@@ -1,5 +1,9 @@
 # UPDATE LOG
 
+## v0.5.8
+
+- 
+
 ## v0.5.7 (2026-02-21)
 
 - **8.3 Skills Manager** — Dedicated native Tauri window for managing Git-based skill repositories; register repos with optional auth tokens, browse discovered skills across repos, install/update/delete skills to OpenCode/Claude/Agents skill directories

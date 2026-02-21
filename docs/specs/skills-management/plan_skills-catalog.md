@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust (sha2 crate for SHA256), Tauri 2 commands, React 19, TypeScript, Zustand (no new state — local component state only), Vitest + Testing Library.
 
-**Design doc:** `docs/specs/skills-catalog/design.md`
+**Design doc:** `docs/specs/_skills-management/design_skills-catalog.md`
 
 ---
 
@@ -324,7 +324,7 @@ git commit -m "docs: mark Skills Catalog requirement complete, update log"
 
 **Files modified:**
 - `src/components/landing/SkillsCatalog.tsx` — Added `CATEGORY_COLORS` constant mapping each category to Tailwind color classes (light + dark mode). Rendered a `rounded-full` badge pill beneath each skill card's name/description row showing the skill's category in its assigned color.
-- `docs/specs/skills-catalog/design.md` — Documented the category color tagging feature inline: color mapping table, badge rendering details, fallback behavior, and updated wireframe.
+- `docs/specs/skills-management/design_skills-catalog.md` — Documented the category color tagging feature inline: color mapping table, badge rendering details, fallback behavior, and updated wireframe.
 
 **Category → Color mapping:**
 

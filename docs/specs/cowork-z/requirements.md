@@ -73,12 +73,13 @@ The following implementation plans document how specific requirements were desig
 |------|----------|--------------|
 | Workspace Starter Packs | [`workspace-packs/plan.md`](../workspace-packs/plan.md) | 7.1–7.3 |
 
-### skills-catalog — Skills Catalog
+### skills-management — Skills Management
 
 | Plan | Location | Requirements |
 |------|----------|--------------|
-| Skills Catalog | [`skills-catalog/plan.md`](../skills-catalog/plan.md) | 8.1–8.2 |
-| View Skill | [`skills-catalog/plan_view-skill.md`](../skills-catalog/plan_view-skill.md) | 8.2.5 |
+| Skills Catalog | [`skills-management/plan_skills-catalog.md`](../skills-management/plan_skills-catalog.md) | 8.1–8.2 |
+| View Skill | [`skills-management/plan_view-skill.md`](../skills-management/plan_view-skill.md) | 8.2.5 |
+| Skills Manager | [`skills-management/plan_skills-manager.md`](../skills-management/plan_skills-manager.md) | 8.3 |
 
 ---
 
@@ -718,12 +719,12 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ---
 
-### 8. Starter Skills ✅
+### 8. Skills Management
 
-> **Design:** [Skills Catalog Design](../skills-catalog/design.md)
-> **Plan:** [Skills Catalog Plan](../skills-catalog/plan.md)
+> **Design:** [Skills Catalog Design](../skills-management/design_skills-catalog.md)
+> **Plan:** [Skills Catalog Plan](../skills-management/plan_skills-catalog.md)
 
-**User Story:** As a user, I want to browse and install bundled AI skill templates from the Home screen, so that I can quickly add reusable skills to my OpenCode global skills directory without manual file management.
+**User Story:** As a user, I want to browse and install bundled AI skill templates from the Home screen, and manage skills from remote Git repositories in a dedicated Skills Manager, so that I can quickly discover, install, update, and organize reusable AI skills.
 
 #### 8.1 Skills Catalog ✅
 
@@ -778,10 +779,80 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. WHEN the user clicks "View", THE SYSTEM SHALL resolve the bundled skill template's `SKILL.md` path via a backend command and open it in the in-app file preview panel (see 6.4)
 3. THE SYSTEM SHALL display an error toast if the skill template path cannot be resolved
 
+#### 8.3 Skills Manager
+
+**User Story:** As a user, I want a dedicated Skills Manager window where I can register Git repositories as skill sources, browse and install skills from them, and manage all my installed skills across multiple global skill directories.
+
+##### 8.3.1 Skills Manager Window
+
+1. THE SYSTEM SHALL open the Skills Manager as a separate native Tauri window with label `skills`, loading route `/#/skills`
+2. THE SYSTEM SHALL enforce single-instance behavior: if the Skills Manager window is already open, focus it instead of creating a duplicate
+3. THE SYSTEM SHALL provide a "Skills Manager" entry point in the main window sidebar and/or Help menu to open the window
+4. THE SYSTEM SHALL size the Skills Manager window at 1100×750 pixels by default
+5. THE SYSTEM SHALL use the Rust backend as the source of truth for all skill and repo data; each window subscribes to `skills:changed` Tauri events to stay in sync
+6. THE SYSTEM SHALL configure per-window Tauri capabilities granting the Skills Manager window `shell:allow-execute` permission for Git operations
+
+##### 8.3.2 Source Repo Management
+
+1. THE SYSTEM SHALL allow users to register Git repository URLs (HTTPS or SSH) as skill sources
+2. WHEN a repo is added, THE SYSTEM SHALL perform a shallow clone (`git clone --depth 1`) into a cache directory at `{app_data_dir}/skill-repo-cache/{repo-id}/`
+3. THE SYSTEM SHALL persist repo metadata (URL, branch, last synced timestamp, last sync error) in a `skill_repos` database table
+4. WHERE a repo requires authentication, THE SYSTEM SHALL accept an optional personal access token stored in the OS keychain
+5. THE SYSTEM SHALL allow users to remove a registered repo, deleting its cache directory and associated records
+6. THE SYSTEM SHALL expose Tauri commands: `skill_repos_list`, `skill_repos_add`, `skill_repos_remove`, `skill_repos_sync`, `skill_repos_sync_all`
+
+##### 8.3.3 Skill Discovery
+
+1. WHEN a repo is cloned or updated, THE SYSTEM SHALL scan it for directories containing a `SKILL.md` file and parse each file's YAML frontmatter (`name`, `description`)
+2. WHERE a `skills.json` manifest exists at the repo root, THE SYSTEM SHALL use it to discover skills and their metadata (path, name, description, category), taking precedence over scan results
+3. THE SYSTEM SHALL persist discovered skills in a `repo_skills` table keyed by `(repo_id, skill_path)`
+4. THE SYSTEM SHALL derive skill categories from directory path structure, reusing the existing `derive_category()` prefix logic
+5. FOR the `anthropics/knowledge-work-plugins` repository, THE SYSTEM SHALL apply repo-specific parsing logic (category directory mapping, skills-vs-commands distinction, category prefix on skill IDs) consistent with `scripts/sync-skills.mjs`
+
+##### 8.3.4 Sync Lifecycle
+
+1. WHEN the application launches, THE SYSTEM SHALL trigger a non-blocking background sync of all registered repos (`git pull` in each cached clone)
+2. THE SYSTEM SHALL emit `skills:sync_progress` Tauri events as each repo sync completes, including success/error status
+3. THE SYSTEM SHALL provide a manual "Sync" button in the Skills Manager to trigger an immediate sync of a single repo or all repos
+4. WHERE a sync fails (network error, auth failure, invalid repo), THE SYSTEM SHALL display the error message on the affected repo and continue syncing remaining repos
+5. AFTER each successful sync, THE SYSTEM SHALL re-scan the repo for skills and emit a `skills:changed` event
+
+##### 8.3.5 Skill Installation from Repos
+
+1. THE SYSTEM SHALL provide a folder switcher to select the target installation directory from: `~/.config/opencode/skills/` (default), `~/.claude/skills/`, `~/.agents/skills/`
+2. WHEN the user clicks Install on a repo skill card, THE SYSTEM SHALL recursively copy the skill directory from the repo cache to `{target_folder}/{skill_id}/`
+3. AFTER installation, THE SYSTEM SHALL write a `.coworkz-checksum` file (SHA256 hash) and a `.coworkz-source` file (JSON with `repo_id`, `repo_url`, `skill_path`, `installed_at`) for update tracking
+4. WHERE an installed skill's checksum differs from the current repo cache version, THE SYSTEM SHALL display an "Update" button on the skill card
+5. THE SYSTEM SHALL allow updating an installed skill by re-copying from the repo cache and rewriting the checksum
+
+##### 8.3.6 Installed Skills Management
+
+1. THE SYSTEM SHALL display all skills found in the selected global skills folder, regardless of installation source (bundled, repo, or manually placed)
+2. THE SYSTEM SHALL allow users to view the content of any installed skill (opens `SKILL.md` in the preview pane)
+3. THE SYSTEM SHALL allow users to delete an installed skill with a confirmation dialog
+4. WHERE a `.coworkz-source` file exists, THE SYSTEM SHALL display the source repo name as a badge on the skill card
+
+##### 8.3.7 Skills Manager UI Layout
+
+1. THE SYSTEM SHALL use a three-panel layout: left sidebar (file tree), center panel (skills grid), right panel (file preview)
+2. THE LEFT SIDEBAR SHALL display an adjustable-width file tree of the selected global skills folder, with a folder switcher dropdown at the top
+3. WHEN the user clicks a file in the left sidebar tree, THE SYSTEM SHALL open it in the right file preview pane
+4. THE CENTER PANEL SHALL display a header toolbar with: repo selector dropdown (filter by repo or "All"), "Add Repo" button, "Sync" button, and last-synced timestamp
+5. THE CENTER PANEL SHALL display a search bar and a 2-column card grid of remote repo skills, matching the visual design of the existing `SkillsCatalog` component (8.2)
+6. THE CENTER PANEL SHALL display category tabs for filtering skills, consistent with the existing Skills Catalog design
+7. THE RIGHT PANEL SHALL reuse the `FilePreviewPanel` implementation with the "Add to Chat" button hidden
+8. THE RIGHT PANEL SHALL be closable via X button and Escape key
+9. THE SYSTEM SHALL display a status bar at the bottom showing repo count, total skill count, and sync status
+
+##### 8.3.8 Error Handling
+
+1. WHERE the `git` CLI cannot be found on PATH, THE SYSTEM SHALL display an error message in the Skills Manager indicating that Git is required for repo-based skill management
+2. WHERE a repo clone or sync fails, THE SYSTEM SHALL display the error inline on the affected repo entry without blocking other operations
+3. WHERE skill installation or deletion fails, THE SYSTEM SHALL display the error inline on the affected skill card
+
 ---
 
 ## TODO Features
 
-- [ ] **Skills Manager** - A new app that allows user to browse, search and install/skills from registered public skill repos
-- [ ] **Copilot provider Support** - Suppoert GitHub Copilot enterprise as a provider
+- [ ] **Copilot Provider Support** — Support GitHub Copilot enterprise as a provider
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

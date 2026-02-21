@@ -76,7 +76,7 @@ export default function SkillsManagerPage() {
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     },
-    [sidebarWidth],
+    [sidebarWidth]
   );
 
   const handlePreviewResizeStart = useCallback(
@@ -106,7 +106,7 @@ export default function SkillsManagerPage() {
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     },
-    [previewWidth],
+    [previewWidth]
   );
 
   return (

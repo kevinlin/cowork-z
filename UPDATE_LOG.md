@@ -1,25 +1,24 @@
 # UPDATE LOG
 
-## v0.5.7
+## v0.5.7 (2026-02-21)
 
-- 
+- **8.3 Skills Manager** — Dedicated native Tauri window for managing Git-based skill repositories; register repos with optional auth tokens, browse discovered skills across repos, install/update/delete skills to OpenCode/Claude/Agents skill directories
+- **Fix Windows server startup timeout** — Fixed "OpenCode server failed to start after 15000ms" on Windows by adding `shell: true` to the `opencode serve` spawn call so `.cmd` shims are resolved correctly; added spawn error fail-fast and diagnostic logging to `waitForServer()` so failures report the actual cause instead of a generic timeout
 
-## v0.5.6
+## v0.5.6 (2026-02-20)
 
 - **Fix About menu on Windows** - Add About button to sidebar for discoverability
 - **Simplified Chinese README** — Added `README.zh-CN.md` with a full Simplified Chinese translation of the README; added language switcher links between the English and Chinese versions
 - **5.2.1 Windows excluded port range avoidance** — `getAvailablePort()` now queries Windows excluded/reserved port ranges (Hyper-V / WinNAT) via `netsh` and retries if the OS-assigned ephemeral port falls within a reserved range, preventing silent bind failures on Windows
-- **8.3 Skills Manager** — Dedicated native Tauri window for managing Git-based skill repositories; register repos with optional auth tokens, browse discovered skills across repos, install/update/delete skills to OpenCode/Claude/Agents skill directories, background sync on app launch, cross-window sync via `skills:changed` events, three-panel layout with file tree sidebar, skills grid center panel, and file preview right panel
 
-
-## v0.5.5
+## v0.5.5 (2026-02-20)
 
 - **4.3.3 Keyboard Shortcuts Help** — Added a help modal (`Shift+?` or Help > Keyboard Shortcuts) that lists all app and chat keyboard shortcuts grouped by category with platform-appropriate modifier keys
 - **Agent system prompt improvement** — Replaced rigid Plan/Execution text-based planning format with tool-driven workflow
 - **Remove message-utils** — Removed `extractUserFacingContent` utility and its tests; assistant messages now display full content without stripping Plan/Execution sections (no longer needed after system prompt change)
 - **8.2.5 View Skill** — Added "View" button to skill cards in the Skills Catalog that opens the skill's SKILL.md in the in-app file preview panel, letting users read the full skill definition before installing
 
-## v0.5.4
+## v0.5.4 (2026-02-19)
 
 - **Rename sidebar "Tasks" section to "Todos"** — The CollapsibleSection in the sidebar that displays the agent's todo items is now labeled "Todos" instead of "Tasks" to avoid confusion with the task/session concept; empty state updated to "No active todos"
 - **Synchronize skill catalog** — Add `scripts/sync-skills.mjs` to synchronizes local skill templates from the upstream skill repos

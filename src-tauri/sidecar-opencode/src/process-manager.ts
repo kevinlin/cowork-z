@@ -331,6 +331,7 @@ export interface ServerStartOptions {
 
 export class ProcessManager {
   private process: ChildProcess | null = null;
+  private spawnError: Error | null = null;
   private client: OpenCodeClient;
   private port = 0;
   private hostname: string;
@@ -527,25 +528,29 @@ export class ProcessManager {
       env.OPENCODE_CONFIG_CONTENT = JSON.stringify(envConfig);
     }
 
+    this.spawnError = null;
+
     this.process = spawn(this.cliPath, args, {
       env,
       cwd: OPENCODE_DATA_DIR,
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
+      // Windows npm global installs create .cmd shims that spawn() cannot
+      // execute without a shell. macOS/Linux don't need this.
+      shell: process.platform === 'win32',
     });
 
-    // Log stdout
     this.process.stdout?.on('data', (data: Buffer) => {
       logger.debug(`[opencode stdout] ${data.toString().trim()}`);
     });
 
-    // Log stderr
     this.process.stderr?.on('data', (data: Buffer) => {
       logger.debug(`[opencode stderr] ${data.toString().trim()}`);
     });
 
     this.process.on('error', (error) => {
-      logger.error('OpenCode process error', error);
+      logger.error('OpenCode process spawn/runtime error', error);
+      this.spawnError = error;
     });
 
     this.process.on('exit', (code, signal) => {
@@ -553,25 +558,39 @@ export class ProcessManager {
       this.process = null;
     });
 
-    // Wait for server to be ready
     await this.waitForServer();
   }
 
   private async waitForServer(): Promise<void> {
     const maxAttempts = 30;
     const delayMs = 500;
+    let lastError: unknown;
 
     for (let i = 0; i < maxAttempts; i++) {
+      if (this.spawnError) {
+        throw new Error(`OpenCode process failed to spawn: ${this.spawnError.message}`);
+      }
+      if (this.process === null) {
+        throw new Error('OpenCode process exited before server became ready');
+      }
+
       try {
         const health = await this.client.health();
         logger.info(`OpenCode server ready, version: ${health.version}`);
         return;
-      } catch {
+      } catch (err) {
+        lastError = err;
+        if (i % 5 === 0) {
+          logger.debug(`Waiting for OpenCode server (attempt ${i + 1}/${maxAttempts})`, {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
         await this.sleep(delayMs);
       }
     }
 
-    throw new Error(`OpenCode server failed to start after ${maxAttempts * delayMs}ms`);
+    const detail = lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(`OpenCode server failed to start after ${maxAttempts * delayMs}ms. Last error: ${detail}`);
   }
 
   async stopServer(): Promise<void> {

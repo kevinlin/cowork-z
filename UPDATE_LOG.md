@@ -1,5 +1,9 @@
 # UPDATE LOG
 
+## v0.5.7
+
+- 
+
 ## v0.5.6
 
 - **Fix About menu on Windows** - Add About button to sidebar for discoverability

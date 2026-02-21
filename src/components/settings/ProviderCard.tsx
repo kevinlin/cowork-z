@@ -11,6 +11,7 @@ import anthropicLogo from '/assets/ai-logos/anthropic.svg';
 import azureLogo from '/assets/ai-logos/azure.svg';
 import bedrockLogo from '/assets/ai-logos/bedrock.svg';
 import deepseekLogo from '/assets/ai-logos/deepseek.svg';
+import githubCopilotLogo from '/assets/ai-logos/github-copilot.svg';
 import googleLogo from '/assets/ai-logos/google.svg';
 import litellmLogo from '/assets/ai-logos/litellm.svg';
 import ollamaLogo from '/assets/ai-logos/ollama.svg';
@@ -18,7 +19,6 @@ import openaiLogo from '/assets/ai-logos/openai.svg';
 import openrouterLogo from '/assets/ai-logos/openrouter.svg';
 import xaiLogo from '/assets/ai-logos/xai.svg';
 import zaiLogo from '/assets/ai-logos/zai.svg';
-import githubCopilotLogo from '/assets/ai-logos/github-copilot.svg';
 
 // Import connected badge icon
 import connectedKeyIcon from '/assets/icons/connected-key.svg';

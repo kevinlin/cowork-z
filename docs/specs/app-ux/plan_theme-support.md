@@ -4,20 +4,35 @@
 
 Cowork-Z currently has a single light theme with a green primary color (`#213c20`). The app uses CSS custom properties in HSL format (defined in `src/styles/globals.css`) consumed by Tailwind via `hsl(var(--primary))` etc. All components use semantic Tailwind classes (`bg-primary`, `text-foreground`, `border-border`), making the app well-prepared for theming by simply swapping CSS variable values.
 
-This plan adds 6 predefined themes (3 light, 3 dark) with the Zuhlke brand purple alongside the existing green, plus Nordic and Deep Space themes, runtime switching, SQLite persistence, and OS dark-mode detection on first launch.
+This plan covers 12 predefined themes (5 light, 7 dark) including the Zühlke brand purple alongside the original green, Nordic and Deep Space themes, plus 6 additional themes (Amber Glow, Ocean Depths, Rose Quartz, Midnight Ember, Sage Garden, Slate Noir). Runtime switching, SQLite persistence, and OS dark-mode detection on first launch are included.
 
 ## Themes
 
-| Theme | ID | Primary Color | Dark? |
-|-------|-----|---------------|-------|
-| Classic Light | `classic-light` | Green `#213c20` | No |
-| Classic Dark | `classic-dark` | Green `#4a8a47` (lighter for contrast) | Yes |
-| Zuhlke Light | `zuhlke-light` | Purple `#985b9c` (from branding) | No |
-| Zuhlke Dark | `zuhlke-dark` | Purple `#b87fbc` (lighter for contrast) | Yes |
-| Nordic Light | `nordic-light` | Blue `#2563eb` (Fjord Blue, Scandinavian-inspired) | No |
-| Deep Space | `deep-space` | Violet `#8b5cf6` (Nebula Violet, blue-shifted dark) | Yes |
+12 predefined themes (5 light, 7 dark):
+
+| # | Theme | ID | Primary Color | Dark? |
+|---|-------|-----|---------------|-------|
+| 1 | Sage Garden | `classic-light` | Sage `#478a6b` (muted sage on off-white, default light) | No |
+| 2 | Evergreen Dark | `classic-dark` | Green `#4a8a47` (lighter for contrast) | Yes |
+| 3 | Zühlke Light | `zuhlke-light` | Purple `#985b9c` (from branding) | No |
+| 4 | Zühlke Dark | `zuhlke-dark` | Purple `#b87fbc` (lighter for contrast) | Yes |
+| 5 | Nordic Light | `nordic-light` | Blue `#2563eb` (Fjord Blue, Scandinavian-inspired) | No |
+| 6 | Deep Space | `deep-space` | Violet `#8b5cf6` (Nebula Violet, blue-shifted dark) | Yes |
+| 7 | Amber Glow | `amber-glow` | Amber `#d98a0b` (warm golden) | No |
+| 8 | Ocean Depths | `ocean-depths` | Teal `#2db3b3` (deep navy + teal accents) | Yes |
+| 9 | Rose Quartz | `rose-quartz` | Rose `#c75b7a` (dusty rose on warm white) | No |
+| 10 | Midnight Ember | `midnight-ember` | Ember `#e06030` (warm orange on charcoal) | Yes |
+| 11 | Sandstone | `sage-garden` | Sand `#9a7b5b` (warm earthy neutral) | No |
+| 12 | Slate Noir | `slate-noir` | Slate `#6b89ad` (cool slate-blue on dark) | Yes |
 
 No gradient colors on message bubbles. Message bubbles use solid `bg-primary` / `bg-card` as they do today.
+
+### Color Enhancement Principles (applied to all themes)
+
+- **Ring harmonization:** Focus ring color matches the theme's primary hue family
+- **Accent/muted tinting:** Neutral surfaces carry a subtle tint of the primary hue for cohesion
+- **Dark theme undertones:** Border, input, muted, and accent surfaces in dark themes use the primary hue at low saturation instead of pure gray
+- **Saturation balance:** Primary colors tuned to avoid eye strain on dark backgrounds (e.g., Deep Space violet reduced from 90% to 80% saturation)
 
 ## Implementation Steps
 

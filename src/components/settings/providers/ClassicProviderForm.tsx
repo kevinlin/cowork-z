@@ -58,7 +58,10 @@ export function ClassicProviderForm({
     })) || [];
 
   const models = isDynamic
-    ? (connectedProvider?.availableModels ?? localAvailableModels ?? (FALLBACK_MODELS as Record<string, Array<{ id: string; name: string }>>)[providerId] ?? [])
+    ? (connectedProvider?.availableModels ??
+      localAvailableModels ??
+      (FALLBACK_MODELS as Record<string, Array<{ id: string; name: string }>>)[providerId] ??
+      [])
     : staticModels;
 
   const isConnected = connectedProvider?.connectionStatus === 'connected';

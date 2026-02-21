@@ -412,10 +412,11 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 > **Plan:** [Theme Support](../app-ux/plan_theme-support.md)
 
 **Acceptance Criteria:**
-1. THE SYSTEM SHALL provide multiple predefined themes (including at least one dark theme); theme names and palettes are defined in the implementation plan
+1. THE SYSTEM SHALL provide 12 predefined themes (5 light, 7 dark): Sage Garden (default light), Evergreen Dark, Zühlke Light/Dark, Nordic Light, Deep Space, Amber Glow, Ocean Depths, Rose Quartz, Midnight Ember, Sandstone, and Slate Noir; theme palettes are defined in the implementation plan
 2. THE SYSTEM SHALL allow users to switch themes at runtime without requiring an app restart
 3. THE SYSTEM SHALL persist the selected theme to the database
 4. WHERE the OS reports a dark-mode preference, THE SYSTEM SHALL default to the dark theme on first launch
+5. EACH theme SHALL use consistent hue tinting across all surface tokens (muted, accent, border, input, ring) to maintain visual cohesion with its primary color
 
 #### 4.3 Keyboard Shortcuts ✅
 

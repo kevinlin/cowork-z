@@ -46,7 +46,7 @@ export default function WorkspaceSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="w-full justify-between gap-1 truncate px-3 font-medium text-sm" size="sm" variant="ghost">
+        <Button className="w-full justify-between gap-1 truncate px-3 font-medium text-md" size="sm" variant="ghost">
           <span className="truncate" title={activeWorkspace.folderPath}>
             {activeWorkspace.displayName}
           </span>

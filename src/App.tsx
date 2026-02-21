@@ -26,6 +26,7 @@ import { getThemeById } from './lib/themes';
 import ExecutionPage from './pages/Execution';
 // Pages
 import HomePage from './pages/Home';
+import SkillsManagerPage from './pages/SkillsManager';
 import { useFilePreviewStore } from './stores/filePreviewStore';
 import { useTaskStore } from './stores/taskStore';
 
@@ -203,6 +204,11 @@ export default function App() {
         </div>
       </div>
     );
+  }
+
+  // Skills Manager window — standalone layout, no sidebar
+  if (location.pathname === '/skills') {
+    return <SkillsManagerPage />;
   }
 
   // Ready - render the app with sidebar

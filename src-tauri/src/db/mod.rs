@@ -7,6 +7,7 @@ pub mod folder_permissions;
 pub mod migrations;
 pub mod providers;
 pub mod settings;
+pub mod skill_repos;
 pub mod tasks;
 pub mod workspaces;
 

@@ -4,7 +4,7 @@
 use rusqlite::Connection;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 2;
+const CURRENT_VERSION: i32 = 3;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -228,6 +228,41 @@ fn migrate_v2(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v3: Skill repos and repo skills
+fn migrate_v3(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v3 (skill repos)");
+
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS skill_repos (
+            id TEXT PRIMARY KEY,
+            url TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            branch TEXT NOT NULL DEFAULT 'main',
+            auth_token_key TEXT,
+            last_synced_at TEXT,
+            last_sync_error TEXT,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS repo_skills (
+            repo_id TEXT NOT NULL REFERENCES skill_repos(id) ON DELETE CASCADE,
+            skill_path TEXT NOT NULL,
+            skill_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            category TEXT NOT NULL DEFAULT 'General',
+            PRIMARY KEY (repo_id, skill_path)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_repo_skills_repo_id ON repo_skills(repo_id);",
+    )
+    .map_err(|e| format!("Migration v3 failed: {}", e))?;
+
+    set_stored_version(conn, 3)?;
+    println!("[Migrations] Migration v3 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -254,6 +289,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
 
     if stored_version < 2 {
         migrate_v2(conn)?;
+    }
+
+    if stored_version < 3 {
+        migrate_v3(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

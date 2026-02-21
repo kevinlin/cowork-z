@@ -1237,6 +1237,93 @@ export async function getSkillTemplatePath(skillId: string): Promise<string> {
 }
 
 // ============================================================================
+// Skills Manager
+// ============================================================================
+
+export interface SkillRepo {
+  id: string;
+  url: string;
+  name: string;
+  branch: string;
+  hasAuthToken: boolean;
+  lastSyncedAt: string | null;
+  lastSyncError: string | null;
+  createdAt: string;
+  skillCount: number;
+}
+
+export interface RepoSkill {
+  repoId: string;
+  repoName: string;
+  skillPath: string;
+  skillId: string;
+  name: string;
+  description: string;
+  category: string;
+  installed: boolean;
+  needsUpdate: boolean;
+}
+
+export interface InstalledSkill {
+  skillId: string;
+  name: string;
+  description: string;
+  category: string;
+  sourceRepoUrl: string | null;
+  sourceRepoName: string | null;
+}
+
+export interface SyncProgress {
+  repoId: string;
+  status: 'syncing' | 'synced' | 'error';
+  error?: string;
+}
+
+export async function skillReposList(): Promise<SkillRepo[]> {
+  return invoke<SkillRepo[]>('skill_repos_list');
+}
+
+export async function skillReposAdd(url: string, branch?: string, authToken?: string): Promise<SkillRepo> {
+  return invoke<SkillRepo>('skill_repos_add', { url, branch, authToken });
+}
+
+export async function skillReposRemove(id: string): Promise<void> {
+  return invoke<void>('skill_repos_remove', { id });
+}
+
+export async function skillReposSync(id: string): Promise<void> {
+  return invoke<void>('skill_repos_sync', { id });
+}
+
+export async function skillReposSyncAll(): Promise<void> {
+  return invoke<void>('skill_repos_sync_all');
+}
+
+export async function skillReposSkills(repoId?: string, targetFolder?: string): Promise<RepoSkill[]> {
+  return invoke<RepoSkill[]>('skill_repos_skills', { repoId, targetFolder });
+}
+
+export async function skillsInstallFromRepo(repoId: string, skillPath: string, targetFolder?: string): Promise<void> {
+  return invoke<void>('skills_install_from_repo', { repoId, skillPath, targetFolder });
+}
+
+export async function skillsListInstalled(targetFolder?: string): Promise<InstalledSkill[]> {
+  return invoke<InstalledSkill[]>('skills_list_installed', { targetFolder });
+}
+
+export async function skillsDeleteInstalled(skillId: string, targetFolder?: string): Promise<void> {
+  return invoke<void>('skills_delete_installed', { skillId, targetFolder });
+}
+
+export async function onSkillsChanged(callback: () => void): Promise<UnlistenFn> {
+  return listen<void>('skills:changed', () => callback());
+}
+
+export async function onSkillsSyncProgress(callback: (progress: SyncProgress) => void): Promise<UnlistenFn> {
+  return listen<SyncProgress>('skills:sync_progress', (event) => callback(event.payload));
+}
+
+// ============================================================================
 // Compatibility Helpers
 // ============================================================================
 
@@ -1438,5 +1525,18 @@ export function getTauriApi() {
     listSkillsWithStatus,
     installSkill,
     getSkillTemplatePath,
+
+    // Skills Manager
+    skillReposList,
+    skillReposAdd,
+    skillReposRemove,
+    skillReposSync,
+    skillReposSyncAll,
+    skillReposSkills,
+    skillsInstallFromRepo,
+    skillsListInstalled,
+    skillsDeleteInstalled,
+    onSkillsChanged,
+    onSkillsSyncProgress,
   };
 }

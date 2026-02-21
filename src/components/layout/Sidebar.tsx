@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { FolderTree, MessageSquare, MessageSquarePlus, Search, Settings } from 'lucide-react';
+import { FolderTree, MessageSquare, MessageSquarePlus, Package, Search, Settings } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileTreePanel from '@/components/sidebar/FileTreePanel';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { analytics } from '@/lib/analytics';
 import { staggerContainer } from '@/lib/animations';
+import { openSkillsManagerWindow } from '@/lib/skills-window';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { Todo } from '@/shared';
 import { useTaskStore } from '@/stores/taskStore';
@@ -257,6 +258,9 @@ export default function Sidebar() {
           {/* Feedback & Settings - Bottom Right */}
           <div className="flex items-center gap-1">
             <FeedbackButton />
+            <Button onClick={openSkillsManagerWindow} size="icon" title="Skills Manager" variant="ghost">
+              <Package className="h-4 w-4" />
+            </Button>
             <Button
               data-testid="sidebar-settings-button"
               onClick={() => {

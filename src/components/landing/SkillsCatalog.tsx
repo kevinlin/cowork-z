@@ -37,6 +37,19 @@ export default function SkillsCatalog() {
       .finally(() => setLoading(false));
   }, [api]);
 
+  useEffect(() => {
+    const unlisten = api.onSkillsChanged(() => {
+      api
+        .listSkillsWithStatus()
+        .then(setSkills)
+        .catch(() => {});
+      useSkillsStore.getState().fetchInstalledSkills();
+    });
+    return () => {
+      unlisten();
+    };
+  }, [api]);
+
   const categories = ['All', ...Array.from(new Set(skills.map((s) => s.meta.category))).sort()];
 
   const filtered = skills

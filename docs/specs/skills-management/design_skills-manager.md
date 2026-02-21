@@ -22,20 +22,18 @@ The Skills Manager runs as a separate Tauri `WebviewWindow` with label `skills`,
 - **State isolation:** Each window has its own JS runtime. The Rust backend is the single source of truth. Both windows subscribe to `skills:changed` events to stay in sync.
 - **Capabilities:** The Skills Manager window has its own capability set including `shell:allow-execute` for Git CLI operations, configured in `src-tauri/capabilities/`.
 
-```
-┌─────────────┐     events      ┌─────────────────┐     events      ┌─────────────┐
-│ Main Window │ ◄──────────────► │   Rust Backend   │ ◄──────────────► │Skills Manager│
-│  /#/        │  skills:changed  │  (source of truth)│  skills:changed  │  /#/skills  │
-│             │                  │  skill_repos table │  sync_progress   │             │
-│             │                  │  repo_skills table │                  │             │
-└─────────────┘                  └─────────────────┘                  └─────────────┘
-                                        │
-                                   git clone/pull
-                                        │
-                                 ┌──────▼──────┐
-                                 │ Git Repos    │
-                                 │ (remote)     │
-                                 └─────────────┘
+```mermaid
+graph LR
+    MW["Main Window<br/><code>/#/</code>"]
+    RB["Rust Backend<br/><i>(source of truth)</i><br/>skill_repos table<br/>repo_skills table"]
+    SM["Skills Manager<br/><code>/#/skills</code>"]
+    GR["Git Repos<br/>(remote)"]
+
+    MW -- "skills:changed" --> RB
+    RB -- "skills:changed" --> MW
+    RB -- "skills:changed<br/>sync_progress" --> SM
+    SM -- "skills:changed" --> RB
+    RB -- "git clone / pull" --> GR
 ```
 
 ### Routing

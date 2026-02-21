@@ -6,11 +6,13 @@ import type { SkillWithStatus } from '@/lib/tauri-api';
 // Mock tauri-api-interface at module level
 const mockListSkillsWithStatus = vi.fn();
 const mockInstallSkill = vi.fn();
+const mockOnSkillsChanged = vi.fn(() => () => {});
 
 vi.mock('@/lib/tauri-api-interface', () => ({
   getTauriAPI: vi.fn(() => ({
     listSkillsWithStatus: mockListSkillsWithStatus,
     installSkill: mockInstallSkill,
+    onSkillsChanged: mockOnSkillsChanged,
   })),
 }));
 

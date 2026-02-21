@@ -23,7 +23,7 @@ import type {
   TaskUpdateEvent,
   Workspace,
 } from '@/shared';
-import type { PackInstallResult, PackMeta, SkillWithStatus } from './tauri-api';
+import type { InstalledSkill, PackInstallResult, PackMeta, RepoSkill, SkillRepo, SkillWithStatus, SyncProgress } from './tauri-api';
 import { getTauriApi, isRunningInTauri } from './tauri-api';
 
 export interface TauriAPI {
@@ -293,6 +293,19 @@ export interface TauriAPI {
   listSkillsWithStatus(): Promise<SkillWithStatus[]>;
   installSkill(skillId: string): Promise<void>;
   getSkillTemplatePath(skillId: string): Promise<string>;
+
+  // Skills Manager
+  skillReposList(): Promise<SkillRepo[]>;
+  skillReposAdd(url: string, branch?: string, authToken?: string): Promise<SkillRepo>;
+  skillReposRemove(id: string): Promise<void>;
+  skillReposSync(id: string): Promise<void>;
+  skillReposSyncAll(): Promise<void>;
+  skillReposSkills(repoId?: string, targetFolder?: string): Promise<RepoSkill[]>;
+  skillsInstallFromRepo(repoId: string, skillPath: string, targetFolder?: string): Promise<void>;
+  skillsListInstalled(targetFolder?: string): Promise<InstalledSkill[]>;
+  skillsDeleteInstalled(skillId: string, targetFolder?: string): Promise<void>;
+  onSkillsChanged(callback: () => void): () => void;
+  onSkillsSyncProgress(callback: (progress: SyncProgress) => void): () => void;
 }
 
 const toSyncUnlisten = (promise: Promise<() => void>) => {
@@ -346,6 +359,8 @@ export function getTauriAPI(): TauriAPI {
     onTaskSummary: (callback: (data: { taskId: string; summary: string }) => void) => toSyncUnlisten(tauriApi.onTaskSummary(callback)),
     onWorkspaceChanged: (callback: (data: { workspace: Workspace }) => void) => toSyncUnlisten(tauriApi.onWorkspaceChanged(callback)),
     onWorkspaceFsChanged: (callback: (data: { changedPath: string }) => void) => toSyncUnlisten(tauriApi.onWorkspaceFsChanged(callback)),
+    onSkillsChanged: (callback: () => void) => toSyncUnlisten(tauriApi.onSkillsChanged(callback)),
+    onSkillsSyncProgress: (callback: (progress: SyncProgress) => void) => toSyncUnlisten(tauriApi.onSkillsSyncProgress(callback)),
   };
 
   return cachedTauriAPI;

@@ -5,8 +5,10 @@ use tauri::{Emitter, Manager};
 mod commands;
 mod db;
 mod fs_watcher;
+mod git_ops;
 mod secure_storage;
 mod sidecar;
+mod skill_discovery;
 pub mod types;
 mod workspace_validator;
 
@@ -69,6 +71,104 @@ pub fn run() {
                     }
                 }
             }
+
+            // Background sync skill repos on launch
+            let app_handle_for_sync = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(3));
+
+                let db_state = app_handle_for_sync.state::<crate::db::DbState>();
+                let repos = {
+                    let conn = db_state.conn.lock().unwrap();
+                    crate::db::skill_repos::list_skill_repos(&conn)
+                };
+
+                if repos.is_empty() || !crate::git_ops::is_git_available() {
+                    return;
+                }
+
+                for repo in repos {
+                    let cache = app_handle_for_sync
+                        .path()
+                        .app_data_dir()
+                        .expect("app data dir")
+                        .join("skill-repo-cache")
+                        .join(&repo.id);
+
+                    let _ = app_handle_for_sync.emit(
+                        "skills:sync_progress",
+                        crate::commands::skill_repos::SyncProgress {
+                            repo_id: repo.id.clone(),
+                            status: "syncing".to_string(),
+                            error: None,
+                        },
+                    );
+
+                    let token = repo.auth_token_key.as_ref().and_then(|key| {
+                        crate::secure_storage::get_api_key(key).ok().flatten()
+                    });
+
+                    let result = if cache.exists() {
+                        crate::git_ops::pull_repo(&cache, token.as_deref())
+                    } else {
+                        let _ = std::fs::create_dir_all(cache.parent().unwrap());
+                        crate::git_ops::clone_repo(
+                            &repo.url,
+                            &repo.branch,
+                            &cache,
+                            token.as_deref(),
+                        )
+                    };
+
+                    let now = chrono::Utc::now().to_rfc3339();
+                    match result {
+                        Ok(()) => {
+                            let discovered = crate::skill_discovery::discover_skills(
+                                &repo.id, &cache, &repo.url,
+                            );
+                            let conn = db_state.conn.lock().unwrap();
+                            let _ = crate::db::skill_repos::update_sync_status(
+                                &conn,
+                                &repo.id,
+                                Some(&now),
+                                None,
+                            );
+                            let _ = crate::db::skill_repos::save_repo_skills(
+                                &conn,
+                                &repo.id,
+                                &discovered,
+                            );
+                            let _ = app_handle_for_sync.emit(
+                                "skills:sync_progress",
+                                crate::commands::skill_repos::SyncProgress {
+                                    repo_id: repo.id,
+                                    status: "synced".to_string(),
+                                    error: None,
+                                },
+                            );
+                        }
+                        Err(e) => {
+                            let conn = db_state.conn.lock().unwrap();
+                            let _ = crate::db::skill_repos::update_sync_status(
+                                &conn,
+                                &repo.id,
+                                None,
+                                Some(&e),
+                            );
+                            let _ = app_handle_for_sync.emit(
+                                "skills:sync_progress",
+                                crate::commands::skill_repos::SyncProgress {
+                                    repo_id: repo.id,
+                                    status: "error".to_string(),
+                                    error: Some(e),
+                                },
+                            );
+                        }
+                    }
+                }
+
+                let _ = app_handle_for_sync.emit("skills:changed", ());
+            });
 
             // Build native menu bar
             let show_about_item = MenuItemBuilder::new("About Cowork-Z")
@@ -244,6 +344,16 @@ pub fn run() {
             commands::skills::skills_list_with_status,
             commands::skills::skills_install,
             commands::skills::skills_get_template_path,
+            // Skill Repos (Skills Manager)
+            commands::skill_repos::skill_repos_list,
+            commands::skill_repos::skill_repos_add,
+            commands::skill_repos::skill_repos_remove,
+            commands::skill_repos::skill_repos_sync,
+            commands::skill_repos::skill_repos_sync_all,
+            commands::skill_repos::skill_repos_skills,
+            commands::skill_repos::skills_install_from_repo,
+            commands::skill_repos::skills_list_installed,
+            commands::skill_repos::skills_delete_installed,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

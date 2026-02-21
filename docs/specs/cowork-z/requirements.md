@@ -779,7 +779,9 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. WHEN the user clicks "View", THE SYSTEM SHALL resolve the bundled skill template's `SKILL.md` path via a backend command and open it in the in-app file preview panel (see 6.4)
 3. THE SYSTEM SHALL display an error toast if the skill template path cannot be resolved
 
-#### 8.3 Skills Manager
+#### 8.3 Skills Manager ✅
+
+> **Plan:** [Skills Manager Plan](../skills-management/plan_skills-manager.md)
 
 **User Story:** As a user, I want a dedicated Skills Manager window where I can register Git repositories as skill sources, browse and install skills from them, and manage all my installed skills across multiple global skill directories.
 

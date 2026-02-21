@@ -5,6 +5,7 @@
 - **Fix About menu on Windows** - Add About button to sidebar for discoverability
 - **Simplified Chinese README** — Added `README.zh-CN.md` with a full Simplified Chinese translation of the README; added language switcher links between the English and Chinese versions
 - **5.2.1 Windows excluded port range avoidance** — `getAvailablePort()` now queries Windows excluded/reserved port ranges (Hyper-V / WinNAT) via `netsh` and retries if the OS-assigned ephemeral port falls within a reserved range, preventing silent bind failures on Windows
+- **8.3 Skills Manager** — Dedicated native Tauri window for managing Git-based skill repositories; register repos with optional auth tokens, browse discovered skills across repos, install/update/delete skills to OpenCode/Claude/Agents skill directories, background sync on app launch, cross-window sync via `skills:changed` events, three-panel layout with file tree sidebar, skills grid center panel, and file preview right panel
 
 
 ## v0.5.5

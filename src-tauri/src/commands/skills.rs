@@ -4,7 +4,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -170,7 +170,7 @@ fn resolve_templates_dir(app: &AppHandle) -> Result<PathBuf, String> {
 
 // ── Recursive copy ────────────────────────────────────────────────────────────
 
-fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
+pub fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
     if !from.exists() {
         return Err(format!("Source does not exist: {:?}", from));
     }
@@ -303,7 +303,9 @@ pub fn skills_list_with_status(app: AppHandle) -> Vec<SkillWithStatus> {
 
 #[tauri::command]
 pub fn skills_install(app: AppHandle, skill_id: String) -> Result<(), String> {
-    install_skill(&app, &skill_id)
+    install_skill(&app, &skill_id)?;
+    let _ = app.emit("skills:changed", ());
+    Ok(())
 }
 
 #[tauri::command]

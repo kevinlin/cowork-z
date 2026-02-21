@@ -14,4 +14,5 @@ pub mod tasks;
 pub mod updates;
 pub mod workspaces;
 pub mod packs;
+pub mod skill_repos;
 pub mod skills;

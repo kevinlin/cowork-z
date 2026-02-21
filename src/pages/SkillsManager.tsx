@@ -4,6 +4,7 @@ import { RepoSkillsGrid } from '@/components/skills-manager/RepoSkillsGrid';
 import { RepoToolbar } from '@/components/skills-manager/RepoToolbar';
 import { SkillsSidebar } from '@/components/skills-manager/SkillsSidebar';
 import { SkillsStatusBar } from '@/components/skills-manager/SkillsStatusBar';
+import { useTheme } from '@/hooks/useTheme';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { useFilePreviewStore } from '@/stores/filePreviewStore';
 import { useSkillsManagerStore } from '@/stores/skillsManagerStore';
@@ -12,11 +13,19 @@ const MIN_SIDEBAR = 200;
 const MAX_SIDEBAR = 400;
 const DEFAULT_SIDEBAR = 250;
 
+const PREVIEW_MIN_WIDTH = 280;
+const PREVIEW_MAX_WIDTH = 700;
+const PREVIEW_DEFAULT_WIDTH = 400;
+
 export default function SkillsManagerPage() {
   const { refreshAll } = useSkillsManagerStore();
   const { selectedFile, isPreviewOpen, closePreview } = useFilePreviewStore();
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR);
-  const resizingRef = useRef(false);
+  const [previewWidth, setPreviewWidth] = useState(PREVIEW_DEFAULT_WIDTH);
+  const sidebarResizingRef = useRef(false);
+  const previewResizingRef = useRef(false);
+
+  useTheme();
 
   useEffect(() => {
     refreshAll();
@@ -41,29 +50,63 @@ export default function SkillsManagerPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [isPreviewOpen, closePreview]);
 
-  const handleResizeStart = useCallback(
+  const handleSidebarResizeStart = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      resizingRef.current = true;
+      sidebarResizingRef.current = true;
       const startX = e.clientX;
       const startWidth = sidebarWidth;
 
       const onMouseMove = (ev: MouseEvent) => {
-        if (!resizingRef.current) return;
+        if (!sidebarResizingRef.current) return;
         const newWidth = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, startWidth + (ev.clientX - startX)));
         setSidebarWidth(newWidth);
       };
 
       const onMouseUp = () => {
-        resizingRef.current = false;
+        sidebarResizingRef.current = false;
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
       };
 
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
     },
-    [sidebarWidth]
+    [sidebarWidth],
+  );
+
+  const handlePreviewResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      previewResizingRef.current = true;
+      const startX = e.clientX;
+      const startWidth = previewWidth;
+
+      const onMouseMove = (ev: MouseEvent) => {
+        if (!previewResizingRef.current) return;
+        const delta = startX - ev.clientX;
+        const newWidth = Math.min(PREVIEW_MAX_WIDTH, Math.max(PREVIEW_MIN_WIDTH, startWidth + delta));
+        setPreviewWidth(newWidth);
+      };
+
+      const onMouseUp = () => {
+        previewResizingRef.current = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    },
+    [previewWidth],
   );
 
   return (
@@ -76,7 +119,7 @@ export default function SkillsManagerPage() {
         <div
           aria-valuenow={sidebarWidth}
           className="w-1 cursor-col-resize hover:bg-primary/20 active:bg-primary/30"
-          onMouseDown={handleResizeStart}
+          onMouseDown={handleSidebarResizeStart}
           role="separator"
           tabIndex={0}
         />
@@ -88,8 +131,19 @@ export default function SkillsManagerPage() {
 
         {isPreviewOpen && selectedFile && (
           <>
-            <div className="w-px bg-border" />
-            <div className="w-[400px] shrink-0">
+            <div
+              aria-label="Resize file preview"
+              aria-valuemax={PREVIEW_MAX_WIDTH}
+              aria-valuemin={PREVIEW_MIN_WIDTH}
+              aria-valuenow={previewWidth}
+              className="group relative w-0 shrink-0 cursor-col-resize"
+              onMouseDown={handlePreviewResizeStart}
+              role="separator"
+              tabIndex={0}
+            >
+              <div className="absolute top-0 bottom-0 -left-1 z-10 w-2 transition-colors group-hover:bg-primary/20 group-active:bg-primary/30" />
+            </div>
+            <div className="shrink-0" style={{ width: previewWidth }}>
               <FilePreviewPanel file={selectedFile} onClose={closePreview} />
             </div>
           </>

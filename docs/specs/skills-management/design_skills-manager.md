@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-21
 **Requirements:** [8.3 Skills Manager](../cowork-z/requirements.md)
-**Status:** Design approved, pending implementation plan
+**Status:** Implemented
 
 ---
 
@@ -20,7 +20,8 @@ The Skills Manager runs as a separate Tauri `WebviewWindow` with label `skills`,
 
 - **Single-instance:** If the window is already open, focus it instead of creating a new one.
 - **State isolation:** Each window has its own JS runtime. The Rust backend is the single source of truth. Both windows subscribe to `skills:changed` events to stay in sync.
-- **Capabilities:** The Skills Manager window has its own capability set including `shell:allow-execute` for Git CLI operations, configured in `src-tauri/capabilities/`.
+- **Capabilities:** The Skills Manager window shares the main window's capability set (`src-tauri/capabilities/default.json` scoped to `["main", "skills"]`), granting access to all Tauri commands and `shell:allow-execute` for Git CLI operations. A supplementary `src-tauri/capabilities/skills.json` adds `shell:allow-execute` and `opener` permissions scoped to the `skills` window.
+- **Theme:** The Skills Manager window calls `useTheme()` on mount to load and apply the persisted theme, ensuring visual consistency with the main window.
 
 ```mermaid
 graph LR
@@ -50,13 +51,14 @@ The `App.tsx` router gains a new top-level route `/skills` that renders the `Ski
 ```typescript
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
-export function openSkillsWindow() {
-  const existing = WebviewWindow.getByLabel("skills");
+export async function openSkillsManagerWindow() {
+  const label = "skills";
+  const existing = await WebviewWindow.getByLabel(label);
   if (existing) {
-    existing.setFocus();
+    await existing.setFocus();
     return;
   }
-  new WebviewWindow("skills", {
+  new WebviewWindow(label, {
     url: "/#/skills",
     title: "Skills Manager",
     width: 1100,
@@ -64,6 +66,8 @@ export function openSkillsWindow() {
   });
 }
 ```
+
+> **Note:** `WebviewWindow.getByLabel()` returns a `Promise` in Tauri 2.x, so the function must be `async`.
 
 Entry points: sidebar button in main window + Help menu item.
 
@@ -198,6 +202,8 @@ The folder switcher appears in two places:
 
 Both are bound to the same state. Switching folders refreshes the file tree and re-evaluates install status for repo skills.
 
+> **Implementation note:** `homeDir()` from `@tauri-apps/api/path` returns the home directory **without** a trailing slash (e.g. `/Users/kevinlin`). All path construction must normalize with a trailing `/` before concatenating dotfile paths (e.g. `${homePath}.config/opencode/skills`).
+
 ---
 
 ## UI Layout
@@ -227,18 +233,19 @@ Both are bound to the same state. Switching folders refreshes the file tree and 
 
 ### Left Sidebar
 - **Adjustable width** (drag handle on right edge, min 200px, max 400px, default 250px)
-- **Folder switcher dropdown** at the top
+- **Folder switcher dropdown** at the top — styled with **primary color** border and text to emphasize the active target folder
 - **File tree** of the selected skills folder, reusing the existing file tree pattern (lazy-load, expand/collapse, icons)
 - Click a file → opens in right preview pane
 
 ### Center Panel
-- **Header toolbar:** repo filter dropdown ("All Repos" or individual repo names), "Add Repo" button, "Sync" button, last-synced time
+- **Header toolbar:** repo filter dropdown ("All Repos" or individual repo names), "Add Repo" button, "Sync" button, last-synced time. When a specific repo is selected (not "All Repos"), the dropdown is styled with **primary color** border and text to indicate active filtering.
 - **Search bar + category tabs:** consistent with existing SkillsCatalog design
-- **2-column card grid:** each card shows name, description, source repo badge, action buttons
-- **Card actions:** View (opens SKILL.md in preview), Install/Update/Installed badge, Delete (with confirmation)
+- **2-column card grid:** each card is a standalone `SkillCard` component (`src/components/skills-manager/SkillCard.tsx`) showing name, description, category badge, source repo badge, and action buttons
+- **Card actions:** View (opens `SKILL.md` from the **local cloned repo cache** at `{app_data_dir}/skill-repo-cache/{repo_id}/{skill_path}/SKILL.md`), Install/Update/Installed badge, Re-install
 
 ### Right Preview Pane
 - Reuses `FilePreviewPanel.tsx` implementation
+- **Adjustable width** (drag handle on left edge, min 280px, max 700px, default 400px) — same resize pattern as the main window's file preview panel
 - "Add to Chat" button hidden
 - Closable via X button and Escape key
 

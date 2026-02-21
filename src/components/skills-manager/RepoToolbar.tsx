@@ -32,7 +32,7 @@ export function RepoToolbar() {
     <>
       <div className="flex items-center gap-2 border-b px-4 py-2">
         <Select onValueChange={(v) => setSelectedRepoId(v === 'all' ? null : v)} value={selectedRepoId ?? 'all'}>
-          <SelectTrigger className="h-8 w-[200px] text-xs">
+          <SelectTrigger className={`h-8 w-[300px] ${selectedRepoId ? 'border-primary/40 font-medium text-primary' : ''}`}>
             <SelectValue placeholder="All Repos" />
           </SelectTrigger>
           <SelectContent>

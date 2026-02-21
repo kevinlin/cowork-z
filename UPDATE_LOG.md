@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.5.9
+
+- 
+
 ## v0.5.8
 
 - **GitHub Copilot Provider** — Added GitHub Copilot as a provider with OAuth device flow authentication

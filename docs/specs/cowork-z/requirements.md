@@ -782,5 +782,6 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ## TODO Features
 
-- [ ] **Skills Manager** - A new page that let user to browse, search and install/skills from a number of registered source repos
+- [ ] **Skills Manager** - A new app that allows user to browse, search and install/skills from registered public skill repos
+- [ ] **Copilot provider Support** - Suppoert GitHub Copilot enterprise as a provider
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

@@ -1,22 +1,27 @@
 import { homeDir } from '@tauri-apps/api/path';
-import { useCallback, useEffect } from 'react';
+import { Eye, EyeOff, Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isHiddenEntry } from '@/components/sidebar/FileTreePanel';
 import { useFileTree } from '@/hooks/useFileTree';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
+import { cn } from '@/lib/utils';
 import type { DirectoryEntry } from '@/shared/types/workspace';
 import { useFilePreviewStore } from '@/stores/filePreviewStore';
 import { useSkillsManagerStore } from '@/stores/skillsManagerStore';
 import { FolderSwitcher } from './FolderSwitcher';
 
-function isHiddenEntry(entry: DirectoryEntry): boolean {
-  return entry.name.startsWith('.');
-}
-
 export function SkillsSidebar() {
   const { targetFolder } = useSkillsManagerStore();
   const { openPreview } = useFilePreviewStore();
+  const [showHidden, setShowHidden] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const filterPredicate = useCallback((entry: DirectoryEntry) => !isHiddenEntry(entry), []);
+  const hiddenFilter = useMemo(() => {
+    if (showHidden) return undefined;
+    return (entry: { name: string }) => !isHiddenEntry(entry.name);
+  }, [showHidden]);
 
-  const { nodes, isLoadingRoot, searchQuery, loadRoot, toggleExpand, setSearchQuery } = useFileTree(filterPredicate);
+  const { nodes, isLoadingRoot, searchQuery, loadRoot, toggleExpand, refreshRoot, setSearchQuery } = useFileTree(hiddenFilter);
 
   useEffect(() => {
     const loadFolder = async () => {
@@ -35,6 +40,20 @@ export function SkillsSidebar() {
     loadFolder();
   }, [targetFolder, loadRoot]);
 
+  useEffect(() => {
+    const api = getTauriAPI();
+    const unlisten = api.onSkillsChanged(() => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        refreshRoot();
+      }, 200);
+    });
+    return () => {
+      unlisten();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [refreshRoot]);
+
   const handleFileClick = useCallback(
     (entry: DirectoryEntry) => {
       if (entry.isDirectory) {
@@ -50,14 +69,30 @@ export function SkillsSidebar() {
     <div className="flex h-full flex-col">
       <FolderSwitcher />
 
-      <div className="border-b p-2">
-        <input
-          className="w-full rounded border bg-background px-2 py-1 text-xs"
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search installed skills..."
-          type="text"
-          value={searchQuery}
-        />
+      <div className="flex items-center gap-1 border-b px-2 py-1.5">
+        <div className="relative flex-1">
+          <Search className="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            className="w-full rounded-md border border-border bg-background py-1 pr-2 pl-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search installed skills..."
+            type="text"
+            value={searchQuery}
+          />
+        </div>
+        <button
+          className={cn(
+            'flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors',
+            'hover:bg-accent hover:text-accent-foreground',
+            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            showHidden && 'bg-accent text-accent-foreground'
+          )}
+          onClick={() => setShowHidden((v) => !v)}
+          title={showHidden ? 'Hide hidden files' : 'Show hidden files'}
+          type="button"
+        >
+          {showHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+        </button>
       </div>
 
       <div className="flex-1 overflow-auto p-1">

@@ -55,6 +55,10 @@ Expected: Compiles with no errors.
 
 This module wraps `std::process::Command` calls to `git`. It does NOT depend on Tauri — pure Rust, easily testable.
 
+Key functions:
+- `derive_repo_name(url)` — extracts display name from Git URL (e.g. `anthropics/knowledge-work-plugins`)
+- `derive_cache_dir_name(url)` — derives filesystem-safe cache directory name by calling `derive_repo_name()` then replacing `/` with `_` (e.g. `anthropics_knowledge-work-plugins`). Used by `repo_cache_dir()` in `skill_repos.rs` and the background sync in `lib.rs`.
+
 **Step 2: Register the module**
 
 In `src-tauri/src/lib.rs`
@@ -62,7 +66,7 @@ In `src-tauri/src/lib.rs`
 **Step 3: Verify**
 
 Run: `cd src-tauri && cargo test git_ops`
-Expected: All 6 tests pass.
+Expected: All 9 tests pass (6 original + 3 for `derive_cache_dir_name`).
 
 Run: `cd src-tauri && cargo check`
 Expected: Compiles.
@@ -104,6 +108,8 @@ Expected: Compiles.
 **Step 1: Create `commands/skill_repos.rs`**
 
 This module contains all Tauri commands for repo CRUD and sync. It orchestrates `git_ops`, `skill_discovery`, and `db::skill_repos`.
+
+Key implementation detail — **Cache directory naming:** The `repo_cache_dir(app, repo_url)` helper derives the cache directory path using `git_ops::derive_cache_dir_name(url)`, which produces a human-readable name (e.g. `anthropics_knowledge-work-plugins`) instead of a UUID. All callers pass the repo URL (not the repo ID) to this function. The DB `id` field remains a UUID for relational integrity.
 
 **Step 2: Register commands module**
 
@@ -284,6 +290,10 @@ The `SelectTrigger` uses `border-primary/40 font-medium text-primary` to emphasi
 
 This component uses `useFileTree` to display the installed skills folder tree. Clicking a file opens it in the preview store.
 
+Key implementation details:
+- **Hidden file filter toggle:** Uses the shared `isHiddenEntry()` from `FileTreePanel.tsx` with a `useMemo`-based `hiddenFilter` predicate passed to `useFileTree`. An eye icon button (Eye/EyeOff from lucide-react) toggles `showHidden` state. Hidden files are filtered by default (matching the main window's file tree behavior). The search bar and toggle button are laid out inline with the same styling as `FileTreePanel` (Search icon, rounded-md border, ring focus state).
+- **Auto-refresh on `skills:changed`:** A `useEffect` subscribes to `skills:changed` via `getTauriAPI().onSkillsChanged()` and calls `refreshRoot()` (debounced 200ms via `setTimeout` + `useRef`) to reload the file tree after any skill install, update, or delete. The cleanup function calls `unlisten()` and clears the debounce timer.
+
 **Step 3: Verify**
 
 Run: `pnpm typecheck`
@@ -310,9 +320,10 @@ The toolbar with: repo filter dropdown, "Add Repo" button, "Sync" button, last-s
 This is the center panel grid, modeled after `SkillsCatalog.tsx`. The `SkillCard` is extracted to its own component file (`src/components/skills-manager/SkillCard.tsx`) for reusability and separation of concerns.
 
 Key implementation details:
-- **`SkillCard` is a standalone component** — it owns its own "View" handler and category color map, receiving `skill`, `installing`, `error`, and `onInstall` as props.
-- **View points to the local cloned repo cache**, not the installed skills folder. The path is constructed as `{appDataDir}/skill-repo-cache/{skill.repoId}/{skill.skillPath}/SKILL.md` using `appDataDir()` from `@tauri-apps/api/path`. This ensures "View" works even before a skill is installed.
-- **`RepoSkillsGrid` handles install logic** and passes callbacks down to `SkillCard`.
+- **`SkillCard` is a standalone component** — it owns its own "View" handler and category color map, receiving `skill`, `installing`, `deleting`, `error`, `onInstall`, and `onDelete` as props.
+- **View points to the local cloned repo cache**, not the installed skills folder. The path is constructed as `{appDataDir}/skill-repo-cache/{repoCacheName}/{skill.skillPath}/SKILL.md` where `repoCacheName` is `skill.repoName.replaceAll('/', '_')` (matching the Rust `derive_cache_dir_name()` convention). Uses `appDataDir()` from `@tauri-apps/api/path`. This ensures "View" works even before a skill is installed.
+- **`RepoSkillsGrid` handles install and delete logic** and passes callbacks down to `SkillCard`.
+- **Delete functionality:** `SkillCard` shows a trash icon (Trash2 from lucide-react) next to installed skills (both "Installed" and "Needs Update" states). Clicking it calls `onDelete`, which triggers `skillsDeleteInstalled(skill.skillId, targetFolder)` in `RepoSkillsGrid`. A `deleting` boolean prop disables the card during deletion. The backend emits `skills:changed` after deletion, which triggers the sidebar file tree refresh and store re-fetch.
 
 **Step 4: Verify**
 
@@ -356,7 +367,7 @@ Expected: Compiles.
 
 **Step 1: Add background sync in the `setup` closure**
 
-In `src-tauri/src/lib.rs`, after the existing setup code (opencode-server-api skill deploy), add:
+In `src-tauri/src/lib.rs`, after the existing setup code (opencode-server-api skill deploy), add a background task that iterates registered repos and pulls updates. The cache directory path is derived using `crate::git_ops::derive_cache_dir_name(&repo.url)` (human-readable name, not UUID).
 
 **Step 2: Verify**
 
@@ -376,6 +387,10 @@ The main window's `SkillsCatalog` and `useSkillsStore` (autocomplete) need to li
 **Step 1: Add event listener to `SkillsCatalog`**
 
 In `src/components/landing/SkillsCatalog.tsx`, add a `useEffect` that subscribes to `skills:changed`
+
+**Step 1b: Add Skills Manager footer link to `SkillsCatalog`**
+
+Add a `border-t` footer below the skill grid with text: "For full control of your skills, use **Skills Manager**" where "Skills Manager" is a `<button>` styled as an inline text link (`font-medium text-primary underline hover:no-underline`) that calls `openSkillsManagerWindow()` from `@/lib/skills-window`. This provides a contextual entry point from the bundled skills catalog to the full Skills Manager window.
 
 **Step 2: Add event listener to `skillsStore`**
 
@@ -417,4 +432,10 @@ Expected: All existing tests pass (including new `git_ops` tests).
 
 ## Implementation Log
 
--
+- Phases 1–5 implemented (Tasks 1–16)
+- **Post-implementation fixes (2026-02-21):**
+  - **SkillsSidebar auto-refresh:** Added `skills:changed` event subscription with debounced `refreshRoot()` call so the file tree updates after skill install/update/delete
+  - **Hidden file filter toggle:** Added Eye/EyeOff toggle button to SkillsSidebar search bar, reusing `isHiddenEntry()` from `FileTreePanel.tsx` with `useMemo`-based filter predicate
+  - **Delete functionality:** Added `onDelete` prop and trash icon to `SkillCard` for installed skills; wired `handleDelete` in `RepoSkillsGrid` calling `skillsDeleteInstalled()` (backend command already existed)
+  - **Human-readable cache dir names:** Changed `repo_cache_dir()` to use `derive_cache_dir_name(url)` (repo name with `/` → `_`) instead of UUID. Added `derive_cache_dir_name()` to `git_ops.rs` with 3 tests. Updated all callers in `skill_repos.rs`, `lib.rs` background sync, and frontend `SkillCard.tsx` View handler.
+  - **Skills Manager entry point in SkillsCatalog:** Added footer link in `SkillsCatalog.tsx` — "For full control of your skills, use Skills Manager" — that calls `openSkillsManagerWindow()` to open the Skills Manager window.

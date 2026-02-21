@@ -93,7 +93,7 @@ pub fn run() {
                         .app_data_dir()
                         .expect("app data dir")
                         .join("skill-repo-cache")
-                        .join(&repo.id);
+                        .join(crate::git_ops::derive_cache_dir_name(&repo.url));
 
                     let _ = app_handle_for_sync.emit(
                         "skills:sync_progress",

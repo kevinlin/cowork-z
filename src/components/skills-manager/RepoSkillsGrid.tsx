@@ -9,6 +9,7 @@ export function RepoSkillsGrid() {
   const { repoSkills, repoSkillsLoading, searchQuery, setSearchQuery, activeCategory, setActiveCategory, targetFolder, refreshAll } =
     useSkillsManagerStore();
   const [installingPath, setInstallingPath] = useState<string | null>(null);
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const categories = useMemo(() => {
@@ -46,6 +47,24 @@ export function RepoSkillsGrid() {
       setErrors((prev) => ({ ...prev, [skill.skillPath]: String(e) }));
     } finally {
       setInstallingPath(null);
+    }
+  };
+
+  const handleDelete = async (skill: RepoSkill) => {
+    setDeletingPath(skill.skillPath);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[skill.skillPath];
+      return next;
+    });
+    try {
+      const api = getTauriAPI();
+      await api.skillsDeleteInstalled(skill.skillId, targetFolder);
+      await refreshAll();
+    } catch (e) {
+      setErrors((prev) => ({ ...prev, [skill.skillPath]: String(e) }));
+    } finally {
+      setDeletingPath(null);
     }
   };
 
@@ -95,9 +114,11 @@ export function RepoSkillsGrid() {
           <div className="grid grid-cols-2 gap-3">
             {filtered.map((skill) => (
               <SkillCard
+                deleting={deletingPath === skill.skillPath}
                 error={errors[skill.skillPath]}
                 installing={installingPath === skill.skillPath}
                 key={`${skill.repoId}-${skill.skillPath}`}
+                onDelete={() => handleDelete(skill)}
                 onInstall={() => handleInstall(skill)}
                 skill={skill}
               />

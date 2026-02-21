@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { openSkillsManagerWindow } from '@/lib/skills-window';
 import type { SkillWithStatus } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { useFilePreviewStore } from '@/stores/filePreviewStore';
@@ -171,6 +172,15 @@ export default function SkillsCatalog() {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="border-t px-6 py-3">
+        <p className="text-muted-foreground text-xs">
+          For full control of your skills, use{' '}
+          <button className="font-medium text-primary underline hover:no-underline" onClick={openSkillsManagerWindow} type="button">
+            Skills Manager
+          </button>
+        </p>
       </div>
     </div>
   );

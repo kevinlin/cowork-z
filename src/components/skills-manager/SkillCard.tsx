@@ -1,4 +1,5 @@
 import { appDataDir } from '@tauri-apps/api/path';
+import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { RepoSkill } from '@/lib/tauri-api';
@@ -22,11 +23,13 @@ const CATEGORY_COLORS: Record<string, string> = {
 interface SkillCardProps {
   skill: RepoSkill;
   installing: boolean;
+  deleting: boolean;
   error?: string;
   onInstall: () => void;
+  onDelete: () => void;
 }
 
-export function SkillCard({ skill, installing, error, onInstall }: SkillCardProps) {
+export function SkillCard({ skill, installing, deleting, error, onInstall, onDelete }: SkillCardProps) {
   const { openPreviewByPath } = useFilePreviewStore();
   const [viewError, setViewError] = useState<string | null>(null);
   const colorClass = CATEGORY_COLORS[skill.category] ?? 'bg-muted text-muted-foreground';
@@ -36,7 +39,8 @@ export function SkillCard({ skill, installing, error, onInstall }: SkillCardProp
     try {
       const dataDir = await appDataDir();
       const dataDirNorm = dataDir.endsWith('/') ? dataDir : `${dataDir}/`;
-      const skillMdPath = `${dataDirNorm}skill-repo-cache/${skill.repoId}/${skill.skillPath}/SKILL.md`;
+      const repoCacheName = skill.repoName.replace(/\//g, '_');
+      const skillMdPath = `${dataDirNorm}skill-repo-cache/${repoCacheName}/${skill.skillPath}/SKILL.md`;
       openPreviewByPath(skillMdPath);
     } catch (e) {
       setViewError(String(e));
@@ -71,17 +75,39 @@ export function SkillCard({ skill, installing, error, onInstall }: SkillCardProp
           <Button className="ml-auto h-6 text-xs" disabled size="sm">
             Installing...
           </Button>
+        ) : deleting ? (
+          <Button className="ml-auto h-6 text-xs" disabled size="sm" variant="ghost">
+            Deleting...
+          </Button>
         ) : skill.installed && !skill.needsUpdate ? (
           <div className="ml-auto flex items-center gap-1">
             <span className="text-green-600 text-xs">Installed</span>
             <button className="text-muted-foreground text-xs underline hover:no-underline" onClick={onInstall} type="button">
               Re-install
             </button>
+            <button
+              className="ml-1 text-muted-foreground transition-colors hover:text-destructive"
+              onClick={onDelete}
+              title="Delete installed skill"
+              type="button"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           </div>
         ) : skill.installed && skill.needsUpdate ? (
-          <Button className="ml-auto h-6 bg-amber-500 text-xs hover:bg-amber-600" onClick={onInstall} size="sm">
-            Update
-          </Button>
+          <div className="ml-auto flex items-center gap-1">
+            <Button className="h-6 bg-amber-500 text-xs hover:bg-amber-600" onClick={onInstall} size="sm">
+              Update
+            </Button>
+            <button
+              className="text-muted-foreground transition-colors hover:text-destructive"
+              onClick={onDelete}
+              title="Delete installed skill"
+              type="button"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         ) : (
           <Button className="ml-auto h-6 text-xs" onClick={onInstall} size="sm">
             Install

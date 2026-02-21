@@ -69,7 +69,7 @@ export async function openSkillsManagerWindow() {
 
 > **Note:** `WebviewWindow.getByLabel()` returns a `Promise` in Tauri 2.x, so the function must be `async`.
 
-Entry points: sidebar button in main window + Help menu item.
+Entry points: sidebar button in main window, Help menu item, and footer link in the Home screen Skills Catalog ("For full control of your skills, use Skills Manager").
 
 ---
 
@@ -102,13 +102,15 @@ Entry points: sidebar button in main window + Help menu item.
 
 ### Cache Directory
 
+Cache directories use a human-readable name derived from the repo URL (`derive_cache_dir_name()` in `git_ops.rs`): the display name (e.g. `anthropics/knowledge-work-plugins`) with `/` replaced by `_`.
+
 ```
 {app_data_dir}/skill-repo-cache/
-  {repo-uuid-1}/          ← shallow clone of repo 1
+  anthropics_knowledge-work-plugins/   ← shallow clone of repo
     .git/
     data/skills/sql-queries/SKILL.md
     ...
-  {repo-uuid-2}/          ← shallow clone of repo 2
+  owner_another-repo/                  ← shallow clone of another repo
     ...
 ```
 
@@ -180,7 +182,7 @@ This adapter is activated when the repo URL matches `github.com/anthropics/knowl
 
 All Git operations use `std::process::Command` in Rust:
 
-- **Clone:** `git clone --depth 1 --branch {branch} {url} {cache_dir}`
+- **Clone:** `git clone --depth 1 --branch {branch} {url} {cache_dir}` — `cache_dir` uses `derive_cache_dir_name(url)` (repo name with `/` → `_`)
 - **Pull:** `git -C {cache_dir} pull --ff-only`
 - **Auth:** For token-based HTTPS repos, rewrite URL to `https://{token}@github.com/...`
 
@@ -215,16 +217,17 @@ Both are bound to the same state. Switching folders refreshes the file tree and 
 │ [Folder ▾]    │ [All Repos ▾] [+ Add] [↻ Sync]   │                      │
 │ opencode/     │  Last synced: 2 min ago           │  File Preview Pane   │
 │ skills/       ├───────────────────────────────────┤                      │
-│               │ [🔍 Search skills...]              │  (FilePreviewPanel   │
+│ [🔍 Search][👁]│ [🔍 Search skills...]              │  (FilePreviewPanel   │
 │ 📁 brainstorm │ [All] [Data] [Marketing] [Legal]  │   minus "Add to Chat"│
 │ 📁 data-query │ ┌──────────────┐ ┌──────────────┐│   closable with X    │
 │ 📁 legal-rev  │ │ SQL Queries   │ │ Brand Voice   ││   and Esc)           │
 │ 📁 marketing  │ │ Data · repo1  │ │ Mktg · repo1  ││                      │
-│ 📁 seo-audit  │ │ [View][Install]│ │ [Installed ✓] ││                      │
-│   ...         │ ├──────────────┤ ├──────────────┤│                      │
-│               │ │ Legal Review  │ │ SEO Audit     ││                      │
-│               │ │ Legal · repo1 │ │ Mktg · repo2  ││                      │
-│               │ │ [View][Update]│ │[View][Install] ││                      │
+│ 📁 seo-audit  │ │ [View][Install]│ │ [✓][Reinstall]││                      │
+│   ...         │ ├──────────────┤ │ [🗑 Delete]   ││                      │
+│               │ │ Legal Review  │ ├──────────────┤│                      │
+│               │ │ Legal · repo1 │ │ SEO Audit     ││                      │
+│               │ │ [View][Update]│ │ Mktg · repo2  ││                      │
+│               │ │ [🗑 Delete]   │ │[View][Install] ││                      │
 │               │ └──────────────┘ └──────────────┘│                      │
 ├───────────────┴───────────────────────────────────┴──────────────────────┤
 │ 3 repos · 47 skills · All synced                                         │
@@ -235,13 +238,15 @@ Both are bound to the same state. Switching folders refreshes the file tree and 
 - **Adjustable width** (drag handle on right edge, min 200px, max 400px, default 250px)
 - **Folder switcher dropdown** at the top — styled with **primary color** border and text to emphasize the active target folder
 - **File tree** of the selected skills folder, reusing the existing file tree pattern (lazy-load, expand/collapse, icons)
+- **Auto-refresh:** The sidebar subscribes to `skills:changed` Tauri events and calls `refreshRoot()` (debounced 200ms) to reload the file tree whenever a skill is installed, updated, or deleted — from either the Skills Manager or the main window's catalog
+- **Hidden file filter toggle:** An eye icon button next to the search input toggles visibility of dotfiles and system entries (`.coworkz-checksum`, `.coworkz-source`, `.DS_Store`, etc.). Uses the shared `isHiddenEntry()` from `FileTreePanel.tsx`. Hidden by default (matching the main window's file tree behavior).
 - Click a file → opens in right preview pane
 
 ### Center Panel
 - **Header toolbar:** repo filter dropdown ("All Repos" or individual repo names), "Add Repo" button, "Sync" button, last-synced time. When a specific repo is selected (not "All Repos"), the dropdown is styled with **primary color** border and text to indicate active filtering.
 - **Search bar + category tabs:** consistent with existing SkillsCatalog design
 - **2-column card grid:** each card is a standalone `SkillCard` component (`src/components/skills-manager/SkillCard.tsx`) showing name, description, category badge, source repo badge, and action buttons
-- **Card actions:** View (opens `SKILL.md` from the **local cloned repo cache** at `{app_data_dir}/skill-repo-cache/{repo_id}/{skill_path}/SKILL.md`), Install/Update/Installed badge, Re-install
+- **Card actions:** View (opens `SKILL.md` from the **local cloned repo cache** at `{app_data_dir}/skill-repo-cache/{repo_cache_name}/{skill_path}/SKILL.md` where `repo_cache_name` is the repo display name with `/` → `_`), Install/Update/Installed badge, Re-install, Delete (trash icon, visible only for installed skills)
 
 ### Right Preview Pane
 - Reuses `FilePreviewPanel.tsx` implementation
@@ -285,6 +290,7 @@ The main window and Skills Manager stay in sync via events, not direct window-to
 2. **Main window's SkillsCatalog** listens for `skills:changed` and re-fetches install status
 3. **Main window's useSkillsStore** (autocomplete) re-fetches installed skills list
 4. **Home screen Skills Catalog installs a bundled skill** → emits `skills:changed` → Skills Manager file tree refreshes
+5. **Skills Manager's SkillsSidebar** subscribes to `skills:changed` and calls `refreshRoot()` (debounced 200ms) to reload the file tree — this ensures the sidebar reflects installs, updates, and deletes without manual refresh
 
 ---
 

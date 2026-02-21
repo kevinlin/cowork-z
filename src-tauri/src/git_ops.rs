@@ -104,6 +104,12 @@ fn inject_token(url: &str, token: Option<&str>) -> String {
     }
 }
 
+/// Derive a filesystem-safe cache directory name from a Git URL.
+/// `https://github.com/anthropics/knowledge-work-plugins.git` -> `anthropics_knowledge-work-plugins`
+pub fn derive_cache_dir_name(url: &str) -> String {
+    derive_repo_name(url).replace('/', "_")
+}
+
 /// Derive a display name from a Git URL.
 /// `https://github.com/anthropics/knowledge-work-plugins.git` -> `anthropics/knowledge-work-plugins`
 pub fn derive_repo_name(url: &str) -> String {
@@ -161,5 +167,29 @@ mod tests {
     #[test]
     fn test_derive_repo_name_fallback() {
         assert_eq!(derive_repo_name("https://custom.host/myrepo"), "myrepo");
+    }
+
+    #[test]
+    fn test_derive_cache_dir_name_github() {
+        assert_eq!(
+            derive_cache_dir_name("https://github.com/anthropics/knowledge-work-plugins.git"),
+            "anthropics_knowledge-work-plugins"
+        );
+    }
+
+    #[test]
+    fn test_derive_cache_dir_name_ssh() {
+        assert_eq!(
+            derive_cache_dir_name("git@github.com:owner/repo.git"),
+            "owner_repo"
+        );
+    }
+
+    #[test]
+    fn test_derive_cache_dir_name_fallback() {
+        assert_eq!(
+            derive_cache_dir_name("https://custom.host/myrepo"),
+            "myrepo"
+        );
     }
 }

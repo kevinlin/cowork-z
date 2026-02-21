@@ -4,7 +4,8 @@
 
 ## v0.5.8
 
-- 
+- **1.1.6 GitHub Copilot Provider Support** — Added GitHub Copilot as the 12th provider with OAuth device flow authentication
+
 
 ## v0.5.7 (2026-02-21)
 

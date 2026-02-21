@@ -8,6 +8,7 @@ import {
   AzureFoundryProviderForm,
   BedrockProviderForm,
   ClassicProviderForm,
+  CopilotProviderForm,
   LiteLLMProviderForm,
   OllamaProviderForm,
   OpenRouterProviderForm,
@@ -94,6 +95,17 @@ export function ProviderSettingsPanel({
       case 'hybrid':
         return (
           <LiteLLMProviderForm
+            connectedProvider={connectedProvider}
+            onConnect={onConnect}
+            onDisconnect={onDisconnect}
+            onModelChange={onModelChange}
+            showModelError={showModelError}
+          />
+        );
+
+      case 'copilot':
+        return (
+          <CopilotProviderForm
             connectedProvider={connectedProvider}
             onConnect={onConnect}
             onDisconnect={onDisconnect}

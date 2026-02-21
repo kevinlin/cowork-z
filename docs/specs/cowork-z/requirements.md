@@ -36,6 +36,7 @@ The following implementation plans document how specific requirements were desig
 | OpenCode Server API Skill | [`opencode-integration/plan_opencode-server-skill.md`](../opencode-integration/plan_opencode-server-skill.md) | 2.4 |
 | Server Isolation | [`opencode-integration/plan_server-isolation.md`](../opencode-integration/plan_server-isolation.md) | 5.2.1 |
 | OpenRouter Provider Support | [`opencode-integration/plan_openrouter-provider-support.md`](../opencode-integration/plan_openrouter-provider-support.md) | 1.1.3 |
+| GitHub Copilot Provider Support | [`opencode-integration/plan_github-copilot-provider-support.md`](../opencode-integration/plan_github-copilot-provider-support.md) | 1.1.6 |
 
 ### chat-ux — Chat Experience
 
@@ -132,6 +133,18 @@ The following implementation plans document how specific requirements were desig
 2. THE SYSTEM SHALL prevent small-model calls from being routed through non-OpenRouter providers
 3. THE SYSTEM SHALL persist the small-model configuration so that it survives OpenCode server restarts and instance recreation
 4. THE SYSTEM SHALL update the configuration when the active model changes between tasks
+
+##### 1.1.6 GitHub Copilot Provider Support ✅
+
+> **Plan:** [GitHub Copilot Provider Support](../opencode-integration/plan_github-copilot-provider-support.md)
+
+1. THE SYSTEM SHALL support GitHub Copilot as a provider, allowing users to access models available through their GitHub Copilot subscription
+2. WHEN a user clicks "Sign in with GitHub", THE SYSTEM SHALL initiate the GitHub OAuth device flow via the OpenCode server's provider auth API
+3. THE SYSTEM SHALL display the device code and a link to github.com/login/device, and open the link in the default browser
+4. THE SYSTEM SHALL poll for authorization completion and update the provider status when the user completes the GitHub device flow
+5. AFTER successful authentication, THE SYSTEM SHALL fetch available models from the OpenCode server's provider list and display them in a selectable list
+6. THE SYSTEM SHALL support an optional GitHub Enterprise URL for enterprise Copilot deployments
+7. THE SYSTEM SHALL allow disconnecting from GitHub Copilot, which removes the stored OAuth credentials from the OpenCode auth store
 
 #### 1.2 Session Management ✅
 
@@ -856,5 +869,4 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ## TODO Features
 
-- [ ] **Copilot Provider Support** — Support GitHub Copilot enterprise as a provider
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

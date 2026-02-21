@@ -47,7 +47,7 @@ export function ClassicProviderForm({
   const [localAvailableModels, setLocalAvailableModels] = useState<Array<{ id: string; name: string }> | null>(null);
 
   const meta = PROVIDER_META[providerId];
-  const isDynamic = DYNAMIC_MODEL_PROVIDERS.includes(providerId);
+  const isDynamic = (DYNAMIC_MODEL_PROVIDERS as string[]).includes(providerId);
 
   // Model display: use persisted availableModels, then local just-fetched, then fallback, then static
   const providerConfig = DEFAULT_PROVIDERS.find((p) => p.id === providerId);
@@ -58,7 +58,7 @@ export function ClassicProviderForm({
     })) || [];
 
   const models = isDynamic
-    ? (connectedProvider?.availableModels ?? localAvailableModels ?? FALLBACK_MODELS[providerId] ?? [])
+    ? (connectedProvider?.availableModels ?? localAvailableModels ?? (FALLBACK_MODELS as Record<string, Array<{ id: string; name: string }>>)[providerId] ?? [])
     : staticModels;
 
   const isConnected = connectedProvider?.connectionStatus === 'connected';
@@ -99,7 +99,7 @@ export function ClassicProviderForm({
           }));
         } else {
           // Fall back to static fallback models
-          availableModels = FALLBACK_MODELS[providerId];
+          availableModels = (FALLBACK_MODELS as Record<string, Array<{ id: string; name: string }>>)[providerId];
         }
         setLocalAvailableModels(availableModels ?? null);
       }

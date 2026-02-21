@@ -1324,6 +1324,67 @@ export async function onSkillsSyncProgress(callback: (progress: SyncProgress) =>
 }
 
 // ============================================================================
+// Copilot OAuth
+// ============================================================================
+
+export async function copilotOAuthAuthorize(enterpriseUrl?: string): Promise<void> {
+  return invoke<void>('copilot_oauth_authorize', { enterpriseUrl: enterpriseUrl ?? null });
+}
+
+export async function copilotGetModels(): Promise<void> {
+  return invoke<void>('copilot_get_models');
+}
+
+export async function copilotDisconnect(): Promise<void> {
+  return invoke<void>('copilot_disconnect');
+}
+
+export async function onCopilotOAuthResult(
+  callback: (result: { url: string; method: string; instructions: string }) => void
+): Promise<UnlistenFn> {
+  return listen<{ payload?: { url?: string; method?: string; instructions?: string } }>('copilot:oauth_result', (event) => {
+    const payload = event.payload?.payload;
+    if (payload?.url && payload.instructions) {
+      callback({
+        url: payload.url,
+        method: payload.method ?? 'code',
+        instructions: payload.instructions,
+      });
+    }
+  });
+}
+
+export async function onCopilotOAuthComplete(callback: (result: { connected: boolean; error?: string }) => void): Promise<UnlistenFn> {
+  return listen<{ payload?: { connected?: boolean; error?: string } }>('copilot:oauth_complete', (event) => {
+    const payload = event.payload?.payload;
+    if (payload) {
+      callback({
+        connected: payload.connected ?? false,
+        error: payload.error,
+      });
+    }
+  });
+}
+
+export async function onCopilotModelsResult(
+  callback: (result: { success: boolean; models?: Array<{ id: string; name: string }>; error?: string }) => void
+): Promise<UnlistenFn> {
+  return listen<{ payload?: { success?: boolean; models?: Array<{ id: string; name: string }>; error?: string } }>(
+    'copilot:models_result',
+    (event) => {
+      const payload = event.payload?.payload;
+      if (payload) {
+        callback({
+          success: payload.success ?? false,
+          models: payload.models,
+          error: payload.error,
+        });
+      }
+    }
+  );
+}
+
+// ============================================================================
 // Compatibility Helpers
 // ============================================================================
 
@@ -1538,5 +1599,13 @@ export function getTauriApi() {
     skillsDeleteInstalled,
     onSkillsChanged,
     onSkillsSyncProgress,
+
+    // Copilot OAuth
+    copilotOAuthAuthorize,
+    copilotGetModels,
+    copilotDisconnect,
+    onCopilotOAuthResult,
+    onCopilotOAuthComplete,
+    onCopilotModelsResult,
   };
 }

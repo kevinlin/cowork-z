@@ -343,6 +343,141 @@ async function handleQuestionReply(taskId: string, payload: QuestionReplyPayload
   }
 }
 
+async function handleCopilotOAuthAuthorize(enterpriseUrl?: string): Promise<void> {
+  try {
+    await initialize();
+
+    if (!processManager) {
+      throw new Error('Process manager not initialized');
+    }
+
+    const client = processManager.getClient();
+    const providerID = enterpriseUrl ? 'github-copilot-enterprise' : 'github-copilot';
+
+    if (enterpriseUrl) {
+      await client.updateConfig({
+        provider: {
+          'github-copilot-enterprise': { url: enterpriseUrl },
+        },
+      });
+    }
+
+    const result = await client.oauthAuthorize(providerID, 0);
+
+    send({
+      type: 'copilot_oauth_result',
+      payload: {
+        url: result.url,
+        method: (result.method || 'code') as 'auto' | 'code',
+        instructions: result.instructions,
+      },
+    } as SidecarEvent);
+
+    // The authorize call stores a pending auth in the server's memory.
+    // Calling callback with method:"auto" blocks until the user completes
+    // the device flow on GitHub, then exchanges the code for a token and
+    // persists it via Auth.set(). This is the correct completion signal.
+    const callbackAsync = async () => {
+      try {
+        await client.oauthCallback(providerID, 0);
+
+        send({
+          type: 'copilot_oauth_complete',
+          payload: { connected: true },
+        } as SidecarEvent);
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        logger.error('Copilot OAuth callback failed', { error: errMsg });
+
+        send({
+          type: 'copilot_oauth_complete',
+          payload: { connected: false, error: errMsg },
+        } as SidecarEvent);
+      }
+    };
+
+    callbackAsync();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('Copilot OAuth authorize failed', { error: message });
+    send({
+      type: 'copilot_oauth_complete',
+      payload: { connected: false, error: message },
+    } as SidecarEvent);
+  }
+}
+
+async function handleCopilotGetModels(): Promise<void> {
+  try {
+    if (!processManager) {
+      throw new Error('Process manager not initialized');
+    }
+
+    const client = processManager.getClient();
+    const providers = await client.listProviders();
+
+    const copilotProvider = providers.all?.find((p: { id: string }) => p.id === 'github-copilot' || p.id === 'github-copilot-enterprise');
+
+    if (!(copilotProvider && copilotProvider.models)) {
+      send({
+        type: 'copilot_models_result',
+        payload: { success: false, error: 'No Copilot provider found or no models available' },
+      } as SidecarEvent);
+      return;
+    }
+
+    const prefix = copilotProvider.id;
+    const models = Object.entries(copilotProvider.models).map(([modelId, meta]) => ({
+      id: `${prefix}/${modelId}`,
+      name: (meta as { name?: string }).name || modelId,
+    }));
+
+    send({
+      type: 'copilot_models_result',
+      payload: { success: true, models },
+    } as SidecarEvent);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to get Copilot models', { error: message });
+    send({
+      type: 'copilot_models_result',
+      payload: { success: false, error: message },
+    } as SidecarEvent);
+  }
+}
+
+async function handleCopilotDisconnect(): Promise<void> {
+  try {
+    if (!processManager) {
+      throw new Error('Process manager not initialized');
+    }
+
+    const client = processManager.getClient();
+    try {
+      await client.deleteAuth('github-copilot');
+    } catch {
+      // May not exist
+    }
+    try {
+      await client.deleteAuth('github-copilot-enterprise');
+    } catch {
+      // May not exist
+    }
+
+    send({
+      type: 'copilot_oauth_complete',
+      payload: { connected: false },
+    } as SidecarEvent);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to disconnect Copilot', { error: message });
+    send({
+      type: 'error',
+      payload: { message: `Failed to disconnect Copilot: ${message}` },
+    });
+  }
+}
+
 async function handleCheckServer(): Promise<void> {
   try {
     if (!processManager) {
@@ -413,6 +548,18 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
 
     case 'update_mcp_config':
       await handleUpdateMcpConfig(msg.payload);
+      break;
+
+    case 'copilot_oauth_authorize':
+      await handleCopilotOAuthAuthorize(msg.enterpriseUrl);
+      break;
+
+    case 'copilot_get_models':
+      await handleCopilotGetModels();
+      break;
+
+    case 'copilot_disconnect':
+      await handleCopilotDisconnect();
       break;
 
     case 'get_session_todos': {

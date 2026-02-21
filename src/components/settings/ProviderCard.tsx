@@ -18,6 +18,7 @@ import openaiLogo from '/assets/ai-logos/openai.svg';
 import openrouterLogo from '/assets/ai-logos/openrouter.svg';
 import xaiLogo from '/assets/ai-logos/xai.svg';
 import zaiLogo from '/assets/ai-logos/zai.svg';
+import githubCopilotLogo from '/assets/ai-logos/github-copilot.svg';
 
 // Import connected badge icon
 import connectedKeyIcon from '/assets/icons/connected-key.svg';
@@ -34,6 +35,7 @@ const PROVIDER_LOGOS: Record<ProviderId, string> = {
   ollama: ollamaLogo,
   openrouter: openrouterLogo,
   litellm: litellmLogo,
+  'github-copilot': githubCopilotLogo,
 };
 
 interface ProviderCardProps {

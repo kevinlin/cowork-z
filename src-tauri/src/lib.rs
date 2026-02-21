@@ -319,6 +319,10 @@ pub fn run() {
             commands::bedrock::save_bedrock_credentials,
             commands::bedrock::get_bedrock_credentials,
             commands::bedrock::fetch_bedrock_models,
+            // Copilot
+            commands::copilot::copilot_oauth_authorize,
+            commands::copilot::copilot_get_models,
+            commands::copilot::copilot_disconnect,
             // Logging
             commands::logging::log_event,
             commands::logging::write_text_file,

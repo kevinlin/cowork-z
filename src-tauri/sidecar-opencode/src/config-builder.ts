@@ -167,6 +167,12 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
     //  2. Register gpt-5-nano under the openrouter provider config so
     //     OpenCode's getModel("openrouter", "openai/gpt-5-nano") succeeds.
     //  3. Set small_model explicitly.
+    if (options.modelId.startsWith('github-copilot-enterprise/')) {
+      config.enabled_providers = [...((config.enabled_providers as string[]) ?? []), 'github-copilot-enterprise'];
+    } else if (options.modelId.startsWith('github-copilot/')) {
+      config.enabled_providers = [...((config.enabled_providers as string[]) ?? []), 'github-copilot'];
+    }
+
     if (options.modelId.startsWith('openrouter/')) {
       config.small_model = 'openrouter/openai/gpt-5-nano';
       config.disabled_providers = ['opencode'];

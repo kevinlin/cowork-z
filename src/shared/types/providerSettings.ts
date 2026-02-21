@@ -11,9 +11,10 @@ export type ProviderId =
   | 'azure-foundry'
   | 'ollama'
   | 'openrouter'
-  | 'litellm';
+  | 'litellm'
+  | 'github-copilot';
 
-export type ProviderCategory = 'classic' | 'aws' | 'azure' | 'local' | 'proxy' | 'hybrid';
+export type ProviderCategory = 'classic' | 'aws' | 'azure' | 'local' | 'proxy' | 'hybrid' | 'copilot';
 
 export interface ProviderMeta {
   id: ProviderId;
@@ -109,6 +110,14 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
     label: 'Service',
     logoKey: 'liteLLM',
   },
+  'github-copilot': {
+    id: 'github-copilot',
+    name: 'GitHub Copilot',
+    category: 'copilot',
+    label: 'Service',
+    logoKey: 'github-copilot',
+    helpUrl: 'https://github.com/features/copilot',
+  },
 };
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -151,13 +160,19 @@ export interface AzureFoundryCredentials {
   keyPrefix?: string; // Only for api-key auth
 }
 
+export interface CopilotCredentials {
+  type: 'copilot';
+  enterpriseUrl?: string;
+}
+
 export type ProviderCredentials =
   | ApiKeyCredentials
   | BedrockProviderCredentials
   | OllamaCredentials
   | OpenRouterCredentials
   | LiteLLMCredentials
-  | AzureFoundryCredentials;
+  | AzureFoundryCredentials
+  | CopilotCredentials;
 
 export interface ConnectedProvider {
   providerId: ProviderId;

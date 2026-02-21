@@ -13,6 +13,7 @@ const PROVIDER_ORDER: ProviderId[] = [
   'anthropic',
   'openai',
   'google',
+  'github-copilot',
   'bedrock',
   'azure-foundry',
   'deepseek',

@@ -259,6 +259,9 @@ export type SidecarCommand =
     }
   | { type: 'get_session_todos'; taskId: string; sessionId: string }
   | { type: 'update_mcp_config'; payload: UpdateMcpConfigPayload }
+  | { type: 'copilot_oauth_authorize'; enterpriseUrl?: string }
+  | { type: 'copilot_get_models' }
+  | { type: 'copilot_disconnect' }
   | { type: 'ping' }
   | { type: 'check_server' }
   | { type: 'shutdown' };
@@ -340,6 +343,9 @@ export type SidecarEvent =
   | { type: 'task_complete'; taskId: string; payload: TaskCompletePayload }
   | { type: 'task_error'; taskId: string; payload: TaskErrorPayload }
   | { type: 'todo_updated'; taskId: string; payload: TodoUpdatedPayload }
+  | { type: 'copilot_oauth_result'; payload: CopilotOAuthResultPayload }
+  | { type: 'copilot_oauth_complete'; payload: CopilotOAuthCompletePayload }
+  | { type: 'copilot_models_result'; payload: CopilotModelsResultPayload }
   | { type: 'log'; payload: LogPayload }
   | { type: 'error'; payload: ErrorPayload };
 
@@ -410,6 +416,23 @@ export interface TaskErrorPayload {
 
 export interface TodoUpdatedPayload {
   todos: Todo[];
+}
+
+export interface CopilotOAuthResultPayload {
+  url: string;
+  method: 'auto' | 'code';
+  instructions: string;
+}
+
+export interface CopilotOAuthCompletePayload {
+  connected: boolean;
+  error?: string;
+}
+
+export interface CopilotModelsResultPayload {
+  success: boolean;
+  models?: Array<{ id: string; name: string }>;
+  error?: string;
 }
 
 export interface LogPayload {

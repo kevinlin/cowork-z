@@ -306,6 +306,16 @@ export interface TauriAPI {
   skillsDeleteInstalled(skillId: string, targetFolder?: string): Promise<void>;
   onSkillsChanged(callback: () => void): () => void;
   onSkillsSyncProgress(callback: (progress: SyncProgress) => void): () => void;
+
+  // Copilot OAuth
+  copilotOAuthAuthorize(enterpriseUrl?: string): Promise<void>;
+  copilotGetModels(): Promise<void>;
+  copilotDisconnect(): Promise<void>;
+  onCopilotOAuthResult(callback: (result: { url: string; method: string; instructions: string }) => void): () => void;
+  onCopilotOAuthComplete(callback: (result: { connected: boolean; error?: string }) => void): () => void;
+  onCopilotModelsResult(
+    callback: (result: { success: boolean; models?: Array<{ id: string; name: string }>; error?: string }) => void
+  ): () => void;
 }
 
 const toSyncUnlisten = (promise: Promise<() => void>) => {
@@ -361,6 +371,13 @@ export function getTauriAPI(): TauriAPI {
     onWorkspaceFsChanged: (callback: (data: { changedPath: string }) => void) => toSyncUnlisten(tauriApi.onWorkspaceFsChanged(callback)),
     onSkillsChanged: (callback: () => void) => toSyncUnlisten(tauriApi.onSkillsChanged(callback)),
     onSkillsSyncProgress: (callback: (progress: SyncProgress) => void) => toSyncUnlisten(tauriApi.onSkillsSyncProgress(callback)),
+    onCopilotOAuthResult: (callback: (result: { url: string; method: string; instructions: string }) => void) =>
+      toSyncUnlisten(tauriApi.onCopilotOAuthResult(callback)),
+    onCopilotOAuthComplete: (callback: (result: { connected: boolean; error?: string }) => void) =>
+      toSyncUnlisten(tauriApi.onCopilotOAuthComplete(callback)),
+    onCopilotModelsResult: (
+      callback: (result: { success: boolean; models?: Array<{ id: string; name: string }>; error?: string }) => void
+    ) => toSyncUnlisten(tauriApi.onCopilotModelsResult(callback)),
   };
 
   return cachedTauriAPI;

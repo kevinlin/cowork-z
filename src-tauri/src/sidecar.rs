@@ -89,6 +89,15 @@ pub enum SidecarCommand {
     UpdateMcpConfig {
         payload: UpdateMcpConfigPayload,
     },
+    #[serde(rename = "copilot_oauth_authorize")]
+    CopilotOAuthAuthorize {
+        #[serde(rename = "enterpriseUrl")]
+        enterprise_url: Option<String>,
+    },
+    #[serde(rename = "copilot_get_models")]
+    CopilotGetModels,
+    #[serde(rename = "copilot_disconnect")]
+    CopilotDisconnect,
     #[allow(dead_code)]
     Ping,
     /// Health check command sent to sidecar
@@ -420,6 +429,9 @@ impl SidecarManager {
             SidecarCommand::SendQuestionReply { .. } => "send_question_reply",
             SidecarCommand::GetSessionTodos { .. } => "get_session_todos",
             SidecarCommand::UpdateMcpConfig { .. } => "update_mcp_config",
+            SidecarCommand::CopilotOAuthAuthorize { .. } => "copilot_oauth_authorize",
+            SidecarCommand::CopilotGetModels => "copilot_get_models",
+            SidecarCommand::CopilotDisconnect => "copilot_disconnect",
             SidecarCommand::Ping => "ping",
             SidecarCommand::CheckServer => "check_server",
         };
@@ -455,6 +467,9 @@ impl SidecarManager {
             "task_complete" => "task:complete",
             "task_error" => "task:error",
             "todo_updated" => "task:todo_updated",
+            "copilot_oauth_result" => "copilot:oauth_result",
+            "copilot_oauth_complete" => "copilot:oauth_complete",
+            "copilot_models_result" => "copilot:models_result",
             "log" => "sidecar:log",
             "error" => "sidecar:error",
             _ => {

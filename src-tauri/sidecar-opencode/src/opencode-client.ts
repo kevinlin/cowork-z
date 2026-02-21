@@ -225,4 +225,26 @@ export class OpenCodeClient {
   async rejectQuestion(requestId: string, directory?: string): Promise<boolean> {
     return this.request<boolean>('POST', `/question/${requestId}/reject`, undefined, directory ? { directory } : undefined);
   }
+
+  // ============================================================================
+  // Provider OAuth & Discovery
+  // ============================================================================
+
+  async oauthAuthorize(providerID: string, method = 0): Promise<{ url: string; method: string; instructions: string }> {
+    return this.request('POST', `/provider/${providerID}/oauth/authorize`, { method });
+  }
+
+  async oauthCallback(providerID: string, method = 0, code?: string): Promise<boolean> {
+    return this.request('POST', `/provider/${providerID}/oauth/callback`, { method, code }, undefined, { timeout: 10 * 60 * 1000 });
+  }
+
+  async listProviders(
+    directory?: string
+  ): Promise<{ all: Array<{ id: string; models?: Record<string, { name?: string }> }>; connected: string[] }> {
+    return this.request('GET', '/provider', undefined, directory ? { directory } : undefined);
+  }
+
+  async deleteAuth(providerID: string): Promise<boolean> {
+    return this.request<boolean>('DELETE', `/auth/${providerID}`);
+  }
 }

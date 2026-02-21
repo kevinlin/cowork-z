@@ -24,6 +24,10 @@ pub fn discover_skills(repo_id: &str, repo_dir: &Path, repo_url: &str) -> Vec<St
         return discover_anthropics_skills(repo_id, repo_dir);
     }
 
+    if is_openai_skills_repo(repo_url) {
+        return discover_openai_skills(repo_id, repo_dir);
+    }
+
     let manifest_path = repo_dir.join("skills.json");
     if manifest_path.exists() {
         if let Ok(skills) = discover_from_manifest(repo_id, repo_dir, &manifest_path) {
@@ -234,6 +238,81 @@ fn discover_anthropics_skills(repo_id: &str, repo_dir: &Path) -> Vec<StoredRepoS
                     });
                 }
             }
+        }
+    }
+
+    results.sort_by(|a, b| a.category.cmp(&b.category).then(a.name.cmp(&b.name)));
+    results
+}
+
+// --- openai/skills adapter ---
+
+fn is_openai_skills_repo(url: &str) -> bool {
+    let normalized = url.to_lowercase();
+    normalized.contains("github.com/openai/skills")
+        || normalized.contains("github.com:openai/skills")
+}
+
+/// Skills in openai/skills live under `skills/.curated/`, `skills/.system/`,
+/// and potentially `skills/.experimental/`. Each subdirectory contains a
+/// SKILL.md. The dotfile-prefixed parent directories (`.curated`, `.system`)
+/// are used as category labels.
+const OPENAI_SKILL_SUBDIRS: &[(&str, &str)] = &[
+    (".curated", "Curated"),
+    (".system", "System"),
+    (".experimental", "Experimental"),
+];
+
+fn discover_openai_skills(repo_id: &str, repo_dir: &Path) -> Vec<StoredRepoSkill> {
+    let mut results = Vec::new();
+    let skills_root = repo_dir.join("skills");
+
+    if !skills_root.is_dir() {
+        return discover_by_convention(repo_id, repo_dir);
+    }
+
+    for (subdir_name, category_label) in OPENAI_SKILL_SUBDIRS {
+        let subdir = skills_root.join(subdir_name);
+        if !subdir.is_dir() {
+            continue;
+        }
+
+        let entries = match fs::read_dir(&subdir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let dir_name = entry.file_name().to_string_lossy().to_string();
+            if dir_name.starts_with('.') {
+                continue;
+            }
+
+            let skill_md = path.join("SKILL.md");
+            if !skill_md.exists() {
+                continue;
+            }
+
+            let rel_path = path.strip_prefix(repo_dir).unwrap_or(&path);
+            let rel_str = rel_path.to_string_lossy().replace('\\', "/");
+
+            let skill_id = dir_name.clone();
+
+            let (name, desc) =
+                parse_frontmatter(&path).unwrap_or_else(|| (skill_id.clone(), String::new()));
+
+            results.push(StoredRepoSkill {
+                repo_id: repo_id.to_string(),
+                skill_path: rel_str,
+                skill_id,
+                name,
+                description: desc,
+                category: category_label.to_string(),
+            });
         }
     }
 

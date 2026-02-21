@@ -79,7 +79,7 @@ Expected: Compiles.
 - Create: `src-tauri/src/skill_discovery.rs`
 - Modify: `src-tauri/src/lib.rs` (module registration)
 
-This module scans a cloned repo directory for `SKILL.md` files and produces `StoredRepoSkill` records. It implements convention-based scanning, optional manifest override, and the `anthropics/knowledge-work-plugins` adapter.
+This module scans a cloned repo directory for `SKILL.md` files and produces `StoredRepoSkill` records. It implements convention-based scanning, optional manifest override, and repo-specific adapters for `anthropics/knowledge-work-plugins` and `openai/skills`.
 
 **Step 1: Create `skill_discovery.rs`**
 
@@ -439,3 +439,4 @@ Expected: All existing tests pass (including new `git_ops` tests).
   - **Delete functionality:** Added `onDelete` prop and trash icon to `SkillCard` for installed skills; wired `handleDelete` in `RepoSkillsGrid` calling `skillsDeleteInstalled()` (backend command already existed)
   - **Human-readable cache dir names:** Changed `repo_cache_dir()` to use `derive_cache_dir_name(url)` (repo name with `/` → `_`) instead of UUID. Added `derive_cache_dir_name()` to `git_ops.rs` with 3 tests. Updated all callers in `skill_repos.rs`, `lib.rs` background sync, and frontend `SkillCard.tsx` View handler.
   - **Skills Manager entry point in SkillsCatalog:** Added footer link in `SkillsCatalog.tsx` — "For full control of your skills, use Skills Manager" — that calls `openSkillsManagerWindow()` to open the Skills Manager window.
+  - **`openai/skills` repo adapter:** Added `discover_openai_skills()` in `skill_discovery.rs` to handle repos that organize skills under dotfile-prefixed subdirectories (`skills/.curated/`, `skills/.system/`, `skills/.experimental/`). The convention-based scanner skips dotfile directories, so this adapter explicitly enumerates the known subdirectories via the `OPENAI_SKILL_SUBDIRS` constant. Detected via URL match on `github.com/openai/skills`. Skill IDs use directory names directly (no category prefix). Falls back to convention scan if `skills/` root is absent.

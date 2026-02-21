@@ -160,6 +160,28 @@ This repo uses a non-standard structure (`{category}/skills/{name}/` and `{categ
 
 This adapter is activated when the repo URL matches `github.com/anthropics/knowledge-work-plugins`.
 
+### Repo-Specific Adapter: `openai/skills`
+
+This repo organizes skills under dotfile-prefixed subdirectories within `skills/`:
+
+```
+skills/
+  .curated/          ← Curated skills (e.g., gh-fix-ci/, playwright/, sentry/)
+  .system/           ← System skills (e.g., skill-creator/, skill-installer/)
+  .experimental/     ← Experimental skills (if present)
+```
+
+Each skill is a directory containing `SKILL.md` (plus optional `agents/`, `scripts/`, `assets/` subdirectories).
+
+The convention-based scanner skips dotfile directories by default (line `if name.starts_with('.') { continue; }` in `find_skill_dirs`). The `openai/skills` adapter bypasses this by explicitly enumerating the known dotfile subdirectories (`OPENAI_SKILL_SUBDIRS` constant) and scanning each for skill directories.
+
+- **Detection:** Activated when the repo URL matches `github.com/openai/skills` (HTTPS or SSH)
+- **Scanned subdirectories:** `.curated` → category "Curated", `.system` → category "System", `.experimental` → category "Experimental"
+- **Skill ID:** Uses the directory name directly (e.g., `gh-fix-ci`, `playwright`) — no category prefix, since the directory names are already unique
+- **Fallback:** If the `skills/` root directory doesn't exist, falls back to convention-based scanning
+
+This adapter is activated when the repo URL matches `github.com/openai/skills`.
+
 ---
 
 ## Sync Lifecycle

@@ -152,7 +152,7 @@ export function CopilotProviderForm({
 
   const handleCopyCode = async () => {
     if (!oauthResult) return;
-    const code = oauthResult.instructions;
+    const code = oauthResult.instructions.replace('Enter code: ', '');
     try {
       await navigator.clipboard.writeText(code);
       setCodeCopied(true);

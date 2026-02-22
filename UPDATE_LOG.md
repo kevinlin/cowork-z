@@ -4,7 +4,7 @@
 
 ## v0.5.9
 
-- 
+-  Fix image in About Dialog
 
 ## v0.5.8
 

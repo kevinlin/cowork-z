@@ -1,6 +1,13 @@
 # AGENTS.md
 
-> **See [CLAUDE.md](./CLAUDE.md) for the canonical project reference** — project overview, technology stack, architecture, development commands, testing, IPC protocol, sidecar details, frontend structure, settings patterns, drag-and-drop constraints, build warnings, app startup behavior, skills manager, workspace architecture, bundled resources, design documentation, and important notes.
+> **See [CLAUDE.md](./CLAUDE.md) for the canonical project reference** — 
+> 1. Project Overview — intro + tech stack (merged, both are "what is this")
+> 2. Development — commands, build/validation, testing, expected warnings (all "how to work on it")
+> 3. Architecture — multi-process, IPC, sidecar, frontend structure, key source locations (all "how it's built")
+> 4. Conventions & Patterns — settings UI, drag-and-drop, path aliases (all "patterns to follow")
+> 5. Runtime Behavior — app startup, workspaces, skills manager, bundled resources (all "how it runs")
+> 6. Reference — important notes, design docs (miscellaneous lookups)
+> 7. Completion Checklist — stays last as the mandatory gate
 >
 > This file adds agent-specific guidance that supplements CLAUDE.md.
 

@@ -56,10 +56,10 @@ Your files never leave your machine. The agent reads and writes locally — noth
 
 #### Multi-Provider Flexibility
 
-Connect to **13+ AI providers** and switch between them at any time:
+Connect to **12+ AI providers** and switch between them at any time:
 
 **Direct API** — Anthropic, OpenAI, Google Gemini, xAI, DeepSeek, Z.AI\
-**Cloud Platforms** — AWS Bedrock, Azure AI Foundry\
+**Cloud Platforms** — GitHub Copilot, AWS Bedrock, Azure AI Foundry\
 **Proxy Services** — OpenRouter, LiteLLM\
 **Local Models** — Ollama
 
@@ -139,6 +139,16 @@ A built-in catalog of reusable AI skill templates, installable with one click:
   <br />
   <em>One-click install of reusable AI skills — no manual file management</em>
 </p>
+
+#### Skills Manager
+
+A dedicated window for managing skills from Git repositories:
+
+- **Register Git repos** — add any public or private Git repository as a skill source
+- **Auto-discovery** — skills are automatically discovered from cloned repos by scanning for `SKILL.md` files
+- **Browse & install** — search, filter, and install skills from registered repos into any global skills directory
+- **Sync & update** — repos sync on app launch; outdated skills show an Update prompt
+- **Multiple targets** — install to `~/.config/opencode/skills/`, `~/.claude/skills/`, or `~/.agents/skills/`
 
 #### Extensible with MCP Servers
 
@@ -223,6 +233,7 @@ Type a prompt in the launcher (or press **`Cmd + N`**) and hit Enter. The agent 
 
 - **Starter Packs** — Browse the Home screen, pick a guided workspace pack, and click **Install**. The app creates a workspace and the agent walks you through `START_HERE.md`.
 - **Skills Catalog** — Click **Install** on any skill from the Home screen to add it to your OpenCode skills directory. No restart needed.
+- **Skills Manager** — Open the Skills Manager from the sidebar to register Git repositories as skill sources, browse discovered skills, and install or update them across multiple skills directories.
 - **MCP Servers** — Open **Settings > MCP Servers** to connect external tools and data sources (databases, APIs, file systems) via the [Model Context Protocol](https://opencode.ai/docs/mcp-servers/).
 
 ---

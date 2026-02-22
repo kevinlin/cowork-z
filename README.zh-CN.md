@@ -56,10 +56,10 @@
 
 #### 多供应商灵活接入
 
-连接 **13+ AI 供应商**，随时切换：
+连接 **12+ AI 供应商**，随时切换：
 
 **直连 API** — Anthropic、OpenAI、Google Gemini、xAI、DeepSeek、Z.AI\
-**云平台** — AWS Bedrock、Azure AI Foundry\
+**云平台** — GitHub Copilot, AWS Bedrock、Azure AI Foundry\
 **代理服务** — OpenRouter、LiteLLM\
 **本地模型** — Ollama
 
@@ -139,6 +139,16 @@
   <br />
   <em>一键安装可复用 AI 技能——无需手动管理文件</em>
 </p>
+
+#### 技能管理器
+
+专用窗口，用于管理来自 Git 仓库的技能：
+
+- **注册 Git 仓库** — 添加任意公开或私有 Git 仓库作为技能来源
+- **自动发现** — 通过扫描 `SKILL.md` 文件，从克隆的仓库中自动发现技能
+- **浏览和安装** — 搜索、筛选并将仓库中的技能安装到任意全局技能目录
+- **同步和更新** — 应用启动时自动同步仓库；过期技能显示更新提示
+- **多目标目录** — 可安装到 `~/.config/opencode/skills/`、`~/.claude/skills/` 或 `~/.agents/skills/`
 
 #### 通过 MCP 服务器扩展
 
@@ -223,6 +233,7 @@ npm install -g opencode-ai
 
 - **入门包** — 在主页浏览，选择一个引导式工作区包，点击 **安装**。应用会创建工作区，智能体引导你完成 `START_HERE.md`。
 - **技能目录** — 在主页点击任意技能的 **安装** 按钮，将其添加到你的 OpenCode 技能目录。无需重启。
+- **技能管理器** — 从侧边栏打开技能管理器，注册 Git 仓库作为技能来源，浏览已发现的技能，并在多个技能目录中安装或更新它们。
 - **MCP 服务器** — 打开 **设置 > MCP 服务器**，通过 [模型上下文协议](https://opencode.ai/docs/mcp-servers/) 连接外部工具和数据源（数据库、API、文件系统）。
 
 ---

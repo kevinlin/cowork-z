@@ -92,6 +92,26 @@ pub fn get_skill_repo(conn: &Connection, id: &str) -> Option<StoredSkillRepo> {
     .ok()
 }
 
+pub fn get_skill_repo_by_url(conn: &Connection, url: &str) -> Option<StoredSkillRepo> {
+    conn.query_row(
+        "SELECT id, url, name, branch, auth_token_key, last_synced_at, last_sync_error, created_at FROM skill_repos WHERE url = ?1",
+        params![url],
+        |row| {
+            Ok(StoredSkillRepo {
+                id: row.get(0)?,
+                url: row.get(1)?,
+                name: row.get(2)?,
+                branch: row.get(3)?,
+                auth_token_key: row.get(4)?,
+                last_synced_at: row.get(5)?,
+                last_sync_error: row.get(6)?,
+                created_at: row.get(7)?,
+            })
+        },
+    )
+    .ok()
+}
+
 pub fn remove_skill_repo(conn: &Connection, id: &str) -> Result<(), String> {
     conn.execute("DELETE FROM skill_repos WHERE id = ?1", params![id])
         .map_err(|e| format!("Failed to remove skill repo: {}", e))?;

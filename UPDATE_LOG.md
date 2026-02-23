@@ -4,7 +4,7 @@
 
 ## v0.5.10
 
-- 
+- **Fix: Handle pre-existing skills repo** — Re-adding a previously removed skill repository no longer fails
 
 ## v0.5.9 (2026-02-22)
 

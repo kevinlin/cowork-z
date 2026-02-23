@@ -325,3 +325,4 @@ The main window and Skills Manager stay in sync via events, not direct window-to
 | Pull fails (network, conflict) | Show error on repo entry in toolbar dropdown. Other repos continue syncing. |
 | Skill install/delete fails | Show error inline on the skill card. |
 | SKILL.md parse fails | Skip the skill in discovery, log warning. |
+| Re-adding existing repo URL | Automatically removes leftover DB entry and cache directory before cloning. Transparent to user. |

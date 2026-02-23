@@ -118,6 +118,22 @@ pub async fn skill_repos_add(
         );
     }
 
+    // Clean up any existing repo with the same URL (leftover from previous add/remove)
+    {
+        let conn = db.conn.lock().map_err(|e| e.to_string())?;
+        if let Some(existing) = skill_repos::get_skill_repo_by_url(&conn, &url) {
+            if let Some(ref key) = existing.auth_token_key {
+                let _ = crate::secure_storage::delete_api_key(key);
+            }
+            let _ = skill_repos::remove_skill_repo(&conn, &existing.id);
+        }
+    }
+
+    let dest = repo_cache_dir(&app, &url);
+    if dest.exists() {
+        let _ = fs::remove_dir_all(&dest);
+    }
+
     let id = Uuid::new_v4().to_string();
     let branch = branch.unwrap_or_else(|| "main".to_string());
     let name = git_ops::derive_repo_name(&url);
@@ -131,7 +147,6 @@ pub async fn skill_repos_add(
         None
     };
 
-    let dest = repo_cache_dir(&app, &url);
     fs::create_dir_all(dest.parent().unwrap())
         .map_err(|e| format!("Failed to create cache directory: {}", e))?;
 

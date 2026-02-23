@@ -159,8 +159,8 @@ Create component tests:
 - [src/components/layout/Sidebar.tsx](../../../src/components/layout/Sidebar.tsx) - Integrate ArtifactsPanel
 
 ### Documentation Updates
-- [docs/specs/cowork-z/requirements.md](../../../docs/specs/cowork-z/requirements.md) - Mark 3.4 as complete, update TODO
-- [docs/specs/cowork-z/plan_rich-file-url-display-in-chat.md](../../../docs/specs/cowork-z/plan_rich-file-url-display-in-chat.md) - This implementation plan
+- [docs/specs/requirements.md](../../../docs/specs/requirements.md) - Mark 3.4 as complete, update TODO
+- [docs/specs/chat-ux/plan_rich-file-url-display-in-chat.md](../chat-ux/plan_rich-file-url-display-in-chat.md) - This implementation plan
 
 ## Success Criteria
 

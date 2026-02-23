@@ -218,7 +218,7 @@ Expected: No lint errors.
 ### Task 7: Update Docs and Changelog ✅
 
 **Files:**
-- Modify: `docs/specs/cowork-z/requirements.md`
+- Modify: `docs/specs/requirements.md`
 - Modify: `UPDATE_LOG.md`
 
 **Step 1: Update requirements.md**

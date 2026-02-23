@@ -115,7 +115,7 @@ Replace hardcoded color classes with semantic equivalents in these files:
 | `src/components/landing/TaskInputBar.tsx` | `placeholder:text-gray-400` → `placeholder:text-muted-foreground` |
 | `src/pages/Execution.tsx` | Add `dark:` variants for operation badge colors (lines ~92-107). Debug panel zinc colors stay as-is (intentionally always dark). |
 
-### Step 12: Update requirements doc — `docs/specs/cowork-z/requirements.md`
+### Step 12: Update requirements doc — `docs/specs/requirements.md`
 
 - Mark `#### 4.2 Theme Support` as `#### 4.2 Theme Support ✅`
 - Add plan reference to Implementation Plans Index table
@@ -145,7 +145,7 @@ Replace hardcoded color classes with semantic equivalents in these files:
 | `src/components/settings/providers/BedrockProviderForm.tsx` | Semantic color classes |
 | `src/components/landing/TaskInputBar.tsx` | Semantic color classes |
 | `src/pages/Execution.tsx` | dark: variants for badges |
-| `docs/specs/cowork-z/requirements.md` | Mark 4.2 complete |
+| `docs/specs/requirements.md` | Mark 4.2 complete |
 
 ## Verification
 

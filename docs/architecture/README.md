@@ -760,8 +760,8 @@ graph LR
 
 | Document | Location | Purpose |
 |----------|----------|---------|
-| Feature Requirements | [requirements.md](../specs/cowork-z/requirements.md) | Detailed acceptance criteria |
-| Technical Design | [design.md](../specs/cowork-z/design.md) | Implementation-level design |
+| Feature Requirements | [requirements.md](../specs/requirements.md) | Detailed acceptance criteria |
+| Technical Design | [design.md](../specs/design.md) | Implementation-level design |
 | Sidecar Rewrite Plan | [plan_sidecar-opencode-rewrite.md](../specs/opencode-sidecar/plan_sidecar-opencode-rewrite.md) | Sidecar architecture evolution |
 | IPC Protocol Types | [types.ts](../../src-tauri/sidecar-opencode/src/types.ts) | Single source of truth for IPC |
 | Tauri API Bridge | [tauri-api.ts](../../src/lib/tauri-api.ts) | Frontend-to-Rust contract |

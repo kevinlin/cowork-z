@@ -1,7 +1,7 @@
 # Skills Manager — Design
 
 **Date:** 2026-02-21
-**Requirements:** [8.3 Skills Manager](../cowork-z/requirements.md)
+**Requirements:** [8.3 Skills Manager](../requirements.md)
 **Status:** Implemented
 
 ---

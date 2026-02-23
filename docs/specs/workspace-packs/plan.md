@@ -228,7 +228,7 @@ pnpm tauri dev
 - [ ] `pnpm test --run` passes
 - [ ] All 6 packs visible on Home screen
 - [ ] Install flow works end-to-end in `pnpm tauri dev`
-- [ ] Update `docs/specs/cowork-z/requirements.md` with feature completion
+- [ ] Update `docs/specs/requirements.md` with feature completion
 - [ ] Append entry to `UPDATE_LOG.md`
 
 ---

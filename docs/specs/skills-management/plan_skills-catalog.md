@@ -280,7 +280,7 @@ Expected: all tests PASS.
 
 **Step 4: Update requirements doc**
 
-In `docs/specs/cowork-z/requirements.md`:
+In `docs/specs/requirements.md`:
 - Add `✅` to the Skills Catalog requirement heading
 - Add plan reference: `> **Plan:** [Skills Catalog](../app-ux/plan_skills-catalog.md)`
 
@@ -294,7 +294,7 @@ Append to the current version section:
 **Step 6: Final commit**
 
 ```bash
-git add docs/specs/cowork-z/requirements.md docs/UPDATE_LOG.md
+git add docs/specs/requirements.md docs/UPDATE_LOG.md
 git commit -m "docs: mark Skills Catalog requirement complete, update log"
 ```
 

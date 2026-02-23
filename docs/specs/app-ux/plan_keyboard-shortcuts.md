@@ -84,7 +84,7 @@ Uses `handleFollowUpRef` pattern to avoid stale closures without adding `handleF
 
 ### Step 6: Update requirements.md
 
-**File: `docs/specs/cowork-z/requirements.md`**
+**File: `docs/specs/requirements.md`**
 
 - Marked `6.1 App-Level Shortcuts` as ✅
 - Marked `6.2 Chat Shortcuts` as ✅
@@ -99,8 +99,8 @@ Uses `handleFollowUpRef` pattern to avoid stale closures without adding `handleF
 | App | `src/App.tsx` | Wire hook, add SettingsDialog, remove inline Cmd+K |
 | Sidebar | `src/components/layout/Sidebar.tsx` | Use store for settings state, remove SettingsDialog |
 | Chat | `src/pages/Execution.tsx` | Add Escape + Cmd+Enter useEffect |
-| Docs | `docs/specs/cowork-z/requirements.md` | Mark 6.1, 6.2 as complete |
-| Docs | `docs/specs/cowork-z/plan_keyboard-shortcuts.md` | **New** — this plan |
+| Docs | `docs/specs/requirements.md` | Mark 6.1, 6.2 as complete |
+| Docs | `docs/specs/app-ux/plan_keyboard-shortcuts.md` | **New** — this plan |
 
 ## Verification
 

@@ -6,7 +6,7 @@ Users have no way to discover available keyboard shortcuts. This adds a "Keyboar
 
 ## Requirement Addition
 
-Add **4.3.3 Keyboard Shortcuts Help** to `docs/specs/cowork-z/requirements.md` (after line 419):
+Add **4.3.3 Keyboard Shortcuts Help** to `docs/specs/requirements.md` (after line 419):
 
 ```
 ##### 4.3.3 Keyboard Shortcuts Help
@@ -79,7 +79,7 @@ Follow the [AboutDialog.tsx](src/components/layout/AboutDialog.tsx) pattern — 
 | `src-tauri/src/lib.rs` | Add menu item + event emission |
 | `src/App.tsx` | Wire menu event, hook action, render dialog |
 | `src/components/layout/__tests__/KeyboardShortcutsDialog.test.tsx` | **New** — tests |
-| `docs/specs/cowork-z/requirements.md` | Add requirement 4.3.3 |
+| `docs/specs/requirements.md` | Add requirement 4.3.3 |
 
 ## Verification
 

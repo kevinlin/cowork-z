@@ -9,7 +9,7 @@
 **Tech Stack:** Tauri 2.x (Rust backend), React 19, TypeScript, Zustand, Radix UI / shadcn/ui, Tailwind CSS, `std::process::Command` for Git, SQLite (rusqlite), OS Keychain (keyring crate)
 
 **Design:** [design_skills-manager.md](design_skills-manager.md)
-**Requirements:** [requirements.md section 8.3](../cowork-z/requirements.md)
+**Requirements:** [requirements.md section 8.3](../requirements.md)
 
 ---
 

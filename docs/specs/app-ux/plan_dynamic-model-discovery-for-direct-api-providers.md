@@ -90,7 +90,7 @@ connectedProvider?.availableModels  →  (persisted, primary)
 
 **For Z.AI (non-dynamic):** Keep current behavior — use `DEFAULT_PROVIDERS` static models.
 
-### 5. Add requirement to `docs/specs/cowork-z/requirements.md`
+### 5. Add requirement to `docs/specs/requirements.md`
 
 Add new requirement **1.1.4 Dynamic Model Discovery** under section 1.1:
 
@@ -110,7 +110,7 @@ Also:
 
 ### 6. Post-implementation: docs & plan file
 
-- Create `docs/specs/cowork-z/plan_dynamic-model-discovery.md` (this plan)
+- Create `docs/specs/app-ux/plan_dynamic-model-discovery-for-direct-api-providers.md` (this plan)
 - Follow the post-feature completion checklist from CLAUDE.md
 
 ## Files to Modify
@@ -122,7 +122,7 @@ Also:
 | `src/lib/tauri-api-interface.ts` | Add `fetchProviderModels` to `TauriAPI` interface |
 | `src/shared/types/provider.ts` | Empty models arrays for 5 providers in `DEFAULT_PROVIDERS`; add `FALLBACK_MODELS` and `DYNAMIC_MODEL_PROVIDERS` |
 | `src/components/settings/providers/ClassicProviderForm.tsx` | Fetch models on connect; use `availableModels` with fallback chain; handle Z.AI separately |
-| `docs/specs/cowork-z/requirements.md` | Add Req 1.1.4, update TODO, update index |
+| `docs/specs/requirements.md` | Add Req 1.1.4, update TODO, update index |
 | `UPDATE_LOG.md` | Add feature entry |
 
 ## Verification

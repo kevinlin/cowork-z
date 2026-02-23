@@ -203,7 +203,7 @@ Manually test:
 
 ### Step 4: Update Requirements Document (Est. 5 min) ✅
 
-**In `docs/specs/cowork-z/requirements.md`:**
+**In `docs/specs/requirements.md`:**
 Marks the feature as complete in the requirements doc.
 
 ---

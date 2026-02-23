@@ -201,14 +201,14 @@ export interface QuestionRequest {
 - `[src/pages/Execution.tsx](src/pages/Execution.tsx)` -- slim down to ~400 lines (page shell + event subs + compose child components)
 - `[src/shared/types/task.ts](src/shared/types/task.ts)` -- add `QuestionRequest` type
 - `[src/stores/taskStore.ts](src/stores/taskStore.ts)` -- add `questionRequest` state + setter if not present
-- `[docs/specs/cowork-z/requirements.md](docs/specs/cowork-z/requirements.md)` -- add requirement 3.7
+- `[docs/specs/requirements.md](docs/specs/requirements.md)` -- add requirement 3.7
 - `[UPDATE_LOG.md](UPDATE_LOG.md)` -- add v0.4.5 entry
 
 ---
 
 ## Requirement Addition (3.7)
 
-Add to `docs/specs/cowork-z/requirements.md` under section 3:
+Add to `docs/specs/requirements.md` under section 3:
 
 ```markdown
 #### 3.7 Chat UI Component Architecture

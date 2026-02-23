@@ -314,7 +314,7 @@ Tauri on Windows requires the **MSVC** toolchain. If you see `missing dlltool.ex
 
 ## Roadmap
 
-See the [requirements document](docs/specs/cowork-z/requirements.md) for the full feature spec. Outstanding items:
+See the [requirements document](docs/specs/requirements.md) for the full feature spec. Outstanding items:
 
 - [x] Windows testing and polish
 - [ ] Database encryption at rest (Req 5.2.2)

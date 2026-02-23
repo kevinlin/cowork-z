@@ -292,8 +292,9 @@ The Skills Manager opens as a separate Tauri window (label `skills`, route `/#/s
 ### Design Documentation
 
 See `docs/specs/`:
-- `cowork-z/requirements.md` — Feature requirements
-- `cowork-z/design.md` — Technical design
+- `requirements.md` — Feature requirements
+- `design.md` — Technical design
+- `windows-support/` — Windows platform support plans
 - `opencode-integration` - OpenCode sidecar integration
 - `chat-ux` - Agent chat feature plans
 - `app-ux` - General app feature plans
@@ -305,7 +306,7 @@ See `docs/specs/`:
 
 **IMPORTANT: After completing ANY feature or plan implementation, you MUST perform ALL of these steps before reporting completion. Do not skip this section — it is as important as passing tests.**
 
-1. **Update requirement status** in `docs/specs/cowork-z/requirements.md`:
+1. **Update requirement status** in `docs/specs/requirements.md`:
    - Add `✅` to the requirement heading (e.g., `#### 4.4 About Panel ✅`)
    - Add a plan reference link (`> **Plan:** [Name](plan_name.md)`) if an implementation plan exists
    - Check off the item in the "Outstanding Feature TODO" section at the bottom

@@ -8,7 +8,7 @@ This feature adds a `/skill` autocomplete popover to both input surfaces (TaskIn
 
 ## Requirement Addition
 
-Add `3.8 Slash Command Invocation` to `docs/specs/cowork-z/requirements.md` under section 3
+Add `3.8 Slash Command Invocation` to `docs/specs/requirements.md` under section 3
 
 ## Implementation Plan
 
@@ -147,7 +147,7 @@ No explicit `App.tsx` change needed. The `useSkillAutocomplete` hook triggers `f
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `docs/specs/cowork-z/requirements.md` | Modify | Add requirement 3.8 |
+| `docs/specs/requirements.md` | Modify | Add requirement 3.8 |
 | `src/stores/skillsStore.ts` | Create | Installed skills Zustand cache |
 | `src/components/ui/skill-pill.tsx` | Create | Skill chip/pill component |
 | `src/components/ui/skill-autocomplete-popover.tsx` | Create | Autocomplete popover UI (configurable position) |

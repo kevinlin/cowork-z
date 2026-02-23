@@ -69,7 +69,7 @@ Without the model list, `ModelSelector` has no options to match against the save
 
 ### 4. Update docs (post-implementation checklist)
 
-- **`docs/specs/cowork-z/requirements.md`**: Add `✅` to `##### 1.1.3 OpenRouter Provider`, add plan reference link, check off in Outstanding TODO, add to Implementation Plans Index
+- **`docs/specs/requirements.md`**: Add `✅` to `##### 1.1.3 OpenRouter Provider`, add plan reference link, check off in Outstanding TODO, add to Implementation Plans Index
 - **`UPDATE_LOG.md`**: Append entry for 1.1.3
 
 ## Verification
@@ -93,6 +93,6 @@ No automated Rust test — the function depends on OS keychain + network; the `t
 | `src-tauri/sidecar-opencode/src/session-manager.ts` | Add `parseModelId()`, pass model on `sendMessage` |
 | `src-tauri/sidecar-opencode/src/config-builder.ts` | Update comment on `config.model` |
 | `src-tauri/sidecar-opencode/src/types.ts` | Add `provider` field to `Config` interface |
-| `docs/specs/cowork-z/plan_openrouter-provider.md` | Create (plan doc) |
-| `docs/specs/cowork-z/requirements.md` | Update checkmarks, plan link, TODO, index |
+| `docs/specs/opencode-integration/plan_openrouter-provider-support.md` | Create (plan doc) |
+| `docs/specs/requirements.md` | Update checkmarks, plan link, TODO, index |
 | `UPDATE_LOG.md` | Append feature entry |

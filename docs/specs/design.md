@@ -34,7 +34,7 @@ Cowork-Z is a cross-platform desktop application that provides a sandboxed envir
 
 ### Multi-Process Architecture
 
-> **Plan:** [Sidecar OpenCode Rewrite](../opencode-sidecar/plan_sidecar-opencode-rewrite.md) — Complete rewrite from PTY-based `opencode run` to the `opencode serve` HTTP/SSE API.
+> **Plan:** [Sidecar OpenCode Rewrite](opencode-sidecar/plan_sidecar-opencode-rewrite.md) — Complete rewrite from PTY-based `opencode run` to the `opencode serve` HTTP/SSE API.
 
 ```
 Tauri (Rust) ↔ JSON-line IPC (stdin/stdout) ↔ Node.js Sidecar ↔ HTTP/SSE ↔ opencode serve
@@ -117,7 +117,7 @@ The sidecar communicates with the OpenCode server via HTTP REST and Server-Sent 
 
 **Note:** `PATCH /config` causes the OpenCode server to dispose and recreate its instance, terminating the SSE connection. The `eventsource` npm library auto-reconnects in ~1s. Do not add manual reconnection logic on top.
 
-> **Plan:** [Fix System Prompt Injection](../opencode-sidecar/plan_fix_system_prompt_injection.md) — Uses the `system` field on `sendMessage` instead of custom agent names to inject the system prompt.
+> **Plan:** [Fix System Prompt Injection](opencode-sidecar/plan_fix_system_prompt_injection.md) — Uses the `system` field on `sendMessage` instead of custom agent names to inject the system prompt.
 
 ---
 
@@ -220,7 +220,7 @@ Keys are retrieved on-demand during task startup. Only masked prefixes are retur
 
 ### Folder Permission Model
 
-> **Plan:** [Folder Permission Model](../opencode-sidecar/plan_folder-permission-model.md)
+> **Plan:** [Folder Permission Model](opencode-sidecar/plan_folder-permission-model.md)
 
 - Default access: user's **Desktop** and **Downloads** folders
 - All other paths require explicit user approval via runtime permission dialogs

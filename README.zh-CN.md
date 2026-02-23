@@ -314,7 +314,7 @@ Tauri 在 Windows 上需要 **MSVC** 工具链。如果遇到 `missing dlltool.e
 
 ## 路线图
 
-完整功能规格请参阅 [需求文档](docs/specs/cowork-z/requirements.md)。待办事项：
+完整功能规格请参阅 [需求文档](docs/specs/requirements.md)。待办事项：
 
 - [x] Windows 测试和打磨
 - [ ] 静态数据库加密（需求 5.2.2）

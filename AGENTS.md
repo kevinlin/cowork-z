@@ -81,8 +81,9 @@ src-tauri/resources/           # Bundled into app binary
   packs/ + pack-docs/         # Workspace starter pack files and documentation
 
 docs/specs/                   # Design documentation
-  cowork-z/requirements.md    # Feature requirements
-  cowork-z/design.md          # Technical design
+  requirements.md              # Feature requirements
+  design.md                    # Technical design
+  windows-support/             # Windows platform support plans
   workspace-as-folder/        # Workspace feature design and plans
   skills-management/          # Skills Catalog and Skills Manager plans
 ```

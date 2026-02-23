@@ -24,7 +24,7 @@ This plan adds Copilot as the 12th provider with a new OAuth-based settings UI, 
 
 ## Changes
 
-### 1. Requirements (`docs/specs/cowork-z/requirements.md`)
+### 1. Requirements (`docs/specs/requirements.md`)
 
 Add `##### 1.1.6 GitHub Copilot Provider Support` under `#### 1.1 Multi-Provider Support`:
 
@@ -304,7 +304,7 @@ No small_model pinning needed — Copilot models are in OpenCode's model databas
 
 | File | Action | Description |
 |------|--------|-------------|
-| `docs/specs/cowork-z/requirements.md` | Modify | Add req 1.1.6, update index, remove TODO |
+| `docs/specs/requirements.md` | Modify | Add req 1.1.6, update index, remove TODO |
 | `docs/specs/opencode-integration/plan_copilot-provider-support.md` | New | Implementation plan document |
 | `src/shared/types/providerSettings.ts` | Modify | Add ProviderId, ProviderCategory, CopilotCredentials, PROVIDER_META |
 | `public/assets/ai-logos/github-copilot.svg` | New | Copilot logo |

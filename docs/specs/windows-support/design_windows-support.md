@@ -100,7 +100,7 @@ Wire into `.github/workflows/publish.yml`:
 
 ## Requirements Update
 
-Update `docs/specs/cowork-z/requirements.md`:
+Update `docs/specs/requirements.md`:
 - Add "Windows Production Readiness" as the **top item** in the Outstanding Feature TODO section
 - Reference this design doc from the Implementation Plans Index
 - Keep the existing cross-platform requirement structure (5.1.1-5.1.4) — the fixes fill in what's already specified but not fully working
@@ -118,7 +118,7 @@ Update `docs/specs/cowork-z/requirements.md`:
 | 2 | `.github/workflows/publish.yml` or new `test.yml` | Windows test jobs |
 | 3 | `.github/workflows/publish.yml` | Windows cert import + signing env vars |
 | 3 | `tauri.conf.json` | Optional `signCommand` config |
-| — | `docs/specs/cowork-z/requirements.md` | Updated TODO, plan reference |
+| — | `docs/specs/requirements.md` | Updated TODO, plan reference |
 | — | `UPDATE_LOG.md` | Feature entry |
 
 ## Risk Assessment

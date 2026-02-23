@@ -5,6 +5,7 @@
 ## v0.5.10
 
 - **Fix: Handle pre-existing skills repo** — Re-adding a previously removed skill repository no longer fails
+- **New Skills in Skill Catalog** - Add new skills: `planning-with-files` and `skill-creator`
 
 ## v0.5.9 (2026-02-22)
 

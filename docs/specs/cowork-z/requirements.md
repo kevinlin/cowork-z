@@ -870,4 +870,5 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ## TODO Features
 
+- [ ] **Scheduled Task** - Allow user to schedule task to run based on cron expressions
 - [ ] **Database Encryption** — Optional SQLite encryption at rest with keychain-derived key (Req 5.2.2)

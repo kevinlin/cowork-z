@@ -13,7 +13,7 @@ export function FolderSwitcher() {
   return (
     <div className="border-b p-2">
       <Select onValueChange={(v) => setTargetFolder(v as 'opencode' | 'claude' | 'agents')} value={targetFolder}>
-        <SelectTrigger className="h-8 border-primary/40 font-medium text-primary">
+        <SelectTrigger className="h-8 border-primary/40 font-medium text-base text-primary">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

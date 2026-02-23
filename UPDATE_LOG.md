@@ -6,11 +6,11 @@
 
 - 
 
-## v0.5.9
+## v0.5.9 (2026-02-22)
 
 -  Fix image in About Dialog
 
-## v0.5.8
+## v0.5.8 (2026-02-22)
 
 - **GitHub Copilot Provider** — Added GitHub Copilot as a provider with OAuth device flow authentication
 - **Expanded Theme Library** — 12 themes (up from 6): replaced Classic Light with Sage Garden as default, added Amber Glow, Ocean Depths, Rose Quartz, Midnight Ember, Sandstone, and Slate Noir; improved color consistency across all themes

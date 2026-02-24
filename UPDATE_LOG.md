@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.5.11
+
+- 
+
 ## v0.5.10
 
 - **Fix: Handle pre-existing skills repo** — Re-adding a previously removed skill repository no longer fails

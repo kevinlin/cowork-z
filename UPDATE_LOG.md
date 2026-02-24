@@ -2,11 +2,15 @@
 
 # UPDATE LOG
 
-## v0.5.11
+## v0.5.12
+
+- 
+
+## v0.5.11 (2026-02-24)
 
 - **Fix: Streaming message duplication** — Multi-step agent turns no longer display as repeated message blocks; partial messages are now correctly finalized between steps
 
-## v0.5.10
+## v0.5.10 (2026-02-24)
 
 - **Fix: Handle pre-existing skills repo** — Re-adding a previously removed skill repository no longer fails
 - **New Skills in Skill Catalog** - Add new skills: `planning-with-files` and `skill-creator`

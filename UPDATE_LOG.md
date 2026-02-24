@@ -4,7 +4,7 @@
 
 ## v0.5.11
 
-- 
+- **Fix: Streaming message duplication** — Multi-step agent turns no longer display as repeated message blocks; partial messages are now correctly finalized between steps
 
 ## v0.5.10
 

@@ -89,6 +89,15 @@ export class SessionManager extends EventEmitter {
       if (!managed) return;
 
       if (props.info.role === 'assistant') {
+        // Finalize previous message's accumulated text before starting new one
+        if (managed.textAccumulator && managed.currentMessageId) {
+          this.emit('message-complete', {
+            taskId,
+            messageId: managed.currentMessageId,
+            text: managed.textAccumulator,
+          });
+          managed.textAccumulator = '';
+        }
         managed.currentMessageId = props.info.id;
         this.emit('message', {
           taskId,

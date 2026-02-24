@@ -6,8 +6,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getVersion } from '@/lib/tauri-api';
-import changelogRaw from '../../../UPDATE_LOG.md?raw';
 import appIcon from '../../../src-tauri/icons/128x128.png';
+import changelogRaw from '../../../UPDATE_LOG.md?raw';
 
 const imageMap: Record<string, string> = {
   'src-tauri/icons/128x128.png': appIcon,
@@ -53,7 +53,9 @@ export default function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
         {/* Changelog */}
         <div className="max-h-[50vh] overflow-y-auto pr-2">
           <div className="prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>{changelogRaw}</ReactMarkdown>
+            <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+              {changelogRaw}
+            </ReactMarkdown>
           </div>
         </div>
       </DialogContent>

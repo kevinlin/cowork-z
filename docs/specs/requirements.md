@@ -46,6 +46,7 @@ The following implementation plans document how specific requirements were desig
 | Drag-and-Drop in Chat | [`chat-ux/plan_drag-and-drop-support.md`](chat-ux/plan_drag-and-drop-support.md) | 3.5 |
 | Rich File & URL Display | [`chat-ux/plan_rich-file-url-display-in-chat.md`](chat-ux/plan_rich-file-url-display-in-chat.md) | 3.1, 3.2 |
 | Slash Command Skill Invocation | [`chat-ux/plan_slash-command-skill-invocation.md`](chat-ux/plan_slash-command-skill-invocation.md) | 3.8 |
+| Rename Conversation in Sidebar | [`chat-ux/plan_rename-conversation-in-sidebar.md`](chat-ux/plan_rename-conversation-in-sidebar.md) | 3.9 |
 
 ### app-ux — App Experience
 
@@ -384,6 +385,19 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 5. THE SYSTEM SHALL allow only one skill per message
 6. WHEN submitting with a selected skill, THE SYSTEM SHALL construct the prompt as `/<skill-id> <user-text>` and send it through the existing prompt flow
 7. THE SYSTEM SHALL support keyboard navigation in the popover (ArrowUp/Down to navigate, Tab/Enter to select, Escape to dismiss)
+
+#### 3.9 Conversation Rename ✅
+
+> **Plan:** [Rename Conversation in Sidebar](chat-ux/plan_rename-conversation-in-sidebar.md)
+
+**User Story:** As a user, I want to rename conversations in the sidebar so that I can organize my chat history with meaningful names.
+
+**Acceptance Criteria:**
+1. THE SYSTEM SHALL display a context menu when the user right-clicks a conversation item in the sidebar
+2. THE CONTEXT MENU SHALL include a "Rename" option and a "Delete" option
+3. WHEN the user selects "Rename", THE SYSTEM SHALL replace the conversation label with an inline text input pre-filled with the current name
+4. WHEN the user confirms the rename (Enter or blur), THE SYSTEM SHALL persist the new name to the database
+5. WHEN the user cancels the rename (Escape), THE SYSTEM SHALL restore the original name without saving
 
 ---
 

@@ -252,6 +252,17 @@ Implemented via `src/hooks/useKeyboardShortcuts.ts`:
 - **App-level:** `Cmd+,` (settings), `Cmd+N` (new task), `Cmd+K` (launcher)
 - **Chat-level:** `Cmd+Enter` (send), `Escape` (cancel)
 
+### Inline Text Inputs inside Radix Primitives
+
+When embedding an `<input>` inside a Radix component (e.g., `DropdownMenuTrigger`), four issues arise:
+
+1. **Radix steals focus ~120-150ms after menu close.** The trigger element receives focus after the menu's exit animation completes, firing a spurious `blur` on the input. A timing-based guard (`useRef` boolean + `requestAnimationFrame`) is **not reliable** — the focus steal happens after the rAF callback. Instead, check `e.relatedTarget` in the `onBlur` handler: if focus moved to `null`, `document.body`, or an ancestor/sibling of the input (i.e., the trigger div), treat it as an internal focus steal and re-focus the input. Only call `commitRename()` when focus moves to a genuinely external element.
+2. **Don't set state in `onSelect` — defer past menu teardown.** Setting `isRenaming = true` inside `DropdownMenuItem.onSelect` causes the input to mount while Radix is still tearing down the menu, leading to focus conflicts. Instead, set a `pendingRenameRef` flag in `onSelect`, then activate rename in `onOpenChange(false)` after a double `requestAnimationFrame` to let Radix fully complete its cleanup.
+3. **Radix intercepts keyboard events.** The trigger's internal `onKeyDown` swallows keys like arrows and modifiers. The input's `onKeyDown` must call `e.stopPropagation()` so standard text-editing shortcuts (Ctrl+A, arrow keys, Home/End) work.
+4. **`truncate` hides the text cursor.** Never apply Tailwind's `truncate` class to an editable input — `overflow: hidden` hides the caret. Use `caret-foreground` for a visible cursor.
+
+See `src/components/layout/ConversationListItem.tsx` (inline rename) for the reference implementation.
+
 ## Runtime Behavior
 
 ### App Startup

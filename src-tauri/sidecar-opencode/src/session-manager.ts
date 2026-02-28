@@ -375,8 +375,14 @@ export class SessionManager extends EventEmitter {
   async replyToQuestion(taskId: string, requestId: string, answers: Array<{ labels: string[]; customText?: string }>): Promise<void> {
     const managed = this.sessions.get(taskId);
     const directory = managed?.session?.directory;
-    logger.info('Replying to question', { taskId, requestId, answers, directory });
-    await this.client.replyToQuestion(requestId, answers, directory);
+    // OpenCode server expects each answer as a flat string[] of selected labels,
+    // not {labels, customText} objects. Transform before sending.
+    const flatAnswers: string[][] = answers.map((a) => {
+      if (a.customText) return [...a.labels, a.customText];
+      return a.labels;
+    });
+    logger.info('Replying to question', { taskId, requestId, answers: flatAnswers, directory });
+    await this.client.replyToQuestion(requestId, flatAnswers, directory);
   }
 
   private cleanup(taskId: string): void {

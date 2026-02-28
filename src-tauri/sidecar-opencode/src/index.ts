@@ -340,6 +340,11 @@ async function handleQuestionReply(taskId: string, payload: QuestionReplyPayload
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Failed to reply to question', { taskId, error: message });
+    send({
+      type: 'task_error',
+      taskId,
+      payload: { error: `Failed to reply to question: ${message}` },
+    });
   }
 }
 

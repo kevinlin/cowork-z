@@ -1,5 +1,5 @@
 import { logger } from './logger';
-import type { Config, HealthResponse, Message, Part, PermissionRequest, QuestionAnswer, QuestionRequest, Session, Todo } from './types';
+import type { Config, HealthResponse, Message, Part, PermissionRequest, QuestionRequest, Session, Todo } from './types';
 
 export interface OpenCodeClientOptions {
   baseUrl?: string;
@@ -218,7 +218,7 @@ export class OpenCodeClient {
     return this.request<QuestionRequest[]>('GET', '/question', undefined, directory ? { directory } : undefined);
   }
 
-  async replyToQuestion(requestId: string, answers: QuestionAnswer[], directory?: string): Promise<boolean> {
+  async replyToQuestion(requestId: string, answers: string[][], directory?: string): Promise<boolean> {
     return this.request<boolean>('POST', `/question/${requestId}/reply`, { answers }, directory ? { directory } : undefined);
   }
 

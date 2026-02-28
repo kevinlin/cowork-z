@@ -202,6 +202,7 @@ export class SessionManager extends EventEmitter {
         error: props.error,
         sessionId: props.sessionID,
       });
+      this.cleanup(taskId);
     });
 
     // Todo updates
@@ -237,6 +238,8 @@ export class SessionManager extends EventEmitter {
         sessionId: managed.sessionId,
         status: 'success',
       });
+
+      this.cleanup(managed.taskId);
     }
   }
 
@@ -244,6 +247,16 @@ export class SessionManager extends EventEmitter {
     const { taskId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, mcpServers } = payload;
 
     logger.info('Starting task', { taskId, prompt: prompt.slice(0, 100) });
+
+    // Clean up any stale sessions left over from previous tasks that completed,
+    // errored, or were abandoned (e.g., user started a new task while the old
+    // one was blocked on a question/permission prompt).
+    const staleTaskIds = Array.from(this.sessions.keys()).filter((id) => id !== taskId);
+    for (const oldTaskId of staleTaskIds) {
+      const managed = this.sessions.get(oldTaskId);
+      logger.info('Cleaning up stale session', { oldTaskId, sessionId: managed?.sessionId, status: managed?.status });
+      this.cleanup(oldTaskId);
+    }
 
     // Push session-specific config via PATCH /config
     const config = buildSessionConfig({ modelId, folderPermissions, mcpServers });

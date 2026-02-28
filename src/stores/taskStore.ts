@@ -480,11 +480,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       set({
         currentTask: {
           ...task,
-          messages: [initialUserMessage], // Add initial message to task
+          messages: [initialUserMessage],
         },
         tasks: [task, ...currentTasks.filter((t) => t.id !== task.id)],
-        // Keep loading state if queued (waiting for queue)
         isLoading: task.status === 'queued',
+        partialMessages: new Map<string, PartialMessage>(),
       });
       void api.logEvent({
         level: 'info',
@@ -1131,7 +1131,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   loadTaskById: async (taskId: string) => {
     const task = await api.getTask(taskId);
-    set({ currentTask: task, error: task ? null : 'Task not found' });
+    set({
+      currentTask: task,
+      error: task ? null : 'Task not found',
+      partialMessages: new Map<string, PartialMessage>(),
+    });
 
     // Extract artifacts from task messages
     if (task) {

@@ -5,6 +5,7 @@
 ## v0.5.12
 
 - **Fix: Stop button** — Stop button and Escape key now correctly abort running tasks
+- **Fix: Cross-task message leakage** — Messages from failed or stuck sessions no longer appear in newly started tasks; sidecar session maps are now cleaned up on completion/error, and streaming partial messages are cleared on task switch
 
 ## v0.5.11 (2026-02-24)
 

@@ -275,6 +275,7 @@ pub async fn get_task(task_id: String, state: State<'_, DbState>) -> Result<Opti
                 timestamp: m.timestamp,
                 tool_name: m.tool_name,
                 tool_input: m.tool_input,
+                tool_output: m.tool_output,
                 attachments: m.attachments.map(|atts| {
                     atts.into_iter()
                         .map(|a| TaskAttachment {
@@ -325,6 +326,7 @@ pub async fn list_tasks(
                     timestamp: m.timestamp,
                     tool_name: m.tool_name,
                     tool_input: m.tool_input,
+                    tool_output: m.tool_output,
                     attachments: m.attachments.map(|atts| {
                         atts.into_iter()
                             .map(|a| TaskAttachment {
@@ -382,6 +384,7 @@ pub async fn save_task_message(
             timestamp: message.timestamp,
             tool_name: message.tool_name,
             tool_input: message.tool_input,
+            tool_output: message.tool_output,
             attachments: message.attachments.map(|atts| {
                 atts.into_iter()
                     .map(|a| db::tasks::AttachmentInput {

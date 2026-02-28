@@ -42,6 +42,8 @@ pub struct TaskMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_input: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_output: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachments: Option<Vec<TaskAttachment>>,
 }
 

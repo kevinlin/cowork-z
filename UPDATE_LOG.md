@@ -5,6 +5,7 @@
 ## v0.5.13
 
 - **Fix: Long-running task false failure** — Conversations running longer than 10 minutes no longer incorrectly show "Failed" status; the `sendMessage` HTTP call is now fire-and-forget since session lifecycle is managed entirely via SSE events
+- **Fix: Tool call card input/output** — Tool call cards now persist and display input and output correctly; tool messages update in-place as they transition from pending to completed; added skill tool display with icon
 
 ## v0.5.12
 
@@ -12,7 +13,6 @@
 - **Fix: Cross-task message leakage** — Messages from failed or stuck sessions no longer appear in newly started tasks
 - **Fix: Question reply stuck** — Answering agent question prompts no longer causes the task to hang
 - **Fix: Multi-select question dialog** — Fix display and handling of agent questions with multiple-choice answers
-- **Fix: Tool call card not updating** — Tool call cards now correctly display input and output
 - **Fix: Markdown table rendering** — Tables and other block-level markdown elements in agent responses now render correctly when not preceded by a blank line
 - **Update skills in Skill Catalog** - Sync from latest source repos
 

@@ -41,6 +41,8 @@ pub struct StoredTaskMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_input: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_output: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachments: Option<Vec<StoredAttachment>>,
 }
 
@@ -81,6 +83,7 @@ pub struct TaskMessageInput {
     pub timestamp: String,
     pub tool_name: Option<String>,
     pub tool_input: Option<serde_json::Value>,
+    pub tool_output: Option<String>,
     pub attachments: Option<Vec<AttachmentInput>>,
 }
 
@@ -97,7 +100,7 @@ pub struct AttachmentInput {
 fn get_messages_for_task(conn: &Connection, task_id: &str) -> Vec<StoredTaskMessage> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, type, content, tool_name, tool_input, timestamp
+            "SELECT id, type, content, tool_name, tool_input, timestamp, tool_output
              FROM task_messages
              WHERE task_id = ?1
              ORDER BY sort_order ASC",
@@ -112,17 +115,17 @@ fn get_messages_for_task(conn: &Connection, task_id: &str) -> Vec<StoredTaskMess
             let tool_name: Option<String> = row.get(3)?;
             let tool_input_str: Option<String> = row.get(4)?;
             let timestamp: String = row.get(5)?;
+            let tool_output: Option<String> = row.get(6)?;
 
             let tool_input = tool_input_str.and_then(|s| serde_json::from_str(&s).ok());
 
-            Ok((id, msg_type, content, tool_name, tool_input, timestamp))
+            Ok((id, msg_type, content, tool_name, tool_input, timestamp, tool_output))
         })
         .expect("Failed to query messages");
 
     message_iter
         .filter_map(|r| r.ok())
-        .map(|(id, msg_type, content, tool_name, tool_input, timestamp)| {
-            // Get attachments for this message
+        .map(|(id, msg_type, content, tool_name, tool_input, timestamp, tool_output)| {
             let attachments = get_attachments_for_message(conn, &id);
 
             StoredTaskMessage {
@@ -132,6 +135,7 @@ fn get_messages_for_task(conn: &Connection, task_id: &str) -> Vec<StoredTaskMess
                 timestamp,
                 tool_name,
                 tool_input,
+                tool_output,
                 attachments: if attachments.is_empty() {
                     None
                 } else {
@@ -329,8 +333,8 @@ pub fn save_task(conn: &Connection, task: &TaskInput) -> Result<(), String> {
     for (sort_order, msg) in task.messages.iter().enumerate() {
         conn.execute(
             "INSERT INTO task_messages
-             (id, task_id, type, content, tool_name, tool_input, timestamp, sort_order)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+             (id, task_id, type, content, tool_name, tool_input, tool_output, timestamp, sort_order)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 msg.id,
                 task.id,
@@ -338,6 +342,7 @@ pub fn save_task(conn: &Connection, task: &TaskInput) -> Result<(), String> {
                 msg.content,
                 msg.tool_name,
                 msg.tool_input.as_ref().map(|v| v.to_string()),
+                msg.tool_output,
                 msg.timestamp,
                 sort_order as i32,
             ],
@@ -398,36 +403,76 @@ pub fn add_task_message(
     task_id: &str,
     message: &TaskMessageInput,
 ) -> Result<(), String> {
-    // Get the next sort_order
-    let max_order: Option<i32> = conn
+    // Check if this message already exists (tool messages get updated multiple
+    // times as they transition from pending → running → completed)
+    let existing_order: Option<i32> = conn
         .query_row(
-            "SELECT MAX(sort_order) FROM task_messages WHERE task_id = ?1",
-            [task_id],
+            "SELECT sort_order FROM task_messages WHERE id = ?1 AND task_id = ?2",
+            params![message.id, task_id],
             |row| row.get(0),
         )
-        .unwrap_or(None);
+        .ok();
 
-    let sort_order = max_order.map(|m| m + 1).unwrap_or(0);
+    let sort_order = if let Some(order) = existing_order {
+        // Update existing message in place (preserving sort order)
+        conn.execute(
+            "UPDATE task_messages
+             SET type = ?1, content = ?2, tool_name = ?3, tool_input = ?4,
+                 tool_output = ?5, timestamp = ?6
+             WHERE id = ?7 AND task_id = ?8",
+            params![
+                message.msg_type,
+                message.content,
+                message.tool_name,
+                message.tool_input.as_ref().map(|v| v.to_string()),
+                message.tool_output,
+                message.timestamp,
+                message.id,
+                task_id,
+            ],
+        )
+        .map_err(|e| format!("Failed to update message: {}", e))?;
+        order
+    } else {
+        // Insert new message
+        let max_order: Option<i32> = conn
+            .query_row(
+                "SELECT MAX(sort_order) FROM task_messages WHERE task_id = ?1",
+                [task_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(None);
 
-    conn.execute(
-        "INSERT INTO task_messages
-         (id, task_id, type, content, tool_name, tool_input, timestamp, sort_order)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![
-            message.id,
-            task_id,
-            message.msg_type,
-            message.content,
-            message.tool_name,
-            message.tool_input.as_ref().map(|v| v.to_string()),
-            message.timestamp,
-            sort_order,
-        ],
-    )
-    .map_err(|e| format!("Failed to add message: {}", e))?;
+        let order = max_order.map(|m| m + 1).unwrap_or(0);
 
-    // Insert attachments
+        conn.execute(
+            "INSERT INTO task_messages
+             (id, task_id, type, content, tool_name, tool_input, tool_output, timestamp, sort_order)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                message.id,
+                task_id,
+                message.msg_type,
+                message.content,
+                message.tool_name,
+                message.tool_input.as_ref().map(|v| v.to_string()),
+                message.tool_output,
+                message.timestamp,
+                order,
+            ],
+        )
+        .map_err(|e| format!("Failed to add message: {}", e))?;
+        order
+    };
+
+    // Upsert attachments (delete old ones first, then re-insert)
     if let Some(attachments) = &message.attachments {
+        conn.execute(
+            "DELETE FROM task_attachments WHERE message_id = ?1",
+            [&message.id],
+        )
+        .map_err(|e| format!("Failed to clear old attachments: {}", e))?;
+
         for att in attachments {
             conn.execute(
                 "INSERT INTO task_attachments (message_id, type, data, label)
@@ -438,6 +483,7 @@ pub fn add_task_message(
         }
     }
 
+    let _ = sort_order; // suppress unused warning
     Ok(())
 }
 

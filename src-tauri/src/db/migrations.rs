@@ -4,7 +4,7 @@
 use rusqlite::Connection;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 3;
+const CURRENT_VERSION: i32 = 4;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -263,6 +263,21 @@ fn migrate_v3(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v4: Add tool_output column to task_messages
+fn migrate_v4(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v4 (tool_output column)");
+
+    conn.execute(
+        "ALTER TABLE task_messages ADD COLUMN tool_output TEXT",
+        [],
+    )
+    .map_err(|e| format!("Failed to add tool_output column: {}", e))?;
+
+    set_stored_version(conn, 4)?;
+    println!("[Migrations] Migration v4 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -293,6 +308,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
 
     if stored_version < 3 {
         migrate_v3(conn)?;
+    }
+
+    if stored_version < 4 {
+        migrate_v4(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

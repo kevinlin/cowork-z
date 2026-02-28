@@ -7,6 +7,7 @@
  *   1. anthropics/knowledge-work-plugins  — category-mapped skills + commands
  *   2. anthropics/skills                  — skills/  directory
  *   3. ComposioHQ/awesome-claude-skills   — root-level directories
+ *   4. obra/superpowers                   — skills/  directory
  *
  * Usage: node scripts/sync-skills.mjs [--dry-run]
  *
@@ -36,9 +37,16 @@ const UPSTREAM_SOURCES = [
   {
     repo: 'ComposioHQ/awesome-claude-skills',
     branch: 'master',
-    label: 'ComposioHQ/awesome-claude-skills',
+    label: 'awesome-claude-skills',
     type: 'root-level',
     prefix: '',
+  },
+  {
+    repo: 'obra/superpowers',
+    branch: 'main',
+    label: 'superpowers',
+    type: 'skills-subdir',
+    prefix: 'skills/',
   },
 ];
 

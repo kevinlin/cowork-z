@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.5.14
+
+- 
+
 ## v0.5.13
 
 - **Fix: Intermediate assistant messages not persisted** — Multi-step agent sessions now correctly save all intermediate assistant messages to the database

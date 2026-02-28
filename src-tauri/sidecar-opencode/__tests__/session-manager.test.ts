@@ -171,7 +171,7 @@ describe('SessionManager', () => {
 
       await manager.abortSession('task_1', 'ses_123');
 
-      expect(client.abortSession).toHaveBeenCalledWith('ses_123');
+      expect(client.abortSession).toHaveBeenCalledWith('ses_123', '/test');
       expect(events).toEqual([{ taskId: 'task_1', sessionId: 'ses_123', status: 'aborted' }]);
     });
   });

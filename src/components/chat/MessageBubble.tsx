@@ -222,6 +222,9 @@ export const MessageBubble = memo(
   (prev, next) =>
     prev.message.id === next.message.id &&
     prev.message.content === next.message.content &&
+    prev.message.toolName === next.message.toolName &&
+    prev.message.toolInput === next.message.toolInput &&
+    prev.message.toolOutput === next.message.toolOutput &&
     prev.shouldStream === next.shouldStream &&
     prev.isLastMessage === next.isLastMessage &&
     prev.isRunning === next.isRunning &&

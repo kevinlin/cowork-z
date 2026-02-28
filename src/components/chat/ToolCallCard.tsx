@@ -1,4 +1,4 @@
-import { Brain, Check, ChevronDown, ChevronRight, FileText, Search, Terminal, Wrench } from 'lucide-react';
+import { BookOpen, Brain, Check, ChevronDown, ChevronRight, FileText, Search, Terminal, Wrench } from 'lucide-react';
 import { memo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { TaskMessage } from '@/shared';
@@ -20,6 +20,7 @@ export const TOOL_PROGRESS_MAP: Record<string, { label: string; icon: typeof Fil
   WebFetch: { label: 'Fetching web page', icon: Search },
   WebSearch: { label: 'Searching web', icon: Search },
   dev_browser_execute: { label: 'Executing browser action', icon: Terminal },
+  skill: { label: 'Using skill', icon: BookOpen },
 };
 
 /** Extract a short one-line summary of tool input for the collapsed view */
@@ -55,6 +56,8 @@ function getToolInputSummary(toolName: string | undefined, toolInput: unknown): 
           : '';
     case 'Task':
       return typeof input.description === 'string' ? (input.description as string) : '';
+    case 'skill':
+      return typeof input.name === 'string' ? (input.name as string) : '';
     default: {
       const firstKey = Object.keys(input)[0];
       if (firstKey && typeof input[firstKey] === 'string') {

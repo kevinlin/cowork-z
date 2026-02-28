@@ -10,6 +10,7 @@ import { StreamingText } from '@/components/ui/streaming-text';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { springs } from '@/lib/animations';
 import { enrichContentWithLinks, extractMediaPaths } from '@/lib/content-enrichment';
+import { normalizeMarkdownBlocks } from '@/lib/markdown-normalize';
 import { cn } from '@/lib/utils';
 import type { TaskMessage } from '@/shared';
 import { ToolCallCard } from './ToolCallCard';
@@ -53,9 +54,13 @@ export const MessageBubble = memo(
 
     const markdownComponents = useMemo(() => createMarkdownComponents(), []);
 
-    const enrichedContent = useMemo(() => {
-      return enrichContentWithLinks(displayContent);
+    const normalizedContent = useMemo(() => {
+      return normalizeMarkdownBlocks(displayContent);
     }, [displayContent]);
+
+    const enrichedContent = useMemo(() => {
+      return enrichContentWithLinks(normalizedContent);
+    }, [normalizedContent]);
 
     const mediaPaths = useMemo(() => {
       return extractMediaPaths(displayContent);

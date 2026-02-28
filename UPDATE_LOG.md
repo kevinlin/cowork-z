@@ -9,6 +9,7 @@
 - **Fix: Question reply stuck** — Answering agent question prompts no longer causes the task to hang
 - **Fix: Multi-select question dialog** — Fix display and handling of agent questions with multiple-choice answers
 - **Fix: Tool call card not updating** — Tool call cards now correctly display input and output
+- **Fix: Markdown table rendering** — Tables and other block-level markdown elements in agent responses now render correctly when not preceded by a blank line
 - **Update skills in Skill Catalog** - Sync from latest source repos
 
 ## v0.5.11 (2026-02-24)

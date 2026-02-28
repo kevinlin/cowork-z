@@ -1031,17 +1031,19 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       const newPartialMessages = new Map(state.partialMessages);
       newPartialMessages.delete(event.messageId);
 
-      // If no partial existed, just clean up
-      if (!partial) {
+      // If no partial existed AND no text content, just clean up.
+      // When text is present, persist even without a partial — this handles
+      // intermediate assistant messages whose streaming deltas may not have
+      // arrived before the complete event.
+      if (!(partial || event.text)) {
         return { partialMessages: newPartialMessages };
       }
 
-      // Convert partial to complete message
       const completeMessage: TaskMessage = {
         id: event.messageId,
         type: 'assistant',
         content: event.text,
-        timestamp: partial.timestamp,
+        timestamp: partial?.timestamp || new Date().toISOString(),
       };
 
       // Check if message already exists in messages array

@@ -30,7 +30,6 @@ The following implementation plans document how specific requirements were desig
 |------|----------|--------------|
 | Sidecar OpenCode Rewrite | [`opencode-integration/plan_sidecar-opencode-rewrite.md`](opencode-integration/plan_sidecar-opencode-rewrite.md) | 1.2.1, 1.2.2 |
 | Folder Permission Model | [`opencode-integration/plan_folder-permission-model.md`](opencode-integration/plan_folder-permission-model.md) | 1.3.1–1.3.4 |
-| Fix System Prompt Injection | [`opencode-integration/plan_fix_system_prompt_injection.md`](opencode-integration/plan_fix_system_prompt_injection.md) | 2.1 |
 | User Prompt Customization | [`opencode-integration/plan_user-prompt-customization.md`](opencode-integration/plan_user-prompt-customization.md) | 2.1 |
 | MCP Server Support | [`opencode-integration/plan_mcp-server-support.md`](opencode-integration/plan_mcp-server-support.md) | 2.3 |
 | OpenCode Server API Skill | [`opencode-integration/plan_opencode-server-skill.md`](opencode-integration/plan_opencode-server-skill.md) | 2.4 |
@@ -214,8 +213,6 @@ The following implementation plans document how specific requirements were desig
 4. THE SYSTEM SHALL pass the user prompt through the sidecar IPC protocol and apply it on every `startTask` and `resumeSession` call
 
 #### 2.2 Agent Skill Support ✅
-
-> **Plan:** [Fix System Prompt Injection](opencode-integration/plan_fix_system_prompt_injection.md) (system prompt delivery for agent configuration)
 
 Skills follow the [OpenCode Skills specification](https://opencode.ai/docs/skills/). OpenCode natively discovers and loads skills from convention directories — no additional app-level implementation is required beyond ensuring the OpenCode server has access to the skill directories.
 

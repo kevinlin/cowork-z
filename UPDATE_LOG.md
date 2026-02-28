@@ -4,6 +4,7 @@
 
 ## v0.5.13
 
+- **Fix: Intermediate assistant messages not persisted** — Multi-step agent sessions now correctly save all intermediate assistant messages to the database
 - **Fix: Long-running task false failure** — Conversations running longer than 10 minutes no longer incorrectly show "Failed" status; the `sendMessage` HTTP call is now fire-and-forget since session lifecycle is managed entirely via SSE events
 - **Fix: Tool call card input/output** — Tool call cards now persist and display input and output correctly; tool messages update in-place as they transition from pending to completed; added skill tool display with icon
 

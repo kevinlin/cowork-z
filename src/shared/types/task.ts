@@ -2,7 +2,16 @@
  * Task-related types for execution management
  */
 
-export type TaskStatus = 'pending' | 'queued' | 'running' | 'waiting_permission' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
+export type TaskStatus =
+  | 'pending'
+  | 'starting'
+  | 'queued'
+  | 'running'
+  | 'waiting_permission'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'interrupted';
 
 export interface TaskConfig {
   /** The task prompt/description */
@@ -89,7 +98,7 @@ export interface TaskProgress {
 
 export interface TaskUpdateEvent {
   taskId: string;
-  type: 'message' | 'progress' | 'complete' | 'error';
+  type: 'message' | 'progress' | 'complete' | 'error' | 'started';
   message?: TaskMessage;
   progress?: TaskProgress;
   result?: TaskResult;

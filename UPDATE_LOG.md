@@ -4,7 +4,7 @@
 
 ## v0.5.12
 
-- 
+- **Fix: Stop button** — Stop button and Escape key now correctly abort running tasks
 
 ## v0.5.11 (2026-02-24)
 

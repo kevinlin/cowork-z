@@ -340,7 +340,8 @@ export class SessionManager extends EventEmitter {
       managed.status = 'completing';
     }
 
-    await this.client.abortSession(sessionId);
+    const directory = managed?.session?.directory;
+    await this.client.abortSession(sessionId, directory);
 
     this.emit('complete', {
       taskId,

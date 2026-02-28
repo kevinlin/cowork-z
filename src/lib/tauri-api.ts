@@ -943,6 +943,16 @@ export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): 
         callback({ taskId, type: 'error', error, sessionId });
       }
     }).then(track),
+    listen<{
+      taskId?: string;
+      payload?: { taskId?: string; sessionId?: string };
+    }>('task:started', (event) => {
+      const taskId = event.payload?.taskId;
+      const sessionId = event.payload?.payload?.sessionId;
+      if (taskId && sessionId) {
+        callback({ taskId, type: 'started', sessionId });
+      }
+    }).then(track),
   ]);
 
   return () => {

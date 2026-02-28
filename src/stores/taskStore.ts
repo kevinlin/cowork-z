@@ -632,7 +632,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   interruptTask: async () => {
     const { currentTask } = get();
-    if (currentTask && currentTask.status === 'running') {
+    if (currentTask && (currentTask.status === 'running' || currentTask.status === 'starting')) {
       const sessionId = currentTask.sessionId || currentTask.result?.sessionId;
       void api.logEvent({
         level: 'info',
@@ -842,6 +842,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       });
     }
 
+    // Persist sessionId when task starts (enables abort during running phase)
+    if (event.type === 'started' && event.sessionId) {
+      api.saveTaskSession(event.taskId, event.sessionId).catch((err) => {
+        console.error('Failed to save task session ID:', err);
+      });
+    }
+
     // Clean up cache entries when tasks complete or error (prevent memory leaks)
     if (event.type === 'complete' || event.type === 'error') {
       const keysToDelete: string[] = [];
@@ -873,6 +880,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           ...state.currentTask,
           messages: nextMessages,
         };
+      }
+
+      // Handle started events — capture sessionId so abort works during running phase
+      if (event.type === 'started' && event.sessionId) {
+        newStatus = 'running';
+        if (isCurrentTask && state.currentTask) {
+          updatedCurrentTask = {
+            ...state.currentTask,
+            sessionId: event.sessionId,
+            status: 'running',
+          };
+        }
       }
 
       // Handle complete events

@@ -297,12 +297,24 @@ export class SessionManager extends EventEmitter {
     // resolution, which fails for models not in OpenCode's models.dev database.
     managed.status = 'active';
     const messageModel = parseModelId(modelId);
-    await this.client.sendMessage(session.id, {
-      parts: [{ type: 'text', text: prompt }],
-      directory: workingDirectory,
-      system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt),
-      model: messageModel,
-    });
+    // Fire-and-forget: session lifecycle is managed entirely via SSE events.
+    // Awaiting would cause a false "failed" status when the HTTP timeout
+    // fires on long-running agent turns (the session keeps running on the server).
+    this.client
+      .sendMessage(session.id, {
+        parts: [{ type: 'text', text: prompt }],
+        directory: workingDirectory,
+        system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt),
+        model: messageModel,
+      })
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.warn('sendMessage request failed (session may still be active via SSE)', {
+          taskId,
+          sessionId: session.id,
+          error: msg,
+        });
+      });
   }
 
   async resumeSession(payload: ResumeSessionPayload): Promise<void> {
@@ -339,12 +351,22 @@ export class SessionManager extends EventEmitter {
     if (prompt) {
       managed.status = 'active';
       const messageModel = parseModelId(modelId);
-      await this.client.sendMessage(sessionId, {
-        parts: [{ type: 'text', text: prompt }],
-        directory: workingDirectory,
-        system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt),
-        model: messageModel,
-      });
+      // Fire-and-forget: same rationale as startTask() above.
+      this.client
+        .sendMessage(sessionId, {
+          parts: [{ type: 'text', text: prompt }],
+          directory: workingDirectory,
+          system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt),
+          model: messageModel,
+        })
+        .catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.warn('sendMessage request failed (session may still be active via SSE)', {
+            taskId,
+            sessionId,
+            error: msg,
+          });
+        });
     }
   }
 

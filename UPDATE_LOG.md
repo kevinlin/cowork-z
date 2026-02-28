@@ -4,7 +4,7 @@
 
 ## v0.5.13
 
-- 
+- **Fix: Long-running task false failure** — Conversations running longer than 10 minutes no longer incorrectly show "Failed" status; the `sendMessage` HTTP call is now fire-and-forget since session lifecycle is managed entirely via SSE events
 
 ## v0.5.12
 

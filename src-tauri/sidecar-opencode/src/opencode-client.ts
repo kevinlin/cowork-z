@@ -39,7 +39,8 @@ export class OpenCodeClient {
 
     const effectiveTimeout = options?.timeout ?? this.timeout;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
+    // timeout === 0 means no timeout (fire-and-forget calls)
+    const timeoutId = effectiveTimeout > 0 ? setTimeout(() => controller.abort(), effectiveTimeout) : null;
 
     const headers: Record<string, string> = {};
     if (body) headers['Content-Type'] = 'application/json';
@@ -50,7 +51,7 @@ export class OpenCodeClient {
         method,
         headers: Object.keys(headers).length > 0 ? headers : undefined,
         body: body ? JSON.stringify(body) : undefined,
-        signal: controller.signal,
+        signal: timeoutId !== null ? controller.signal : undefined,
       });
 
       const responseBody = await response.json().catch(() => null);
@@ -62,7 +63,7 @@ export class OpenCodeClient {
 
       return responseBody as T;
     } finally {
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
 
@@ -170,7 +171,8 @@ export class OpenCodeClient {
     const params = options.directory ? { directory: options.directory } : undefined;
     // sendMessage is a long-running request: OpenCode blocks until the full agent
     // turn completes (which may include permission waits, tool execution, etc.).
-    // Use a 10-minute timeout instead of the default 30 seconds.
+    // timeout: 0 disables the abort timer — callers fire-and-forget this call
+    // and rely on SSE events for session lifecycle.
     return this.request(
       'POST',
       `/session/${sessionId}/message`,
@@ -181,7 +183,7 @@ export class OpenCodeClient {
         system: options.system,
       },
       params,
-      { timeout: 10 * 60 * 1000 }
+      { timeout: 0 }
     );
   }
 

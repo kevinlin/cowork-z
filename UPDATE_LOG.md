@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.5.13
+
+- 
+
 ## v0.5.12
 
 - **Fix: Stop button** — Stop button and Escape key now correctly abort running tasks

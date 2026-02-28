@@ -183,7 +183,10 @@ export class SessionManager extends EventEmitter {
         taskId,
         id: props.id,
         sessionId: props.sessionID,
-        questions: props.questions,
+        questions: props.questions.map((q) => ({
+          ...q,
+          multiSelect: q.multiSelect ?? q.multiple ?? false,
+        })),
       });
     });
 

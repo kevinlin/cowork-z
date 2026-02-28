@@ -7,6 +7,8 @@
 - **Fix: Stop button** — Stop button and Escape key now correctly abort running tasks
 - **Fix: Cross-task message leakage** — Messages from failed or stuck sessions no longer appear in newly started tasks
 - **Fix: Question reply stuck** — Answering agent question prompts no longer causes the task to hang
+- **Fix: Multi-select question dialog** — Fix display and handling of agent questions with multiple-choice answers
+- **Update skills in Skill Catalog** - Sync from latest source repos
 
 ## v0.5.11 (2026-02-24)
 

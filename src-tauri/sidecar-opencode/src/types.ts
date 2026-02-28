@@ -91,6 +91,8 @@ export interface QuestionInfo {
   header?: string;
   options?: QuestionOption[];
   multiSelect?: boolean;
+  /** OpenCode server uses `multiple` instead of `multiSelect` */
+  multiple?: boolean;
 }
 
 export interface QuestionOption {

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Brain } from 'lucide-react';
+import { Brain, Check } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -86,7 +86,8 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
                   )}
                 </div>
 
-                <p className="mb-4 text-foreground text-sm">{currentQuestion.question}</p>
+                <p className="mb-2 text-foreground text-sm">{currentQuestion.question}</p>
+                {currentQuestion.multiSelect && <p className="mb-3 text-muted-foreground text-xs">Select one or more options</p>}
 
                 {/* Options list */}
                 {!showCustomInput && currentQuestion.options && currentQuestion.options.length > 0 && (
@@ -113,8 +114,24 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
                           }
                         }}
                       >
-                        <div className="font-medium text-sm">{option.label}</div>
-                        {option.description && <div className="mt-1 text-muted-foreground text-xs">{option.description}</div>}
+                        <div className="flex items-start gap-2.5">
+                          {currentQuestion.multiSelect && (
+                            <div
+                              className={cn(
+                                'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+                                selectedOptions.includes(option.label)
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-muted-foreground/40'
+                              )}
+                            >
+                              {selectedOptions.includes(option.label) && <Check className="h-3 w-3" />}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-sm">{option.label}</div>
+                            {option.description && <div className="mt-1 text-muted-foreground text-xs">{option.description}</div>}
+                          </div>
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -181,6 +198,11 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
                     onClick={handleSubmitCurrent}
                   >
                     {isLastQuestion ? 'Submit' : 'Next'}
+                    {currentQuestion.multiSelect && selectedOptions.length > 1 && (
+                      <span className="ml-1.5 rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] leading-none">
+                        {selectedOptions.length}
+                      </span>
+                    )}
                   </Button>
                 </div>
               </div>

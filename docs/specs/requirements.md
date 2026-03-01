@@ -14,9 +14,22 @@ Most AI tools force you to choose between capability and privacy — and leave y
 
 ---
 
-## Implementation Plans Index
+## Design & Implementation Index
 
-The following implementation plans document how specific requirements were designed and built:
+Technical design documents and implementation plans organized by module. Design specs provide comprehensive technical solutions for each domain, including resolved issues (bug investigations and fixes). Plans document how specific requirements were built.
+
+### Design Specs
+
+| Module | Design Document | Coverage |
+|--------|----------------|----------|
+| **Overall Architecture** | [`design.md`](design.md) | Technology stack, multi-process overview, database schema, architectural decisions |
+| **OpenCode Integration** | [`design_opencode-integration.md`](opencode-integration/design_opencode-integration.md) | IPC protocol, sidecar architecture, session management, security, provider support |
+| **Chat Experience** | [`design_chat-ux.md`](chat-ux/design_chat-ux.md) | Message rendering, streaming, tool calls, dialogs, input handling, sidebar panels |
+| **App Experience** | [`design_app-ux.md`](app-ux/design_app-ux.md) | Themes, keyboard shortcuts, settings, about panel, feedback, updates, CLI detection |
+| **Workspace-as-Folder** | [`design_workspace-as-folder.md`](workspace-as-folder/design_workspace-as-folder.md) | Workspace lifecycle, file tree, permissions, file preview panel |
+| **Workspace Packs** | [`design_workspace-packs.md`](workspace-packs/design_workspace-packs.md) | Starter pack catalog, installation, workspace creation |
+| **Skills Management** | [`skills-management/design_skills-catalog.md`](skills-management/design_skills-catalog.md), [`design_skills-manager.md`](skills-management/design_skills-manager.md) | Bundled skill catalog, repo-based skill management |
+| **Windows Support** | [`windows-support/design_windows-support.md`](windows-support/design_windows-support.md) | Platform-specific runtime fixes, PATH resolution, build targets |
 
 ### cowork-z — Platform & Security
 
@@ -37,6 +50,8 @@ The following implementation plans document how specific requirements were desig
 | OpenRouter Provider Support | [`opencode-integration/plan_openrouter-provider-support.md`](opencode-integration/plan_openrouter-provider-support.md) | 1.1.3 |
 | GitHub Copilot Provider Support | [`opencode-integration/plan_github-copilot-provider-support.md`](opencode-integration/plan_github-copilot-provider-support.md) | 1.1.6 |
 
+Resolved issues documented in [`design_opencode-integration.md`](opencode-integration/design_opencode-integration.md#resolved-issues): System Prompt Not Applied, Cross-Task Message Leakage (#22), Question Reply Format Mismatch, Multi-Select Question Dialog.
+
 ### chat-ux — Chat Experience
 
 | Plan | Location | Requirements |
@@ -46,6 +61,8 @@ The following implementation plans document how specific requirements were desig
 | Rich File & URL Display | [`chat-ux/plan_rich-file-url-display-in-chat.md`](chat-ux/plan_rich-file-url-display-in-chat.md) | 3.1, 3.2 |
 | Slash Command Skill Invocation | [`chat-ux/plan_slash-command-skill-invocation.md`](chat-ux/plan_slash-command-skill-invocation.md) | 3.8 |
 | Rename Conversation in Sidebar | [`chat-ux/plan_rename-conversation-in-sidebar.md`](chat-ux/plan_rename-conversation-in-sidebar.md) | 3.9 |
+
+Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#resolved-issues): Stop Button, Long-Running Task False Failure, Streaming Partial Message Duplication, Intermediate Messages Not Persisted, Markdown Table Rendering.
 
 ### app-ux — App Experience
 
@@ -593,7 +610,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 ### 6. Workspace & File Browser
 
 > **Full specification:** [Workspace-as-Folder Requirements](workspace-as-folder/requirements.md)
-> **Design:** [Workspace-as-Folder Design (Phase 1)](workspace-as-folder/design_phase1.md), [Workspace-as-Folder Design (Phase 2)](workspace-as-folder/design_phase2.md)
+> **Design:** [Workspace-as-Folder Design](workspace-as-folder/design_workspace-as-folder.md)
 
 **User Story:** As a user, I want each project folder to be its own workspace with a file browser, file preview, and scoped session history, so that I can keep my AI interactions organized by project and browse files the agent creates or modifies.
 
@@ -699,7 +716,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ### 7. Workspace Starter Packs ✅
 
-> **Design:** [Workspace Packs Design](workspace-packs/design.md)
+> **Design:** [Workspace Packs Design](workspace-packs/design_workspace-packs.md)
 > **Plan:** [Workspace Packs Plan](workspace-packs/plan.md)
 
 **User Story:** As a user, I want to browse and install pre-built workspace starter packs from the Home screen, so that I can quickly start guided, real-world tasks without setting up files from scratch.

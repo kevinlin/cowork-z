@@ -1,21 +1,18 @@
-# Workspace-as-Folder — Design Document Phase 1
-
-Date: 2026-02-16
+# Workspace-as-Folder — Design Document
 
 ## Overview
 
 Cowork-Z adopts a workspace-per-folder model where each workspace is defined by a unique directory on the filesystem. The workspace folder becomes the AI agent's working directory, the root of the file tree browser, and the scope for session history. A single shared sidecar process serves all workspaces by reconfiguring on switch.
 
-## Phasing
-
-- **Phase 1 (this document):** Workspace lifecycle, switching, file tree browser, permission integration.
-- **Phase 2 (future):** File preview panel (code highlighting, markdown rendering, images, PDF, HTML, presentations), fullscreen mode, "Add to Chat" bridge.
+The workspace feature was implemented in two phases:
+- **Phase 1:** Workspace lifecycle, switching, file tree browser, permission integration.
+- **Phase 2:** File preview panel (code highlighting, markdown rendering, images, video, PDF, HTML), resizable panel, fullscreen mode, "Add to Chat" bridge.
 
 ---
 
 ## 1. Workspace Data Model
 
-### New DB Table: `workspaces`
+### DB Table: `workspaces`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -104,7 +101,7 @@ The `workingDirectory` from each task payload is passed through `initialize()` t
 
 OpenCode's `POST /permission/{id}/reply` and `POST /question/{id}/reply` endpoints require a `?directory=<workspace_path>` query parameter to route the reply to the correct session instance. Without it, the server bootstraps a new instance in its default directory (the log directory), and the waiting session never receives the reply — causing the agent to hang indefinitely after the user grants a permission.
 
-The sidecar's `SessionManager` resolves this by looking up the managed session for the task and extracting its `directory` field (populated from the `POST /session` response at session creation time). This directory is then passed as a query parameter:
+The sidecar's `SessionManager` resolves this by looking up the managed session for the task and extracting its `directory` field (populated from the `POST /session` response at session creation time). This directory is then passed as a query parameter.
 
 The same pattern applies to `replyToQuestion`.
 
@@ -112,7 +109,7 @@ The same pattern applies to `replyToQuestion`.
 
 The frontend prevents duplicate permission replies through two mechanisms:
 
-1. **Async listener cleanup (Execution.tsx):** Tauri's `listen()` returns a Promise, but React's `useEffect` cleanup runs synchronously. Under React Strict Mode double-mounting, a stale listener from the first mount can survive cleanup and fire alongside the second mount's listener. A `cancelled` flag pattern ensures stale async listeners are immediately unsubscribed when their promise resolves after cleanup:
+1. **Async listener cleanup (Execution.tsx):** Tauri's `listen()` returns a Promise, but React's `useEffect` cleanup runs synchronously. Under React Strict Mode double-mounting, a stale listener from the first mount can survive cleanup and fire alongside the second mount's listener. A `cancelled` flag pattern ensures stale async listeners are immediately unsubscribed when their promise resolves after cleanup.
 
 2. **Replied-ID tracking (taskStore.ts):** A `repliedPermissionIds: Set<string>` in the Zustand store tracks every permission ID that has been replied to. Both `enqueuePermissionRequest` and `respondToPermission` check this set before sending a reply, preventing duplicates from any source (stale listeners, auto-approve of duplicated queue entries, or rapid user clicks).
 
@@ -165,7 +162,7 @@ Each non-active workspace has a remove button (X) on hover.
 
 ---
 
-## 5. File Tree Browser (Phase 1)
+## 5. File Tree Browser
 
 ### Tab Structure
 
@@ -181,7 +178,7 @@ Children are loaded on demand — a folder's contents are fetched only when the 
 
 ### Backend API
 
-New Tauri command: `read_directory(path: String) -> Vec<DirectoryEntry>`
+Tauri command: `read_directory(path: String) -> Vec<DirectoryEntry>`
 
 Each `DirectoryEntry` contains:
 - `name: String` — file or folder name
@@ -264,10 +261,6 @@ This ensures search only matches visible entries when hidden files are off, and 
 
 The toggle button is placed to the right of the search input in the file tree header bar. It is a 26×26px bordered icon button with hover/focus states matching the app's design system.
 
-### No Preview (Phase 1)
-
-Clicking a file in the tree selects/highlights it but does not open a preview panel. Phase 2 adds the right-side file preview.
-
 ### Not Supported
 
 - File mutations (rename, delete, move, copy, create)
@@ -336,10 +329,122 @@ This ensures the user always sees the correct file tree and session context for 
 
 ---
 
-## 8. Keyboard Shortcuts
+## 8. File Preview Panel
+
+A closable, resizable right-side file preview panel. Clicking a file in the file tree (or a media thumbnail in chat) opens the preview. The panel supports code (syntax-highlighted), markdown, images, video, PDFs, HTML, plain text, and binary files. It includes fullscreen mode and an "Add to Chat" button.
+
+Media thumbnails in chat messages open the same file preview panel instead of a separate modal dialog.
+
+### Rust Backend: File-Reading Commands
+
+Two Tauri commands in `src-tauri/src/commands/files.rs`:
+
+**`read_file_content`** — Reads UTF-8 text content from a file.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | `String` | required | Absolute file path |
+| `max_size` | `Option<u64>` | 1 MB | Maximum file size in bytes |
+
+**`read_binary_file`** — Reads binary content and returns base64-encoded string.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | `String` | required | Absolute file path |
+| `max_size` | `Option<u64>` | 10 MB | Maximum file size in bytes |
+
+### File Preview Store
+
+A Zustand store (`src/stores/filePreviewStore.ts`) manages preview state globally. Separate from `taskStore` because preview state is orthogonal to task state and needs to be accessed from both the sidebar (`FileTreePanel`) and chat messages (`MediaGallery`).
+
+| Action | Description |
+|--------|-------------|
+| `openPreview(file)` | Sets `selectedFile` and opens the panel |
+| `closePreview()` | Closes the panel and clears selection |
+| `openPreviewByPath(path)` | Constructs a `DirectoryEntry` from a path string and opens preview |
+
+### Component Hierarchy
+
+```
+App.tsx
+├── Sidebar (files tab)
+│   └── FileTreePanel (onSelect → filePreviewStore.openPreview)
+├── Main content (flex-1)
+│   └── Routes (Home / Execution)
+│       └── MessageBubble → MediaGallery → MediaThumbnail (onClick → filePreviewStore.openPreviewByPath)
+└── FilePreviewPanel (conditional, when isPreviewOpen)
+    ├── Header (icon, name, path, maximize, add-to-chat, close)
+    └── Content (dispatched by preview type)
+        ├── CodePreview (react-syntax-highlighter)
+        ├── MarkdownPreview (react-markdown + remark-gfm)
+        ├── MediaPreview (convertFileSrc — images and video)
+        ├── PdfPreview (readBinaryFile → base64 data URL → embed)
+        ├── HtmlPreview (sandboxed iframe)
+        ├── TextPreview (monospace pre)
+        └── BinaryPreview (icon + name + size)
+```
+
+### Preview Type Detection
+
+Extension-based dispatch via `getPreviewType(file: DirectoryEntry)`:
+
+| Type | Extensions |
+|------|-----------|
+| `code` | ts tsx js jsx rs py java c cpp h hpp go rb php swift kt scala sh bash css scss xml sql r |
+| `markdown` | md |
+| `image` | png jpg jpeg gif svg webp bmp ico |
+| `video` | mp4 webm ogg mov avi mkv m4v |
+| `pdf` | pdf |
+| `html` | html htm |
+| `text` | txt log csv json yaml yml toml ini cfg conf |
+| `binary` | everything else |
+
+### Panel Modes
+
+**Docked mode:** Renders as a right-side panel in the flex layout (default 400px, resizable 280–700px via drag handle), `border-l`.
+
+**Fullscreen mode:** Renders via `createPortal` to `document.body` as a fixed overlay (`fixed inset-0 z-50`). Escape key exits fullscreen. Switching files resets to docked mode.
+
+**Header bar:** File type icon, file name (truncated), full path (muted), maximize/minimize toggle, "Add to Chat" button, close (X) button.
+
+### Preview Renderers
+
+- **CodePreview** — `react-syntax-highlighter` with theme-aware highlighting (`oneLight`/`oneDark`). Observes `dark` class on `<html>` via `useSyncExternalStore` + `MutationObserver`. Shows line numbers.
+- **MarkdownPreview** — `react-markdown` with `remark-gfm`. Code blocks get syntax highlighting with a macOS-style header bar (three colored dots + language label).
+- **MediaPreview** — Combined image/video. Uses `convertFileSrc()` for Tauri's asset protocol. `<video>` includes `<track kind="captions">` for accessibility.
+- **PdfPreview** — `readBinaryFile()` → base64 data URL → `<embed type="application/pdf">`.
+- **HtmlPreview** — Sandboxed iframe with `srcDoc`. Sandbox: `allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms`. No `allow-same-origin` for security.
+- **TextPreview** — Plain monospace `<pre>` text, scrollable.
+- **BinaryPreview** — Generic file icon with file name and formatted file size. No content preview.
+
+### Layout Integration
+
+```
+[Sidebar] [Main (flex-1)] [ResizeHandle] [FilePreviewPanel (conditional, 280–700px)]
+```
+
+The preview panel is a direct sibling of `<main>` in the flex container. It renders conditionally based on `filePreviewStore.isPreviewOpen`.
+
+### "Add to Chat" Integration
+
+The "Add to Chat" button in the preview header inserts the file as an `@path` reference into the active chat input using `formatPathForChat()`. The mechanism mirrors drag-and-drop from the file tree.
+
+---
+
+## 9. Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
-| Escape | Exit fullscreen preview (Phase 2) |
+| Escape | Exit fullscreen preview |
 
-No new keyboard shortcuts in Phase 1. Cmd+N (new task) and Cmd+K (launcher) continue to work within the active workspace context.
+Cmd+N (new task) and Cmd+K (launcher) continue to work within the active workspace context.
+
+---
+
+## Not In Scope
+
+- File mutations (rename, delete, move, copy, create)
+- Context menus / right-click actions on files
+- Multi-file selection
+- Presentation preview (`.tandem.ppt.json`)
+- Extracted text (`read_file_text` for DOCX/PPTX/XLSX) — requires heavy Rust dependencies

@@ -30,11 +30,25 @@ Cowork-Z is a cross-platform desktop application that provides a sandboxed envir
 
 ---
 
-## Architecture
+## Module Design Specs
+
+Each module has its own comprehensive design document covering technical solutions, architecture, and resolved issues.
+
+| Module | Design Document | Domain |
+|--------|----------------|--------|
+| **OpenCode Integration** | [design_opencode-integration.md](opencode-integration/design_opencode-integration.md) | IPC protocol, sidecar architecture, session management, security isolation, provider support, build & distribution |
+| **Chat Experience** | [design_chat-ux.md](chat-ux/design_chat-ux.md) | Message rendering, streaming, tool call display, question/permission dialogs, input handling, sidebar panels |
+| **App Experience** | [design_app-ux.md](app-ux/design_app-ux.md) | Themes, keyboard shortcuts, settings, about panel, feedback, update system, CLI detection |
+| **Workspace-as-Folder** | [design_workspace-as-folder.md](workspace-as-folder/design_workspace-as-folder.md) | Workspace lifecycle, file tree, permissions, file preview panel |
+| **Workspace Packs** | [design_workspace-packs.md](workspace-packs/design_workspace-packs.md) | Starter pack catalog, installation, workspace creation |
+| **Skills Management** | [design_skills-catalog.md](skills-management/design_skills-catalog.md), [design_skills-manager.md](skills-management/design_skills-manager.md) | Bundled skill catalog, repo-based skill management |
+| **Windows Support** | [design_windows-support.md](windows-support/design_windows-support.md) | Platform-specific runtime fixes, PATH resolution, build targets |
+
+---
+
+## Architecture Overview
 
 ### Multi-Process Architecture
-
-> **Plan:** [Sidecar OpenCode Rewrite](opencode-sidecar/plan_sidecar-opencode-rewrite.md) — Complete rewrite from PTY-based `opencode run` to the `opencode serve` HTTP/SSE API.
 
 ```
 Tauri (Rust) ↔ JSON-line IPC (stdin/stdout) ↔ Node.js Sidecar ↔ HTTP/SSE ↔ opencode serve
@@ -46,104 +60,24 @@ Tauri (Rust) ↔ JSON-line IPC (stdin/stdout) ↔ Node.js Sidecar ↔ HTTP/SSE �
 | **Node.js Sidecar** | OpenCode server management, HTTP/SSE client, protocol translation |
 | **OpenCode Server** | Agent orchestration, tool execution (file ops, bash, search), model API calls |
 
-### Process Lifecycle
+For detailed IPC protocol, SSE event shapes, session lifecycle, and security architecture, see the [OpenCode Integration design spec](opencode-integration/design_opencode-integration.md).
 
-1. Tauri app launches and spawns the sidecar binary as a child process
-2. Sidecar starts the OpenCode server on a random loopback port with HTTP basic auth
-3. Sidecar connects to the OpenCode SSE event stream
-4. Frontend sends user prompts via Tauri commands → Rust → sidecar stdin
-5. Sidecar forwards to OpenCode HTTP API, streams SSE events back as JSON-line stdout
-6. Rust emits Tauri events (`task:update`, `task:permission_request`, etc.) to the frontend
-7. On app quit, Rust terminates the sidecar, which shuts down the OpenCode server
+### Frontend Architecture
 
-### IPC Protocol
+#### Pages (react-router-dom)
 
-Rust serializes `SidecarCommand` as JSON-lines on sidecar stdin. Sidecar emits `SidecarEvent` as JSON-lines on stdout. Both use `snake_case` type discriminants.
+- `/` — `src/pages/Home.tsx` — Task launcher, starter packs, skills catalog
+- `/task/:taskId` — `src/pages/Execution.tsx` — Active task chat view
 
-#### Rust → Sidecar (Commands)
+#### State Management (Zustand)
 
-| Command | Purpose |
-|---------|---------|
-| `start_task` | Begin a new task with prompt, model config, and permissions |
-| `resume_session` | Resume a previous session with a new prompt |
-| `cancel_task` | Cancel a running task |
-| `abort_session` | Force-abort an OpenCode session |
-| `send_permission_reply` | Reply to a permission request (allow/deny) |
-| `send_question_reply` | Reply to an agent question |
-| `ping` | Health check |
-| `check_server` | Verify OpenCode server is running |
+- `src/stores/taskStore.ts` — Tasks, permissions, questions, active task, UI state
+- `src/stores/workspaceStore.ts` — Workspace list, active workspace, switching
+- `src/stores/filePreviewStore.ts` — File preview panel state
+- `src/stores/skillsStore.ts` — Installed skills for slash-command autocomplete
+- `src/stores/skillsManagerStore.ts` — Skills Manager window state
 
-#### Sidecar → Rust (Events)
-
-| Event | Purpose |
-|-------|---------|
-| `ready` | Sidecar initialized and server connected |
-| `pong` | Response to ping |
-| `server_status` | OpenCode server health status |
-| `task_started` | Task accepted, session created |
-| `task_message_partial` | Streaming token update |
-| `task_message_complete` | Full message received |
-| `task_progress` | Stage update (starting, connecting, configuring, executing, completing) |
-| `task_complete` | Task finished with summary |
-| `task_error` | Task failed with error details |
-| `permission_request` | Agent needs file/command permission from user |
-| `question_request` | Agent has a question for the user |
-| `log` | Sidecar log message |
-| `error` | Sidecar error |
-
-### OpenCode Server Integration
-
-The sidecar communicates with the OpenCode server via HTTP REST and Server-Sent Events.
-
-**Endpoints:**
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/event` | GET | SSE event stream for real-time updates |
-| `/session/{id}/message` | POST | Send a message to an active session |
-| `/permission/{id}/reply` | POST | Reply to a permission request |
-| `/question/{id}/reply` | POST | Reply to an agent question |
-| `/config` | PATCH | Update provider config, MCP servers |
-
-**SSE Event Shapes (OpenCode v1.1.48):**
-
-| Event | Payload |
-|-------|---------|
-| `session.status` | `{ sessionID: string, status: SessionStatus }` |
-| `message.updated` | `{ info: MessageInfo }` |
-| `message.part.updated` | `sessionID` and `messageID` nested inside `part` |
-| `server.heartbeat` | Keepalive |
-| `server.instance.disposed` | Server instance recycled (triggers SSE reconnection) |
-
-**Note:** `PATCH /config` causes the OpenCode server to dispose and recreate its instance, terminating the SSE connection. The `eventsource` npm library auto-reconnects in ~1s. Do not add manual reconnection logic on top.
-
-> **Plan:** [Fix System Prompt Injection](opencode-sidecar/plan_fix_system_prompt_injection.md) — Uses the `system` field on `sendMessage` instead of custom agent names to inject the system prompt.
-
----
-
-## Key Source Locations
-
-| Path | Purpose |
-|------|---------|
-| `src/lib/tauri-api.ts` | Frontend API bridge — all Tauri `invoke()` and `listen()` calls |
-| `src/lib/tauri-api-interface.ts` | `TauriAPI` interface abstracting the backend |
-| `src/stores/taskStore.ts` | Zustand store for tasks, permissions, questions, UI state |
-| `src-tauri/src/lib.rs` | Tauri command handlers (60+) |
-| `src-tauri/src/sidecar.rs` | Sidecar process lifecycle, IPC serialization, event routing |
-| `src-tauri/src/migrations.rs` | SQLite schema migrations |
-| `src-tauri/sidecar-opencode/src/types.ts` | IPC protocol type definitions (single source of truth) |
-| `src-tauri/sidecar-opencode/src/opencode-client.ts` | OpenCode REST client |
-| `src-tauri/sidecar-opencode/src/event-stream.ts` | OpenCode SSE client |
-| `src-tauri/sidecar-opencode/src/session-manager.ts` | Session lifecycle management |
-
-### Path Aliases
-
-| Alias | Maps to |
-|-------|---------|
-| `@` | `src/` |
-| `@shared` | `src/shared/` |
-
-Configured in both `tsconfig.json` and `vite.config.ts`.
+For detailed chat components, message rendering, and input handling, see the [Chat Experience design spec](chat-ux/design_chat-ux.md).
 
 ---
 
@@ -157,6 +91,9 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 | `task_messages` | task_id, id, type, content, tool_name, tool_input | Persisted conversation messages |
 | `folder_permissions` | task_id, folder_path, access_level, source | Per-task folder grants (user or adhoc) |
 | `settings` | key, value | App settings (debug_mode, selected_model, etc.) |
+| `workspaces` | id, folder_path, display_name, timestamps | Workspace definitions |
+| `skill_repos` | id, url, branch, last_synced, error | Registered skill Git repos |
+| `repo_skills` | repo_id, skill_path, name, description, category | Discovered skills from repos |
 
 **Credentials:** All API keys stored in OS keychain via the `keyring` crate — never in the database.
 
@@ -166,149 +103,30 @@ Configured in both `tsconfig.json` and `vite.config.ts`.
 
 ---
 
-## Sidecar Build & Distribution
+## Key Source Locations
 
-### Constraints
+| Path | Purpose |
+|------|---------|
+| `src/lib/tauri-api.ts` | Frontend API bridge — all Tauri `invoke()` and `listen()` calls |
+| `src/lib/tauri-api-interface.ts` | `TauriAPI` interface abstracting the backend |
+| `src/stores/taskStore.ts` | Zustand store for tasks, permissions, questions, UI state |
+| `src-tauri/src/lib.rs` | App entry point, plugin registration, menu setup |
+| `src-tauri/src/commands/` | Tauri command handlers (organized by domain) |
+| `src-tauri/src/db/` | SQLite persistence layer |
+| `src-tauri/src/sidecar.rs` | Sidecar process lifecycle, IPC serialization, event routing |
+| `src-tauri/sidecar-opencode/src/types.ts` | IPC protocol type definitions (single source of truth) |
+| `src-tauri/sidecar-opencode/src/opencode-client.ts` | OpenCode REST client |
+| `src-tauri/sidecar-opencode/src/event-stream.ts` | OpenCode SSE client |
+| `src-tauri/sidecar-opencode/src/session-manager.ts` | Session lifecycle management |
 
-> **Plan:** [Cross-Platform Support](plan_cross-platform-support.md) — Platform-specific build targets, PATH resolution, and installer formats.
+### Path Aliases
 
-- **Must use CommonJS** — the `pkg` bundler (`@yao-pkg/pkg`) has limited ESM support
-- **No `.js` extensions** in TypeScript imports (CommonJS convention)
-- **Tests:** Jest with `ts-jest` (CommonJS transpile)
+| Alias | Maps to |
+|-------|---------|
+| `@` | `src/` |
+| `@shared` | `src/shared/` |
 
-### Binary Targets
-
-| Target | Binary Name | Build Command |
-|--------|------------|---------------|
-| macOS ARM64 | `sidecar-opencode-aarch64-apple-darwin` | `pnpm build:binary` |
-| macOS x64 | `sidecar-opencode-x86_64-apple-darwin` | `pnpm build:binary:x64` |
-| Windows x64 | `sidecar-opencode-x86_64-pc-windows-msvc.exe` | `pnpm build:binary:win` |
-| Linux x64 | `sidecar-opencode-x86_64-unknown-linux-gnu` | `pnpm build:binary:linux` |
-| Linux ARM64 | `sidecar-opencode-aarch64-unknown-linux-gnu` | `pnpm build:binary:linux-arm64` |
-
-**Binary path:** `src-tauri/binaries/sidecar-opencode-<target-triple>`
-
-**Tauri config:** Referenced in `tauri.conf.json` under `bundle.externalBin`. The `beforeDevCommand` auto-builds the sidecar binary before starting dev mode.
-
----
-
-## Security Architecture
-
-### Credential Storage
-
-All API keys and secrets are stored in the OS-native keychain:
-
-| Platform | Backend |
-|----------|---------|
-| macOS | Keychain |
-| Windows | Credential Manager |
-| Linux | Secret Service (D-Bus) |
-
-Service identifier: `com.kevinlin.cowork-z`
-
-Keys are retrieved on-demand during task startup. Only masked prefixes are returned to the frontend.
-
-### OpenCode Server Isolation
-
-> **Plan:** [Server Isolation](plan_server-isolation.md)
-
-- Server binds to `127.0.0.1` on a **random available port** (not a fixed port)
-- A **random password** is generated on each app launch
-- The password is set via `OPENCODE_SERVER_PASSWORD` environment variable when spawning the OpenCode server
-- All HTTP requests to the server require HTTP basic auth (`opencode` username + generated password)
-- The sidecar handles authentication automatically
-
-### Folder Permission Model
-
-> **Plan:** [Folder Permission Model](opencode-sidecar/plan_folder-permission-model.md)
-
-- Default access: user's **Desktop** and **Downloads** folders
-- All other paths require explicit user approval via runtime permission dialogs
-- Approved paths are stored as ad-hoc grants (parent folder extracted from requested path)
-- Grants are persisted per task and restored on session resume
-- Two access levels: `read` and `read-write`
-- Two sources: `user` (explicit) and `adhoc` (from runtime approval)
-
-### Database Encryption (Optional)
-
-- SQLite database can optionally be encrypted at rest
-- Encryption key derived from OS keychain
-- Disabled by default (plaintext SQLite)
-
----
-
-## Keyboard Shortcuts
-
-Keyboard shortcuts are implemented in two layers: **app-level** (global) and **chat-scoped** (Execution page only).
-
-### App-Level Shortcuts
-
-Handled by a centralized `useKeyboardShortcuts` hook (`src/hooks/useKeyboardShortcuts.ts`) wired into `App.tsx`. The hook attaches a single `window.addEventListener('keydown', ...)` listener and checks for `metaKey` (macOS) or `ctrlKey` (Windows/Linux).
-
-| Shortcut | Action | Implementation |
-|----------|--------|----------------|
-| `Cmd+,` / `Ctrl+,` | Open settings dialog | Calls `setShowSettings(true)` on Zustand store |
-| `Cmd+N` / `Ctrl+N` | New task | Navigates to `/` via React Router |
-| `Cmd+K` / `Ctrl+K` | Open task launcher | Calls `openLauncher()` on Zustand store |
-
-### Chat-Scoped Shortcuts
-
-Handled by a `useEffect` in `src/pages/Execution.tsx` that attaches a `window.addEventListener('keydown', ...)` listener scoped to the chat view lifecycle.
-
-| Shortcut | Action | Guard Conditions |
-|----------|--------|-----------------|
-| `Escape` | Cancel running task (`interruptTask()`) | Task must be running; no permission dialog active |
-| `Cmd+Enter` / `Ctrl+Enter` | Send follow-up message (`handleFollowUp()`) | Task must be in follow-up state (`canFollowUp`) |
-
----
-
-## Agent Extensions
-
-### User Prompt Customization
-
-> **Plan:** [User Prompt Customization](plan_user-prompt-customization.md)
-
-Users can configure a custom system prompt via a Settings toggle and textarea. When enabled, the custom prompt is appended to the agent's system prompt in a `<user-instructions>` XML block, delivered via the `system` field on each `sendMessage` call. Persisted to SQLite (`app_settings` table) and applied on every `startTask` and `resumeSession` call through the sidecar IPC protocol.
-
-### MCP Server Support
-
-> **Plan:** [MCP Server Support](plan_mcp-server-support.md)
-
-MCP (Model Context Protocol) server configuration allows users to extend the agent with additional tools via local commands or remote URLs. Configurations are managed in the Settings UI, persisted to the database, and sent to the OpenCode server via `PATCH /config`. Supports both local (command-based) and remote (URL-based) MCP servers with per-server enable/disable toggles.
-
-### OpenCode Server API Skill
-
-> **Plan:** [OpenCode Server API Skill](plan_opencode-server-skill.md)
-
-A bundled `SKILL.md` gives the agent self-introspection capabilities — the ability to check its own health, session state, message history, todos, config, skills, and MCP status via the OpenCode server REST API. Deployed to `~/.config/opencode/skills/opencode-server-api/SKILL.md` on every app launch.
-
----
-
-## Frontend Features
-
-### Todo Panel
-
-> **Plan:** [Todo Panel in Sidebar](plan_todo-panel-in-sidebard.md)
-
-Wires OpenCode's todo API (`GET /session/{sessionID}/todo`) and real-time SSE events (`todo.updated`) through all five layers of the stack (OpenCode SSE → Sidecar → Rust → Frontend). Renders the agent's planned and in-progress work items inside the Sidebar's Tasks collapsible section with status icons and a progress bar.
-
-### Artefacts Panel
-
-> **Plan:** [Artefacts Panel](plan_artefacts-panel.md)
-
-Collects all files the agent creates or modifies during a session and displays them in a sidebar panel. Files are clickable (opens with OS default application) and the artefact list is restored when a session is resumed.
-
-### User Feedback
-
-> **Plan:** [User Feedback](plan_user-feedback.md)
-
-Feedback flow opens pre-filled GitHub issue templates in the default browser with environment metadata (app version, OS, architecture) auto-appended. Accessible via a feedback icon button in the sidebar bottom bar.
-
-### Missing OpenCode CLI Detection
-
-> **Plan:** [Missing OpenCode CLI Detection](plan_missing-opencode-cli-detection.md)
-
-When the `opencode` CLI cannot be found on the augmented PATH, an error dialog informs the user that OpenCode is required. Task execution is blocked until the CLI is detected, but settings and configuration remain accessible.
+Configured in both `tsconfig.json` and `vite.config.ts`.
 
 ---
 

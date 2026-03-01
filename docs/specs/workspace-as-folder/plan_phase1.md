@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust (rusqlite, notify, std::fs), TypeScript/React (Zustand, Radix UI Tabs + DropdownMenu), Tauri IPC
 
-**Design doc:** `docs/specs/workspace-as-folder/design_phase1.md`
+**Design doc:** `docs/specs/workspace-as-folder/design_workspace-as-folder.md`
 
 ---
 
@@ -533,7 +533,7 @@ Run: `pnpm typecheck`
 **Files:**
 - Modify: `src/hooks/useFileTree.ts`
 - Modify: `src/components/sidebar/FileTreePanel.tsx`
-- Modify: `docs/specs/workspace-as-folder/design_phase1.md`
+- Modify: `docs/specs/workspace-as-folder/design_workspace-as-folder.md`
 
 **Step 1: Add `filterPredicate` parameter to `useFileTree` hook**
 
@@ -679,4 +679,4 @@ Run: `pnpm tauri dev`
 | `src/stores/taskStore.ts` | Added `repliedPermissionIds: Set<string>` to deduplicate replies; guard checks in `enqueuePermissionRequest` and `respondToPermission` |
 | `src-tauri/sidecar-opencode/src/session-manager.ts` | Pass `managed.session.directory` to `replyToPermission()` and `replyToQuestion()` API calls |
 
-**Design impact:** Added "Permission & Question Reply Routing" and "Duplicate Permission Reply Prevention" sections to `design_phase1.md` (Section 3).
+**Design impact:** Added "Permission & Question Reply Routing" and "Duplicate Permission Reply Prevention" sections to `design_workspace-as-folder.md` (Section 3).

@@ -63,6 +63,10 @@ A modal dialog listing all keyboard shortcuts, grouped by category (App, Chat). 
 
 ## Settings
 
+### Settings Dialog Layout
+
+The Settings dialog uses `max-w-2xl` width with flush-to-edge padding (`p-0` on the dialog container, `px-6 pt-6` on the header, `px-6 pb-6` on the body), matching the Task Launcher's layout pattern for visual consistency across dialog surfaces.
+
 ### Settings Storage
 
 All settings persisted to the SQLite `app_settings` table. Changes apply immediately without app restart.

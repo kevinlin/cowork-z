@@ -4,7 +4,8 @@
 
 ## v0.5.14
 
-- 
+- **Add find-skills to Skills Catalog** - Helps users discover and install agent skills 
+- **Settings dialog layout** — Aligned Settings dialog width and padding with the Task Launcher for visual consistency across dialog surfaces
 
 ## v0.5.13
 

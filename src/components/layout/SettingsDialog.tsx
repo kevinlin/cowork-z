@@ -264,8 +264,8 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved, them
   if (loading || !settings) {
     return (
       <Dialog onOpenChange={handleOpenChange} open={open}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" data-testid="settings-dialog">
-          <DialogHeader>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0" data-testid="settings-dialog">
+          <DialogHeader className="px-6 pt-6">
             <DialogTitle>Set up Openwork</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center py-12">
@@ -278,12 +278,12 @@ export default function SettingsDialog({ open, onOpenChange, onApiKeySaved, them
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" data-testid="settings-dialog">
-        <DialogHeader>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0" data-testid="settings-dialog">
+        <DialogHeader className="px-6 pt-6">
           <DialogTitle>Set up Openwork</DialogTitle>
         </DialogHeader>
 
-        <div className="mt-4 space-y-6">
+        <div className="space-y-6 px-6 pb-6">
           {/* Close Warning */}
           <AnimatePresence>
             {closeWarning && (

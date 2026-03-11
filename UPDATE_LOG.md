@@ -6,6 +6,7 @@
 
 - **Add find-skills to Skills Catalog** - Helps users discover and install agent skills 
 - **Settings dialog layout** — Aligned Settings dialog width and padding with the Task Launcher for visual consistency across dialog surfaces
+- **Update Skills in Skill Catalog** - Sync the latest changes on skills: `skill-creator` and `brainstorming`
 
 ## v0.5.13
 

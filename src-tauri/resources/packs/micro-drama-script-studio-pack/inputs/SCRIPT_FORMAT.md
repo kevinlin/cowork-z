@@ -243,12 +243,12 @@ When generating scripts via LLM, use standard Markdown formatting to ensure the 
 1.  **Markdown Compatible**: Ensure all output is valid Markdown.
 2.  **Visual Hierarchy**: Use bolding and headers to distinguish between scene headings, characters, and action lines.
 3.  **Spacing & Line Breaks**:
-    *   **Left-Aligned**: This micro-drama format is strictly left-aligned. Do not attempt to center character names or dialogue using spaces, as this breaks on different screen sizes.
-    *   **Vertical Separation**: Use a full empty line between distinct elements (e.g., between Action and Character, or between Dialogue and next Character) to ensure clear paragraph rendering.
-    *   **Tight Dialogue**: To keep the Character Name and Dialogue visually connected, you may use a single line break if the renderer supports it, but standard double-newline paragraphs are safest for compatibility.
+    - **Left-Aligned**: This micro-drama format is strictly left-aligned. Do not attempt to center character names or dialogue using spaces, as this breaks on different screen sizes.
+    - **Vertical Separation**: Use a full empty line between distinct elements (e.g., between Action and Character, or between Dialogue and next Character) to ensure clear paragraph rendering.
+    - **Tight Dialogue**: To keep the Character Name and Dialogue visually connected, you may use a single line break if the renderer supports it, but standard double-newline paragraphs are safest for compatibility.
 4.  **Character Naming**:
-    *   **Random Generation**: If character names are not provided, automatically generate suitable, random names based on the character's gender and role (e.g., **SARAH**, **MIKE**).
-    *   **Avoid Placeholders**: Do not use generic "A", "B", or "C" unless explicitly requested.
+    - **Random Generation**: If character names are not provided, automatically generate suitable, random names based on the character's gender and role (e.g., **SARAH**, **MIKE**).
+    - **Avoid Placeholders**: Do not use generic "A", "B", or "C" unless explicitly requested.
 5.  **Code Blocks**: You may wrap the script in a markdown code block for easy copying, but plain markdown is preferred for direct rendering.
 
 ### Prompting Information
@@ -264,7 +264,7 @@ To get the best results, instruct the LLM with:
 Stars streak past the viewport. **CAPTAIN** grips the controls.
 
 **CAPTAIN**
-*(shouting)*
+_(shouting)_
 Hold on!
 
 **EXT. SPACE - CONTINUOUS**

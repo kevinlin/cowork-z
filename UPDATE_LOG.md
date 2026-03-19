@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.5.16
+
+- 
+
 ## v0.5.15
 
 - **Standardized log file naming** — TypeScript sidecar logfile now matches the Rust sidecar format (`YYYY-MM-DD_HH-MM-SS_TS.log`) for consistent sorting and easier correlation

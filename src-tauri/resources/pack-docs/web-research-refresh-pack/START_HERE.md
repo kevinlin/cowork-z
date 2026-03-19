@@ -9,7 +9,7 @@ Launch the Cowork-Z application and ensure you're logged into your workspace.
 ### Step 2: Select Workspace Pack
 
 1. Click "Select Workspace" or "Open Folder"
-2. Navigate to `workspace-packs/packs/web-research-refresh-pack/`
+2. Navigate to `agent-templates/packs/web-research-refresh-pack/`
 3. Confirm selection
 
 ### Step 3: Begin Prompt 1 - Stale Claim Identification
@@ -89,7 +89,7 @@ When Cowork-Z requests to fetch web sources:
 
 | Issue                  | Solution                                                 |
 | ---------------------- | -------------------------------------------------------- |
-| Can't find pack folder | Ensure you're in `workspace-packs/packs/` directory      |
+| Can't find pack folder | Ensure you're in `agent-templates/packs/` directory      |
 | Files not showing      | Click refresh in Cowork-Z or restart                       |
 | Prompt not working     | Ensure you're using exact prompt text from PROMPTS.md    |
 | HTML not rendering     | Open in a modern browser (Chrome, Firefox, Safari, Edge) |
@@ -112,7 +112,7 @@ When Cowork-Z requests to fetch web sources:
 All generated content will appear in:
 
 ```
-workspace-packs/packs/web-research-refresh-pack/outputs/
+agent-templates/packs/web-research-refresh-pack/outputs/
 ```
 
 Typical outputs include:

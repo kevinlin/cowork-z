@@ -31,7 +31,9 @@ export class Logger {
     this.sessionId = sessionId;
     this.taskId = taskId;
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
     const parts = [timestamp];
     if (sessionId) parts.push(sessionId);
     if (taskId) parts.push(taskId);

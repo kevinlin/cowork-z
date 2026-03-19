@@ -29,6 +29,30 @@ pub struct PackInstallResult {
 pub fn list_packs() -> Vec<PackMeta> {
     vec![
         PackMeta {
+            id: "data-visualization-pack".to_string(),
+            title: "Data Visualization".to_string(),
+            description: "Create professional charts with Matplotlib, Seaborn, and Plotly".to_string(),
+            complexity: "Intermediate".to_string(),
+            time_estimate: "15-20 min".to_string(),
+            tags: vec!["data".to_string(), "visualization".to_string()],
+        },
+        PackMeta {
+            id: "finance-analysis-pack".to_string(),
+            title: "Finance Analysis".to_string(),
+            description: "Automate financial reporting with P&L and variance analysis".to_string(),
+            complexity: "Intermediate".to_string(),
+            time_estimate: "15-20 min".to_string(),
+            tags: vec!["finance".to_string(), "analysis".to_string()],
+        },
+        PackMeta {
+            id: "legal-research-pack".to_string(),
+            title: "Legal Research".to_string(),
+            description: "Analyze contracts and synthesize case notes".to_string(),
+            complexity: "Intermediate-Advanced".to_string(),
+            time_estimate: "20-25 min".to_string(),
+            tags: vec!["legal".to_string(), "analysis".to_string()],
+        },
+        PackMeta {
             id: "micro-drama-script-studio-pack".to_string(),
             title: "Micro-Drama Script Studio".to_string(),
             description: "Create short-form scripts with structured workflows".to_string(),
@@ -45,14 +69,6 @@ pub fn list_packs() -> Vec<PackMeta> {
             tags: vec!["research".to_string(), "analysis".to_string()],
         },
         PackMeta {
-            id: "web-research-refresh-pack".to_string(),
-            title: "Web Research Refresh".to_string(),
-            description: "Verify stale facts and refresh docs with sources".to_string(),
-            complexity: "Beginner-Intermediate".to_string(),
-            time_estimate: "15-20 min".to_string(),
-            tags: vec!["research".to_string(), "docs".to_string()],
-        },
-        PackMeta {
             id: "security-playbook-pack".to_string(),
             title: "Security Playbook".to_string(),
             description: "Build a practical security runbook and checklist".to_string(),
@@ -61,12 +77,12 @@ pub fn list_packs() -> Vec<PackMeta> {
             tags: vec!["security".to_string(), "compliance".to_string()],
         },
         PackMeta {
-            id: "legal-research-pack".to_string(),
-            title: "Legal Research".to_string(),
-            description: "Analyze contracts and synthesize case notes".to_string(),
-            complexity: "Intermediate-Advanced".to_string(),
-            time_estimate: "20-25 min".to_string(),
-            tags: vec!["legal".to_string(), "analysis".to_string()],
+            id: "web-research-refresh-pack".to_string(),
+            title: "Web Research Refresh".to_string(),
+            description: "Verify stale facts and refresh docs with sources".to_string(),
+            complexity: "Beginner-Intermediate".to_string(),
+            time_estimate: "15-20 min".to_string(),
+            tags: vec!["research".to_string(), "docs".to_string()],
         },
         PackMeta {
             id: "web-starter-audit-pack".to_string(),

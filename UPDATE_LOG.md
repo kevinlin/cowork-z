@@ -5,7 +5,7 @@
 ## v0.5.15
 
 - **Standardized log file naming** — TypeScript sidecar logfile now matches the Rust sidecar format (`YYYY-MM-DD_HH-MM-SS_TS.log`) for consistent sorting and easier correlation
-- **Starter Packs Update** - Update starter packs asset files
+- **New Starter Packs** - Add new start packs: **Data Visualization** and **Finance Analysis**
 
 ## v0.5.14
 

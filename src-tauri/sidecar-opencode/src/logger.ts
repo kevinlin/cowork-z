@@ -63,7 +63,7 @@ export class Logger {
       const levelLower = level.toLowerCase();
       const ipcLevel: 'debug' | 'info' | 'warn' | 'error' =
         levelLower === 'debug' || levelLower === 'info' || levelLower === 'warn' || levelLower === 'error' ? levelLower : 'debug'; // Map EVENT, HTTP, etc. to debug
-      const prefix = levelLower !== ipcLevel ? `[${level}] ` : '';
+      const prefix = levelLower === ipcLevel ? '' : `[${level}] `;
       const ipcMessage = data ? `${prefix}${message} ${JSON.stringify(data)}` : `${prefix}${message}`;
       this.ipcEmitter(ipcLevel, ipcMessage);
     }

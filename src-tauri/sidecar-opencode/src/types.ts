@@ -262,6 +262,10 @@ export type SidecarCommand =
     }
   | { type: 'get_session_todos'; taskId: string; sessionId: string }
   | { type: 'update_mcp_config'; payload: UpdateMcpConfigPayload }
+  | { type: 'get_mcp_status' }
+  | { type: 'get_mcp_tools' }
+  | { type: 'connect_mcp_server'; payload: { name: string } }
+  | { type: 'disconnect_mcp_server'; payload: { name: string } }
   | { type: 'copilot_oauth_authorize'; enterpriseUrl?: string }
   | { type: 'copilot_get_models' }
   | { type: 'copilot_disconnect' }
@@ -346,6 +350,9 @@ export type SidecarEvent =
   | { type: 'task_complete'; taskId: string; payload: TaskCompletePayload }
   | { type: 'task_error'; taskId: string; payload: TaskErrorPayload }
   | { type: 'todo_updated'; taskId: string; payload: TodoUpdatedPayload }
+  | { type: 'mcp_status'; payload: McpStatusPayload }
+  | { type: 'mcp_tools'; payload: McpToolsPayload }
+  | { type: 'mcp_tools_changed'; payload: { server: string } }
   | { type: 'copilot_oauth_result'; payload: CopilotOAuthResultPayload }
   | { type: 'copilot_oauth_complete'; payload: CopilotOAuthCompletePayload }
   | { type: 'copilot_models_result'; payload: CopilotModelsResultPayload }
@@ -419,6 +426,14 @@ export interface TaskErrorPayload {
 
 export interface TodoUpdatedPayload {
   todos: Todo[];
+}
+
+export interface McpStatusPayload {
+  servers: Record<string, { status: string; error?: string }>;
+}
+
+export interface McpToolsPayload {
+  toolIds: string[];
 }
 
 export interface CopilotOAuthResultPayload {

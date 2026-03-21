@@ -89,6 +89,18 @@ pub enum SidecarCommand {
     UpdateMcpConfig {
         payload: UpdateMcpConfigPayload,
     },
+    #[serde(rename = "get_mcp_status")]
+    GetMcpStatus,
+    #[serde(rename = "get_mcp_tools")]
+    GetMcpTools,
+    #[serde(rename = "connect_mcp_server")]
+    ConnectMcpServer {
+        payload: McpServerNamePayload,
+    },
+    #[serde(rename = "disconnect_mcp_server")]
+    DisconnectMcpServer {
+        payload: McpServerNamePayload,
+    },
     #[serde(rename = "copilot_oauth_authorize")]
     CopilotOAuthAuthorize {
         #[serde(rename = "enterpriseUrl")]
@@ -159,6 +171,12 @@ pub struct ResumeSessionPayload {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateMcpConfigPayload {
     pub mcp_servers: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpServerNamePayload {
+    pub name: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -429,6 +447,10 @@ impl SidecarManager {
             SidecarCommand::SendQuestionReply { .. } => "send_question_reply",
             SidecarCommand::GetSessionTodos { .. } => "get_session_todos",
             SidecarCommand::UpdateMcpConfig { .. } => "update_mcp_config",
+            SidecarCommand::GetMcpStatus => "get_mcp_status",
+            SidecarCommand::GetMcpTools => "get_mcp_tools",
+            SidecarCommand::ConnectMcpServer { .. } => "connect_mcp_server",
+            SidecarCommand::DisconnectMcpServer { .. } => "disconnect_mcp_server",
             SidecarCommand::CopilotOAuthAuthorize { .. } => "copilot_oauth_authorize",
             SidecarCommand::CopilotGetModels => "copilot_get_models",
             SidecarCommand::CopilotDisconnect => "copilot_disconnect",
@@ -467,6 +489,9 @@ impl SidecarManager {
             "task_complete" => "task:complete",
             "task_error" => "task:error",
             "todo_updated" => "task:todo_updated",
+            "mcp_status" => "mcp:status",
+            "mcp_tools" => "mcp:tools",
+            "mcp_tools_changed" => "mcp:tools_changed",
             "copilot_oauth_result" => "copilot:oauth_result",
             "copilot_oauth_complete" => "copilot:oauth_complete",
             "copilot_models_result" => "copilot:models_result",

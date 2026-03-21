@@ -57,7 +57,7 @@ export default function TaskInputBar({
     }
   }, [skillAutocomplete.selectedSkill, onSkillChange]);
 
-  const selectedSkill = controlledSkill !== undefined ? controlledSkill : skillAutocomplete.selectedSkill;
+  const selectedSkill = controlledSkill === undefined ? skillAutocomplete.selectedSkill : controlledSkill;
 
   // Refs to access latest values inside the Tauri event callback
   const valueRef = useRef(value);

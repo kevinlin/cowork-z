@@ -1,122 +1,110 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useMcpRuntime } from '@/hooks/useMcpRuntime';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
-import type { McpServersConfig } from '@/shared';
-
-/**
- * Validate that the parsed JSON conforms to the MCP servers config schema.
- * Throws a descriptive error if validation fails.
- */
-function validateMcpConfig(parsed: unknown): asserts parsed is McpServersConfig {
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error('MCP config must be a JSON object');
-  }
-
-  for (const [name, config] of Object.entries(parsed as Record<string, unknown>)) {
-    if (typeof config !== 'object' || config === null || Array.isArray(config)) {
-      throw new Error(`Server "${name}": must be an object`);
-    }
-
-    const cfg = config as Record<string, unknown>;
-    if (cfg.type !== 'local' && cfg.type !== 'remote') {
-      throw new Error(`Server "${name}": type must be "local" or "remote"`);
-    }
-
-    if (cfg.type === 'local') {
-      if (!(cfg.command && Array.isArray(cfg.command)) || cfg.command.length === 0) {
-        throw new Error(`Server "${name}": local servers require a non-empty command array`);
-      }
-    }
-
-    if (cfg.type === 'remote') {
-      if (!cfg.url || typeof cfg.url !== 'string') {
-        throw new Error(`Server "${name}": remote servers require a url string`);
-      }
-    }
-  }
-}
+import type { McpServerConfig, McpServersConfig } from '@/shared';
+import { McpAddServerDialog } from './McpAddServerDialog';
+import { McpJsonFallback } from './McpJsonFallback';
+import { McpServerCard } from './McpServerCard';
 
 interface McpServersSettingsProps {
   onLoad?: () => void;
 }
 
 export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
-  const [enabled, setEnabled] = useState(false);
-  const [configText, setConfigText] = useState('');
-  const [parseError, setParseError] = useState<string | null>(null);
-  const [serverSummary, setServerSummary] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [config, setConfig] = useState<McpServersConfig>({});
+  const [viewMode, setViewMode] = useState<'cards' | 'json'>('cards');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<{ name: string; config: McpServerConfig } | null>(null);
+  const [configChanged, setConfigChanged] = useState(false);
   const api = getTauriAPI();
+
+  const serverNames = Object.keys(config);
+  const { serverRuntimes, loading, refresh } = useMcpRuntime(serverNames);
+  const hasServers = serverNames.length > 0;
 
   // Load persisted config on mount
   useEffect(() => {
-    api.getMcpServersConfig().then((config) => {
-      if (config && Object.keys(config).length > 0) {
-        setEnabled(true);
-        setConfigText(JSON.stringify(config, null, 2));
-        setServerSummary(Object.entries(config).map(([name, cfg]) => `${name} (${cfg.type})`));
+    api.getMcpServersConfig().then((cfg) => {
+      if (cfg && Object.keys(cfg).length > 0) {
+        setConfig(cfg);
       }
       onLoad?.();
     });
+    // Fetch runtime status if sidecar is running
+    refresh();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Debounced save — no React state update for the text while typing (read from ref)
-  const saveConfig = useCallback(
-    async (text: string) => {
-      try {
-        const parsed = JSON.parse(text);
-        validateMcpConfig(parsed);
-        setParseError(null);
-        setServerSummary(
-          Object.entries(parsed).map(([name, cfg]) => {
-            const c = cfg as { type: string };
-            return `${name} (${c.type})`;
-          })
-        );
-        setSaving(true);
-        await api.setMcpServersConfig(parsed);
-        setSaving(false);
-      } catch (e) {
-        setSaving(false);
-        setParseError(e instanceof Error ? e.message : 'Invalid JSON');
-        setServerSummary([]);
-      }
+  // Persist config to backend
+  const handleConfigChange = useCallback(
+    async (newConfig: McpServersConfig) => {
+      setConfig(newConfig);
+      setConfigChanged(true);
+      const configOrNull = Object.keys(newConfig).length > 0 ? newConfig : null;
+      await api.setMcpServersConfig(configOrNull);
+      // Refresh status after a short delay to let the sidecar process the change
+      setTimeout(refresh, 1000);
     },
-    [api]
+    [api, refresh]
   );
 
-  const handleTextChange = useCallback(
-    (newText: string) => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        setConfigText(newText);
-        saveConfig(newText);
-      }, 500);
+  // Per-server toggle
+  const handleToggle = useCallback(
+    (name: string, enabled: boolean) => {
+      const updated = { ...config, [name]: { ...config[name], enabled } };
+      handleConfigChange(updated);
     },
-    [saveConfig]
+    [config, handleConfigChange]
   );
 
-  // Read latest text from the textarea ref to avoid stale state
-  const handleToggle = useCallback(async () => {
-    const newEnabled = !enabled;
-    setEnabled(newEnabled);
-    if (newEnabled) {
-      const currentText = textareaRef.current?.value ?? configText;
-      if (currentText) {
-        setConfigText(currentText);
-        saveConfig(currentText);
+  // Remove server
+  const handleRemove = useCallback(
+    (name: string) => {
+      const { [name]: _, ...rest } = config;
+      handleConfigChange(rest);
+    },
+    [config, handleConfigChange]
+  );
+
+  // Edit server
+  const handleEdit = useCallback(
+    (name: string) => {
+      setEditTarget({ name, config: config[name] });
+      setDialogOpen(true);
+    },
+    [config]
+  );
+
+  // Add or update server from dialog
+  const handleDialogSave = useCallback(
+    (name: string, serverConfig: McpServerConfig) => {
+      // If editing and the name changed, remove old entry
+      if (editTarget && editTarget.name !== name) {
+        const { [editTarget.name]: _, ...rest } = config;
+        handleConfigChange({ ...rest, [name]: serverConfig });
+      } else {
+        handleConfigChange({ ...config, [name]: serverConfig });
       }
-    } else {
-      await api.setMcpServersConfig(null);
-      setServerSummary([]);
-      setParseError(null);
-      setConfigText('');
-    }
-  }, [enabled, configText, api, saveConfig]);
+      setEditTarget(null);
+    },
+    [config, editTarget, handleConfigChange]
+  );
+
+  const handleDialogClose = useCallback(() => {
+    setDialogOpen(false);
+    setEditTarget(null);
+  }, []);
+
+  // JSON fallback change handler
+  const handleJsonChange = useCallback(
+    (newConfig: McpServersConfig) => {
+      handleConfigChange(newConfig);
+    },
+    [handleConfigChange]
+  );
 
   return (
     <div className="rounded-lg border border-border bg-card p-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="font-medium text-foreground">MCP Servers</div>
@@ -133,58 +121,103 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
             to extend the agent with additional tools.
           </p>
         </div>
-        <div className="ml-4">
-          <button
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-accomplish ${
-              enabled ? 'bg-primary' : 'bg-muted'
-            }`}
-            data-testid="settings-mcp-toggle"
-            onClick={handleToggle}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-accomplish ${
-                enabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
       </div>
 
-      {enabled && (
-        <div className="mt-4 space-y-3">
-          <textarea
-            className={`w-full rounded-lg border bg-background p-3 font-mono text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 ${
-              parseError
-                ? 'border-destructive focus:border-destructive focus:ring-destructive'
-                : 'border-border focus:border-primary focus:ring-primary'
-            }`}
-            data-testid="settings-mcp-textarea"
-            defaultValue={configText}
-            onChange={(e) => handleTextChange(e.target.value)}
-            placeholder={`{\n  "filesystem": {\n    "type": "local",\n    "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/path"]\n  }\n}`}
-            ref={textareaRef}
-            rows={8}
-            spellCheck={false}
-          />
+      {/* Toolbar */}
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          className="rounded-md bg-primary px-3 py-1 text-primary-foreground text-xs transition-colors hover:bg-primary/90"
+          data-testid="settings-mcp-add"
+          onClick={() => {
+            setEditTarget(null);
+            setDialogOpen(true);
+          }}
+          type="button"
+        >
+          Add Server
+        </button>
 
-          {parseError && (
-            <p className="text-destructive text-sm" data-testid="settings-mcp-error">
-              {parseError}
-            </p>
-          )}
+        {hasServers && (
+          <>
+            <button
+              className="rounded-md bg-muted px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:text-foreground"
+              disabled={loading}
+              onClick={refresh}
+              title="Refresh status"
+              type="button"
+            >
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
 
-          {!parseError && serverSummary.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {serverSummary.map((s) => (
-                <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground text-xs" key={s}>
-                  {s}
-                </span>
-              ))}
-              {saving && <span className="text-muted-foreground text-xs">Saving...</span>}
+            <div className="ml-auto flex gap-1">
+              <button
+                className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
+                  viewMode === 'cards' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setViewMode('cards')}
+                type="button"
+              >
+                Cards
+              </button>
+              <button
+                className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
+                  viewMode === 'json' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setViewMode('json')}
+                type="button"
+              >
+                JSON
+              </button>
             </div>
+          </>
+        )}
+      </div>
+
+      {/* Change notification */}
+      {configChanged && hasServers && (
+        <div className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-muted-foreground text-xs">
+          MCP config saved. Changes take effect on your next task.
+        </div>
+      )}
+
+      {/* Content */}
+      {hasServers && (
+        <div className="mt-3">
+          {viewMode === 'cards' ? (
+            <div className="space-y-2">
+              {serverNames.map((name) => (
+                <McpServerCard
+                  config={config[name]}
+                  key={name}
+                  name={name}
+                  onEdit={handleEdit}
+                  onRemove={handleRemove}
+                  onToggle={handleToggle}
+                  runtime={serverRuntimes[name] ?? { status: 'unknown', tools: [] }}
+                />
+              ))}
+            </div>
+          ) : (
+            <McpJsonFallback config={config} onChange={handleJsonChange} />
           )}
         </div>
       )}
+
+      {/* Empty state */}
+      {!hasServers && (
+        <div className="mt-3 rounded-md border border-border border-dashed p-6 text-center text-muted-foreground text-sm">
+          No MCP servers configured. Click "Add Server" to get started.
+        </div>
+      )}
+
+      {/* Add/Edit Dialog */}
+      <McpAddServerDialog
+        editConfig={editTarget?.config}
+        editName={editTarget?.name}
+        onClose={handleDialogClose}
+        onSave={handleDialogSave}
+        open={dialogOpen}
+      />
     </div>
   );
 }

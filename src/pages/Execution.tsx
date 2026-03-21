@@ -323,7 +323,7 @@ export default function ExecutionPage() {
   const handleExportDebugLogs = useCallback(async () => {
     const text = debugLogs
       .map((log) => {
-        const dataStr = log.data !== undefined ? ` ${typeof log.data === 'string' ? log.data : JSON.stringify(log.data)}` : '';
+        const dataStr = log.data === undefined ? '' : ` ${typeof log.data === 'string' ? log.data : JSON.stringify(log.data)}`;
         return `${new Date(log.timestamp).toISOString()} [${log.type}] ${log.message}${dataStr}`;
       })
       .join('\n');

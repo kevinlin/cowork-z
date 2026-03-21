@@ -207,6 +207,11 @@ async function initialize(
     });
   });
 
+  // Forward MCP tools changed SSE event to Tauri
+  eventStream.on('mcp.tools.changed', (props: { server: string }) => {
+    send({ type: 'mcp_tools_changed', payload: { server: props.server } });
+  });
+
   // Handle event stream errors (connection drops, reconnects, etc.)
   eventStream.on('stream-error', (error: unknown) => {
     logger.warn('Event stream error (will reconnect)', error);
@@ -483,6 +488,76 @@ async function handleCopilotDisconnect(): Promise<void> {
   }
 }
 
+async function handleGetMcpStatus(): Promise<void> {
+  try {
+    if (!processManager) {
+      send({ type: 'mcp_status', payload: { servers: {} } });
+      return;
+    }
+
+    const client = processManager.getClient();
+    const servers = await client.getMcpStatus(currentDirectory);
+    send({ type: 'mcp_status', payload: { servers } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to get MCP status', { error: message });
+    send({ type: 'mcp_status', payload: { servers: {} } });
+  }
+}
+
+async function handleGetMcpTools(): Promise<void> {
+  try {
+    if (!processManager) {
+      send({ type: 'mcp_tools', payload: { toolIds: [] } });
+      return;
+    }
+
+    const client = processManager.getClient();
+    const toolIds = await client.getToolIds(currentDirectory);
+    send({ type: 'mcp_tools', payload: { toolIds } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to get MCP tools', { error: message });
+    send({ type: 'mcp_tools', payload: { toolIds: [] } });
+  }
+}
+
+async function handleConnectMcpServer(name: string): Promise<void> {
+  try {
+    if (!processManager) {
+      throw new Error('Process manager not initialized');
+    }
+
+    const client = processManager.getClient();
+    await client.connectMcpServer(name, currentDirectory);
+    // Refresh status after connect
+    const servers = await client.getMcpStatus(currentDirectory);
+    send({ type: 'mcp_status', payload: { servers } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to connect MCP server', { name, error: message });
+    send({ type: 'error', payload: { message: `Failed to connect MCP server "${name}": ${message}` } });
+  }
+}
+
+async function handleDisconnectMcpServer(name: string): Promise<void> {
+  try {
+    if (!processManager) {
+      throw new Error('Process manager not initialized');
+    }
+
+    const client = processManager.getClient();
+    await client.disconnectMcpServer(name, currentDirectory);
+    // Refresh status after disconnect
+    const servers = await client.getMcpStatus(currentDirectory);
+    send({ type: 'mcp_status', payload: { servers } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to disconnect MCP server', { name, error: message });
+    send({ type: 'error', payload: { message: `Failed to disconnect MCP server "${name}": ${message}` } });
+  }
+}
+
 async function handleCheckServer(): Promise<void> {
   try {
     if (!processManager) {
@@ -553,6 +628,22 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
 
     case 'update_mcp_config':
       await handleUpdateMcpConfig(msg.payload);
+      break;
+
+    case 'get_mcp_status':
+      await handleGetMcpStatus();
+      break;
+
+    case 'get_mcp_tools':
+      await handleGetMcpTools();
+      break;
+
+    case 'connect_mcp_server':
+      await handleConnectMcpServer(msg.payload.name);
+      break;
+
+    case 'disconnect_mcp_server':
+      await handleDisconnectMcpServer(msg.payload.name);
       break;
 
     case 'copilot_oauth_authorize':

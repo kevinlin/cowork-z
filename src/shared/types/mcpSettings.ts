@@ -16,3 +16,11 @@ export interface McpServerConfig {
 }
 
 export type McpServersConfig = Record<string, McpServerConfig>;
+
+export type McpServerStatus = 'connected' | 'disabled' | 'failed' | 'needs_auth' | 'needs_client_registration' | 'initializing' | 'unknown';
+
+export interface McpServerRuntime {
+  status: McpServerStatus;
+  error?: string;
+  tools: string[];
+}

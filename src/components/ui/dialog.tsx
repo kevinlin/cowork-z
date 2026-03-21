@@ -124,4 +124,4 @@ function DialogDescription({ className, ...props }: React.ComponentProps<typeof 
   );
 }
 
-export { Dialog, DialogPortal, DialogTrigger, DialogClose, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription };
+export { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogPortal, DialogTitle, DialogTrigger };

@@ -102,3 +102,22 @@ The fix ensures MCP config reaches OpenCode through three channels before startu
   }
 }
 ```
+
+## v2 Enhancements — Card-Based UI with Runtime Status
+
+> **Implementation plan:** [`plan_toasty-hatching-graham.md`](../../../.claude/plans/toasty-hatching-graham.md)
+
+The original MCP settings UI (raw JSON textarea) was replaced with a card-based interface:
+
+- **Per-server cards** with status dots, type badges, enable/disable toggles, and tool listings
+- **Runtime status** fetched via new sidecar IPC commands (`get_mcp_status`, `get_mcp_tools`) that call OpenCode's `GET /mcp` and `GET /experimental/tool/ids` endpoints
+- **SSE forwarding** of `mcp.tools.changed` events for real-time tool updates
+- **Add/Edit dialog** with form mode (structured inputs) and JSON mode
+- **JSON fallback view** preserves the power-user raw editing workflow
+
+### New Files
+- `src-tauri/src/commands/mcp.rs` — Tauri commands for MCP runtime queries
+- `src/hooks/useMcpRuntime.ts` — Hook for status/tools polling via events
+- `src/components/settings/McpServerCard.tsx` — Per-server card component
+- `src/components/settings/McpAddServerDialog.tsx` — Add/edit server dialog
+- `src/components/settings/McpJsonFallback.tsx` — Extracted raw JSON textarea

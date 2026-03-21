@@ -51,7 +51,7 @@ export class OpenCodeClient {
         method,
         headers: Object.keys(headers).length > 0 ? headers : undefined,
         body: body ? JSON.stringify(body) : undefined,
-        signal: timeoutId !== null ? controller.signal : undefined,
+        signal: timeoutId === null ? undefined : controller.signal,
       });
 
       const responseBody = await response.json().catch(() => null);
@@ -248,5 +248,34 @@ export class OpenCodeClient {
 
   async deleteAuth(providerID: string): Promise<boolean> {
     return this.request<boolean>('DELETE', `/auth/${providerID}`);
+  }
+
+  // ============================================================================
+  // MCP Servers
+  // ============================================================================
+
+  async getMcpStatus(directory?: string): Promise<Record<string, { status: string; error?: string }>> {
+    return this.request<Record<string, { status: string; error?: string }>>(
+      'GET',
+      '/mcp',
+      undefined,
+      directory ? { directory } : undefined
+    );
+  }
+
+  async connectMcpServer(name: string, directory?: string): Promise<boolean> {
+    return this.request<boolean>('POST', `/mcp/${encodeURIComponent(name)}/connect`, undefined, directory ? { directory } : undefined);
+  }
+
+  async disconnectMcpServer(name: string, directory?: string): Promise<void> {
+    return this.request<void>('POST', `/mcp/${encodeURIComponent(name)}/disconnect`, undefined, directory ? { directory } : undefined);
+  }
+
+  // ============================================================================
+  // Tools (Experimental)
+  // ============================================================================
+
+  async getToolIds(directory?: string): Promise<string[]> {
+    return this.request<string[]>('GET', '/experimental/tool/ids', undefined, directory ? { directory } : undefined);
   }
 }

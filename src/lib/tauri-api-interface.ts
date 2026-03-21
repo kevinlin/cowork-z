@@ -246,6 +246,13 @@ export interface TauriAPI {
   // MCP Servers
   getMcpServersConfig(): Promise<McpServersConfig | null>;
   setMcpServersConfig(config: McpServersConfig | null): Promise<void>;
+  getMcpStatus(): Promise<void>;
+  getMcpTools(): Promise<void>;
+  connectMcpServer(name: string): Promise<void>;
+  disconnectMcpServer(name: string): Promise<void>;
+  onMcpStatus(callback: (data: { servers: Record<string, { status: string; error?: string }> }) => void): () => void;
+  onMcpTools(callback: (data: { toolIds: string[] }) => void): () => void;
+  onMcpToolsChanged(callback: (data: { server: string }) => void): () => void;
 
   // E2E Testing
   isE2EMode(): Promise<boolean>;
@@ -378,6 +385,10 @@ export function getTauriAPI(): TauriAPI {
     onCopilotModelsResult: (
       callback: (result: { success: boolean; models?: Array<{ id: string; name: string }>; error?: string }) => void
     ) => toSyncUnlisten(tauriApi.onCopilotModelsResult(callback)),
+    onMcpStatus: (callback: (data: { servers: Record<string, { status: string; error?: string }> }) => void) =>
+      toSyncUnlisten(tauriApi.onMcpStatus(callback)),
+    onMcpTools: (callback: (data: { toolIds: string[] }) => void) => toSyncUnlisten(tauriApi.onMcpTools(callback)),
+    onMcpToolsChanged: (callback: (data: { server: string }) => void) => toSyncUnlisten(tauriApi.onMcpToolsChanged(callback)),
   };
 
   return cachedTauriAPI;

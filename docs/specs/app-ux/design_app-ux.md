@@ -79,12 +79,35 @@ All settings persisted to the SQLite `app_settings` table. Changes apply immedia
 - Skills folder path (read-only, clickable link to open in OS file manager)
 - Debug mode toggle
 - Custom system prompt (toggle + textarea)
-- MCP server configuration
+- MCP server configuration (card-based UI with per-server status and tools)
 - Theme selection
+
+### MCP Server Configuration
+
+> **Plan:** [MCP Server Support](../opencode-integration/plan_mcp-server-support.md)
+
+The MCP Servers section in Settings displays each configured server as an individual card with:
+
+- **Status indicator** — Colored dot showing real-time connection state: connected (green), failed (red), disabled (gray), needs auth (amber), initializing (blue pulse)
+- **Server info** — Name, type badge (local/remote), command or URL subtitle
+- **Enable/disable toggle** — Per-server toggle to enable or disable without removing configuration
+- **Tool list** — Expandable section showing MCP tools available from connected servers, grouped by server name from `GET /experimental/tool/ids`
+- **Edit/Remove actions** — Pencil and trash icon buttons per card
+
+An "Add Server" button opens a dialog supporting both structured form input and raw JSON mode. A "Cards/JSON" view toggle lets power users switch to the raw JSON textarea for full config editing.
+
+Runtime status is fetched from the OpenCode server via `GET /mcp` (relayed through sidecar IPC) and updated in real-time via the `mcp.tools.changed` SSE event. Status queries are fire-and-forget commands with results returned via Tauri events (`mcp:status`, `mcp:tools`).
+
+**Key files:**
+- `src/components/settings/McpServersSettings.tsx` — Main settings section (card list + JSON fallback)
+- `src/components/settings/McpServerCard.tsx` — Per-server card component
+- `src/components/settings/McpAddServerDialog.tsx` — Add/edit server dialog
+- `src/hooks/useMcpRuntime.ts` — Hook for status/tool polling via events
+- `src-tauri/src/commands/mcp.rs` — Tauri commands for MCP status/tools
 
 ### Textarea Input Pattern
 
-Textarea inputs in Settings (User Prompt, MCP Servers JSON) use `defaultValue` + `useRef` to avoid UI re-renders during typing. Read latest value with `textareaRef.current?.value` and debounce saves with `setTimeout` (500ms).
+Textarea inputs in Settings (User Prompt, MCP Servers JSON fallback) use `defaultValue` + `useRef` to avoid UI re-renders during typing. Read latest value with `textareaRef.current?.value` and debounce saves with `setTimeout` (500ms).
 
 ---
 

@@ -319,6 +319,11 @@ pub fn run() {
             commands::bedrock::save_bedrock_credentials,
             commands::bedrock::get_bedrock_credentials,
             commands::bedrock::fetch_bedrock_models,
+            // MCP
+            commands::mcp::get_mcp_status,
+            commands::mcp::get_mcp_tools,
+            commands::mcp::connect_mcp_server,
+            commands::mcp::disconnect_mcp_server,
             // Copilot
             commands::copilot::copilot_oauth_authorize,
             commands::copilot::copilot_get_models,

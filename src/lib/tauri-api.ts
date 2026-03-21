@@ -324,6 +324,52 @@ export async function setMcpServersConfig(config: McpServersConfig | null): Prom
   return invoke<void>('set_mcp_servers_config', { config });
 }
 
+// MCP Runtime Status & Tools (fire-and-forget commands, results via events)
+export async function getMcpStatus(): Promise<void> {
+  return invoke<void>('get_mcp_status');
+}
+
+export async function getMcpTools(): Promise<void> {
+  return invoke<void>('get_mcp_tools');
+}
+
+export async function connectMcpServer(name: string): Promise<void> {
+  return invoke<void>('connect_mcp_server', { name });
+}
+
+export async function disconnectMcpServer(name: string): Promise<void> {
+  return invoke<void>('disconnect_mcp_server', { name });
+}
+
+export async function onMcpStatus(
+  callback: (data: { servers: Record<string, { status: string; error?: string }> }) => void
+): Promise<UnlistenFn> {
+  return listen<{ payload?: { servers?: Record<string, { status: string; error?: string }> } }>('mcp:status', (event) => {
+    const payload = event.payload?.payload;
+    if (payload?.servers) {
+      callback({ servers: payload.servers });
+    }
+  });
+}
+
+export async function onMcpTools(callback: (data: { toolIds: string[] }) => void): Promise<UnlistenFn> {
+  return listen<{ payload?: { toolIds?: string[] } }>('mcp:tools', (event) => {
+    const payload = event.payload?.payload;
+    if (payload?.toolIds) {
+      callback({ toolIds: payload.toolIds });
+    }
+  });
+}
+
+export async function onMcpToolsChanged(callback: (data: { server: string }) => void): Promise<UnlistenFn> {
+  return listen<{ payload?: { server?: string } }>('mcp:tools_changed', (event) => {
+    const payload = event.payload?.payload;
+    if (payload?.server) {
+      callback({ server: payload.server });
+    }
+  });
+}
+
 export async function getAppSettings(): Promise<{
   debugMode: boolean;
   onboardingComplete: boolean;
@@ -1546,6 +1592,13 @@ export function getTauriApi() {
     // MCP Servers
     getMcpServersConfig,
     setMcpServersConfig,
+    getMcpStatus,
+    getMcpTools,
+    connectMcpServer,
+    disconnectMcpServer,
+    onMcpStatus,
+    onMcpTools,
+    onMcpToolsChanged,
 
     // E2E Testing
     isE2EMode,

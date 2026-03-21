@@ -587,6 +587,14 @@ When the agent needs file/command access outside the workspace, a permission dia
 
 Multiple concurrent permission requests (from parallel tool calls) are queued and presented in order. Approving a pattern auto-approves matching queued/subsequent requests.
 
+### Dialog Backdrop & Draggability
+
+Both question and permission dialogs use a lightweight backdrop (`bg-black/20 backdrop-blur-[1px]`) so main window content remains readable while a dialog is active. The dialogs are draggable via framer-motion's built-in `drag` prop — users can click and drag the dialog card to reveal content underneath.
+
+- **Drag constraints** keep the dialog within viewport bounds
+- **No momentum** — dialog stops where released
+- **Cursor** changes to grab/grabbing to indicate draggability
+
 ---
 
 ## Chat Input

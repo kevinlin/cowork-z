@@ -5,6 +5,7 @@
 ## v0.5.16
 
 - **Fix infinite compaction loop** - Added compaction loop detection with threshold limit (3)
+- **Improved dialog readability** — Reduced backdrop blur and opacity on question/permission dialogs so main window content stays readable; dialogs are now draggable to reveal covered content
 
 ## v0.5.15
 

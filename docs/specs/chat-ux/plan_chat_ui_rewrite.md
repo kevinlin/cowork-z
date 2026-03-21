@@ -257,3 +257,21 @@ After implementation:
 3. `pnpm dlx ultracite fix src/` for formatting
 4. Manual test: start a task, verify streaming text, tool calls collapse/expand, permission modal works, follow-up input works
 
+---
+
+## Follow-Up: Dialog Backdrop & Draggability
+
+### Problem
+
+The `bg-black/40 backdrop-blur-sm` backdrop on QuestionDialog and PermissionModal makes main window content unreadable when a dialog is open. Users need to reference chat content while answering agent questions or reviewing permission requests.
+
+### Changes
+
+1. **Reduced backdrop** — Changed from `bg-black/40 backdrop-blur-sm` to `bg-black/20 backdrop-blur-[1px]` on both `QuestionDialog.tsx` and `PermissionModal.tsx`. The lower opacity (20%) and minimal blur (1px) keep the dialog visually separated without obscuring the main window.
+
+2. **Draggable dialogs** — Added framer-motion `drag` prop to the inner `motion.div` of both dialogs. Users can click and drag the dialog card to reveal content underneath.
+   - `dragConstraints` keeps the dialog within reasonable bounds
+   - `dragMomentum={false}` — no physics, dialog stops where released
+   - `dragElastic={0.1}` — slight resistance at edges
+   - `cursor-grab` / `active:cursor-grabbing` on the Card for visual affordance
+

@@ -65,18 +65,22 @@ export function PermissionModal({ request, onRespond }: PermissionModalProps) {
     <AnimatePresence>
       <motion.div
         animate={{ opacity: 1 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[1px]"
         data-testid="execution-permission-modal"
         exit={{ opacity: 0 }}
         initial={{ opacity: 0 }}
       >
         <motion.div
           animate={{ opacity: 1, scale: 1, y: 0 }}
+          drag
+          dragConstraints={{ top: -200, left: -300, right: 300, bottom: 200 }}
+          dragElastic={0.1}
+          dragMomentum={false}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           transition={springs.bouncy}
         >
-          <Card className="mx-4 w-full max-w-lg p-6">
+          <Card className="mx-4 w-full max-w-lg cursor-grab p-6 active:cursor-grabbing">
             <div className="flex items-start gap-4">
               <div
                 className={cn(

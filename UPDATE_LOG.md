@@ -4,7 +4,7 @@
 
 ## v0.5.16
 
-- 
+- **Fix infinite compaction loop** - Added compaction loop detection with threshold limit (3)
 
 ## v0.5.15
 

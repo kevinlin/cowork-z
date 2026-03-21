@@ -216,6 +216,7 @@ export type OpenCodeEvent =
     }
   | { type: 'question.rejected'; properties: { id: string } }
   | { type: 'todo.updated'; properties: { sessionID: string; todos: Todo[] } }
+  | { type: 'session.compacted'; properties: { sessionID: string } }
   | { type: 'server.connected'; properties: Record<string, never> }
   | { type: 'server.instance.disposed'; properties: { directory: string } }
   | { type: 'server.heartbeat'; properties: Record<string, never> }

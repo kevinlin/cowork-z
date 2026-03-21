@@ -14,6 +14,17 @@ import type {
   Todo,
 } from './types';
 
+/**
+ * Maximum consecutive auto-compactions before the sidecar treats the session
+ * as stuck in a compaction loop and auto-aborts.
+ *
+ * OpenCode's auto-compaction injects a synthetic "Continue if you have next
+ * steps…" user message after each compaction.  When the system prompt is
+ * large enough to nearly fill the context window, the agent's short reply
+ * immediately triggers another compaction, creating an infinite loop.
+ */
+const COMPACTION_LOOP_THRESHOLD = 3;
+
 interface ManagedSession {
   taskId: string;
   sessionId: string;
@@ -21,6 +32,7 @@ interface ManagedSession {
   status: 'starting' | 'active' | 'completing' | 'completed' | 'error';
   currentMessageId?: string;
   textAccumulator: string;
+  consecutiveCompactions: number;
 }
 
 /**
@@ -208,6 +220,47 @@ export class SessionManager extends EventEmitter {
       this.cleanup(taskId);
     });
 
+    // Compaction loop detection
+    this.eventStream.on('session.compacted', (props: { sessionID: string }) => {
+      const taskId = this.sessionToTask.get(props.sessionID);
+      if (!taskId) return;
+
+      const managed = this.sessions.get(taskId);
+      if (!managed) return;
+
+      managed.consecutiveCompactions += 1;
+      logger.warn('Session compacted', {
+        sessionId: props.sessionID,
+        consecutiveCompactions: managed.consecutiveCompactions,
+      });
+
+      if (managed.consecutiveCompactions >= COMPACTION_LOOP_THRESHOLD) {
+        logger.error('Compaction loop detected — auto-aborting session', {
+          taskId,
+          sessionId: props.sessionID,
+          consecutiveCompactions: managed.consecutiveCompactions,
+        });
+
+        managed.status = 'error';
+        this.emit('error', {
+          taskId,
+          error:
+            "The model entered a compaction loop (the system prompt may be too large for this model's context window). " +
+            'Try a model with a larger context window, or reduce the system prompt size.',
+          sessionId: props.sessionID,
+        });
+
+        this.client.abortSession(props.sessionID, managed.session?.directory).catch((err) => {
+          logger.warn('Failed to abort compaction-looping session', {
+            taskId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+
+        this.cleanup(taskId);
+      }
+    });
+
     // Todo updates
     this.eventStream.on('todo.updated', (props: { sessionID: string; todos: Todo[] }) => {
       const taskId = this.sessionToTask.get(props.sessionID);
@@ -280,6 +333,7 @@ export class SessionManager extends EventEmitter {
       session,
       status: 'starting',
       textAccumulator: '',
+      consecutiveCompactions: 0,
     };
 
     this.sessions.set(taskId, managed);
@@ -338,6 +392,7 @@ export class SessionManager extends EventEmitter {
       session,
       status: 'starting',
       textAccumulator: '',
+      consecutiveCompactions: 0,
     };
 
     this.sessions.set(taskId, managed);
@@ -350,6 +405,7 @@ export class SessionManager extends EventEmitter {
     // Also pass the model directly per-message (same as startTask).
     if (prompt) {
       managed.status = 'active';
+      managed.consecutiveCompactions = 0;
       const messageModel = parseModelId(modelId);
       // Fire-and-forget: same rationale as startTask() above.
       this.client

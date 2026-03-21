@@ -408,6 +408,112 @@ describe('SessionManager', () => {
     });
   });
 
+  describe('compaction loop detection', () => {
+    it('should auto-abort after 3 consecutive compactions', async () => {
+      await manager.startTask({
+        taskId: 'task_1',
+        prompt: 'Do something',
+      });
+
+      const errors: Array<{ taskId: string; error: string }> = [];
+      manager.on('error', (data) => errors.push(data));
+
+      // Simulate 3 consecutive compaction events
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].taskId).toBe('task_1');
+      expect(errors[0].error).toContain('compaction loop');
+      expect(client.abortSession).toHaveBeenCalledWith('ses_123', '/test');
+    });
+
+    it('should not abort before reaching the threshold', async () => {
+      await manager.startTask({
+        taskId: 'task_1',
+        prompt: 'Do something',
+      });
+
+      const errors: unknown[] = [];
+      manager.on('error', (data) => errors.push(data));
+
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+
+      expect(errors).toHaveLength(0);
+      expect(client.abortSession).not.toHaveBeenCalled();
+    });
+
+    it('should reset compaction counter when resumeSession sends a new message', async () => {
+      await manager.startTask({
+        taskId: 'task_1',
+        prompt: 'Do something',
+      });
+
+      // 2 compactions (below threshold)
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+
+      // Simulate session going idle so cleanup happens, then resume
+      eventStream.emit('session.status', {
+        sessionID: 'ses_123',
+        status: { type: 'idle' },
+      });
+
+      // Resume creates a fresh managed session with counter at 0
+      await manager.resumeSession({
+        taskId: 'task_2',
+        sessionId: 'ses_456',
+        prompt: 'Continue',
+        workingDirectory: '/test',
+      });
+
+      const errors: unknown[] = [];
+      manager.on('error', (data) => errors.push(data));
+
+      // Only 2 compactions after resume — should not trigger
+      eventStream.emit('session.compacted', { sessionID: 'ses_456' });
+      eventStream.emit('session.compacted', { sessionID: 'ses_456' });
+
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should ignore compaction events for unknown sessions', () => {
+      const errors: unknown[] = [];
+      manager.on('error', (data) => errors.push(data));
+
+      eventStream.emit('session.compacted', { sessionID: 'unknown_session' });
+      eventStream.emit('session.compacted', { sessionID: 'unknown_session' });
+      eventStream.emit('session.compacted', { sessionID: 'unknown_session' });
+
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should not emit further events after cleanup from compaction loop', async () => {
+      await manager.startTask({
+        taskId: 'task_1',
+        prompt: 'Do something',
+      });
+
+      const errors: Array<{ taskId: string }> = [];
+      manager.on('error', (data) => errors.push(data));
+
+      // Trigger compaction loop
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+
+      expect(errors).toHaveLength(1);
+
+      // Further compaction events should be ignored (session cleaned up)
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+      eventStream.emit('session.compacted', { sessionID: 'ses_123' });
+
+      expect(errors).toHaveLength(1);
+    });
+  });
+
   describe('dispose', () => {
     it('should clear all state and remove listeners', async () => {
       await manager.startTask({

@@ -231,6 +231,17 @@ Without these resets, stale partial messages from a previous task would appear i
 
 MCP (Model Context Protocol) server configuration allows users to extend the agent with additional tools via local commands or remote URLs. Configurations are managed in the Settings UI, persisted to the database, and sent to the OpenCode server via `PATCH /config`. Supports both local (command-based) and remote (URL-based) MCP servers with per-server enable/disable toggles.
 
+### Tool Listing API Limitation
+
+The OpenCode server's tool endpoints do not include MCP server tools — they return only built-in tools (bash, read, glob, grep, etc.). This was confirmed through runtime investigation across multiple API approaches:
+
+- `GET /experimental/tool/ids` — returns built-in tool IDs only
+- `GET /experimental/tool?provider=X&model=Y` — returns built-in tools only, even with valid connected providers
+- `GET /mcp` — returns per-server connection status but no tool names or counts
+- `mcp.tools.changed` SSE event — does not fire during normal MCP server initialization
+
+The frontend's `groupToolsByServer` utility (`useMcpRuntime.ts`) is implemented and tested, ready to parse `{serverName}_{toolName}` prefixed IDs when the upstream API begins including them. Until then, the `McpServerCard` displays connection status as the primary indicator of server health.
+
 ---
 
 ## OpenCode Server API Skill

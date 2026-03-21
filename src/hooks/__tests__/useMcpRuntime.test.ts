@@ -3,7 +3,7 @@ import { groupToolsByServer } from '../useMcpRuntime';
 
 describe('groupToolsByServer', () => {
   it('groups tools by server name prefix', () => {
-    const toolIds = ['mcp_filesystem_readFile', 'mcp_filesystem_writeFile', 'mcp_github_createPR'];
+    const toolIds = ['filesystem_readFile', 'filesystem_writeFile', 'github_createPR'];
     const serverNames = ['filesystem', 'github'];
     const result = groupToolsByServer(toolIds, serverNames);
 
@@ -13,16 +13,16 @@ describe('groupToolsByServer', () => {
     });
   });
 
-  it('ignores non-MCP tool IDs', () => {
-    const toolIds = ['builtin_bash', 'mcp_fs_read', 'core_edit'];
-    const serverNames = ['fs'];
+  it('skips built-in tools that do not match any server name', () => {
+    const toolIds = ['bash', 'read', 'write', 'context7_query_docs'];
+    const serverNames = ['context7'];
     const result = groupToolsByServer(toolIds, serverNames);
 
-    expect(result).toEqual({ fs: ['read'] });
+    expect(result).toEqual({ context7: ['query_docs'] });
   });
 
   it('handles server names with underscores', () => {
-    const toolIds = ['mcp_my_server_doThing', 'mcp_my_server_doOther'];
+    const toolIds = ['my_server_doThing', 'my_server_doOther'];
     const serverNames = ['my_server'];
     const result = groupToolsByServer(toolIds, serverNames);
 
@@ -30,20 +30,20 @@ describe('groupToolsByServer', () => {
   });
 
   it('matches longest server name first (disambiguation)', () => {
-    const toolIds = ['mcp_my_server_extra_action'];
+    const toolIds = ['my_server_extra_action'];
     const serverNames = ['my', 'my_server', 'my_server_extra'];
     const result = groupToolsByServer(toolIds, serverNames);
 
-    // Should match 'my_server_extra' since it's the longest matching prefix
     expect(result).toEqual({ my_server_extra: ['action'] });
   });
 
-  it('falls back to first-underscore split for unknown servers', () => {
-    const toolIds = ['mcp_unknown_tool'];
-    const serverNames = ['filesystem']; // 'unknown' not in list
+  it('skips tools that match no known server name', () => {
+    const toolIds = ['unknown_tool'];
+    const serverNames = ['filesystem'];
     const result = groupToolsByServer(toolIds, serverNames);
 
-    expect(result).toEqual({ unknown: ['tool'] });
+    // 'unknown' is not a known server, so it's treated as a built-in tool
+    expect(result).toEqual({});
   });
 
   it('returns empty object for empty inputs', () => {
@@ -51,11 +51,30 @@ describe('groupToolsByServer', () => {
     expect(groupToolsByServer([], ['server'])).toEqual({});
   });
 
-  it('returns empty object when no MCP tools', () => {
-    const toolIds = ['builtin_bash', 'core_edit'];
-    const serverNames = ['server'];
+  it('skips all tools when none match server names', () => {
+    const toolIds = ['bash', 'read', 'edit', 'write'];
+    const serverNames = ['context7'];
     const result = groupToolsByServer(toolIds, serverNames);
 
     expect(result).toEqual({});
+  });
+
+  it('handles real-world MCP tool names', () => {
+    const toolIds = [
+      'context7_resolve_library_id',
+      'context7_query_docs',
+      'playwright_browser_click',
+      'playwright_browser_navigate',
+      'bash',
+      'read',
+      'edit',
+    ];
+    const serverNames = ['context7', 'playwright'];
+    const result = groupToolsByServer(toolIds, serverNames);
+
+    expect(result).toEqual({
+      context7: ['resolve_library_id', 'query_docs'],
+      playwright: ['browser_click', 'browser_navigate'],
+    });
   });
 });

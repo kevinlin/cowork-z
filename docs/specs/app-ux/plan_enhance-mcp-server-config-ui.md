@@ -2,9 +2,11 @@
 
 ## Context
 
-The current MCP Server settings UI is a raw JSON textarea where users paste a complete MCP config object. There is no per-server visibility, no runtime status, no tool listing, and no per-server enable/disable. The OpenCode server already exposes REST endpoints (`GET /mcp`, `POST /mcp/{name}/connect`, `GET /experimental/tool/ids`) and an SSE event (`mcp.tools.changed`) that provide exactly the runtime information needed -- but the app doesn't use them yet.
+The current MCP Server settings UI is a raw JSON textarea where users paste a complete MCP config object. There is no per-server visibility, no runtime status, no tool listing, and no per-server enable/disable. The OpenCode server exposes REST endpoints (`GET /mcp`, `POST /mcp/{name}/connect`, `GET /experimental/tool/ids`) and an SSE event (`mcp.tools.changed`) for runtime information.
 
 This plan transforms the MCP section in Settings into a card-based UI (inspired by Cursor's MCP management panel) where each server is a distinct item with status, tools, and controls.
+
+> **Known API limitation (confirmed via runtime investigation):** The OpenCode server's tool endpoints (`GET /experimental/tool/ids` and `GET /experimental/tool?provider=X&model=Y`) return **only built-in tools** — MCP server tools are not included. The `GET /mcp` endpoint returns per-server connection status but no tool names or counts. The `mcp.tools.changed` SSE event does not fire during normal MCP initialization. As a result, per-server tool listing is implemented but non-functional until the upstream OpenCode API exposes MCP tool names. Connection status (`GET /mcp`) works correctly and is the primary server health indicator.
 
 ## Data Flow
 
@@ -42,98 +44,39 @@ SettingsDialog.tsx
 ### Step 1 — Sidecar: OpenCode client methods
 
 **File:** `src-tauri/sidecar-opencode/src/opencode-client.ts`
-
-Add methods to the `OpenCodeClient` class, following the existing pattern (e.g. `getConfig`, `listSessions`):
-
-```ts
-// MCP Status & Control
-async getMcpStatus(directory?: string): Promise<Record<string, { status: string; error?: string }>>
-async connectMcpServer(name: string, directory?: string): Promise<boolean>
-async disconnectMcpServer(name: string, directory?: string): Promise<void>
-
-// Tool IDs
-async getToolIds(directory?: string): Promise<string[]>
-```
+- Add methods to the `OpenCodeClient` class, following the existing pattern (e.g. `getConfig`, `listSessions`):
 
 Endpoint mapping:
 - `getMcpStatus` → `GET /mcp`
 - `connectMcpServer` → `POST /mcp/{name}/connect`
 - `disconnectMcpServer` → `POST /mcp/{name}/disconnect`
-- `getToolIds` → `GET /experimental/tool/ids`
+- `getToolIds` → `GET /experimental/tool/ids` (**Note:** this endpoint currently returns only built-in tools, not MCP server tools — see Known API limitation above)
 
 ### Step 2 — Sidecar: IPC types
 
 **File:** `src-tauri/sidecar-opencode/src/types.ts`
-
-Add to `SidecarCommand` union:
-```ts
-| { type: 'get_mcp_status' }
-| { type: 'get_mcp_tools' }
-| { type: 'connect_mcp_server'; payload: { name: string } }
-| { type: 'disconnect_mcp_server'; payload: { name: string } }
-```
-
-Add to `SidecarEvent` union:
-```ts
-| { type: 'mcp_status'; payload: { servers: Record<string, { status: string; error?: string }> } }
-| { type: 'mcp_tools'; payload: { toolIds: string[] } }
-| { type: 'mcp_tools_changed'; payload: { server: string } }
-```
+- Add to `SidecarCommand` union
+- Add to `SidecarEvent` union
 
 ### Step 3 — Sidecar: IPC handlers + SSE forwarding
 
 **File:** `src-tauri/sidecar-opencode/src/index.ts`
-
-Add handler functions (`handleGetMcpStatus`, `handleGetMcpTools`, `handleConnectMcpServer`, `handleDisconnectMcpServer`) following the existing Copilot handler pattern (fire-and-forget with event response).
-
-Add `mcp.tools.changed` SSE listener in the `initialize()` function after setting up `eventStream`:
-```ts
-eventStream.on('mcp.tools.changed', (props: { server: string }) => {
-  send({ type: 'mcp_tools_changed', payload: { server: props.server } });
-});
-```
-
-Add switch cases in `handleMessage()`.
+- Add handler functions (`handleGetMcpStatus`, `handleGetMcpTools`, `handleConnectMcpServer`, `handleDisconnectMcpServer`) following the existing Copilot handler pattern (fire-and-forget with event response)
+- Add `mcp.tools.changed` SSE listener in the `initialize()` function after setting up `eventStream`
+- Add switch cases in `handleMessage()`
 
 ### Step 4 — Sidecar: Tests
 
 **File:** `src-tauri/sidecar-opencode/__tests__/opencode-client.test.ts`
-
-Add tests for the new client methods with mocked fetch responses.
+- Add tests for the new client methods with mocked fetch responses.
 
 ### Step 5 — Rust: Sidecar command variants + event forwarding
 
 **File:** `src-tauri/src/sidecar.rs`
 
-Add to `SidecarCommand` enum:
-```rust
-#[serde(rename = "get_mcp_status")]
-GetMcpStatus,
-#[serde(rename = "get_mcp_tools")]
-GetMcpTools,
-ConnectMcpServer { payload: ConnectMcpServerPayload },
-DisconnectMcpServer { payload: DisconnectMcpServerPayload },
-```
-
-Add `ConnectMcpServerPayload` and `DisconnectMcpServerPayload` structs (just `{ name: String }`).
-
-Add to `handle_sidecar_event` string match:
-```rust
-"mcp_status" => "mcp:status",
-"mcp_tools" => "mcp:tools",
-"mcp_tools_changed" => "mcp:tools_changed",
-```
-
 ### Step 6 — Rust: Tauri commands
 
 **File:** `src-tauri/src/commands/mcp.rs` (new)
-
-Create a new command module with fire-and-forget commands that send to sidecar:
-- `get_mcp_status` → sends `GetMcpStatus`
-- `get_mcp_tools` → sends `GetMcpTools`
-- `connect_mcp_server(name)` → sends `ConnectMcpServer`
-- `disconnect_mcp_server(name)` → sends `DisconnectMcpServer`
-
 **File:** `src-tauri/src/commands/mod.rs` — add `pub mod mcp;`
 **File:** `src-tauri/src/lib.rs` — register commands in `invoke_handler`
 
@@ -141,35 +84,11 @@ Create a new command module with fire-and-forget commands that send to sidecar:
 
 **File:** `src/shared/types/mcpSettings.ts`
 
-Add:
-```ts
-export type McpServerStatus = 'connected' | 'disabled' | 'failed' | 'needs_auth' | 'needs_client_registration' | 'initializing' | 'unknown';
-
-export interface McpServerRuntime {
-  status: McpServerStatus;
-  error?: string;
-  tools: string[];           // Tool IDs belonging to this server
-}
-```
-
 ### Step 8 — Frontend: API layer
 
 **File:** `src/lib/tauri-api.ts`
-
-Add invoke wrappers:
-```ts
-getMcpStatus(): Promise<void>
-getMcpTools(): Promise<void>
-connectMcpServer(name: string): Promise<void>
-disconnectMcpServer(name: string): Promise<void>
-```
-
-Add event listeners:
-```ts
-onMcpStatus(cb): UnlistenFn
-onMcpTools(cb): UnlistenFn
-onMcpToolsChanged(cb): UnlistenFn
-```
+- Add invoke wrappers
+- Add event listeners
 
 **File:** `src/lib/tauri-api-interface.ts` — extend `TauriAPI` interface with above.
 
@@ -183,15 +102,9 @@ Custom hook managing:
 - `loading: boolean`
 - `refresh()` — sends both `getMcpStatus` + `getMcpTools`
 
-Tool-to-server grouping: MCP tool IDs follow `mcp_{serverName}_{toolName}` convention. Use the configured server name list as anchors for correct prefix parsing (handles server names with underscores).
+Tool-to-server grouping: MCP tool IDs follow `{serverName}_{toolName}` convention. The `groupToolsByServer` utility uses the configured server name list as anchors for correct prefix parsing (longest-first matching handles server names with underscores). This function is implemented, exported, and tested — it will populate tool lists automatically when the upstream OpenCode API begins including MCP tools in its responses.
 
-Utility function (exported, testable independently):
-```ts
-export function groupToolsByServer(
-  toolIds: string[],
-  serverNames: string[]
-): Record<string, string[]>
-```
+> **Current state:** Due to the known API limitation, `groupToolsByServer` receives only built-in tool IDs (e.g. `bash`, `read`, `glob`) which don't match any server name prefix, so per-server tool arrays remain empty. Connection status from `GET /mcp` works correctly and is the primary indicator.
 
 Auto-refreshes on mount and when `mcp:tools_changed` fires.
 
@@ -199,29 +112,20 @@ Auto-refreshes on mount and when `mcp:tools_changed` fires.
 
 **File:** `src/components/settings/McpServerCard.tsx` (new)
 
-Props:
-```ts
-interface McpServerCardProps {
-  name: string;
-  config: McpServerConfig;
-  runtime: McpServerRuntime;
-  onToggle: (name: string, enabled: boolean) => void;
-  onEdit: (name: string) => void;
-  onRemove: (name: string) => void;
-}
-```
-
 Visual:
 - **Letter avatar**: Colored rounded square (8 deterministic colors from name hash) with first letter of server name
 - **Status dot**: Inline with command/URL subtitle — green (`connected`), red (`failed`), gray (`disabled`), amber (`needs_auth`), blue pulse (`initializing`)
-- **Title row**: server name (bold) + type badge pill ("local" / "remote") + status label (if applicable)
+- **Title row**: server name (bold) + type badge pill ("local" / "remote") + status label for all states (e.g. "Connected", "Failed", "Initializing")
 - **Subtitle**: command string or URL, preceded by status dot
 - **Toggle**: enable/disable (right-aligned, same style as existing Settings toggles)
-- **Tool list**: Auto-expanded as chips for connected servers; collapsed by default for others. "Show less" / "Show N tools" toggle for user control.
+- **Tool list**: When tool IDs are available, auto-expanded as chips for connected servers; collapsed by default for others. "Show less" / "Show N tools" toggle for user control. Currently non-functional due to the known API limitation — the card gracefully degrades to showing connection status only
+- **Unknown state hint**: When status is `unknown` and no tools are available, shows "Start a task to see server status and tools"
 - **Error**: shown as red text below subtitle when `status === 'failed'`
 - **Actions**: edit (pencil icon) + delete (trash icon) buttons
 
 **Refinement note (v2):** Race condition fix — `refresh()` moved to a separate effect that fires only after config loads (prevents empty tool lists on mount). Loading timeout of 5s added to handle sidecar-not-running gracefully.
+
+**Refinement note (v3):** Status label for `connected` changed from empty string to "Connected" to provide clear positive feedback when MCP servers are healthy but tool names are unavailable from the API.
 
 ### Step 11 — Frontend: `McpAddServerDialog` component
 
@@ -271,14 +175,24 @@ Config mutations (toggle, add, edit, remove) all go through a single `handleConf
 
 ---
 
-## Stretch: Tool Invocation
+## Stretch: Tool Discovery & Invocation
+
+### Tool Name Discovery
+
+The OpenCode API does not currently expose MCP tool names. Potential approaches for a future iteration:
+
+- **A:** Wait for OpenCode to include MCP tools in `GET /experimental/tool/ids` or add a dedicated `GET /mcp/{name}/tools` endpoint (upstream feature request)
+- **B:** Connect to each MCP server directly using the MCP protocol to list tools (requires implementing an MCP client in the sidecar, significant effort)
+- **C:** Parse MCP tool names from OpenCode server log files (fragile, not recommended)
+
+The `groupToolsByServer` utility and `McpServerCard` tool chip UI are already implemented and will activate automatically when tool IDs become available through any of these approaches.
+
+### Tool Invocation
 
 Tool invocation via UI is deferred. OpenCode has no direct "call MCP tool" endpoint — invoking a tool requires sending a message through a session. Options for a future iteration:
 
 - **A:** "Test Tool" button that creates a lightweight test session, sends a prompt like "Use the `{toolName}` tool with: {userInput}", displays raw response
 - **B:** Wait for OpenCode to add a `POST /mcp/{name}/tool/{id}` endpoint (upstream feature request)
-
-For now, the UI displays tool names as read-only chips.
 
 ---
 
@@ -288,7 +202,7 @@ For now, the UI displays tool names as read-only chips.
 2. `cd src-tauri && cargo check` — Rust compiles
 3. `cd src-tauri/sidecar-opencode && pnpm build && pnpm test` — sidecar builds and tests pass
 4. `pnpm test --run` — all frontend tests pass
-5. Manual: Open Settings → MCP Servers → verify cards render for configured servers, status dots update, tools list for connected servers, toggle enable/disable, add/edit/remove servers, JSON fallback mode works
+5. Manual: Open Settings → MCP Servers → verify cards render for configured servers, status dots update with "Connected" label for healthy servers, toggle enable/disable, add/edit/remove servers, JSON fallback mode works. Note: per-server tool lists will remain empty until the upstream OpenCode API includes MCP tools in its responses
 
 ## Key Files
 

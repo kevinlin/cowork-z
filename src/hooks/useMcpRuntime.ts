@@ -5,9 +5,10 @@ import type { McpServerRuntime, McpServerStatus } from '@/shared';
 /**
  * Group flat tool IDs by MCP server name.
  *
- * OpenCode tool IDs follow the convention `mcp_{serverName}_{toolName}`.
- * We use the known server names as anchors to correctly split the prefix
- * (handles server names that contain underscores).
+ * OpenCode registers MCP tools with the server name as prefix:
+ * e.g. server "context7" → tools "context7_resolve_library_id", "context7_query_docs".
+ * We match against known server names (longest-first) to handle names with underscores.
+ * Built-in tools (bash, read, etc.) don't match any server name and are skipped.
  */
 export function groupToolsByServer(toolIds: string[], serverNames: string[]): Record<string, string[]> {
   const result: Record<string, string[]> = {};
@@ -15,31 +16,15 @@ export function groupToolsByServer(toolIds: string[], serverNames: string[]): Re
   const sorted = [...serverNames].sort((a, b) => b.length - a.length);
 
   for (const toolId of toolIds) {
-    if (!toolId.startsWith('mcp_')) continue;
-
-    const rest = toolId.slice(4); // strip "mcp_"
-    let matched = false;
-
     for (const name of sorted) {
-      if (rest.startsWith(`${name}_`)) {
-        const toolName = rest.slice(name.length + 1);
+      if (toolId.startsWith(`${name}_`)) {
+        const toolName = toolId.slice(name.length + 1);
         if (!result[name]) result[name] = [];
         result[name].push(toolName);
-        matched = true;
         break;
       }
     }
-
-    // Fallback: if no server name matched, try splitting on first underscore
-    if (!matched) {
-      const idx = rest.indexOf('_');
-      if (idx > 0) {
-        const serverName = rest.slice(0, idx);
-        const toolName = rest.slice(idx + 1);
-        if (!result[serverName]) result[serverName] = [];
-        result[serverName].push(toolName);
-      }
-    }
+    // Tools that don't match any server name are built-in — skip them
   }
 
   return result;

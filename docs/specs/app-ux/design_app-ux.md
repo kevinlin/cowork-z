@@ -89,15 +89,26 @@ All settings persisted to the SQLite `app_settings` table. Changes apply immedia
 The MCP Servers section in Settings displays each configured server as an individual card with:
 
 - **Letter avatar** — Colored rounded square with the first letter of the server name (deterministic color from name hash)
-- **Status indicator** — Colored dot inline with the command/URL subtitle: connected (green), failed (red), disabled (gray), needs auth (amber), initializing (blue pulse)
+- **Status indicator** — Colored dot inline with the command/URL subtitle: connected (green), failed (red), disabled (gray), needs auth (amber), initializing (blue pulse). Status label shown next to the name for all states (e.g. "Connected", "Failed", "Initializing")
 - **Server info** — Name, type badge (local/remote), command or URL subtitle
 - **Enable/disable toggle** — Per-server toggle to enable or disable without removing configuration
-- **Tool list** — Tools auto-expand as chips for connected servers; collapsible via "Show less" / "Show N tools" toggle. Tool IDs grouped by server name from `GET /experimental/tool/ids`
+- **Tool list** — When available, tools auto-expand as chips for connected servers; collapsible via "Show less" / "Show N tools" toggle. Tool IDs grouped by server name prefix from the flat tool ID list
 - **Edit/Remove actions** — Pencil and trash icon buttons per card
 
 An "Add Server" button opens a dialog supporting both structured form input and raw JSON mode. A "Cards/JSON" view toggle lets power users switch to the raw JSON textarea for full config editing.
 
 Runtime status is fetched from the OpenCode server via `GET /mcp` (relayed through sidecar IPC) and updated in real-time via the `mcp.tools.changed` SSE event. Status queries are fire-and-forget commands with results returned via Tauri events (`mcp:status`, `mcp:tools`).
+
+#### OpenCode API Tool Listing Limitation
+
+The OpenCode server's tool endpoints (`GET /experimental/tool/ids` and `GET /experimental/tool?provider=X&model=Y`) return **only built-in tools** (bash, read, glob, grep, etc.) — MCP server tools are not included in these responses. This was confirmed through runtime investigation across multiple API approaches:
+
+- `GET /experimental/tool/ids` — returns built-in tool IDs only
+- `GET /experimental/tool?provider=X&model=Y` — returns built-in tools only, even with valid connected providers
+- `GET /mcp` — returns per-server connection status but no tool names or counts
+- `mcp.tools.changed` SSE event — does not fire during normal MCP server initialization
+
+As a result, the tool list feature in `McpServerCard` depends on the upstream OpenCode API eventually exposing MCP tool names. The `groupToolsByServer` utility in `useMcpRuntime.ts` is implemented and tested, ready to parse `{serverName}_{toolName}` prefixed IDs when they become available. Until then, the card displays connection status as the primary indicator of server health.
 
 **Key files:**
 - `src/components/settings/McpServersSettings.tsx` — Main settings section (card list + JSON fallback)

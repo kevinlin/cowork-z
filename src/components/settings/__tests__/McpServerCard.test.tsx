@@ -101,7 +101,12 @@ describe('McpServerCard', () => {
 
   it('does not show tools section when no tools', () => {
     render(<McpServerCard {...defaultProps} runtime={unknownRuntime} />);
-    expect(screen.queryByText(/tool/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Show.*tool/)).not.toBeInTheDocument();
+  });
+
+  it('shows hint when status is unknown and no tools', () => {
+    render(<McpServerCard {...defaultProps} runtime={unknownRuntime} />);
+    expect(screen.getByText('Start a task to see server status and tools')).toBeInTheDocument();
   });
 
   it('calls onToggle when toggle is clicked', async () => {

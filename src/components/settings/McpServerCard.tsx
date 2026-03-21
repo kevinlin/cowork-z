@@ -1,6 +1,6 @@
+import { Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { McpServerConfig, McpServerRuntime, McpServerStatus } from '@/shared';
-import { Pencil, Trash2 } from 'lucide-react';
 
 interface McpServerCardProps {
   name: string;
@@ -12,7 +12,7 @@ interface McpServerCardProps {
 }
 
 const STATUS_CONFIG: Record<McpServerStatus, { dot: string; label: string }> = {
-  connected: { dot: 'bg-green-500', label: '' },
+  connected: { dot: 'bg-green-500', label: 'Connected' },
   disabled: { dot: 'bg-muted-foreground/50', label: 'Disabled' },
   failed: { dot: 'bg-destructive', label: 'Failed' },
   needs_auth: { dot: 'bg-amber-500', label: 'Needs Auth' },
@@ -98,6 +98,10 @@ export function McpServerCard({ name, config, runtime, onToggle, onEdit, onRemov
           )}
 
           {runtime.status === 'failed' && runtime.error && <p className="mt-1 text-destructive text-xs">{runtime.error}</p>}
+
+          {runtime.status === 'unknown' && !hasTools && (
+            <p className="mt-1 text-muted-foreground/60 text-xs">Start a task to see server status and tools</p>
+          )}
 
           {/* Tools list — auto-expanded for connected servers */}
           {hasTools && (

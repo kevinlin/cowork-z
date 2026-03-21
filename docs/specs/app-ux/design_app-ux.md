@@ -88,10 +88,11 @@ All settings persisted to the SQLite `app_settings` table. Changes apply immedia
 
 The MCP Servers section in Settings displays each configured server as an individual card with:
 
-- **Status indicator** — Colored dot showing real-time connection state: connected (green), failed (red), disabled (gray), needs auth (amber), initializing (blue pulse)
+- **Letter avatar** — Colored rounded square with the first letter of the server name (deterministic color from name hash)
+- **Status indicator** — Colored dot inline with the command/URL subtitle: connected (green), failed (red), disabled (gray), needs auth (amber), initializing (blue pulse)
 - **Server info** — Name, type badge (local/remote), command or URL subtitle
 - **Enable/disable toggle** — Per-server toggle to enable or disable without removing configuration
-- **Tool list** — Expandable section showing MCP tools available from connected servers, grouped by server name from `GET /experimental/tool/ids`
+- **Tool list** — Tools auto-expand as chips for connected servers; collapsible via "Show less" / "Show N tools" toggle. Tool IDs grouped by server name from `GET /experimental/tool/ids`
 - **Edit/Remove actions** — Pencil and trash icon buttons per card
 
 An "Add Server" button opens a dialog supporting both structured form input and raw JSON mode. A "Cards/JSON" view toggle lets power users switch to the raw JSON textarea for full config editing.

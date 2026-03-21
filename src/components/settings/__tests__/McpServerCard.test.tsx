@@ -26,6 +26,11 @@ const unknownRuntime: McpServerRuntime = {
   tools: [],
 };
 
+const disabledRuntime: McpServerRuntime = {
+  status: 'disabled',
+  tools: ['cachedTool'],
+};
+
 describe('McpServerCard', () => {
   const defaultProps = {
     name: 'filesystem',
@@ -36,10 +41,12 @@ describe('McpServerCard', () => {
     onRemove: vi.fn(),
   };
 
-  it('renders server name and type', () => {
+  it('renders server name, type, and letter avatar', () => {
     render(<McpServerCard {...defaultProps} />);
     expect(screen.getByText('filesystem')).toBeInTheDocument();
     expect(screen.getByText('local')).toBeInTheDocument();
+    // Letter avatar shows first letter uppercased
+    expect(screen.getByText('F')).toBeInTheDocument();
   });
 
   it('shows command as subtitle for local servers', () => {
@@ -54,11 +61,6 @@ describe('McpServerCard', () => {
     expect(screen.getByText('remote')).toBeInTheDocument();
   });
 
-  it('shows Connected status label', () => {
-    render(<McpServerCard {...defaultProps} />);
-    expect(screen.getByText('Connected')).toBeInTheDocument();
-  });
-
   it('shows error message when status is failed', () => {
     render(<McpServerCard {...defaultProps} runtime={failedRuntime} />);
     expect(screen.getByText('Failed')).toBeInTheDocument();
@@ -71,18 +73,30 @@ describe('McpServerCard', () => {
     expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
   });
 
-  it('shows tool count and can expand tools', async () => {
+  it('auto-expands tools for connected servers', () => {
+    render(<McpServerCard {...defaultProps} />);
+    // Tools should be visible immediately for connected servers
+    expect(screen.getByText('readFile')).toBeInTheDocument();
+    expect(screen.getByText('writeFile')).toBeInTheDocument();
+    // "Show less" link visible
+    expect(screen.getByText('Show less')).toBeInTheDocument();
+  });
+
+  it('can collapse auto-expanded tools', async () => {
     const user = userEvent.setup();
     render(<McpServerCard {...defaultProps} />);
 
-    const showBtn = screen.getByText('Show 2 tools');
-    expect(showBtn).toBeInTheDocument();
+    await user.click(screen.getByText('Show less'));
 
-    await user.click(showBtn);
+    expect(screen.queryByText('readFile')).not.toBeInTheDocument();
+    expect(screen.getByText('Show 2 tools')).toBeInTheDocument();
+  });
 
-    expect(screen.getByText('readFile')).toBeInTheDocument();
-    expect(screen.getByText('writeFile')).toBeInTheDocument();
-    expect(screen.getByText('Hide 2 tools')).toBeInTheDocument();
+  it('tools collapsed by default for non-connected servers with tools', () => {
+    render(<McpServerCard {...defaultProps} runtime={disabledRuntime} />);
+    // Should show "Show 1 tool" link, not the tool itself
+    expect(screen.getByText('Show 1 tool')).toBeInTheDocument();
+    expect(screen.queryByText('cachedTool')).not.toBeInTheDocument();
   });
 
   it('does not show tools section when no tools', () => {
@@ -95,7 +109,6 @@ describe('McpServerCard', () => {
     const onToggle = vi.fn();
     render(<McpServerCard {...defaultProps} onToggle={onToggle} />);
 
-    // The toggle button is the last button in the actions area
     const buttons = screen.getAllByRole('button');
     const toggleButton = buttons[buttons.length - 1];
     await user.click(toggleButton);

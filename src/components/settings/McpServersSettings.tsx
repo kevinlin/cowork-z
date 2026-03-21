@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMcpRuntime } from '@/hooks/useMcpRuntime';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { McpServerConfig, McpServersConfig } from '@/shared';
@@ -18,7 +18,7 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
   const [configChanged, setConfigChanged] = useState(false);
   const api = getTauriAPI();
 
-  const serverNames = Object.keys(config);
+  const serverNames = useMemo(() => Object.keys(config), [config]);
   const { serverRuntimes, loading, refresh } = useMcpRuntime(serverNames);
   const hasServers = serverNames.length > 0;
 
@@ -30,9 +30,14 @@ export function McpServersSettings({ onLoad }: McpServersSettingsProps) {
       }
       onLoad?.();
     });
-    // Fetch runtime status if sidecar is running
-    refresh();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresh runtime status once config is loaded (avoids race with empty serverNames)
+  useEffect(() => {
+    if (serverNames.length > 0) {
+      refresh();
+    }
+  }, [serverNames.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist config to backend
   const handleConfigChange = useCallback(

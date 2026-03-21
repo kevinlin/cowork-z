@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { McpServerRuntime, McpServerStatus } from '@/shared';
 
@@ -64,8 +64,7 @@ export function useMcpRuntime(serverNames: string[]): UseMcpRuntimeResult {
   const [serverStatuses, setServerStatuses] = useState<Record<string, { status: string; error?: string }>>({});
   const [allToolIds, setAllToolIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const serverNamesRef = useRef(serverNames);
-  serverNamesRef.current = serverNames;
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const api = getTauriAPI();
 
@@ -90,6 +89,7 @@ export function useMcpRuntime(serverNames: string[]): UseMcpRuntimeResult {
       unlistenStatus();
       unlistenTools();
       unlistenChanged();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [api]);
 
@@ -97,20 +97,28 @@ export function useMcpRuntime(serverNames: string[]): UseMcpRuntimeResult {
     setLoading(true);
     api.getMcpStatus();
     api.getMcpTools();
+    // Clear any pending timeout before setting a new one
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    // Timeout: if no event arrives in 5s (e.g. sidecar not running), clear loading
+    timeoutRef.current = setTimeout(() => setLoading(false), 5000);
   }, [api]);
 
-  // Build merged runtime records
-  const toolsByServer = groupToolsByServer(allToolIds, serverNamesRef.current);
-  const serverRuntimes: Record<string, McpServerRuntime> = {};
+  // Memoize tool grouping to avoid re-sorting on every render
+  const toolsByServer = useMemo(() => groupToolsByServer(allToolIds, serverNames), [allToolIds, serverNames]);
 
-  for (const name of serverNamesRef.current) {
-    const statusInfo = serverStatuses[name];
-    serverRuntimes[name] = {
-      status: (statusInfo?.status as McpServerStatus) ?? 'unknown',
-      error: statusInfo?.error,
-      tools: toolsByServer[name] ?? [],
-    };
-  }
+  // Build merged runtime records
+  const serverRuntimes = useMemo(() => {
+    const runtimes: Record<string, McpServerRuntime> = {};
+    for (const name of serverNames) {
+      const statusInfo = serverStatuses[name];
+      runtimes[name] = {
+        status: (statusInfo?.status as McpServerStatus) ?? 'unknown',
+        error: statusInfo?.error,
+        tools: toolsByServer[name] ?? [],
+      };
+    }
+    return runtimes;
+  }, [serverNames, serverStatuses, toolsByServer]);
 
   return { serverRuntimes, loading, refresh };
 }

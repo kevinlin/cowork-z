@@ -212,13 +212,16 @@ interface McpServerCardProps {
 ```
 
 Visual:
-- Status indicator: colored dot — green (`connected`), red (`failed`), gray (`disabled`), amber (`needs_auth`), blue pulse (`initializing`)
-- Title: server name (bold) + type badge pill ("local" / "remote")
-- Subtitle: command string or URL
-- Toggle: enable/disable (right-aligned, same style as existing Settings toggles)
-- Tool list: collapsible section, tool names shown as small chips. Hidden when no tools.
-- Error: shown as red text below subtitle when `status === 'failed'`
-- Actions: edit (pencil icon) + delete (trash icon) buttons, visible on hover
+- **Letter avatar**: Colored rounded square (8 deterministic colors from name hash) with first letter of server name
+- **Status dot**: Inline with command/URL subtitle — green (`connected`), red (`failed`), gray (`disabled`), amber (`needs_auth`), blue pulse (`initializing`)
+- **Title row**: server name (bold) + type badge pill ("local" / "remote") + status label (if applicable)
+- **Subtitle**: command string or URL, preceded by status dot
+- **Toggle**: enable/disable (right-aligned, same style as existing Settings toggles)
+- **Tool list**: Auto-expanded as chips for connected servers; collapsed by default for others. "Show less" / "Show N tools" toggle for user control.
+- **Error**: shown as red text below subtitle when `status === 'failed'`
+- **Actions**: edit (pencil icon) + delete (trash icon) buttons
+
+**Refinement note (v2):** Race condition fix — `refresh()` moved to a separate effect that fires only after config loads (prevents empty tool lists on mount). Loading timeout of 5s added to handle sidecar-not-running gracefully.
 
 ### Step 11 — Frontend: `McpAddServerDialog` component
 

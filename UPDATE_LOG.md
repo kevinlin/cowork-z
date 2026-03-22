@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.6.1
+
+- 
+
 ## v0.6.0
 
 - **Arena — Side-by-Side Agent Comparison** — Compare 3 AI models on the same prompt simultaneously; pick a model for each column via the full provider settings panel, submit a prompt, and watch all 3 agents stream responses in a 3-column layout; arena sessions appear in the sidebar with a distinct icon and support follow-up messages to all agents at once

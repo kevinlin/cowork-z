@@ -49,11 +49,18 @@ When the tool input contains a `path` or `file_path` field:
 - On click, call `useFilePreviewStore.getState().openPreviewByPath(filePath)` to open the file in the built-in file preview panel
 - This reuses the existing `openPreviewByPath` from `[src/stores/filePreviewStore.ts](src/stores/filePreviewStore.ts)`
 
-### 4. Update `MessageBubble.tsx` Tool Wrapper
+### 4. Consistent Tool Card Spacing Across Views
+
+Consecutive tool call cards use tight `mt-1` (4px) spacing, while non-tool messages use normal `mt-4` (16px) spacing. This logic must be applied consistently in all views that render `MessageBubble`:
+
+- **Normal chat** (`MessageList.tsx`): Per-item `gapClass` computed from message types — `mt-1` for consecutive tools, no class otherwise (container has no `space-y-*`).
+- **Arena** (`ArenaColumn.tsx`): Same per-item `gapClass` logic — `mt-1` for consecutive tools, `mt-4` otherwise (replacing the previous `space-y-4` on the container which applied uniform 16px spacing regardless of message type).
+
+### 5. Update `MessageBubble.tsx` Tool Wrapper
 
 The `motion.div` wrapper for tool messages in `[MessageBubble.tsx](src/components/chat/MessageBubble.tsx)` (lines 126-134) currently adds `group` class. Ensure the wrapper doesn't add extra padding/margin that conflicts with the new compact styling. Reduce the entrance animation `y` offset from `8` to `4` for subtlety.
 
-### 5. Update Design Doc
+### 6. Update Design Doc
 
 Add a new subsection under "Tool Call Display" in `[docs/specs/chat-ux/design_chat-ux.md](docs/specs/chat-ux/design_chat-ux.md)` documenting:
 
@@ -61,7 +68,7 @@ Add a new subsection under "Tool Call Display" in `[docs/specs/chat-ux/design_ch
 - The compact borderless styling
 - The file-based tool "open in viewer" action
 
-### 6. Update `UPDATE_LOG.md`
+### 7. Update `UPDATE_LOG.md`
 
 Add entry under `v0.6.1` (or new `v0.6.2` section) describing the tool call card redesign.
 
@@ -71,6 +78,7 @@ Add entry under `v0.6.1` (or new `v0.6.2` section) describing the tool call card
 
 - `[src/components/chat/ToolCallCard.tsx](src/components/chat/ToolCallCard.tsx)` -- main redesign: compact styling, hover controls, copy button, open-file button
 - `[src/components/chat/MessageBubble.tsx](src/components/chat/MessageBubble.tsx)` -- minor: reduce tool wrapper animation/spacing
+- `[src/components/arena/ArenaColumn.tsx](src/components/arena/ArenaColumn.tsx)` -- align tool card spacing with normal chat (per-item gap logic instead of uniform `space-y-4`)
 - `[docs/specs/chat-ux/design_chat-ux.md](docs/specs/chat-ux/design_chat-ux.md)` -- document new hover controls and styling
 - `[UPDATE_LOG.md](UPDATE_LOG.md)` -- add changelog entry
 

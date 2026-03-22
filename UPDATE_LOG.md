@@ -4,7 +4,7 @@
 
 ## v0.6.2
 
-- 
+- **Fix: Arena tool call card spacing** — Consecutive tool call cards in Arena mode now use tight 4px spacing (matching normal chat) instead of the uniform 16px gap that was applied to all messages
 
 ## v0.6.1
 

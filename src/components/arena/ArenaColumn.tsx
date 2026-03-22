@@ -1,6 +1,7 @@
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { MessageBubble } from '@/components/chat/MessageBubble';
+import { cn } from '@/lib/utils';
 import type { TaskMessage } from '@/shared';
 import { useArenaStore } from '@/stores/arenaStore';
 
@@ -105,15 +106,22 @@ export const ArenaColumn = ({ index }: ArenaColumnProps) => {
           </div>
         )}
 
-        <div className="space-y-4">
-          {filteredMessages.map((msg, i) => (
-            <MessageBubble
-              isLastMessage={i === filteredMessages.length - 1 && partials.length === 0}
-              isRunning={isColumnRunning}
-              key={msg.id}
-              message={msg}
-            />
-          ))}
+        <div>
+          {filteredMessages.map((msg, i) => {
+            const isTool = msg.type === 'tool';
+            const prevIsTool = i > 0 && filteredMessages[i - 1].type === 'tool';
+            const gapClass = i === 0 ? '' : isTool && prevIsTool ? 'mt-1' : 'mt-4';
+
+            return (
+              <div className={cn(gapClass)} key={msg.id}>
+                <MessageBubble
+                  isLastMessage={i === filteredMessages.length - 1 && partials.length === 0}
+                  isRunning={isColumnRunning}
+                  message={msg}
+                />
+              </div>
+            );
+          })}
 
           {partials.map((partial) => {
             const syntheticMessage: TaskMessage = {

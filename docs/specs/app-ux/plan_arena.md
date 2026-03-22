@@ -363,6 +363,30 @@ Key logic:
 Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
 - Modify `get_tasks_by_workspace` query to add `AND arena_id IS NULL`
 
+### Step 16: Fix Arena Chat History Persistence
+
+**Bug:** Sending a follow-up message in Arena resets the session — all previous messages disappear from the UI.
+
+**Root causes:**
+1. `arenaStore.ts` event handlers accumulated messages in memory but never called `api.saveTaskMessage()` / `api.saveTaskStatus()` / `api.saveTaskSession()` / `api.completeTask()` to persist them to SQLite. When `sendFollowUp()` called `api.resumeArena()`, the Rust backend loaded tasks from DB with empty message arrays.
+2. `columnsFromArena()` created brand-new empty columns from the API response, discarding all in-memory messages and partials.
+3. Sidecar `resumeSession()` didn't extract `arenaId` from the payload, a latent bug that could cause stale-session cleanup of sibling arena sessions.
+
+**Fix — `src/stores/arenaStore.ts`:**
+- Add `createMessageId()` helper (same pattern as `taskStore.ts`)
+- Add fire-and-forget DB persistence calls in all event handlers:
+  - `handleTaskUpdate`: `saveTaskMessage`, `completeTask`, `saveTaskSession` (mirrors `taskStore.ts:823-850`)
+  - `handleTaskUpdateBatch`: `saveTaskMessage` for each message
+  - `handlePartialMessageComplete`: `saveTaskMessage` for finalized message
+  - `handleStatusChange`: `saveTaskStatus`
+- `startArena`: create and persist initial user `TaskMessage` for each column after arena starts
+- `sendFollowUp`: create and persist user `TaskMessage` for each column before calling `resumeArena`, set columns to `running` status immediately
+- `columnsFromArena()`: preserve existing in-memory messages when `taskId` matches (follow-up case); only use DB messages when loading a different/new arena
+
+**Fix — `src-tauri/sidecar-opencode/src/session-manager.ts`:**
+- Extract `arenaId` from `ResumeSessionPayload` destructuring in `resumeSession()` (line 379)
+- Include `arenaId` in the resume log for debugging
+
 ---
 
 ## Files Modified (Summary)
@@ -395,18 +419,6 @@ Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
 | `src/components/layout/Sidebar.tsx` | Edit | Load & render arena items |
 | `src/pages/Home.tsx` | Edit | Compact Arena button in top-right corner with tooltip |
 | `src/App.tsx` | Edit | Add /arena/:arenaId route |
-
----
-
-## Key Risks
-
-1. **Sidecar concurrent sessions.** The biggest risk. The sidecar currently cleans up all sessions before starting a new one. The `arenaId` + `skipConfig` flags prevent this, but edge cases may arise (e.g., user starts a regular task while Arena is running). **Mitigation:** Non-arena `startTask` should only clean up non-arena sessions. Add `arenaId` check to cleanup filter.
-
-2. **PATCH /config SSE reconnection.** Config update triggers SSE reconnection (~1s). Arena sends config once, then 3 tasks with `skipConfig`. If the first task's config call hasn't completed when tasks 2-3 arrive, they may fail. **Mitigation:** Rust `start_arena` sends tasks sequentially (awaiting each `send_command`) rather than in parallel.
-
-3. **Performance with 3 streams.** Three simultaneous message streams could cause excessive re-renders. **Mitigation:** Zustand selectors with shallow comparison so only the affected column re-renders: `useArenaStore(s => s.columns[0])`.
-
-4. **Permission queue across 3 agents.** All 3 may trigger permissions simultaneously. **Mitigation:** Reuse the existing queue pattern from `taskStore.enqueuePermissionRequest`. The permission modal shows which model/column requested it.
 
 ---
 

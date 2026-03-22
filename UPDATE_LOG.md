@@ -5,6 +5,7 @@
 ## v0.6.0
 
 - **Arena — Side-by-Side Agent Comparison** — Compare 3 AI models on the same prompt simultaneously; pick a model for each column via the full provider settings panel, submit a prompt, and watch all 3 agents stream responses in a 3-column layout; arena sessions appear in the sidebar with a distinct icon and support follow-up messages to all agents at once
+- **Arena - Chat history persistence** — Full chat history from all 3 agents is now retained across follow-ups and persisted to the database for reload
 - **Enhanced MCP Server Settings** — MCP configuration now shows each server as an individual card with real-time status indicators (connected/failed/disabled), per-server enable/disable toggles, expandable tool listings, and add/edit/remove actions; includes a JSON fallback view for power users
 - **Fix infinite compaction loop** - Added compaction loop detection with threshold limit (3)
 - **Improved dialog readability** — Reduced backdrop blur and opacity on question/permission dialogs so main window content stays readable; dialogs are now draggable to reveal covered content

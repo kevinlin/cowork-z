@@ -70,6 +70,10 @@ interface ArenaState {
   respondToPermission: (response: PermissionResponse) => Promise<void>;
 }
 
+function createMessageId(): string {
+  return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
 /**
  * Find the column index that owns a given taskId.
  * Returns -1 if no column matches.
@@ -105,11 +109,18 @@ function columnsFromArena(
     const slot = task.arenaSlot;
     if (slot !== undefined && slot >= 0 && slot < 3) {
       const idx = slot as 0 | 1 | 2;
+      const existingCol = existing[idx];
+
+      // Preserve in-memory messages when taskId matches (follow-up case).
+      // Use DB messages when loading a different/new arena.
+      const preserveMessages = existingCol.task?.id === task.id && (existingCol.task?.messages.length ?? 0) > 0;
+      const mergedMessages = preserveMessages ? existingCol.task!.messages : task.messages;
+
       next[idx] = {
-        modelId: task.modelId ?? existing[idx].modelId,
-        modelDisplayName: existing[idx].modelDisplayName || task.modelId?.split('/').pop() || '',
+        modelId: task.modelId ?? existingCol.modelId,
+        modelDisplayName: existingCol.modelDisplayName || task.modelId?.split('/').pop() || '',
         taskId: task.id,
-        task,
+        task: { ...task, messages: mergedMessages },
         status: task.status,
         partialMessages: new Map(),
         error: task.result?.error ?? null,
@@ -161,6 +172,24 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const arena = await api.startArena(config);
 
     const newColumns = columnsFromArena(arena, columns);
+
+    // Persist initial user message for each active column (unique ID per column)
+    const timestamp = new Date().toISOString();
+    for (const col of newColumns) {
+      if (col.taskId && col.task) {
+        const userMessage: TaskMessage = {
+          id: createMessageId(),
+          type: 'user',
+          content: prompt,
+          timestamp,
+        };
+        col.task = { ...col.task, messages: [userMessage, ...col.task.messages] };
+        api.saveTaskMessage(col.taskId, userMessage).catch((err) => {
+          console.error('Failed to save arena initial user message:', err);
+        });
+      }
+    }
+
     set({
       arenaId: arena.id,
       prompt: arena.prompt,
@@ -171,16 +200,37 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
 
   sendFollowUp: async (message) => {
-    const { arenaId } = get();
+    const { arenaId, columns } = get();
     if (!arenaId) return;
 
-    const arena = await api.resumeArena(arenaId, message);
-    const { columns } = get();
-    const newColumns = columnsFromArena(arena, columns);
-    set({
-      prompt: message,
-      columns: newColumns,
-    });
+    // Create and persist user message for each active column (unique ID per column)
+    const timestamp = new Date().toISOString();
+    const columnsWithUserMsg = columns.map((col) => {
+      const { task } = col;
+      if (!task) return col;
+      const userMessage: TaskMessage = {
+        id: createMessageId(),
+        type: 'user',
+        content: message,
+        timestamp,
+      };
+      if (col.taskId) {
+        api.saveTaskMessage(col.taskId, userMessage).catch((err) => {
+          console.error('Failed to save arena user message:', err);
+        });
+      }
+      return {
+        ...col,
+        task: { ...task, messages: [...task.messages, userMessage] },
+        status: 'running' as TaskStatus,
+        error: null,
+      };
+    }) as [ArenaColumnState, ArenaColumnState, ArenaColumnState];
+
+    set({ prompt: message, columns: columnsWithUserMsg });
+
+    // Send resume command — events will deliver new messages
+    await api.resumeArena(arenaId, message);
   },
 
   loadArena: async (arenaId) => {
@@ -252,6 +302,26 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const idx = findColumnByTaskId(columns, event.taskId);
     if (idx === -1) return;
 
+    // Persist to database (fire-and-forget, mirrors taskStore pattern)
+    if (event.type === 'message' && event.message) {
+      api.saveTaskMessage(event.taskId, event.message).catch((err) => {
+        console.error('Failed to save arena task message:', err);
+      });
+    } else if (event.type === 'complete' && event.result) {
+      const status = event.result.status === 'success' ? 'completed' : event.result.status === 'interrupted' ? 'interrupted' : 'failed';
+      api.completeTask(event.taskId, status, event.result.sessionId).catch((err) => {
+        console.error('Failed to save arena task completion:', err);
+      });
+    } else if (event.type === 'error') {
+      api.completeTask(event.taskId, 'failed', event.sessionId).catch((err) => {
+        console.error('Failed to save arena task error status:', err);
+      });
+    } else if (event.type === 'started' && event.sessionId) {
+      api.saveTaskSession(event.taskId, event.sessionId).catch((err) => {
+        console.error('Failed to save arena task session ID:', err);
+      });
+    }
+
     set((state) => {
       const cols = [...state.columns] as [ArenaColumnState, ArenaColumnState, ArenaColumnState];
       const col = { ...cols[idx] };
@@ -291,6 +361,13 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const { columns } = get();
     const idx = findColumnByTaskId(columns, taskId);
     if (idx === -1) return;
+
+    // Persist each message to database
+    for (const msg of messages) {
+      api.saveTaskMessage(taskId, msg).catch((err) => {
+        console.error('Failed to save arena batch message:', err);
+      });
+    }
 
     set((state) => {
       const cols = [...state.columns] as [ArenaColumnState, ArenaColumnState, ArenaColumnState];
@@ -333,6 +410,19 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const idx = findColumnByTaskId(columns, event.taskId);
     if (idx === -1) return;
 
+    // Build finalized message outside set() so side effects stay out of the updater
+    const finalMessage: TaskMessage = {
+      id: event.messageId,
+      type: 'assistant',
+      content: event.text,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Persist to database
+    api.saveTaskMessage(event.taskId, finalMessage).catch((err) => {
+      console.error('Failed to save arena finalized message:', err);
+    });
+
     set((state) => {
       const cols = [...state.columns] as [ArenaColumnState, ArenaColumnState, ArenaColumnState];
       const col = { ...cols[idx] };
@@ -340,14 +430,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       newPartials.delete(event.messageId);
       col.partialMessages = newPartials;
 
-      // Add the finalized message to the task
       if (col.task) {
-        const finalMessage: TaskMessage = {
-          id: event.messageId,
-          type: 'assistant',
-          content: event.text,
-          timestamp: new Date().toISOString(),
-        };
         col.task = {
           ...col.task,
           messages: [...col.task.messages, finalMessage],
@@ -363,6 +446,11 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const { columns } = get();
     const idx = findColumnByTaskId(columns, taskId);
     if (idx === -1) return;
+
+    // Persist status to database
+    api.saveTaskStatus(taskId, status).catch((err) => {
+      console.error('Failed to save arena task status:', err);
+    });
 
     set((state) => {
       const cols = [...state.columns] as [ArenaColumnState, ArenaColumnState, ArenaColumnState];

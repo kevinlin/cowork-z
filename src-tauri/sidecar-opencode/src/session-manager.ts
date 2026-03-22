@@ -376,9 +376,10 @@ export class SessionManager extends EventEmitter {
   }
 
   async resumeSession(payload: ResumeSessionPayload): Promise<void> {
-    const { taskId, sessionId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, mcpServers, skipConfig } = payload;
+    const { taskId, sessionId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, mcpServers, skipConfig, arenaId } =
+      payload;
 
-    logger.info('Resuming session', { taskId, sessionId });
+    logger.info('Resuming session', { taskId, sessionId, arenaId });
 
     // Push session-specific config via PATCH /config (skip if arena already sent it)
     if (!skipConfig) {

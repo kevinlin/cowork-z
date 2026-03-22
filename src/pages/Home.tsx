@@ -81,7 +81,25 @@ export default function HomePage() {
   return (
     <>
       <SettingsDialog onApiKeySaved={handleApiKeySaved} onOpenChange={handleSettingsDialogChange} open={showSettingsDialog} />
-      <div className="flex h-full items-center justify-center overflow-y-auto bg-accent p-6">
+      <div className="relative flex h-full items-center justify-center overflow-y-auto bg-accent p-6">
+        {/* Arena entry point — top-right corner */}
+        <motion.div
+          animate={{ opacity: 1 }}
+          className="absolute top-6 right-6 z-10"
+          initial={{ opacity: 0 }}
+          transition={{ ...springs.gentle, delay: 0.05 }}
+        >
+          <button
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card/80 px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:bg-card hover:text-foreground"
+            onClick={() => navigate('/arena/new')}
+            title="Compare 3 models side-by-side"
+            type="button"
+          >
+            <Columns3 className="h-4 w-4" />
+            Arena
+          </button>
+        </motion.div>
+
         <div className="flex w-full max-w-5xl flex-col items-center gap-8">
           {/* Main Title */}
           <motion.h1
@@ -93,18 +111,6 @@ export default function HomePage() {
           >
             What will you accomplish today?
           </motion.h1>
-
-          {/* Arena entry point */}
-          <motion.div animate={{ opacity: 1 }} initial={{ opacity: 0 }} transition={{ ...springs.gentle, delay: 0.05 }}>
-            <button
-              className="flex items-center gap-2 rounded-lg border border-border bg-card/80 px-4 py-2 text-muted-foreground text-sm transition-colors hover:bg-card hover:text-foreground"
-              onClick={() => navigate('/arena/new')}
-              type="button"
-            >
-              <Columns3 className="h-4 w-4" />
-              Arena — Compare 3 models side-by-side
-            </button>
-          </motion.div>
 
           <motion.div
             animate={{ opacity: 1, y: 0 }}

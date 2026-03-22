@@ -1,8 +1,10 @@
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
-import { useEffect, useRef } from 'react';
-import { cn } from '@/lib/utils';
-import type { PartialMessage, TaskMessage } from '@/shared';
+import { useEffect, useMemo, useRef } from 'react';
+import { MessageBubble } from '@/components/chat/MessageBubble';
+import type { TaskMessage } from '@/shared';
 import { useArenaStore } from '@/stores/arenaStore';
+
+const EMPTY_MESSAGES: TaskMessage[] = [];
 
 interface ArenaColumnProps {
   index: 0 | 1 | 2;
@@ -42,44 +44,16 @@ const StatusBadge = ({ status }: { status: string }) => {
   }
 };
 
-const MessageItem = ({ message }: { message: TaskMessage }) => {
-  const isUser = message.type === 'user';
-  const isTool = message.type === 'tool';
-
-  return (
-    <div className={cn('px-3 py-2 text-sm', isUser && 'bg-muted/50', isTool && 'border-primary/30 border-l-2 bg-primary/5')}>
-      <div className="mb-1 font-medium text-muted-foreground text-xs">
-        {isUser ? 'You' : isTool ? (message.toolName ?? 'Tool') : 'Assistant'}
-      </div>
-      <div className="whitespace-pre-wrap break-words text-foreground">{message.content}</div>
-    </div>
-  );
-};
-
-const PartialMessageItem = ({ partial }: { partial: PartialMessage }) => {
-  return (
-    <div className="px-3 py-2 text-sm">
-      <div className="mb-1 flex items-center gap-1.5 font-medium text-muted-foreground text-xs">
-        Assistant
-        {partial.isStreaming && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
-      </div>
-      <div className="whitespace-pre-wrap break-words text-foreground">
-        {partial.textSoFar}
-        {partial.isStreaming && <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-foreground" />}
-      </div>
-    </div>
-  );
-};
-
 export const ArenaColumn = ({ index }: ArenaColumnProps) => {
   const column = useArenaStore((s) => s.columns[index]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
 
-  const messages = column.task?.messages ?? [];
+  const messages = column.task?.messages ?? EMPTY_MESSAGES;
   const partials = Array.from(column.partialMessages.values());
 
-  // Track scroll position
+  const filteredMessages = useMemo(() => messages.filter((m) => !(m.type === 'tool' && m.toolName?.toLowerCase() === 'bash')), [messages]);
+
   const handleScroll = () => {
     const container = scrollRef.current;
     if (!container) return;
@@ -87,14 +61,12 @@ export const ArenaColumn = ({ index }: ArenaColumnProps) => {
     isAtBottomRef.current = container.scrollTop + container.clientHeight >= container.scrollHeight - threshold;
   };
 
-  // Auto-scroll to bottom when new messages arrive (if already at bottom)
   useEffect(() => {
     if (isAtBottomRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages.length, partials.length]);
+  }, [filteredMessages.length, partials.length]);
 
-  // Idle state — no model selected
   if (column.status === 'idle' && !column.modelId) {
     return (
       <div className="flex flex-1 flex-col">
@@ -108,9 +80,10 @@ export const ArenaColumn = ({ index }: ArenaColumnProps) => {
     );
   }
 
+  const isColumnRunning = column.status === 'running' || column.status === 'starting';
+
   return (
     <div className="flex flex-1 flex-col">
-      {/* Column header */}
       <div className="flex items-center justify-between border-border border-b bg-card/30 px-3 py-2">
         <span className="truncate font-medium text-foreground text-sm">
           {column.modelDisplayName || column.modelId?.split('/').pop() || `Column ${index + 1}`}
@@ -118,11 +91,10 @@ export const ArenaColumn = ({ index }: ArenaColumnProps) => {
         <StatusBadge status={column.status} />
       </div>
 
-      {/* Message list */}
-      <div className="flex-1 overflow-y-auto" onScroll={handleScroll} ref={scrollRef}>
-        {messages.length === 0 && partials.length === 0 && column.status !== 'idle' && (
+      <div className="flex-1 overflow-y-auto px-4 py-4" onScroll={handleScroll} ref={scrollRef}>
+        {filteredMessages.length === 0 && partials.length === 0 && column.status !== 'idle' && (
           <div className="flex items-center justify-center p-8 text-muted-foreground text-sm">
-            {column.status === 'starting' || column.status === 'running' ? (
+            {isColumnRunning ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Waiting for response...
@@ -133,16 +105,28 @@ export const ArenaColumn = ({ index }: ArenaColumnProps) => {
           </div>
         )}
 
-        {messages.map((msg) => (
-          <MessageItem key={msg.id} message={msg} />
-        ))}
+        <div className="space-y-4">
+          {filteredMessages.map((msg, i) => (
+            <MessageBubble
+              isLastMessage={i === filteredMessages.length - 1 && partials.length === 0}
+              isRunning={isColumnRunning}
+              key={msg.id}
+              message={msg}
+            />
+          ))}
 
-        {partials.map((partial) => (
-          <PartialMessageItem key={partial.id} partial={partial} />
-        ))}
+          {partials.map((partial) => {
+            const syntheticMessage: TaskMessage = {
+              id: partial.id,
+              type: 'assistant',
+              content: partial.textSoFar,
+              timestamp: partial.timestamp,
+            };
+            return <MessageBubble isRealStreaming={partial.isStreaming} key={partial.id} message={syntheticMessage} />;
+          })}
 
-        {/* Error display */}
-        {column.error && <div className="mx-3 my-2 rounded-md bg-destructive/10 p-3 text-destructive text-sm">{column.error}</div>}
+          {column.error && <div className="rounded-md bg-destructive/10 p-3 text-destructive text-sm">{column.error}</div>}
+        </div>
       </div>
     </div>
   );

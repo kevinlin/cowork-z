@@ -286,6 +286,9 @@ Key logic:
 **New directory: `src/components/arena/`**
 
 **`ArenaInputBar.tsx`** — Shared input at top of Arena page
+- 3 model-picker trigger buttons in a row above the textarea, each showing `{providerName} / {modelName}` or "Select model" placeholder
+- Clicking a model button opens `ArenaModelPickerDialog` for that column index
+- `onModelSelected` callback calls `arenaStore.setColumnModel(index, modelId, displayName)`
 - Textarea + Send button (same styling as `TaskInputBar`)
 - On submit: if no arena started → `arenaStore.startArena(prompt)`; if existing → `arenaStore.sendFollowUp(prompt)`
 - Disabled when all 3 agents are running
@@ -295,21 +298,28 @@ Key logic:
 - `flex flex-row gap-0` with thin borders between columns
 - Renders 3 `ArenaColumn` components
 
-**`ArenaColumn.tsx`** — Single agent column
-- Header: model name badge + status indicator
-- Body: Reuses `MessageList` component with per-column props:
-  - `messages={column.task?.messages ?? []}`
-  - `partialMessages={column.partialMessages}`
-  - `isTaskRunning={column.status === 'running'}`
-- Independent scroll per column
-- Compact mode styling (narrower message width)
+**`ArenaColumn.tsx`** — Single agent column with rich message rendering
+- Header: model name badge + status indicator (inline `StatusBadge`)
+- Body: **Reuses `MessageBubble` from `src/components/chat/MessageBubble.tsx`** for full-featured message rendering:
+  - Markdown parsing (ReactMarkdown + remark-gfm) for headings, bold, italics, tables, blockquotes, lists
+  - Code block syntax highlighting with prose typography
+  - URL and file path detection with clickable links (`EnhancedLink`)
+  - Media gallery for images/videos (`MediaGallery`)
+  - Tool call cards (`ToolCallCard`) for tool messages
+  - Copy-to-clipboard button on hover
+  - Bash tool messages filtered out (consistent with `Execution.tsx`)
+- For **streaming/partial messages**: render `MessageBubble` with `isRealStreaming={partial.isStreaming}` and a synthetic `TaskMessage` object built from `partial.textSoFar`
+- Remove the inline `MessageItem` and `PartialMessageItem` plain-text components — replace entirely with `MessageBubble`
+- Independent scroll per column with auto-scroll-to-bottom behavior
+- Messages rendered in a scrollable container; `MessageBubble` adapts its `max-w-4xl` to the column width
 
 **`ArenaModelPickerDialog.tsx`** — Per-column model selection dialog
-- Reuses `ProviderGrid` and `ProviderSettingsPanel` from `src/components/settings/`
-- Uses `useProviderSettings()` hook for provider/model state
-- Opens per-column from `ArenaInputBar` trigger buttons
-- Full provider connection + model selection UX (same as Settings Dialog)
-- "Select Model" button confirms and writes back to `arenaStore.setColumnModel()`
+- Props: `open`, `onOpenChange`, `columnIndex`, `currentModelId`, `onModelSelected(modelId, displayName)`
+- Uses `useProviderSettings()` hook (from `src/components/settings/hooks/useProviderSettings.ts`)
+- Renders `ProviderGrid` for provider browsing; on selection, renders `ProviderSettingsPanel` below (same layout as `SettingsDialog`)
+- Full provider connection + model selection UX: connect API keys, browse/search models
+- "Select Model" button reads the provider's `selectedModelId`, calls `onModelSelected(fullModelId, displayName)`, and closes
+- Reused components (no changes needed): `ProviderGrid.tsx`, `ProviderSettingsPanel.tsx`, `useProviderSettings.ts`, `ModelSelector.tsx`
 
 **`ArenaColumnHeader.tsx`** — Column header with model name and status
 - Model display name (or "Select model" placeholder)
@@ -319,26 +329,30 @@ Key logic:
 ### Step 13: Home Page — Arena Entry Point
 
 **File: `src/pages/Home.tsx`**
-- Add "Arena" button/toggle near the task input area (e.g., a tab or icon button next to the existing input)
-- Clicking navigates to a new Arena setup page or toggles the input into Arena mode
-- Simple approach: "Arena" button navigates to `/arena/new` which shows the setup UI (3 model pickers + input bar)
-- Alternative: inline toggle on Home that changes the layout
+- Add a compact "Arena" button in the **top-right corner** of the Home page (absolute positioning)
+- Button text: `Columns3` icon + "Arena" (short label only)
+- Full description "Compare 3 models side-by-side" shown as a **tooltip on hover** (`title` attribute)
+- Clicking navigates to `/arena/new` which shows the Arena setup UI (3 model pickers + input bar)
+- Styling: subtle `border border-border bg-card/80` button that doesn't compete with the main task input
+- Implementation: add `relative` to the page container div, place the button in an `absolute right-6 top-6` wrapper
 
 ### Step 14: Sidebar — Arena Session List
 
 **File: `src/components/layout/Sidebar.tsx`**
 - Load arenas via `api.listArenas(workspaceId)` alongside tasks
-- Merge arenas and tasks by `createdAt` for interleaved display
+- Merge arenas and tasks by `createdAt` for **interleaved chronological display** (arena sessions appear alongside regular task sessions, sorted by `createdAt DESC`)
 - Filter out tasks that have `arenaId` set (they belong to an arena, not standalone)
 - Render `ArenaListItem` for arena entries
 
 **New file: `src/components/layout/ArenaListItem.tsx`**
-- Visual differentiation: `Columns3` icon from lucide-react (instead of message icon)
-- Shows arena prompt as display text (truncated)
+- **Visual differentiation via icon:** `Columns3` icon from lucide-react (instead of the message icon used by regular conversations)
+- Shows arena prompt as display text (truncated), with full prompt in `title` tooltip
+- Status indicator: `StatusDot` component — green (running), red (failed), gray (other)
+- Running state: `Loader2` spinning icon replaces `Columns3`
 - Derived status: running if any task running, completed if all done, failed if any failed
 - Click navigates to `/arena/<arenaId>`
-- Context menu: Rename, Delete (delete calls `api.deleteArena`)
-- Distinct background or accent color to stand out from regular conversations
+- Delete button: appears on hover with confirmation dialog
+- Same styling pattern as `ConversationListItem` (hover background, active highlight, transition animations)
 
 ### Step 15: Update `taskStore` — Filter Arena Tasks
 
@@ -374,12 +388,12 @@ Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
 | `src/pages/Arena.tsx` | New | Arena page with event subscriptions |
 | `src/components/arena/ArenaInputBar.tsx` | New | Shared input bar |
 | `src/components/arena/ArenaColumns.tsx` | New | 3-column layout container |
-| `src/components/arena/ArenaColumn.tsx` | New | Single column (header + messages) |
+| `src/components/arena/ArenaColumn.tsx` | New | Single column — reuses `MessageBubble` for rich markdown rendering |
 | `src/components/arena/ArenaColumnHeader.tsx` | New | Model name + status badge |
 | `src/components/arena/ArenaModelPickerDialog.tsx` | New | Model selection dialog (reuses ProviderGrid + ProviderSettingsPanel) |
 | `src/components/layout/ArenaListItem.tsx` | New | Sidebar arena entry |
 | `src/components/layout/Sidebar.tsx` | Edit | Load & render arena items |
-| `src/pages/Home.tsx` | Edit | Add Arena entry point button |
+| `src/pages/Home.tsx` | Edit | Compact Arena button in top-right corner with tooltip |
 | `src/App.tsx` | Edit | Add /arena/:arenaId route |
 
 ---
@@ -401,15 +415,25 @@ Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
 1. `pnpm typecheck` — must pass
 2. `cd src-tauri && cargo check` — must pass
 3. `cd src-tauri/sidecar-opencode && pnpm build && pnpm test` — must pass
-4. Manual testing:
-   - Open app → navigate to Arena from Home
+4. Manual testing — Arena entry point:
+   - Open app → verify "Arena" button is in top-right corner of Home page
+   - Hover over button → verify tooltip shows "Compare 3 models side-by-side"
+   - Click button → navigates to `/arena/new`
+5. Manual testing — Arena execution:
    - Select 3 different models in the column pickers
    - Submit a prompt → verify all 3 agents start and stream responses
    - Verify messages appear in correct columns
+   - Verify **rich markdown rendering**: headings, code blocks, bold/italic, tables render correctly
+   - Verify **clickable links**: URLs and file paths are clickable in Arena columns
+   - Verify **streaming**: partial messages show with streaming animation, not plain text
+   - Verify **tool messages**: tool calls render as `ToolCallCard`, bash tool messages are filtered out
+   - Verify **copy button**: hover over assistant message shows copy-to-clipboard button
    - Verify permission requests show with column indicator
-   - Verify Arena appears in sidebar with distinct icon
-   - Click Arena in sidebar → returns to Arena view
    - Send follow-up message → all 3 agents respond
-   - Verify non-Arena tasks still work normally
    - Verify `abort_arena` stops all 3 agents
+6. Manual testing — Sidebar:
+   - Verify Arena appears in sidebar session list with `Columns3` icon (distinct from regular task icon)
+   - Verify Arena sessions are interleaved chronologically with regular tasks
+   - Click Arena in sidebar → returns to Arena view
    - Verify Arena tasks don't appear as separate items in sidebar
+   - Verify non-Arena tasks still work normally

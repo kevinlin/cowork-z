@@ -125,8 +125,8 @@ export const MessageBubble = memo(
       return (
         <motion.div
           animate={{ opacity: 1, y: 0 }}
-          className="group flex w-full min-w-0 flex-col items-start"
-          initial={{ opacity: 0, y: 8 }}
+          className="flex w-full min-w-0 flex-col items-start"
+          initial={{ opacity: 0, y: 4 }}
           transition={springs.gentle}
         >
           <ToolCallCard isLastMessage={isLastMessage} isRunning={isRunning} message={message} />

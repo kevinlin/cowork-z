@@ -5,6 +5,7 @@
 ## v0.6.1
 
 - **Fix: Arena question requests** — Agent questions (e.g., asking the user to choose an output folder) are now handled in Arena mode; previously the question was silently dropped and the agent hung waiting for a response
+- **Tool call cards redesign** — Tool call rows restyled with reduced padding, borderless design, and smaller icons; hover reveals copy and expand controls; file-based tools (Read, Write, Edit) show an "Open in file viewer" button on hover
 
 
 ## v0.6.0

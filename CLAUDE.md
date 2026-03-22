@@ -88,13 +88,6 @@ pnpm test:coverage       # Coverage report
 pnpm test path/to/file   # Run specific test file
 ```
 
-**Example test locations:**
-- UI components: `src/components/ui/__tests__/`
-- Layout components: `src/components/layout/__tests__/`
-- Sidebar components: `src/components/sidebar/__tests__/`
-- Pages: `src/pages/__tests__/`
-- Store: `src/stores/__tests__/`
-
 #### Sidecar (Jest)
 
 ```bash
@@ -176,52 +169,15 @@ pnpm build:binary:linux-arm64  # Linux ARM64
 
 #### State Management (Zustand)
 
-- `src/stores/taskStore.ts` — Tasks, permissions, questions, active task, UI state (settings, launcher)
-- `src/stores/workspaceStore.ts` — Workspace list, active workspace, `initialize()` / `switchWorkspace()` / `addWorkspace()` / `removeWorkspace()`
-- `src/stores/filePreviewStore.ts` — File preview panel state: `openPreview()`, `openPreviewByPath()`, `closePreview()`, fullscreen toggle
-- `src/stores/skillsStore.ts` — Installed skills list for slash-command autocomplete
-- `src/stores/skillsManagerStore.ts` — Skills Manager window state: repos, repo skills, installed skills, target folder selection, search/filter
+Stores live in `src/stores/`. The primary store is `taskStore.ts` (tasks, permissions, questions, active task, UI state). Other stores: `workspaceStore.ts`, `filePreviewStore.ts`, `skillsStore.ts`, `skillsManagerStore.ts`.
 
-#### Component Organization
-
-- `src/components/layout/` — App shell (Sidebar, SettingsDialog)
-- `src/components/ui/` — Radix UI + shadcn/ui primitives
-- `src/components/sidebar/` — Sidebar panels (FileTreePanel, TodoPanel, ArtifactsPanel, FolderPanel)
-- `src/components/file-preview/` — File preview panel: `FilePreviewPanel.tsx`, per-type renderers (`CodePreview`, `MarkdownPreview`, `MediaPreview`, `PdfPreview`, `HtmlPreview`, `TextPreview`, `BinaryPreview`), `preview-utils.ts`
-- `src/components/settings/` — Provider configuration forms
-- `src/components/markdown/` — Rich message rendering (EnhancedLink, file/URL detection)
-- `src/components/media/` — Image/video thumbnails and modals
-- `src/components/landing/` — Task input bar and drag-drop integration
-- `src/components/skills-manager/` — Skills Manager window UI (repo management, skill grid, file tree)
-
-#### Custom Hooks
-
-- `src/hooks/useFileTree.ts` — Lazy-loading file tree with search and filtering predicates
-- `src/hooks/useKeyboardShortcuts.ts` — App-level and chat-level shortcuts
-- `src/hooks/useTheme.ts` — Theme management (light/dark mode)
-- `src/hooks/useAppUpdate.ts` — Auto-update check on app launch
-- `src/hooks/useSkillAutocomplete.ts` — Slash-command skill autocomplete for chat input (activates on `/` prefix)
-
-#### Shared Types
-
-- `src/shared/types/task.ts` — `Task`, `TaskMessage`, `TaskStatus`, `TaskProgress`, `Todo`, `Artifact`, `PartialMessage`
-- `src/shared/types/workspace.ts` — `Workspace`, `DirectoryEntry`
-
-### Key Source Locations
+#### Key Source Locations
 
 - **`src/lib/tauri-api.ts`** — Centralized frontend API bridge. All Tauri `invoke()` calls and `listen()` event subscriptions go through here. This is the contract between frontend and Rust.
-- **`src/lib/tauri-api-interface.ts`** — `TauriAPI` interface abstracting the backend. Wraps `getTauriApi()` from `tauri-api.ts` with synchronous event unlisteners.
-- **`src/stores/taskStore.ts`** — Zustand store for all app state: tasks, permissions, questions, UI state.
 - **`src-tauri/src/lib.rs`** — App entry point (`run()`), plugin registration, menu setup, and `invoke_handler` command registration.
-- **`src-tauri/src/commands/`** — Tauri command handlers, organized by domain: `tasks.rs`, `settings.rs`, `api_keys.rs`, `providers.rs`, `folder_permissions.rs`, `ollama.rs`, `bedrock.rs`, `azure_foundry.rs`, `litellm.rs`, `opencode_cli.rs`, `updates.rs`, `app_info.rs`, `logging.rs`, `files.rs`, `packs.rs`, `skills.rs`, `workspaces.rs`, `copilot.rs`.
-- **`src-tauri/src/db/`** — SQLite persistence layer: `tasks.rs`, `settings.rs`, `providers.rs`, `folder_permissions.rs`, `workspaces.rs`, `skill_repos.rs`, `migrations.rs`. Dev builds use `cowork-dev.db`, release builds use `cowork.db`. WAL mode and foreign keys enabled.
+- **`src-tauri/src/commands/`** — Tauri command handlers, organized by domain (one file per domain).
+- **`src-tauri/src/db/`** — SQLite persistence layer. Dev builds use `cowork-dev.db`, release builds use `cowork.db`. WAL mode and foreign keys enabled.
 - **`src-tauri/src/sidecar.rs`** — Sidecar process lifecycle, IPC serialization (`SidecarCommand` enum), and event routing.
-- **`src-tauri/src/types.rs`** — Shared Rust types (serializable structs for IPC).
-- **`src-tauri/src/secure_storage.rs`** — OS Keychain wrapper (keyring crate).
-- **`src-tauri/src/fs_watcher.rs`** — Filesystem watcher (300ms debounce) for the active workspace, emits `workspace:fs_changed` events.
-- **`src-tauri/src/git_ops.rs`** — Git operations (shallow clone, pull, token injection) for skill repo sync.
-- **`src-tauri/src/skill_discovery.rs`** — Skill discovery from cloned repos: convention-based (`SKILL.md` scan), manifest-based (`skills.json`), and specialized adapters for known repos.
-- **`src-tauri/src/workspace_validator.rs`** — Platform-aware workspace path validation (blocks system dirs, drive roots, exact home directory).
 - **`src-tauri/sidecar-opencode/src/types.ts`** — Single source of truth for the IPC protocol between Rust and sidecar.
 
 ## Conventions & Patterns
@@ -251,6 +207,19 @@ See `src/components/sidebar/FileTreePanel.tsx` (drag source) and `src/components
 Implemented via `src/hooks/useKeyboardShortcuts.ts`:
 - **App-level:** `Cmd+,` (settings), `Cmd+N` (new task), `Cmd+K` (launcher)
 - **Chat-level:** `Cmd+Enter` (send), `Escape` (cancel)
+
+### Containing `<pre>` and `<div>` Width in Flex Layouts
+
+When rendering `<pre>` blocks or wide content inside flex children (e.g., expandable tool call cards, code blocks in chat), two CSS issues cause content to overflow the parent container:
+
+1. **Flex children default to `min-width: auto`**, which allows content to push the container wider than its parent. Always add `min-w-0` to flex children that contain wide content.
+2. **`<pre>` elements preserve whitespace and don't wrap by default**, so long lines (JSON, file paths, command output) extend horizontally without limit.
+
+**Required pattern for contained `<pre>` blocks:**
+- Wrapper `<div>`: `min-w-0 overflow-hidden` — establishes a width boundary and creates a block formatting context
+- `<pre>` element: `whitespace-pre-wrap break-words overflow-auto` — wraps long lines within the container while preserving indentation, with scrollbars for vertical overflow
+
+Never use bare `<pre>` inside a flex layout without `whitespace-pre-wrap break-words` — it will overflow. See `src/components/chat/ToolCallCard.tsx` (expanded state) for the reference implementation.
 
 ### Inline Text Inputs inside Radix Primitives
 

@@ -441,20 +441,36 @@ Both share the same `id` (derived from `part.messageID` or `part.id`). The `addT
 
 ### ToolCallCard Component
 
-Tool-type messages render as `ToolCallCard` — a collapsible card with two states:
+Tool-type messages render as `ToolCallCard` — a compact, borderless collapsible row styled after Cursor's tool call UI.
+
+#### Visual Style
+
+- **Borderless** — `rounded-md bg-muted/30` with no border; subtle `bg-muted/50` on hover, `bg-muted/60` when expanded
+- **Compact** — `px-2.5 py-1.5` padding, `gap-1.5` between elements, smaller icon sizes (`h-3`/`h-3.5`)
+- **Grouped** — Consecutive tool calls stack with minimal `mt-1` gap (set in `MessageList`)
+- **Entrance animation** — `y: 4` (reduced from 8) for subtle slide-in
 
 #### Collapsed State (Default)
 
 A single-row button displaying:
-1. **Expand toggle** — `ChevronRight`/`ChevronDown` icon (or blank spacer if no expandable content)
-2. **Tool icon** — From `TOOL_PROGRESS_MAP` lookup
-3. **Human-readable label** — From `TOOL_PROGRESS_MAP` (e.g., "Reading files" for `Read`)
-4. **Input summary** — Truncated monospace text (file path, command, search query)
-5. **Status icon** — `SpinningIcon` (counter-clockwise animation) when active, `Check` when completed
+1. **Expand toggle** — `ChevronRight`/`ChevronDown` icon (`h-3 w-3`, or blank spacer if no expandable content)
+2. **Tool icon** — From `TOOL_PROGRESS_MAP` lookup (`h-3.5 w-3.5`)
+3. **Human-readable label** — From `TOOL_PROGRESS_MAP` (e.g., "Reading files" for `Read`), `text-xs`
+4. **Input summary** — Truncated monospace text (file path, command, search query), `text-xs`
+5. **Status icon** — `SpinningIcon` (`h-3 w-3`) when active, `Check` when completed
+
+#### Hover Controls
+
+On mouse-over (`group-hover/tool`), a row of small icon buttons (`h-5 w-5` hit area, `h-3 w-3` icons) appears to the left of the status icon:
+
+- **Open in file viewer** — `ExternalLink` icon, shown only for file-based tools (`Read`, `Write`, `Edit`, `MultiEdit`, `patch`, `multiedit`) when `toolInput` contains a `path` or `file_path` field. Calls `useFilePreviewStore.getState().openPreviewByPath(filePath)` to open the file in the built-in preview panel.
+- **Copy** — `Copy`/`Check` icon, copies `toolInput` + `toolOutput` to clipboard. Shows a green checkmark for 1 second after copying.
+
+Both buttons use `e.stopPropagation()` to prevent triggering the expand/collapse toggle. The controls container uses `opacity-0 group-hover/tool:opacity-100 transition-opacity`.
 
 #### Expanded State
 
-Two sections in monospace `<pre>` blocks with `max-h-48` scrollable overflow:
+Two sections in monospace `<pre>` blocks with `max-h-48` scrollable overflow, `text-[11px]` font size:
 - **Input**: `JSON.stringify(message.toolInput, null, 2)` (or raw string if already a string)
 - **Output**: `message.toolOutput` as raw text (only shown when present)
 

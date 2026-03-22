@@ -1,8 +1,14 @@
-import { BookOpen, Brain, Check, ChevronDown, ChevronRight, FileText, Search, Terminal, Wrench } from 'lucide-react';
-import { memo, useState } from 'react';
+import { BookOpen, Brain, Check, ChevronDown, ChevronRight, Copy, ExternalLink, FileText, Search, Terminal, Wrench } from 'lucide-react';
+import { memo, useCallback, useRef, useState } from 'react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { TaskMessage } from '@/shared';
+import { useFilePreviewStore } from '@/stores/filePreviewStore';
 import loadingSymbol from '/assets/loading-symbol.svg';
+
+const COPIED_STATE_DURATION_MS = 1000;
+
+const FILE_TOOLS = new Set(['Read', 'Write', 'Edit', 'MultiEdit', 'patch', 'multiedit']);
 
 const SpinningIcon = ({ className }: { className?: string }) => (
   <img alt="" className={cn('animate-spin-ccw', className)} src={loadingSymbol} />
@@ -68,6 +74,15 @@ function getToolInputSummary(toolName: string | undefined, toolInput: unknown): 
   }
 }
 
+function getFilePath(toolName: string | undefined, toolInput: unknown): string | null {
+  if (!(toolName && FILE_TOOLS.has(toolName))) return null;
+  if (!toolInput || typeof toolInput !== 'object') return null;
+  const input = toolInput as Record<string, unknown>;
+  if (typeof input.path === 'string') return input.path;
+  if (typeof input.file_path === 'string') return input.file_path;
+  return null;
+}
+
 interface ToolCallCardProps {
   message: TaskMessage;
   isLastMessage?: boolean;
@@ -76,6 +91,8 @@ interface ToolCallCardProps {
 
 export const ToolCallCard = memo(function ToolCallCard({ message, isLastMessage = false, isRunning = false }: ToolCallCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const toolName = message.toolName || message.content?.match(/Using tool: (\w+)/)?.[1] || '';
   const toolInfo = TOOL_PROGRESS_MAP[toolName];
@@ -84,53 +101,128 @@ export const ToolCallCard = memo(function ToolCallCard({ message, isLastMessage 
   const summary = getToolInputSummary(toolName, message.toolInput);
   const isActive = isLastMessage && isRunning;
   const hasExpandableContent = message.toolInput !== undefined || message.toolOutput !== undefined;
+  const filePath = getFilePath(toolName, message.toolInput);
+
+  const handleCopy = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const parts: string[] = [];
+      if (message.toolInput !== undefined) {
+        parts.push(typeof message.toolInput === 'string' ? message.toolInput : JSON.stringify(message.toolInput, null, 2));
+      }
+      if (message.toolOutput) {
+        parts.push(message.toolOutput);
+      }
+      try {
+        await navigator.clipboard.writeText(parts.join('\n\n'));
+        setCopied(true);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => setCopied(false), COPIED_STATE_DURATION_MS);
+      } catch {
+        // clipboard write failed
+      }
+    },
+    [message.toolInput, message.toolOutput]
+  );
+
+  const handleOpenFile = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (filePath) {
+        useFilePreviewStore.getState().openPreviewByPath(filePath);
+      }
+    },
+    [filePath]
+  );
+
+  const handleToggle = useCallback(() => {
+    if (hasExpandableContent) setIsExpanded((prev) => !prev);
+  }, [hasExpandableContent]);
 
   return (
-    <div className={cn('w-full min-w-0 rounded-lg border border-border bg-muted/50 transition-colors', isExpanded && 'bg-muted/80')}>
+    <div
+      className={cn('group/tool w-full min-w-0 rounded-md transition-colors', isExpanded ? 'bg-muted/60' : 'bg-muted/30 hover:bg-muted/50')}
+    >
       <button
-        className={cn(
-          'flex w-full items-center gap-2 px-3 py-2 text-left text-sm',
-          hasExpandableContent && 'cursor-pointer hover:bg-muted/70'
-        )}
+        className={cn('flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left text-sm', hasExpandableContent && 'cursor-pointer')}
         disabled={!hasExpandableContent}
-        onClick={() => hasExpandableContent && setIsExpanded(!isExpanded)}
+        onClick={handleToggle}
         type="button"
       >
         {hasExpandableContent ? (
           isExpanded ? (
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/60" />
           ) : (
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/60" />
           )
         ) : (
-          <span className="w-3.5" />
+          <span className="w-3" />
         )}
 
-        <ToolIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <ToolIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 
-        <span className="font-medium text-muted-foreground">{label}</span>
+        <span className="font-medium text-muted-foreground text-xs">{label}</span>
 
-        {summary && <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground/70 text-xs">{summary}</span>}
+        {summary && <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground/60 text-xs">{summary}</span>}
 
-        <span className="ml-auto shrink-0">
-          {isActive ? <SpinningIcon className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5 text-muted-foreground/50" />}
+        <span className="ml-auto flex shrink-0 items-center gap-0.5">
+          <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/tool:opacity-100">
+            {filePath && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+                    onClick={handleOpenFile}
+                    onKeyDown={(e) => e.key === 'Enter' && handleOpenFile(e as unknown as React.MouseEvent)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">Open in file viewer</TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={cn(
+                    'inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground',
+                    copied && 'text-green-600'
+                  )}
+                  onClick={handleCopy}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCopy(e as unknown as React.MouseEvent)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">{copied ? 'Copied' : 'Copy'}</TooltipContent>
+            </Tooltip>
+          </span>
+          <span className="ml-0.5">
+            {isActive ? <SpinningIcon className="h-3 w-3" /> : <Check className="h-3 w-3 text-muted-foreground/40" />}
+          </span>
         </span>
       </button>
 
       {isExpanded && (
-        <div className="border-border border-t px-3 py-2 text-xs">
+        <div className="min-w-0 overflow-hidden px-2.5 py-1.5 text-xs">
           {message.toolInput !== undefined && (
-            <div className="mb-2">
-              <p className="mb-1 font-medium text-muted-foreground">Input</p>
-              <pre className="max-h-48 overflow-auto rounded bg-background p-2 font-mono text-foreground">
+            <div className="mb-1.5">
+              <p className="mb-0.5 font-medium text-[11px] text-muted-foreground">Input</p>
+              <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-background/80 p-2 font-mono text-[11px] text-foreground leading-relaxed">
                 {typeof message.toolInput === 'string' ? message.toolInput : JSON.stringify(message.toolInput, null, 2)}
               </pre>
             </div>
           )}
           {message.toolOutput && (
             <div>
-              <p className="mb-1 font-medium text-muted-foreground">Output</p>
-              <pre className="max-h-48 overflow-auto rounded bg-background p-2 font-mono text-foreground">{message.toolOutput}</pre>
+              <p className="mb-0.5 font-medium text-[11px] text-muted-foreground">Output</p>
+              <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-background/80 p-2 font-mono text-[11px] text-foreground leading-relaxed">
+                {message.toolOutput}
+              </pre>
             </div>
           )}
         </div>

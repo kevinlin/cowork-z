@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.6.2
+
+- 
+
 ## v0.6.1
 
 - **Fix: Arena question requests** — Agent questions (e.g., asking the user to choose an output folder) are now handled in Arena mode; previously the question was silently dropped and the agent hung waiting for a response

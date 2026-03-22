@@ -9,6 +9,7 @@ import type {
   PartialMessageEvent,
   PermissionRequest,
   PermissionResponse,
+  QuestionRequest,
   Task,
   TaskMessage,
   TaskStatus,
@@ -45,6 +46,9 @@ interface ArenaState {
   /** Derived: first item in the queue (shown in modal) */
   permissionRequest: PermissionRequest | null;
 
+  /** Active question request (shown in dialog) */
+  questionRequest: QuestionRequest | null;
+
   /** Arena list for sidebar */
   arenas: ArenaListItem[];
 
@@ -68,6 +72,9 @@ interface ArenaState {
   handleStatusChange: (taskId: string, status: TaskStatus) => void;
   handlePermissionRequest: (request: PermissionRequest) => void;
   respondToPermission: (response: PermissionResponse) => Promise<void>;
+  handleQuestionRequest: (request: QuestionRequest) => void;
+  respondToQuestion: (answers: Array<{ labels: string[]; customText?: string }>) => Promise<void>;
+  cancelQuestion: () => void;
 }
 
 function createMessageId(): string {
@@ -140,6 +147,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   columns: [createEmptyColumn(), createEmptyColumn(), createEmptyColumn()],
   permissionRequests: [],
   permissionRequest: null,
+  questionRequest: null,
   arenas: [],
 
   // ---- Model configuration ----
@@ -243,6 +251,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       columns: newColumns,
       permissionRequests: [],
       permissionRequest: null,
+      questionRequest: null,
     });
   },
 
@@ -267,6 +276,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
             ],
             permissionRequests: [],
             permissionRequest: null,
+            questionRequest: null,
           }
         : {}),
     }));
@@ -292,6 +302,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       columns: [createEmptyColumn(), createEmptyColumn(), createEmptyColumn()],
       permissionRequests: [],
       permissionRequest: null,
+      questionRequest: null,
     });
   },
 
@@ -489,5 +500,25 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         permissionRequest: queue[0] ?? null,
       };
     });
+  },
+
+  handleQuestionRequest: (request) => {
+    const { columns } = get();
+    const idx = findColumnByTaskId(columns, request.taskId);
+    if (idx === -1) return;
+
+    set({ questionRequest: request });
+  },
+
+  respondToQuestion: async (answers) => {
+    const { questionRequest } = get();
+    if (!questionRequest) return;
+
+    await api.replyToQuestion(questionRequest.taskId, questionRequest.requestId, answers);
+    set({ questionRequest: null });
+  },
+
+  cancelQuestion: () => {
+    set({ questionRequest: null });
   },
 }));

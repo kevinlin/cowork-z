@@ -387,6 +387,29 @@ Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
 - Extract `arenaId` from `ResumeSessionPayload` destructuring in `resumeSession()` (line 379)
 - Include `arenaId` in the resume log for debugging
 
+### Step 17: Fix Arena Question Request Handling
+
+**Bug:** When an arena agent calls the `question` tool (e.g., to ask the user about an output folder), the question is silently dropped and the agent hangs waiting for a response.
+
+**Root cause:** The Arena page subscribes to permission requests but never subscribes to `task:question_request` Tauri events. The `arenaStore` has no `questionRequest` state, no handler, and no UI — the event is broadcast globally by Rust but nothing on the Arena page listens for it. The normal Execution page handles this correctly via `api.onQuestionRequest` + `QuestionDialog`.
+
+**Fix — `src/stores/arenaStore.ts`:**
+- Import `QuestionRequest` from `@/shared`
+- Add `questionRequest: QuestionRequest | null` state field
+- Add `handleQuestionRequest(request)`: filter by arena column `taskId` (same guard as `handlePermissionRequest`), then set state
+- Add `respondToQuestion(answers)`: call `api.replyToQuestion(taskId, requestId, answers)`, then clear state
+- Add `cancelQuestion()`: clear state without replying
+- Clear `questionRequest` in `reset()`, `loadArena()`, and `deleteArena()`
+
+**Fix — `src/pages/Arena.tsx`:**
+- Import `QuestionDialog` from `@/components/chat/QuestionDialog`
+- Destructure `questionRequest`, `handleQuestionRequest`, `respondToQuestion`, `cancelQuestion` from store
+- Add `api.onQuestionRequest` subscription in the event `useEffect` (alongside `onPermissionRequest`)
+- Add `handleQuestionSubmit` and `handleQuestionCancel` callbacks
+- Render `<QuestionDialog>` when `questionRequest` is non-null (below `PermissionModal`)
+
+**No backend changes needed** — the existing `reply_to_question` Rust command and sidecar `replyToQuestion()` are task-ID-parameterized and already work for arena tasks.
+
 ---
 
 ## Files Modified (Summary)
@@ -408,8 +431,8 @@ Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
 | `src/shared/types/arena.ts` | New | Arena TypeScript types |
 | `src/shared/types/task.ts` | Edit | Add arenaId, arenaSlot, modelId to Task/TaskConfig |
 | `src/lib/tauri-api.ts` | Edit | Add arena API functions |
-| `src/stores/arenaStore.ts` | New | Arena Zustand store |
-| `src/pages/Arena.tsx` | New | Arena page with event subscriptions |
+| `src/stores/arenaStore.ts` | New | Arena Zustand store (incl. question request handling) |
+| `src/pages/Arena.tsx` | New | Arena page with event subscriptions (incl. question request + QuestionDialog) |
 | `src/components/arena/ArenaInputBar.tsx` | New | Shared input bar |
 | `src/components/arena/ArenaColumns.tsx` | New | 3-column layout container |
 | `src/components/arena/ArenaColumn.tsx` | New | Single column — reuses `MessageBubble` for rich markdown rendering |
@@ -441,6 +464,7 @@ Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
    - Verify **tool messages**: tool calls render as `ToolCallCard`, bash tool messages are filtered out
    - Verify **copy button**: hover over assistant message shows copy-to-clipboard button
    - Verify permission requests show with column indicator
+   - Verify question requests show `QuestionDialog` and agent resumes after reply
    - Send follow-up message → all 3 agents respond
    - Verify `abort_arena` stops all 3 agents
 6. Manual testing — Sidebar:

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArenaColumns } from '@/components/arena/ArenaColumns';
 import { ArenaInputBar } from '@/components/arena/ArenaInputBar';
 import { PermissionModal } from '@/components/chat/PermissionModal';
+import { QuestionDialog } from '@/components/chat/QuestionDialog';
 import * as api from '@/lib/tauri-api';
 import { useArenaStore } from '@/stores/arenaStore';
 
@@ -21,6 +22,10 @@ export default function ArenaPage() {
     handlePermissionRequest,
     respondToPermission,
     permissionRequest,
+    handleQuestionRequest,
+    respondToQuestion,
+    cancelQuestion,
+    questionRequest,
     columns,
   } = useArenaStore();
 
@@ -74,6 +79,13 @@ export default function ArenaPage() {
       })
       .then(track);
 
+    // Question requests
+    api
+      .onQuestionRequest((request) => {
+        handleQuestionRequest(request);
+      })
+      .then(track);
+
     // Status changes
     api
       .onTaskStatusChange((data) => {
@@ -105,6 +117,7 @@ export default function ArenaPage() {
     handleTaskUpdate,
     handleTaskUpdateBatch,
     handlePermissionRequest,
+    handleQuestionRequest,
     handleStatusChange,
     handlePartialMessage,
     handlePartialMessageComplete,
@@ -125,6 +138,17 @@ export default function ArenaPage() {
     [permissionRequest, respondToPermission]
   );
 
+  const handleQuestionSubmit = useCallback(
+    async (answers: Array<{ labels: string[]; customText?: string }>) => {
+      await respondToQuestion(answers);
+    },
+    [respondToQuestion]
+  );
+
+  const handleQuestionCancel = useCallback(() => {
+    cancelQuestion();
+  }, [cancelQuestion]);
+
   // Check if any column has completed (allows follow-up)
   const isAllComplete = columns.every(
     (col) =>
@@ -144,6 +168,9 @@ export default function ArenaPage() {
 
       {/* Permission modal */}
       {permissionRequest && <PermissionModal onRespond={handlePermissionResponse} request={permissionRequest} />}
+
+      {/* Question dialog */}
+      {questionRequest && <QuestionDialog onCancel={handleQuestionCancel} onSubmit={handleQuestionSubmit} request={questionRequest} />}
     </div>
   );
 }

@@ -256,6 +256,14 @@ pub fn run() {
             commands::tasks::respond_to_permission,
             commands::tasks::reply_to_question,
             commands::tasks::resume_session,
+            // Arena operations
+            commands::arena::start_arena,
+            commands::arena::resume_arena,
+            commands::arena::get_arena,
+            commands::arena::list_arenas,
+            commands::arena::delete_arena,
+            commands::arena::abort_arena,
+            commands::arena::rename_arena,
             // Folder permissions
             commands::folder_permissions::save_folder_permission,
             commands::folder_permissions::get_folder_permissions,

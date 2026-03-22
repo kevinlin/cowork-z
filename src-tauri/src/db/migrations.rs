@@ -4,7 +4,7 @@
 use rusqlite::Connection;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 4;
+const CURRENT_VERSION: i32 = 5;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -278,6 +278,35 @@ fn migrate_v4(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v5: Arena support (side-by-side agent comparison)
+fn migrate_v5(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v5 (arena support)");
+
+    conn.execute_batch(
+        "CREATE TABLE arenas (
+            id TEXT PRIMARY KEY,
+            prompt TEXT NOT NULL,
+            workspace_id TEXT REFERENCES workspaces(id),
+            created_at TEXT NOT NULL,
+            completed_at TEXT
+        );
+
+        CREATE INDEX idx_arenas_workspace_id ON arenas(workspace_id);
+        CREATE INDEX idx_arenas_created_at ON arenas(created_at DESC);
+
+        ALTER TABLE tasks ADD COLUMN arena_id TEXT REFERENCES arenas(id);
+        ALTER TABLE tasks ADD COLUMN arena_slot INTEGER;
+        ALTER TABLE tasks ADD COLUMN model_id TEXT;
+
+        CREATE INDEX idx_tasks_arena_id ON tasks(arena_id);",
+    )
+    .map_err(|e| format!("Migration v5 failed: {}", e))?;
+
+    set_stored_version(conn, 5)?;
+    println!("[Migrations] Migration v5 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -312,6 +341,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
 
     if stored_version < 4 {
         migrate_v4(conn)?;
+    }
+
+    if stored_version < 5 {
+        migrate_v5(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

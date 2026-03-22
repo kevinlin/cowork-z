@@ -27,6 +27,15 @@ pub struct Task {
     pub started_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_id: Option<String>,
+    /// Arena ID if this task is part of an arena session
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arena_id: Option<String>,
+    /// Column position in arena (0, 1, 2)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arena_slot: Option<i32>,
+    /// Model used for this task (e.g., "anthropic/claude-sonnet-4-5")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +82,9 @@ pub struct TaskConfig {
     pub prompt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
+    /// Override model selection (used by Arena). Format: "provider/model-name"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
 }
 
 /// Folder permission for a task
@@ -334,4 +346,40 @@ pub struct DirectoryEntry {
     pub size: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extension: Option<String>,
+}
+
+// ============================================================================
+// Arena types — side-by-side agent comparison
+// ============================================================================
+
+/// Configuration for starting an arena session
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArenaConfig {
+    pub prompt: String,
+    pub models: Vec<ArenaModelConfig>,
+}
+
+/// Model configuration for a single arena column
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArenaModelConfig {
+    /// Full model ID, e.g. "anthropic/claude-sonnet-4-5"
+    pub model_id: String,
+    /// Display name, e.g. "Claude Sonnet 4.5"
+    pub display_name: String,
+}
+
+/// Arena response returned to frontend
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Arena {
+    pub id: String,
+    pub prompt: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
+    pub created_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<String>,
+    pub tasks: Vec<Task>,
 }

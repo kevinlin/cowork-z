@@ -1,3 +1,4 @@
+export * from './arena';
 export * from './auth';
 export * from './mcpSettings';
 export * from './opencode';

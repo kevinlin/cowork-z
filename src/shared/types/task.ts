@@ -28,6 +28,8 @@ export interface TaskConfig {
   outputSchema?: object;
   /** Session ID for resuming */
   sessionId?: string;
+  /** Override model selection (used by Arena). Format: "provider/model-name" */
+  modelId?: string;
 }
 
 export interface Task {
@@ -44,6 +46,12 @@ export interface Task {
   result?: TaskResult;
   /** Workspace ID this task belongs to */
   workspaceId?: string;
+  /** Arena ID if this task is part of an arena session */
+  arenaId?: string;
+  /** Column position in arena (0, 1, 2) */
+  arenaSlot?: number;
+  /** Model used for this task (e.g., "anthropic/claude-sonnet-4-5") */
+  modelId?: string;
 }
 
 export interface TaskAttachment {

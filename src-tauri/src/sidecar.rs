@@ -144,6 +144,12 @@ pub struct StartTaskPayload {
     pub custom_prompt: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_servers: Option<serde_json::Value>,
+    /// Skip PATCH /config call (Arena sends config once, subsequent tasks skip)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skip_config: Option<bool>,
+    /// Arena ID — prevents cleanup of sibling sessions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arena_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -165,6 +171,12 @@ pub struct ResumeSessionPayload {
     pub custom_prompt: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_servers: Option<serde_json::Value>,
+    /// Skip PATCH /config call (Arena sends config once, subsequent tasks skip)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skip_config: Option<bool>,
+    /// Arena ID — prevents cleanup of sibling sessions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arena_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

@@ -41,6 +41,7 @@ let processManager: ProcessManager | null = null;
 let eventStream: EventStream | null = null;
 let sessionManager: SessionManager | null = null;
 let currentDirectory: string | undefined;
+let initializePromise: Promise<void> | null = null;
 
 // ============================================================================
 // Initialization
@@ -52,8 +53,8 @@ async function initialize(
   modelId?: string,
   workingDirectory?: string
 ): Promise<void> {
-  if (processManager) {
-    // Already initialized — but reconnect SSE if directory changed
+  if (sessionManager) {
+    // Fully initialized — but reconnect SSE if directory changed
     if (eventStream && workingDirectory && workingDirectory !== currentDirectory) {
       logger.info('Workspace directory changed, reconnecting SSE stream', { from: currentDirectory, to: workingDirectory });
       currentDirectory = workingDirectory;
@@ -62,6 +63,26 @@ async function initialize(
     return;
   }
 
+  // Another call is already initializing — wait for it
+  if (initializePromise) {
+    await initializePromise;
+    return;
+  }
+
+  initializePromise = doInitialize(apiKeys, mcpServers, modelId, workingDirectory);
+  try {
+    await initializePromise;
+  } finally {
+    initializePromise = null;
+  }
+}
+
+async function doInitialize(
+  apiKeys?: ApiKeys,
+  mcpServers?: Record<string, unknown>,
+  modelId?: string,
+  workingDirectory?: string
+): Promise<void> {
   currentDirectory = workingDirectory;
 
   // Start process manager — picks a random available port and generates a password
@@ -243,6 +264,7 @@ async function handleStartTask(taskId: string, payload: StartTaskPayload): Promi
     await sessionManager.startTask(payload);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
     logger.error('Failed to start task', { taskId, error: message });
     send({
       type: 'task_error',

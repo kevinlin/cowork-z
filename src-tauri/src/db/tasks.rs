@@ -25,6 +25,12 @@ pub struct StoredTask {
     pub completed_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arena_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arena_slot: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
 }
 
 /// Stored task message representation
@@ -165,13 +171,14 @@ fn get_attachments_for_message(conn: &Connection, message_id: &str) -> Vec<Store
     att_iter.filter_map(|r| r.ok()).collect()
 }
 
-/// Get tasks for a specific workspace (limited to MAX_HISTORY_ITEMS)
+/// Get tasks for a specific workspace (limited to MAX_HISTORY_ITEMS).
+/// Excludes tasks that belong to an arena (they are displayed via the arena UI).
 pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<StoredTask> {
     let mut stmt = conn
         .prepare(
             "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id
              FROM tasks
-             WHERE workspace_id = ?1
+             WHERE workspace_id = ?1 AND arena_id IS NULL
              ORDER BY created_at DESC
              LIMIT ?2",
         )
@@ -209,6 +216,9 @@ pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Stor
                     started_at,
                     completed_at,
                     workspace_id: ws_id,
+                    arena_id: None,
+                    arena_slot: None,
+                    model_id: None,
                 }
             },
         )
@@ -258,6 +268,9 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
                     started_at,
                     completed_at,
                     workspace_id,
+                    arena_id: None,
+                    arena_slot: None,
+                    model_id: None,
                 }
             },
         )
@@ -299,6 +312,9 @@ pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
                 started_at,
                 completed_at,
                 workspace_id,
+                arena_id: None,
+                arena_slot: None,
+                model_id: None,
             })
         }
         Err(_) => None,
@@ -523,5 +539,60 @@ pub fn clear_history(conn: &Connection) -> Result<(), String> {
     conn.execute("DELETE FROM tasks", [])
         .map_err(|e| format!("Failed to clear history: {}", e))?;
     Ok(())
+}
+
+/// Get tasks for an arena, ordered by arena_slot (0, 1, 2)
+pub fn get_tasks_by_arena(conn: &Connection, arena_id: &str) -> Vec<StoredTask> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id, arena_id, arena_slot, model_id
+             FROM tasks
+             WHERE arena_id = ?1
+             ORDER BY arena_slot ASC",
+        )
+        .expect("Failed to prepare arena tasks query");
+
+    let task_iter = stmt
+        .query_map([arena_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<String>>(4)?,
+                row.get::<_, String>(5)?,
+                row.get::<_, Option<String>>(6)?,
+                row.get::<_, Option<String>>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, Option<String>>(9)?,
+                row.get::<_, Option<i32>>(10)?,
+                row.get::<_, Option<String>>(11)?,
+            ))
+        })
+        .expect("Failed to query arena tasks");
+
+    task_iter
+        .filter_map(|r| r.ok())
+        .map(
+            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id, arena_id, arena_slot, model_id)| {
+                let messages = get_messages_for_task(conn, &id);
+                StoredTask {
+                    id,
+                    prompt,
+                    summary,
+                    status,
+                    messages,
+                    session_id,
+                    created_at,
+                    started_at,
+                    completed_at,
+                    workspace_id,
+                    arena_id,
+                    arena_slot,
+                    model_id,
+                }
+            },
+        )
+        .collect()
 }
 

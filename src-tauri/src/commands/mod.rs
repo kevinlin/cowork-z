@@ -1,5 +1,6 @@
 pub mod api_keys;
 pub mod app_info;
+pub mod arena;
 pub mod azure_foundry;
 pub mod bedrock;
 pub mod copilot;

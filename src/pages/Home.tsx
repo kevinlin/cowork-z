@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { Columns3 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -92,6 +93,18 @@ export default function HomePage() {
           >
             What will you accomplish today?
           </motion.h1>
+
+          {/* Arena entry point */}
+          <motion.div animate={{ opacity: 1 }} initial={{ opacity: 0 }} transition={{ ...springs.gentle, delay: 0.05 }}>
+            <button
+              className="flex items-center gap-2 rounded-lg border border-border bg-card/80 px-4 py-2 text-muted-foreground text-sm transition-colors hover:bg-card hover:text-foreground"
+              onClick={() => navigate('/arena/new')}
+              type="button"
+            >
+              <Columns3 className="h-4 w-4" />
+              Arena — Compare 3 models side-by-side
+            </button>
+          </motion.div>
 
           <motion.div
             animate={{ opacity: 1, y: 0 }}

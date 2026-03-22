@@ -23,6 +23,7 @@ import { springs, variants } from './lib/animations';
 import { formatPathForChat } from './lib/file-utils';
 import { isRunningInTauri, setOnboardingComplete } from './lib/tauri-api';
 import { getThemeById } from './lib/themes';
+import ArenaPage from './pages/Arena';
 import ExecutionPage from './pages/Execution';
 // Pages
 import HomePage from './pages/Home';
@@ -249,6 +250,21 @@ export default function App() {
                 </motion.div>
               }
               path="/execution/:id"
+            />
+            <Route
+              element={
+                <motion.div
+                  animate="animate"
+                  className="h-full"
+                  exit="exit"
+                  initial="initial"
+                  transition={springs.gentle}
+                  variants={variants.fadeUp}
+                >
+                  <ArenaPage />
+                </motion.div>
+              }
+              path="/arena/:arenaId"
             />
             <Route element={<Navigate replace to="/" />} path="*" />
           </Routes>

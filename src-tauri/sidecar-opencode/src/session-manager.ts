@@ -300,24 +300,28 @@ export class SessionManager extends EventEmitter {
   }
 
   async startTask(payload: StartTaskPayload): Promise<void> {
-    const { taskId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, mcpServers } = payload;
+    const { taskId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, mcpServers, skipConfig, arenaId } = payload;
 
-    logger.info('Starting task', { taskId, prompt: prompt.slice(0, 100) });
+    logger.info('Starting task', { taskId, prompt: prompt.slice(0, 100), arenaId });
 
-    // Clean up any stale sessions left over from previous tasks that completed,
-    // errored, or were abandoned (e.g., user started a new task while the old
-    // one was blocked on a question/permission prompt).
-    const staleTaskIds = Array.from(this.sessions.keys()).filter((id) => id !== taskId);
-    for (const oldTaskId of staleTaskIds) {
-      const managed = this.sessions.get(oldTaskId);
-      logger.info('Cleaning up stale session', { oldTaskId, sessionId: managed?.sessionId, status: managed?.status });
-      this.cleanup(oldTaskId);
+    // Clean up stale sessions — but skip cleanup for arena tasks (all 3 must coexist)
+    if (!arenaId) {
+      const staleTaskIds = Array.from(this.sessions.keys()).filter((id) => id !== taskId);
+      for (const oldTaskId of staleTaskIds) {
+        const managed = this.sessions.get(oldTaskId);
+        logger.info('Cleaning up stale session', { oldTaskId, sessionId: managed?.sessionId, status: managed?.status });
+        this.cleanup(oldTaskId);
+      }
     }
 
-    // Push session-specific config via PATCH /config
-    const config = buildSessionConfig({ modelId, folderPermissions, mcpServers });
-    await this.client.updateConfig(config, workingDirectory);
-    logger.info('Config updated for session', config);
+    // Push session-specific config via PATCH /config (skip if arena already sent it)
+    if (skipConfig) {
+      logger.info('Skipping config update (arena skipConfig)', { taskId });
+    } else {
+      const config = buildSessionConfig({ modelId, folderPermissions, mcpServers });
+      await this.client.updateConfig(config, workingDirectory);
+      logger.info('Config updated for session', config);
+    }
 
     this.emit('progress', { taskId, stage: 'configuring' });
 
@@ -372,14 +376,15 @@ export class SessionManager extends EventEmitter {
   }
 
   async resumeSession(payload: ResumeSessionPayload): Promise<void> {
-    const { taskId, sessionId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, mcpServers } = payload;
+    const { taskId, sessionId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, mcpServers, skipConfig } = payload;
 
     logger.info('Resuming session', { taskId, sessionId });
 
-    // Push session-specific config via PATCH /config
-    const config = buildSessionConfig({ modelId, folderPermissions, mcpServers });
-
-    await this.client.updateConfig(config, workingDirectory);
+    // Push session-specific config via PATCH /config (skip if arena already sent it)
+    if (!skipConfig) {
+      const config = buildSessionConfig({ modelId, folderPermissions, mcpServers });
+      await this.client.updateConfig(config, workingDirectory);
+    }
 
     this.emit('progress', { taskId, stage: 'configuring' });
 

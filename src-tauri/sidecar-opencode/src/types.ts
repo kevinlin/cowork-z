@@ -289,6 +289,10 @@ export interface StartTaskPayload {
   folderPermissions?: FolderPermission[];
   customPrompt?: string;
   mcpServers?: Record<string, McpConfig>;
+  /** Skip PATCH /config call (Arena sends config once, subsequent tasks skip) */
+  skipConfig?: boolean;
+  /** Arena ID — prevents cleanup of sibling sessions */
+  arenaId?: string;
 }
 
 export interface ResumeSessionPayload {
@@ -301,6 +305,10 @@ export interface ResumeSessionPayload {
   folderPermissions?: FolderPermission[];
   customPrompt?: string;
   mcpServers?: Record<string, McpConfig>;
+  /** Skip PATCH /config call (Arena sends config once, subsequent tasks skip) */
+  skipConfig?: boolean;
+  /** Arena ID — prevents cleanup of sibling sessions */
+  arenaId?: string;
 }
 
 export interface UpdateMcpConfigPayload {

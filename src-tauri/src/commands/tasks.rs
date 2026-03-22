@@ -48,6 +48,9 @@ pub async fn start_task(
                 })
         })
     };
+    // Allow frontend to override model (used by Arena)
+    let resolved_model_id = config.model_id.or(resolved_model_id);
+
     // Generate task ID
     let task_id = config.task_id.clone().unwrap_or_else(|| {
         format!("task_{}", uuid::Uuid::new_v4())
@@ -152,6 +155,8 @@ pub async fn start_task(
                 folder_permissions: sidecar_perms,
                 custom_prompt,
                 mcp_servers,
+                skip_config: None,
+                arena_id: None,
             },
         })
         .await?;
@@ -176,6 +181,9 @@ pub async fn start_task(
         completed_at: None,
         started_at: Some(started_at),
         workspace_id: response_workspace_id,
+        arena_id: None,
+        arena_slot: None,
+        model_id: None,
     })
 }
 
@@ -295,6 +303,9 @@ pub async fn get_task(task_id: String, state: State<'_, DbState>) -> Result<Opti
         completed_at: t.completed_at,
         started_at: t.started_at,
         workspace_id: t.workspace_id,
+        arena_id: None,
+        arena_slot: None,
+        model_id: None,
     }))
 }
 
@@ -346,6 +357,9 @@ pub async fn list_tasks(
             completed_at: t.completed_at,
             started_at: t.started_at,
             workspace_id: t.workspace_id,
+            arena_id: None,
+            arena_slot: None,
+            model_id: None,
         })
         .collect())
 }
@@ -597,6 +611,8 @@ pub async fn resume_session(
                 folder_permissions: sidecar_perms,
                 custom_prompt,
                 mcp_servers,
+                skip_config: None,
+                arena_id: None,
             },
         })
         .await?;
@@ -621,5 +637,8 @@ pub async fn resume_session(
         completed_at: None,
         started_at: Some(chrono::Utc::now().to_rfc3339()),
         workspace_id: response_workspace_id,
+        arena_id: None,
+        arena_slot: None,
+        model_id: None,
     })
 }

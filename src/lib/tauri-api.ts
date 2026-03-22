@@ -13,6 +13,9 @@ import { openPath, openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
 
 import type {
   ApiKeyConfig,
+  Arena,
+  ArenaConfig,
+  ArenaListItem,
   BedrockCredentials,
   CompleteMessageEvent,
   ConnectedProvider,
@@ -199,6 +202,38 @@ export async function saveTaskSession(taskId: string, sessionId: string): Promis
 
 export async function saveTaskSummary(taskId: string, summary: string): Promise<void> {
   return invoke<void>('save_task_summary', { taskId, summary });
+}
+
+// ============================================================================
+// Arena Operations
+// ============================================================================
+
+export async function startArena(config: ArenaConfig): Promise<Arena> {
+  return invoke<Arena>('start_arena', { config });
+}
+
+export async function resumeArena(arenaId: string, prompt: string): Promise<Arena> {
+  return invoke<Arena>('resume_arena', { arenaId, prompt });
+}
+
+export async function getArena(arenaId: string): Promise<Arena> {
+  return invoke<Arena>('get_arena', { arenaId });
+}
+
+export async function listArenas(workspaceId?: string): Promise<ArenaListItem[]> {
+  return invoke<ArenaListItem[]>('list_arenas', { workspaceId: workspaceId ?? null });
+}
+
+export async function deleteArena(arenaId: string): Promise<void> {
+  return invoke<void>('delete_arena', { arenaId });
+}
+
+export async function abortArena(arenaId: string): Promise<void> {
+  return invoke<void>('abort_arena', { arenaId });
+}
+
+export async function renameArena(arenaId: string, prompt: string): Promise<void> {
+  return invoke<void>('rename_arena', { arenaId, prompt });
 }
 
 // ============================================================================

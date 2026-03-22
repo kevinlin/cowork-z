@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { FolderTree, MessageSquare, MessageSquarePlus, Package, Search, Settings } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileTreePanel from '@/components/sidebar/FileTreePanel';
 import FoldersPanel from '@/components/sidebar/FoldersPanel';
@@ -15,10 +15,12 @@ import { staggerContainer } from '@/lib/animations';
 import { openSkillsManagerWindow } from '@/lib/skills-window';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { Todo } from '@/shared';
+import { useArenaStore } from '@/stores/arenaStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import logoImage from '/assets/logo-1.png';
 import CollapsibleSection from '../sidebar/CollapsibleSection';
+import ArenaListItem from './ArenaListItem';
 import ConversationListItem from './ConversationListItem';
 import FeedbackButton from './FeedbackButton';
 
@@ -107,11 +109,24 @@ export default function Sidebar() {
     setIsResizing(true);
   };
 
-  // Initialize workspace and load tasks on mount
+  const { arenas, loadArenas } = useArenaStore();
+
+  // Merge arenas and tasks by createdAt for interleaved sidebar display
+  const mergedList = useMemo(
+    () =>
+      [
+        ...arenas.map((a) => ({ type: 'arena' as const, item: a, createdAt: a.createdAt })),
+        ...tasks.map((t) => ({ type: 'task' as const, item: t, createdAt: t.createdAt })),
+      ].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [arenas, tasks]
+  );
+
+  // Initialize workspace and load tasks + arenas on mount
   useEffect(() => {
     useWorkspaceStore.getState().initialize();
     loadTasks();
-  }, [loadTasks]);
+    loadArenas(useWorkspaceStore.getState().activeWorkspace?.id);
+  }, [loadTasks, loadArenas]);
 
   // When the active workspace changes: reset the current task, navigate to
   // the home screen, and reload the workspace-scoped task list.
@@ -121,8 +136,10 @@ export default function Sidebar() {
       const prevId = prevState.activeWorkspace?.id;
       if (currentId && currentId !== prevId) {
         useTaskStore.getState().reset();
+        useArenaStore.getState().reset();
         navigate('/');
         loadTasks();
+        loadArenas(currentId);
       }
     });
     return unsubscribe;
@@ -207,7 +224,7 @@ export default function Sidebar() {
           <ScrollArea className="min-h-0 flex-1">
             <div className="space-y-1 p-2">
               <AnimatePresence mode="wait">
-                {tasks.length === 0 ? (
+                {mergedList.length === 0 ? (
                   <motion.div
                     animate={{ opacity: 1 }}
                     className="px-3 py-8 text-center text-muted-foreground text-sm"
@@ -219,9 +236,13 @@ export default function Sidebar() {
                   </motion.div>
                 ) : (
                   <motion.div animate="animate" className="space-y-1" initial="initial" key="task-list" variants={staggerContainer}>
-                    {tasks.map((task) => (
-                      <ConversationListItem key={task.id} task={task} />
-                    ))}
+                    {mergedList.map((entry) =>
+                      entry.type === 'arena' ? (
+                        <ArenaListItem arena={entry.item} key={entry.item.id} />
+                      ) : (
+                        <ConversationListItem key={entry.item.id} task={entry.item} />
+                      )
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

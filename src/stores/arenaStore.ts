@@ -36,6 +36,17 @@ const createEmptyColumn = (): ArenaColumnState => ({
   error: null,
 });
 
+/**
+ * Buffered events that arrived before columns were populated with taskIds.
+ * Replayed once columnsFromArena assigns taskIds.
+ */
+type BufferedEvent =
+  | { kind: 'taskUpdate'; event: TaskUpdateEvent }
+  | { kind: 'taskUpdateBatch'; taskId: string; messages: TaskMessage[] }
+  | { kind: 'partialMessage'; event: PartialMessageEvent }
+  | { kind: 'partialMessageComplete'; event: CompleteMessageEvent }
+  | { kind: 'statusChange'; taskId: string; status: TaskStatus };
+
 interface ArenaState {
   arenaId: string | null;
   prompt: string;
@@ -51,6 +62,14 @@ interface ArenaState {
 
   /** Arena list for sidebar */
   arenas: ArenaListItem[];
+
+  /**
+   * Task IDs that belong to the current arena but haven't been mapped to
+   * columns yet (populated before the async startArena call returns).
+   * Events for these IDs are buffered and replayed once columns are set.
+   */
+  pendingTaskIds: Set<string>;
+  eventBuffer: BufferedEvent[];
 
   // Actions — model configuration
   setColumnModel: (index: 0 | 1 | 2, modelId: string, displayName: string) => void;
@@ -90,6 +109,14 @@ function findColumnByTaskId(columns: [ArenaColumnState, ArenaColumnState, ArenaC
     if (columns[i].taskId === taskId) return i as 0 | 1 | 2;
   }
   return -1;
+}
+
+function isArenaTask(
+  columns: [ArenaColumnState, ArenaColumnState, ArenaColumnState],
+  pendingTaskIds: Set<string>,
+  taskId: string
+): boolean {
+  return findColumnByTaskId(columns, taskId) !== -1 || pendingTaskIds.has(taskId);
 }
 
 /**
@@ -149,6 +176,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   permissionRequest: null,
   questionRequest: null,
   arenas: [],
+  pendingTaskIds: new Set<string>(),
+  eventBuffer: [],
 
   // ---- Model configuration ----
 
@@ -179,9 +208,12 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const config: ArenaConfig = { prompt, models };
     const arena = await api.startArena(config);
 
+    // Register task IDs so events arriving before set() aren't dropped
+    const taskIds = new Set(arena.tasks.map((t) => t.id));
+    set({ pendingTaskIds: taskIds });
+
     const newColumns = columnsFromArena(arena, columns);
 
-    // Persist initial user message for each active column (unique ID per column)
     const timestamp = new Date().toISOString();
     for (const col of newColumns) {
       if (col.taskId && col.task) {
@@ -208,12 +240,39 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       status: 'running',
       modelIds: arena.tasks.map((t) => t.modelId ?? null),
     };
+
+    // Grab buffered events before clearing
+    const buffered = get().eventBuffer;
+
     set({
       arenaId: arena.id,
       prompt: arena.prompt,
       columns: newColumns,
       arenas: [newListItem, ...currentArenas],
+      pendingTaskIds: new Set<string>(),
+      eventBuffer: [],
     });
+
+    // Replay buffered events now that columns have taskIds
+    for (const item of buffered) {
+      switch (item.kind) {
+        case 'taskUpdate':
+          get().handleTaskUpdate(item.event);
+          break;
+        case 'taskUpdateBatch':
+          get().handleTaskUpdateBatch(item.taskId, item.messages);
+          break;
+        case 'partialMessage':
+          get().handlePartialMessage(item.event);
+          break;
+        case 'partialMessageComplete':
+          get().handlePartialMessageComplete(item.event);
+          break;
+        case 'statusChange':
+          get().handleStatusChange(item.taskId, item.status);
+          break;
+      }
+    }
 
     return arena.id;
   },
@@ -275,7 +334,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     await api.deleteArena(arenaId);
     set((state) => ({
       arenas: state.arenas.filter((a) => a.id !== arenaId),
-      // If we just deleted the active arena, clear state
       ...(state.arenaId === arenaId
         ? {
             arenaId: null,
@@ -288,6 +346,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
             permissionRequests: [],
             permissionRequest: null,
             questionRequest: null,
+            pendingTaskIds: new Set<string>(),
+            eventBuffer: [],
           }
         : {}),
     }));
@@ -314,17 +374,27 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       permissionRequests: [],
       permissionRequest: null,
       questionRequest: null,
+      pendingTaskIds: new Set<string>(),
+      eventBuffer: [],
     });
   },
 
   // ---- Event handlers ----
+  //
+  // Each handler checks findColumnByTaskId first. If the taskId isn't mapped
+  // to a column yet but IS in pendingTaskIds (arena started, columns not yet
+  // populated), the event is buffered and replayed once columns are set.
 
   handleTaskUpdate: (event) => {
-    const { columns } = get();
+    const { columns, pendingTaskIds } = get();
     const idx = findColumnByTaskId(columns, event.taskId);
-    if (idx === -1) return;
+    if (idx === -1) {
+      if (pendingTaskIds.has(event.taskId)) {
+        set((s) => ({ eventBuffer: [...s.eventBuffer, { kind: 'taskUpdate', event }] }));
+      }
+      return;
+    }
 
-    // Persist to database (fire-and-forget, mirrors taskStore pattern)
     if (event.type === 'message' && event.message) {
       api.saveTaskMessage(event.taskId, event.message).catch((err) => {
         console.error('Failed to save arena task message:', err);
@@ -380,11 +450,15 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
 
   handleTaskUpdateBatch: (taskId, messages) => {
-    const { columns } = get();
+    const { columns, pendingTaskIds } = get();
     const idx = findColumnByTaskId(columns, taskId);
-    if (idx === -1) return;
+    if (idx === -1) {
+      if (pendingTaskIds.has(taskId)) {
+        set((s) => ({ eventBuffer: [...s.eventBuffer, { kind: 'taskUpdateBatch', taskId, messages }] }));
+      }
+      return;
+    }
 
-    // Persist each message to database
     for (const msg of messages) {
       api.saveTaskMessage(taskId, msg).catch((err) => {
         console.error('Failed to save arena batch message:', err);
@@ -406,9 +480,14 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
 
   handlePartialMessage: (event) => {
-    const { columns } = get();
+    const { columns, pendingTaskIds } = get();
     const idx = findColumnByTaskId(columns, event.taskId);
-    if (idx === -1) return;
+    if (idx === -1) {
+      if (pendingTaskIds.has(event.taskId)) {
+        set((s) => ({ eventBuffer: [...s.eventBuffer, { kind: 'partialMessage', event }] }));
+      }
+      return;
+    }
 
     set((state) => {
       const cols = [...state.columns] as [ArenaColumnState, ArenaColumnState, ArenaColumnState];
@@ -428,11 +507,15 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
 
   handlePartialMessageComplete: (event) => {
-    const { columns } = get();
+    const { columns, pendingTaskIds } = get();
     const idx = findColumnByTaskId(columns, event.taskId);
-    if (idx === -1) return;
+    if (idx === -1) {
+      if (pendingTaskIds.has(event.taskId)) {
+        set((s) => ({ eventBuffer: [...s.eventBuffer, { kind: 'partialMessageComplete', event }] }));
+      }
+      return;
+    }
 
-    // Build finalized message outside set() so side effects stay out of the updater
     const finalMessage: TaskMessage = {
       id: event.messageId,
       type: 'assistant',
@@ -440,7 +523,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       timestamp: new Date().toISOString(),
     };
 
-    // Persist to database
     api.saveTaskMessage(event.taskId, finalMessage).catch((err) => {
       console.error('Failed to save arena finalized message:', err);
     });
@@ -465,11 +547,15 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
 
   handleStatusChange: (taskId, status) => {
-    const { columns } = get();
+    const { columns, pendingTaskIds } = get();
     const idx = findColumnByTaskId(columns, taskId);
-    if (idx === -1) return;
+    if (idx === -1) {
+      if (pendingTaskIds.has(taskId)) {
+        set((s) => ({ eventBuffer: [...s.eventBuffer, { kind: 'statusChange', taskId, status }] }));
+      }
+      return;
+    }
 
-    // Persist status to database
     api.saveTaskStatus(taskId, status).catch((err) => {
       console.error('Failed to save arena task status:', err);
     });
@@ -487,10 +573,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
 
   handlePermissionRequest: (request) => {
-    // Only enqueue if the request belongs to one of our arena columns
-    const { columns } = get();
-    const idx = findColumnByTaskId(columns, request.taskId);
-    if (idx === -1) return;
+    const { columns, pendingTaskIds } = get();
+    if (!isArenaTask(columns, pendingTaskIds, request.taskId)) return;
 
     set((state) => {
       const queue = [...state.permissionRequests, request];
@@ -514,9 +598,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
 
   handleQuestionRequest: (request) => {
-    const { columns } = get();
-    const idx = findColumnByTaskId(columns, request.taskId);
-    if (idx === -1) return;
+    const { columns, pendingTaskIds } = get();
+    if (!isArenaTask(columns, pendingTaskIds, request.taskId)) return;
 
     set({ questionRequest: request });
   },

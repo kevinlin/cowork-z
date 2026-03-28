@@ -1,10 +1,31 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArenaColumn, StatusBadge } from '@/components/arena/ArenaColumn';
 import { useArenaStore } from '@/stores/arenaStore';
 
 export const ArenaColumns = () => {
   const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
   const columns = useArenaStore((s) => s.columns);
+  const taskId0 = useArenaStore((s) => s.columns[0].taskId);
+  const taskId1 = useArenaStore((s) => s.columns[1].taskId);
+  const taskId2 = useArenaStore((s) => s.columns[2].taskId);
+  const permissionRequests = useArenaStore((s) => s.permissionRequests);
+  const questionRequest = useArenaStore((s) => s.questionRequest);
+
+  const needsAttention = useMemo(() => {
+    const taskIds = [taskId0, taskId1, taskId2];
+    const flags: [boolean, boolean, boolean] = [false, false, false];
+    for (const req of permissionRequests) {
+      for (let i = 0; i < taskIds.length; i++) {
+        if (taskIds[i] === req.taskId) flags[i as 0 | 1 | 2] = true;
+      }
+    }
+    if (questionRequest) {
+      for (let i = 0; i < taskIds.length; i++) {
+        if (taskIds[i] === questionRequest.taskId) flags[i as 0 | 1 | 2] = true;
+      }
+    }
+    return flags;
+  }, [taskId0, taskId1, taskId2, permissionRequests, questionRequest]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -25,6 +46,9 @@ export const ArenaColumns = () => {
             >
               <span className="truncate">{label}</span>
               {col.status !== 'idle' && <StatusBadge status={col.status} />}
+              {needsAttention[index] && activeTab !== index && (
+                <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-amber-500" />
+              )}
             </button>
           );
         })}

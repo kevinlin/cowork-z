@@ -198,10 +198,21 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       }
     }
 
+    const currentArenas = get().arenas;
+    const newListItem: ArenaListItem = {
+      id: arena.id,
+      prompt: arena.prompt,
+      workspaceId: arena.workspaceId,
+      createdAt: arena.createdAt,
+      completedAt: arena.completedAt,
+      status: 'running',
+      modelIds: arena.tasks.map((t) => t.modelId ?? null),
+    };
     set({
       arenaId: arena.id,
       prompt: arena.prompt,
       columns: newColumns,
+      arenas: [newListItem, ...currentArenas],
     });
 
     return arena.id;

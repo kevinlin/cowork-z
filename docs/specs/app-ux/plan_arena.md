@@ -431,6 +431,31 @@ Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
 
 **No backend changes needed** — the `add-to-chat` event dispatch and Tauri drag-drop infrastructure already exist.
 
+### Step 19: Fix Sidebar Visibility + Tabbed Layout
+
+**Bug:** When an Arena session starts, it does not appear in the sidebar session list. It only shows up after an app restart.
+
+**Root cause:** `arenaStore.startArena()` creates the arena on the backend and updates column state, but never adds the new arena to the `arenas` array that the sidebar reads. Compare with `taskStore.startTask()` which explicitly prepends the new task to the `tasks` array with the comment "Also add to tasks list so sidebar updates immediately." The sidebar's `mergedList` is a `useMemo` over `[arenas, tasks]` — it only recomputes when those array references change. Since `startArena` never updated `arenas`, the new arena was invisible until `loadArenas()` ran again (only on mount or workspace switch).
+
+**Fix — `src/stores/arenaStore.ts`:**
+- In `startArena`, after `api.startArena(config)` succeeds, construct an `ArenaListItem` from the returned `Arena` and prepend it to the `arenas` array in the `set()` call. This mirrors the `taskStore.startTask()` pattern.
+
+**UI change — Tabbed Layout:**
+
+Replace the 3-column side-by-side layout with a tabbed UI where each tab shows the model's display name and status badge. Only one column's content is visible at a time.
+
+**Changes — `src/components/arena/ArenaColumn.tsx`:**
+- Export `StatusBadge` so `ArenaColumns` can render it in the tab bar
+- Remove the inline column header (model name + StatusBadge `div`) from both the idle and active states — this information now lives in the tab bar
+
+**Changes — `src/components/arena/ArenaColumns.tsx`:**
+- Replace the `flex` row of 3 `ArenaColumn` components with:
+  1. A tab bar (`flex border-b`) with 3 buttons, each showing `modelDisplayName` (or fallback) and `StatusBadge` when not idle
+  2. A single `ArenaColumn` rendered for the active tab index
+- Tab styling follows the existing custom tab pattern used in `Sidebar.tsx` and `Home.tsx`:
+  - Active: `border-primary border-b-2 text-foreground`
+  - Inactive: `border-transparent border-b-2 text-muted-foreground hover:text-foreground`
+
 ---
 
 ## Files Modified (Summary)
@@ -452,12 +477,11 @@ Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
 | `src/shared/types/arena.ts` | New | Arena TypeScript types |
 | `src/shared/types/task.ts` | Edit | Add arenaId, arenaSlot, modelId to Task/TaskConfig |
 | `src/lib/tauri-api.ts` | Edit | Add arena API functions |
-| `src/stores/arenaStore.ts` | New | Arena Zustand store (incl. question request handling) |
+| `src/stores/arenaStore.ts` | New | Arena Zustand store (incl. question request handling, sidebar list update) |
 | `src/pages/Arena.tsx` | New | Arena page with event subscriptions (incl. question request + QuestionDialog) |
 | `src/components/arena/ArenaInputBar.tsx` | New | Shared input bar with file ref handling (Add to Chat + drag-and-drop) |
-| `src/components/arena/ArenaColumns.tsx` | New | 3-column layout container |
-| `src/components/arena/ArenaColumn.tsx` | New | Single column — reuses `MessageBubble` for rich markdown rendering |
-| `src/components/arena/ArenaColumnHeader.tsx` | New | Model name + status badge |
+| `src/components/arena/ArenaColumns.tsx` | New | Tabbed layout container (model name tabs + single active column) |
+| `src/components/arena/ArenaColumn.tsx` | New | Single column — reuses `MessageBubble`; exports `StatusBadge` |
 | `src/components/arena/ArenaModelPickerDialog.tsx` | New | Model selection dialog (reuses ProviderGrid + ProviderSettingsPanel) |
 | `src/components/layout/ArenaListItem.tsx` | New | Sidebar arena entry |
 | `src/components/layout/Sidebar.tsx` | Edit | Load & render arena items |

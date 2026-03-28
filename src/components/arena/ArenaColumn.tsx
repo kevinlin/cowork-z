@@ -11,7 +11,7 @@ interface ArenaColumnProps {
   index: 0 | 1 | 2;
 }
 
-const StatusBadge = ({ status }: { status: string }) => {
+export const StatusBadge = ({ status }: { status: string }) => {
   switch (status) {
     case 'running':
     case 'starting':
@@ -70,10 +70,7 @@ export const ArenaColumn = ({ index }: ArenaColumnProps) => {
 
   if (column.status === 'idle' && !column.modelId) {
     return (
-      <div className="flex flex-1 flex-col">
-        <div className="flex items-center justify-between border-border border-b bg-card/30 px-3 py-2">
-          <span className="text-muted-foreground text-sm">Column {index + 1}</span>
-        </div>
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-1 items-center justify-center p-4">
           <p className="text-center text-muted-foreground text-sm">Select a model above to begin</p>
         </div>
@@ -84,14 +81,7 @@ export const ArenaColumn = ({ index }: ArenaColumnProps) => {
   const isColumnRunning = column.status === 'running' || column.status === 'starting';
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="flex items-center justify-between border-border border-b bg-card/30 px-3 py-2">
-        <span className="truncate font-medium text-foreground text-sm">
-          {column.modelDisplayName || column.modelId?.split('/').pop() || `Column ${index + 1}`}
-        </span>
-        <StatusBadge status={column.status} />
-      </div>
-
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 overflow-y-auto px-4 py-4" onScroll={handleScroll} ref={scrollRef}>
         {filteredMessages.length === 0 && partials.length === 0 && column.status !== 'idle' && (
           <div className="flex items-center justify-center p-8 text-muted-foreground text-sm">

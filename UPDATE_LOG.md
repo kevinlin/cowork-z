@@ -4,7 +4,9 @@
 
 ## v0.6.3
 
-- 
+- **Fix: Arena sidebar visibility** — Arena sessions now appear in the sidebar immediately after creation instead of requiring an app restart
+- **Arena tabbed layout** — Arena columns replaced with a tabbed view; each tab shows the model name and status, displaying one model's output at a time
+
 
 ## v0.6.2
 

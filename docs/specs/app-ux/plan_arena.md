@@ -410,6 +410,27 @@ Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
 
 **No backend changes needed** — the existing `reply_to_question` Rust command and sidecar `replyToQuestion()` are task-ID-parameterized and already work for arena tasks.
 
+### Step 18: Fix ArenaInputBar Missing File Reference Handling
+
+**Bug:** The Arena input bar does not support file references — neither the "Add to Chat" button from the file preview panel nor drag-and-drop from the file tree or OS file manager inserts `@path` references into the Arena textarea.
+
+**Root cause:** `ArenaInputBar` was implemented with a bare `<textarea>` and no event listeners for file references. The existing `TaskInputBar` (Home page) and `ChatInput` (Execution page) both handle:
+1. `add-to-chat` custom DOM event — dispatched by `App.tsx` when the user clicks "Add to Chat" in `FilePreviewPanel` (requirement 6.4.1 AC#5)
+2. Tauri native `onDragDropEvent` — handles both OS-level drops (Finder/Explorer) and intra-app drags from the file tree sidebar (design: Drag-and-Drop Support)
+
+`ArenaInputBar` had neither listener.
+
+**Fix — `src/components/arena/ArenaInputBar.tsx`:**
+- Add `insertTextAtCursor()` helper that reads/writes the uncontrolled textarea via `textareaRef.current`, calls `insertAtCursor()` from `file-utils`, and auto-resizes + re-focuses
+- Add `add-to-chat` custom event listener (same pattern as `TaskInputBar` and `ChatInput`)
+- Add Tauri `getCurrentWebview().onDragDropEvent()` listener with:
+  - Intra-app drag support via `getPendingDragPath()` / `clearPendingDragPath()` from `FileTreePanel`
+  - OS-level drop support via `formatPathForChat()` for each dropped path
+- Add `isDraggingOver` state for visual ring feedback on the textarea during drag hover
+- New imports: `getCurrentWebview`, `getPendingDragPath`, `clearPendingDragPath`, `formatPathForChat`, `insertAtCursor`, `useEffect`
+
+**No backend changes needed** — the `add-to-chat` event dispatch and Tauri drag-drop infrastructure already exist.
+
 ---
 
 ## Files Modified (Summary)
@@ -433,7 +454,7 @@ Rust side preferred — **File: `src-tauri/src/db/tasks.rs`**
 | `src/lib/tauri-api.ts` | Edit | Add arena API functions |
 | `src/stores/arenaStore.ts` | New | Arena Zustand store (incl. question request handling) |
 | `src/pages/Arena.tsx` | New | Arena page with event subscriptions (incl. question request + QuestionDialog) |
-| `src/components/arena/ArenaInputBar.tsx` | New | Shared input bar |
+| `src/components/arena/ArenaInputBar.tsx` | New | Shared input bar with file ref handling (Add to Chat + drag-and-drop) |
 | `src/components/arena/ArenaColumns.tsx` | New | 3-column layout container |
 | `src/components/arena/ArenaColumn.tsx` | New | Single column — reuses `MessageBubble` for rich markdown rendering |
 | `src/components/arena/ArenaColumnHeader.tsx` | New | Model name + status badge |

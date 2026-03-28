@@ -1,7 +1,10 @@
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { ChevronDown, Loader2, Play, Send, Square } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { clearPendingDragPath, getPendingDragPath } from '@/components/sidebar/FileTreePanel';
 import { Button } from '@/components/ui/button';
+import { formatPathForChat, insertAtCursor } from '@/lib/file-utils';
 import { cn } from '@/lib/utils';
 import { selectIsRunning, useArenaStore } from '@/stores/arenaStore';
 import { ArenaModelPickerDialog } from './ArenaModelPickerDialog';
@@ -16,8 +19,82 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [pickerColumnIndex, setPickerColumnIndex] = useState<0 | 1 | 2 | null>(null);
 
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+
   const { columns, setColumnModel, startArena, sendFollowUp, abortAll, arenaId } = useArenaStore();
   const isRunning = useArenaStore(selectIsRunning);
+
+  const insertTextAtCursor = useCallback((text: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const cursorPos = textarea.selectionStart ?? textarea.value.length;
+    const { newText, newCursorPosition } = insertAtCursor(textarea.value, text, cursorPos);
+    textarea.value = newText;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    setTimeout(() => {
+      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+      textarea.focus();
+    }, 0);
+  }, []);
+
+  // Listen for "Add to Chat" events from the file preview panel
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ text: string }>).detail;
+      if (!detail?.text) return;
+      insertTextAtCursor(detail.text);
+    };
+    window.addEventListener('add-to-chat', handler);
+    return () => window.removeEventListener('add-to-chat', handler);
+  }, [insertTextAtCursor]);
+
+  // Tauri native drag-and-drop listener (OS drops + intra-app file tree drags)
+  useEffect(() => {
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        if (cancelled) return;
+
+        if (event.payload.type === 'over' || event.payload.type === 'enter') {
+          setIsDraggingOver(true);
+        } else if (event.payload.type === 'drop') {
+          setIsDraggingOver(false);
+
+          const paths: string[] = event.payload.paths;
+
+          const pendingPath = getPendingDragPath();
+          if (paths.length === 0 && pendingPath) {
+            clearPendingDragPath();
+            const formatted = formatPathForChat(pendingPath);
+            if (formatted) insertTextAtCursor(formatted);
+            return;
+          }
+
+          if (paths.length === 0) return;
+
+          const formattedPaths = paths.map((p) => formatPathForChat(p)).filter((p): p is string => p !== null);
+          if (formattedPaths.length === 0) return;
+          insertTextAtCursor(formattedPaths.join(' '));
+        } else {
+          setIsDraggingOver(false);
+        }
+      })
+      .then((fn) => {
+        if (cancelled) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [insertTextAtCursor]);
 
   // Auto-resize textarea
   const handleTextareaInput = useCallback(() => {
@@ -136,7 +213,8 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
             'placeholder:text-muted-foreground',
             'focus:outline-none focus:ring-1 focus:ring-ring',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            'max-h-[120px] min-h-[38px]'
+            'max-h-[120px] min-h-[38px]',
+            isDraggingOver && 'ring-2 ring-ring ring-offset-2 ring-offset-background'
           )}
           disabled={isRunning}
           onInput={handleTextareaInput}

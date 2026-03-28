@@ -5,12 +5,12 @@
 ## v0.6.2
 
 - **Fix: Arena tool call card spacing** — Consecutive tool call cards in Arena mode now use tight 4px spacing (matching normal chat) instead of the uniform 16px gap that was applied to all messages
+- **Fix: Arena file reference handling** — Arena input bar now supports "Add to Chat" button from the file preview panel and drag-and-drop of files from the sidebar file tree and OS file manager, inserting `@path` references at the cursor position (matching TaskInputBar and ChatInput behavior)
 
 ## v0.6.1
 
 - **Fix: Arena question requests** — Agent questions (e.g., asking the user to choose an output folder) are now handled in Arena mode; previously the question was silently dropped and the agent hung waiting for a response
 - **Tool call cards redesign** — Tool call rows restyled with reduced padding, borderless design, and smaller icons; hover reveals copy and expand controls; file-based tools (Read, Write, Edit) show an "Open in file viewer" button on hover
-
 
 ## v0.6.0
 

@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.6.4
+
+- 
+
 ## v0.6.3
 
 - **Fix: Arena sidebar visibility** — Arena sessions now appear in the sidebar immediately after creation instead of requiring an app restart

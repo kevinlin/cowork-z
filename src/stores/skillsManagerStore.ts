@@ -23,6 +23,7 @@ interface SkillsManagerState {
   setSelectedRepoId: (id: string | null) => void;
   setSearchQuery: (query: string) => void;
   setActiveCategory: (category: string) => void;
+  removeRepo: (id: string) => Promise<void>;
   refreshAll: () => Promise<void>;
 }
 
@@ -87,6 +88,13 @@ export const useSkillsManagerStore = create<SkillsManagerState>((set, get) => ({
 
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveCategory: (category) => set({ activeCategory: category }),
+
+  removeRepo: async (id: string) => {
+    const api = getTauriAPI();
+    await api.skillReposRemove(id);
+    set({ selectedRepoId: null });
+    await get().refreshAll();
+  },
 
   refreshAll: async () => {
     const { fetchRepos, fetchRepoSkills, fetchInstalledSkills } = get();

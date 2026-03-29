@@ -4,7 +4,9 @@
 
 ## v0.6.4
 
-- 
+- **Fix: GitLab PAT authentication for skill repos** — Private GitLab repositories (self-hosted or gitlab.com) now authenticate correctly using the `oauth2:{token}@` URL format required by GitLab HTTP auth
+- **Remove skill repo from Skills Manager** — Added a "Remove" button to the Skills Manager toolbar (visible when a repo is selected) to delete a registered skill repository, its cached clone, and stored credentials
+
 
 ## v0.6.3
 

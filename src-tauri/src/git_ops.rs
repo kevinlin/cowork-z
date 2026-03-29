@@ -93,12 +93,18 @@ fn set_remote_url(repo_dir: &Path, url: &str) -> Result<(), String> {
 }
 
 /// Inject a personal access token into an HTTPS Git URL.
-/// `https://github.com/owner/repo` -> `https://{token}@github.com/owner/repo`
+/// GitHub PATs: `https://github.com/owner/repo` -> `https://{token}@github.com/owner/repo`
+/// GitLab PATs (`glpat-` prefix): uses `oauth2:{token}@` as required by GitLab HTTP auth.
 /// SSH URLs and None tokens are returned unchanged.
 fn inject_token(url: &str, token: Option<&str>) -> String {
     match token {
         Some(t) if url.starts_with("https://") => {
-            url.replacen("https://", &format!("https://{}@", t), 1)
+            let credentials = if t.starts_with("glpat-") {
+                format!("oauth2:{}", t)
+            } else {
+                t.to_string()
+            };
+            url.replacen("https://", &format!("https://{}@", credentials), 1)
         }
         _ => url.to_string(),
     }
@@ -146,6 +152,16 @@ mod tests {
     fn test_inject_token_ssh_unchanged() {
         let url = "git@github.com:owner/repo.git";
         assert_eq!(inject_token(url, Some("token")), url);
+    }
+
+    #[test]
+    fn test_inject_token_gitlab_pat() {
+        let url = "https://codehub.zuehlke.com/ai-sdlc/zapac-agent-skills";
+        let result = inject_token(url, Some("glpat-XXX"));
+        assert_eq!(
+            result,
+            "https://oauth2:glpat-XXX@codehub.zuehlke.com/ai-sdlc/zapac-agent-skills"
+        );
     }
 
     #[test]

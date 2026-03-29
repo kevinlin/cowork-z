@@ -1,4 +1,4 @@
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -7,8 +7,9 @@ import { useSkillsManagerStore } from '@/stores/skillsManagerStore';
 import { AddRepoDialog } from './AddRepoDialog';
 
 export function RepoToolbar() {
-  const { repos, selectedRepoId, setSelectedRepoId, refreshAll } = useSkillsManagerStore();
+  const { repos, selectedRepoId, setSelectedRepoId, removeRepo, refreshAll } = useSkillsManagerStore();
   const [syncing, setSyncing] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [showAddRepo, setShowAddRepo] = useState(false);
 
   const handleSync = async () => {
@@ -19,6 +20,19 @@ export function RepoToolbar() {
       await refreshAll();
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!selectedRepoId) return;
+    const repo = repos.find((r) => r.id === selectedRepoId);
+    const name = repo?.name ?? 'this repository';
+    if (!window.confirm(`Remove "${name}"? This will delete the local cache and all discovered skills from this repo.`)) return;
+    setRemoving(true);
+    try {
+      await removeRepo(selectedRepoId);
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -54,6 +68,20 @@ export function RepoToolbar() {
           <RefreshCw className={`mr-1 h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
           Sync
         </Button>
+
+        {selectedRepoId && (
+          <Button
+            className="h-8 text-destructive text-xs hover:bg-destructive/10 hover:text-destructive"
+            disabled={removing}
+            onClick={handleRemove}
+            size="sm"
+            title="Remove selected repository"
+            variant="ghost"
+          >
+            <Trash2 className="mr-1 h-3 w-3" />
+            {removing ? 'Removing...' : 'Remove'}
+          </Button>
+        )}
 
         <div className="ml-auto text-muted-foreground text-xs">
           {lastSynced

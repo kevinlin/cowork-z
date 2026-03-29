@@ -206,7 +206,9 @@ All Git operations use `std::process::Command` in Rust:
 
 - **Clone:** `git clone --depth 1 --branch {branch} {url} {cache_dir}` — `cache_dir` uses `derive_cache_dir_name(url)` (repo name with `/` → `_`)
 - **Pull:** `git -C {cache_dir} pull --ff-only`
-- **Auth:** For token-based HTTPS repos, rewrite URL to `https://{token}@github.com/...`
+- **Auth:** For token-based HTTPS repos, rewrite URL via `inject_token()` in `git_ops.rs`:
+  - **GitLab PATs** (`glpat-` prefix): `https://oauth2:{token}@host/...` (GitLab requires the `oauth2:` username)
+  - **All other tokens** (GitHub `ghp_`/`gho_`/`github_pat_`, generic): `https://{token}@host/...`
 
 ---
 
@@ -265,7 +267,7 @@ Both are bound to the same state. Switching folders refreshes the file tree and 
 - Click a file → opens in right preview pane
 
 ### Center Panel
-- **Header toolbar:** repo filter dropdown ("All Repos" or individual repo names), "Add Repo" button, "Sync" button, last-synced time. When a specific repo is selected (not "All Repos"), the dropdown is styled with **primary color** border and text to indicate active filtering.
+- **Header toolbar:** repo filter dropdown ("All Repos" or individual repo names), "Add Repo" button, "Sync" button, "Remove" button (visible only when a specific repo is selected), last-synced time. When a specific repo is selected (not "All Repos"), the dropdown is styled with **primary color** border and text to indicate active filtering. The "Remove" button uses destructive ghost styling and shows a `window.confirm()` dialog before deleting the repo (DB entry, keychain token, and cache directory).
 - **Search bar + category tabs:** consistent with existing SkillsCatalog design
 - **2-column card grid:** each card is a standalone `SkillCard` component (`src/components/skills-manager/SkillCard.tsx`) showing name, description, category badge, source repo badge, and action buttons
 - **Card actions:** View (opens `SKILL.md` from the **local cloned repo cache** at `{app_data_dir}/skill-repo-cache/{repo_cache_name}/{skill_path}/SKILL.md` where `repo_cache_name` is the repo display name with `/` → `_`), Install/Update/Installed badge, Re-install, Delete (trash icon, visible only for installed skills)

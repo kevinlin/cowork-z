@@ -58,7 +58,7 @@ fn stored_tasks_to_tasks(stored: Vec<db::tasks::StoredTask>) -> Vec<Task> {
 /// Returns (api_keys, working_directory, folder_permissions, custom_prompt, mcp_servers, workspace_id)
 fn resolve_shared_state(
     db_state: &State<'_, DbState>,
-    task_id: &str,
+    _task_id: &str,
 ) -> Result<
     (
         sidecar::ApiKeys,

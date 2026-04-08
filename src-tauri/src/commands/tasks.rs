@@ -427,7 +427,17 @@ pub async fn save_task_status(
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    db::tasks::update_task_status(&conn, &task_id, &status, None)
+    db::tasks::update_task_status(&conn, &task_id, &status, None)?;
+
+    // Check arena completion after any terminal status change
+    if status == "completed" || status == "failed" || status == "interrupted" {
+        if let Some(arena_id) = db::arenas::check_arena_all_tasks_terminal(&conn, &task_id) {
+            let completed_at = chrono::Utc::now().to_rfc3339();
+            let _ = db::arenas::update_arena_completed(&conn, &arena_id, &completed_at);
+        }
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -467,6 +477,12 @@ pub async fn complete_task(
     // Update session ID if provided
     if let Some(sid) = session_id {
         db::tasks::update_task_session_id(&conn, &task_id, &sid)?;
+    }
+
+    // If this task belongs to an arena and all sibling tasks are now terminal,
+    // mark the arena as completed.
+    if let Some(arena_id) = db::arenas::check_arena_all_tasks_terminal(&conn, &task_id) {
+        let _ = db::arenas::update_arena_completed(&conn, &arena_id, &completed_at);
     }
 
     Ok(())

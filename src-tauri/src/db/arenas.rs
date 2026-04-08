@@ -190,6 +190,37 @@ fn derive_arena_status(conn: &Connection, arena_id: &str) -> (String, Vec<Option
     (status.to_string(), model_ids)
 }
 
+/// Check if all tasks in an arena have reached a terminal state.
+/// Returns `Some(arena_id)` if the task belongs to an arena and all siblings are terminal,
+/// or `None` otherwise.
+pub fn check_arena_all_tasks_terminal(conn: &Connection, task_id: &str) -> Option<String> {
+    let arena_id: Option<String> = conn
+        .query_row(
+            "SELECT arena_id FROM tasks WHERE id = ?1",
+            [task_id],
+            |row| row.get(0),
+        )
+        .ok()
+        .flatten();
+
+    let arena_id = arena_id?;
+
+    let non_terminal_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM tasks
+             WHERE arena_id = ?1 AND status NOT IN ('completed', 'failed', 'interrupted')",
+            [&arena_id],
+            |row| row.get(0),
+        )
+        .unwrap_or(1);
+
+    if non_terminal_count == 0 {
+        Some(arena_id)
+    } else {
+        None
+    }
+}
+
 /// Update arena completion timestamp
 pub fn update_arena_completed(
     conn: &Connection,

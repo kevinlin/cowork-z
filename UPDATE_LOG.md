@@ -4,7 +4,8 @@
 
 ## v0.6.5
 
-- 
+- **Convention-based workspace permissions** — Workspace `input/` folder is now read-only (agent cannot edit files there); `output/` folder is explicitly writable. Permission approvals are now remembered at the workspace level and automatically applied to all future tasks in the same workspace.
+
 
 ## v0.6.4
 

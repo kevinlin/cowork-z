@@ -60,7 +60,9 @@ export const TodoPanel = memo(function TodoPanel({ todos, className }: TodoPanel
               {todo.content}
             </span>
             {todo.priority === 'high' && (
-              <span className="shrink-0 rounded-full bg-amber-500/15 px-1 py-0.5 font-semibold text-[10px] leading-none text-amber-600">↑</span>
+              <span className="shrink-0 rounded-full bg-amber-500/15 px-1 py-0.5 font-semibold text-[10px] text-amber-600 leading-none">
+                ↑
+              </span>
             )}
           </div>
         );

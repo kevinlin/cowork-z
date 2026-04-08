@@ -43,6 +43,7 @@ Technical design documents and implementation plans organized by module. Design 
 |------|----------|--------------|
 | Sidecar OpenCode Rewrite | [`opencode-integration/plan_sidecar-opencode-rewrite.md`](opencode-integration/plan_sidecar-opencode-rewrite.md) | 1.2.1, 1.2.2 |
 | Folder Permission Model | [`opencode-integration/plan_folder-permission-model.md`](opencode-integration/plan_folder-permission-model.md) | 1.3.1–1.3.4 |
+| Convention-Based Workspace Permissions | [`opencode-integration/plan_convention-based-workspace-permission-model.md`](opencode-integration/plan_convention-based-workspace-permission-model.md) | 1.3.1–1.3.4 |
 | User Prompt Customization | [`opencode-integration/plan_user-prompt-customization.md`](opencode-integration/plan_user-prompt-customization.md) | 2.1 |
 | MCP Server Support | [`opencode-integration/plan_mcp-server-support.md`](opencode-integration/plan_mcp-server-support.md) | 2.3 |
 | OpenCode Server API Skill | [`opencode-integration/plan_opencode-server-skill.md`](opencode-integration/plan_opencode-server-skill.md) | 2.4 |
@@ -189,6 +190,7 @@ Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#re
 #### 1.3 Permission System ✅
 
 > **Plan:** [Folder Permission Model](opencode-integration/plan_folder-permission-model.md)
+> **Plan:** [Convention-Based Workspace Permissions](opencode-integration/plan_convention-based-workspace-permission-model.md)
 
 **User Story:** As a user, I want to control what files and directories the AI agent can access, so that my system stays protected.
 
@@ -197,17 +199,18 @@ Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#re
 ##### 1.3.1 Folder Permissions
 1. THE SYSTEM SHALL support two access levels: **read** and **read-write**
 2. WHEN a task starts, THE SYSTEM SHALL enforce folder permissions for all file operations
-3. WHERE permissions are granted, THE SYSTEM SHALL persist them per task in the database
+3. WHERE permissions are granted, THE SYSTEM SHALL persist them per workspace in the database
 4. WHEN multiple permission requests arrive concurrently (e.g. from parallel tool calls), THE SYSTEM SHALL queue them and present each to the user in order
 5. WHEN the user approves a permission pattern, THE SYSTEM SHALL auto-approve any queued or subsequent requests matching the same pattern
 
 ##### 1.3.2 Default Access
 1. THE SYSTEM SHALL grant default read-write access to the active workspace folder and its descendants (see 6.3 for workspace trust model)
-2. WHEN the agent requests access to any path outside the workspace and permitted folders, THE SYSTEM SHALL prompt the user with a permission dialog showing the requested path
+2. THE SYSTEM SHALL enforce `input/` as read-only (edit: deny) and `output/` as explicitly writable via convention-based permission rules
+3. WHEN the agent requests access to any path outside the workspace and permitted folders, THE SYSTEM SHALL prompt the user with a permission dialog showing the requested path
 
 ##### 1.3.3 Runtime Permission Requests
-1. IF the user approves a permission request, THE SYSTEM SHALL extract the parent folder from the requested path and store it as an ad-hoc grant
-2. WHERE ad-hoc grants exist, THE SYSTEM SHALL restore them when a session is resumed
+1. IF the user approves a permission request, THE SYSTEM SHALL extract the parent folder from the requested path and store it as an ad-hoc workspace grant
+2. WHERE ad-hoc grants exist, THE SYSTEM SHALL restore them for all tasks in the same workspace
 
 ##### 1.3.4 Permission Sources
 1. THE SYSTEM SHALL distinguish between **user** permissions (explicitly configured) and **ad-hoc** permissions (granted from runtime requests)

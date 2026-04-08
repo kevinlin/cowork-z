@@ -264,11 +264,11 @@ pub fn run() {
             commands::arena::delete_arena,
             commands::arena::abort_arena,
             commands::arena::rename_arena,
-            // Folder permissions
-            commands::folder_permissions::save_folder_permission,
-            commands::folder_permissions::get_folder_permissions,
-            commands::folder_permissions::remove_folder_permission,
-            commands::folder_permissions::get_default_folder_permissions,
+            // Workspace permissions
+            commands::workspace_permissions::save_workspace_permission,
+            commands::workspace_permissions::get_workspace_permissions,
+            commands::workspace_permissions::remove_workspace_permission,
+            commands::workspace_permissions::get_default_folder_permissions,
             // Settings
             commands::settings::get_debug_mode,
             commands::settings::set_debug_mode,

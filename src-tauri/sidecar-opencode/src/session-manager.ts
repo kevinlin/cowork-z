@@ -362,7 +362,7 @@ export class SessionManager extends EventEmitter {
       .sendMessage(session.id, {
         parts: [{ type: 'text', text: prompt }],
         directory: workingDirectory,
-        system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt),
+        system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt, workingDirectory),
         model: messageModel,
       })
       .catch((err) => {
@@ -418,7 +418,7 @@ export class SessionManager extends EventEmitter {
         .sendMessage(sessionId, {
           parts: [{ type: 'text', text: prompt }],
           directory: workingDirectory,
-          system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt),
+          system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt, workingDirectory),
           model: messageModel,
         })
         .catch((err) => {

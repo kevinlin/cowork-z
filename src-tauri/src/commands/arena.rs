@@ -78,18 +78,22 @@ fn resolve_shared_state(
         .and_then(|id| db::workspaces::get_workspace(&conn, id))
         .map(|w| w.folder_path);
 
-    let folder_permissions = db::folder_permissions::get_folder_permissions(&conn, task_id);
+    let workspace_perms = if let Some(ref ws_id) = ws_id {
+        db::workspace_permissions::get_workspace_permissions(&conn, ws_id)
+    } else {
+        vec![]
+    };
     let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> =
-        if folder_permissions.is_empty() {
+        if workspace_perms.is_empty() {
             None
         } else {
             Some(
-                folder_permissions
+                workspace_perms
                     .iter()
-                    .map(|fp| sidecar::FolderPermissionPayload {
-                        path: fp.folder_path.clone(),
-                        access_level: fp.access_level.clone(),
-                        source: Some(fp.source.clone()),
+                    .map(|wp| sidecar::FolderPermissionPayload {
+                        path: wp.folder_path.clone(),
+                        access_level: wp.access_level.clone(),
+                        source: Some(wp.source.clone()),
                     })
                     .collect(),
             )
@@ -221,7 +225,7 @@ pub async fn start_arena(
 
         // Prepend folder instruction to prompt
         let arena_prompt = format!(
-            "IMPORTANT: For any files you create, put them under a subfolder named \"{}\" in the workspace root to keep outputs separate from other agents.\n\n{}",
+            "IMPORTANT: For any files you create, put them under a subfolder named \"output/{}\" in the workspace root to keep outputs separate from other agents.\n\n{}",
             model_config.display_name, config.prompt
         );
 

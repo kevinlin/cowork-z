@@ -4,7 +4,7 @@
 //! Provides SQLite-based persistence for tasks, settings, and provider configurations.
 
 pub mod arenas;
-pub mod folder_permissions;
+pub mod workspace_permissions;
 pub mod migrations;
 pub mod providers;
 pub mod settings;

@@ -161,13 +161,15 @@ Keys are retrieved on-demand during task startup. Only masked prefixes are retur
 ### Folder Permission Model
 
 > **Plan:** [Folder Permission Model](plan_folder-permission-model.md)
+> **Plan:** [Convention-Based Workspace Permission Model](plan_convention-based-workspace-permission-model.md)
 
-- Default access: active workspace folder and its descendants (read-write)
+- **Convention-based defaults:** Workspace `input/` folder is read-only (`edit: deny`), `output/` folder is explicitly writable (`edit: allow`), workspace root allows read/list for everything
+- **Workspace-scoped persistence:** Permissions are stored in the `workspace_permissions` table (replaced task-scoped `folder_permissions`). Adhoc approvals carry across all tasks in the same workspace.
+- **Bash soft enforcement:** System prompt instructs the agent not to modify `input/` via bash commands. Hard enforcement is via `edit: deny` permission rules in the OpenCode config.
+- **Architecture flow:** User approves permission → saved to `workspace_permissions` → loaded for all future tasks in the workspace
 - All paths outside the workspace require explicit user approval via runtime permission dialogs
-- Approved paths are stored as ad-hoc grants (parent folder extracted from requested path)
-- Grants are persisted per task and restored on session resume
 - Two access levels: `read` and `read-write`
-- Two sources: `user` (explicit), `adhoc` (from runtime approval), `workspace` (auto-granted)
+- Three sources: `user` (explicit), `adhoc` (from runtime approval), `workspace` (auto-granted)
 
 ### Database Encryption (Optional)
 

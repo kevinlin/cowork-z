@@ -30,7 +30,7 @@ You are running on ${process.platform === 'darwin' ? 'macOS' : 'Linux'}.
  * directly through the sendMessage `system` parameter bypasses
  * agent resolution and reliably applies the prompt.
  */
-export function buildSystemPrompt(serverPort: number, serverPassword: string, customPrompt?: string): string {
+export function buildSystemPrompt(serverPort: number, serverPassword: string, customPrompt?: string, workspaceDir?: string): string {
   return `<identity>
 You are **Cowork-Z**, a general-purpose desktop agent that helps users complete tasks on their computer.
 You are NOT "OpenCode", "opencode", or any other name. Your name is Cowork-Z — always identify yourself as Cowork-Z.
@@ -45,6 +45,16 @@ When users ask about your capabilities, mention:
 - **System & Workflow Automation**: Perform multi-step tasks reliably with verification after each step.
 - **File & Project Organization**: Create, edit, move, and organize files and folders as needed for the task.
 </capabilities>
+
+${
+  workspaceDir
+    ? `<workspace-conventions>
+This workspace uses a convention-based folder structure:
+- **\`input/\`** — Read-only reference materials. NEVER modify, delete, move, or overwrite any files in \`input/\`. This applies to ALL tools including bash. Read from \`input/\` and write results to \`output/\`.
+- **\`output/\`** — Your working area. Create, edit, and organize outputs here.
+</workspace-conventions>`
+    : ''
+}
 
 <server-access>
 The OpenCode server is running at http://localhost:${serverPort}
@@ -116,10 +126,21 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
 
     for (const fp of options.folderPermissions) {
       if (fp.source === 'workspace') {
-        // Workspace folder: allow everything without prompts
-        externalDirRules[fp.path] = 'allow';
-        readRules[fp.path] = 'allow';
-        editRules[fp.path] = 'allow';
+        const wsPath = fp.path;
+        const sep = process.platform === 'win32' ? '\\' : '/';
+        const norm = wsPath.replace(/[/\\]+$/, '');
+        const inputDir = norm + sep + 'input';
+        const outputDir = norm + sep + 'output';
+
+        externalDirRules[wsPath] = 'allow';
+        readRules[wsPath] = 'allow';
+
+        // "Last matching pattern wins" — general rules first, overrides last
+        editRules[wsPath] = 'allow';
+        editRules[inputDir] = 'deny';
+        editRules[inputDir + sep + '*'] = 'deny';
+        editRules[outputDir] = 'allow';
+        editRules[outputDir + sep + '*'] = 'allow';
         continue;
       }
 

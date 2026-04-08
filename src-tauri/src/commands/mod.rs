@@ -5,7 +5,7 @@ pub mod azure_foundry;
 pub mod bedrock;
 pub mod copilot;
 pub mod files;
-pub mod folder_permissions;
+pub mod workspace_permissions;
 pub mod litellm;
 pub mod logging;
 pub mod ollama;

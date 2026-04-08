@@ -4,7 +4,7 @@
 use rusqlite::Connection;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 5;
+const CURRENT_VERSION: i32 = 6;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -307,6 +307,38 @@ fn migrate_v5(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v6: Workspace-scoped permissions (replaces task-scoped folder_permissions)
+fn migrate_v6(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v6 (workspace permissions)");
+
+    conn.execute_batch(
+        "CREATE TABLE workspace_permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+            folder_path TEXT NOT NULL,
+            access_level TEXT NOT NULL DEFAULT 'read-write',
+            source TEXT NOT NULL DEFAULT 'adhoc',
+            created_at TEXT NOT NULL,
+            UNIQUE(workspace_id, folder_path)
+        );
+
+        CREATE INDEX idx_workspace_permissions_workspace_id ON workspace_permissions(workspace_id);
+
+        INSERT OR IGNORE INTO workspace_permissions (workspace_id, folder_path, access_level, source, created_at)
+        SELECT DISTINCT t.workspace_id, fp.folder_path, fp.access_level, fp.source, fp.created_at
+        FROM folder_permissions fp
+        JOIN tasks t ON fp.task_id = t.id
+        WHERE t.workspace_id IS NOT NULL;
+
+        DROP TABLE IF EXISTS folder_permissions;",
+    )
+    .map_err(|e| format!("Migration v6 failed: {}", e))?;
+
+    set_stored_version(conn, 6)?;
+    println!("[Migrations] Migration v6 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -345,6 +377,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
 
     if stored_version < 5 {
         migrate_v5(conn)?;
+    }
+
+    if stored_version < 6 {
+        migrate_v6(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

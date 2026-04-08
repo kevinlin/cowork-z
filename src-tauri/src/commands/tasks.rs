@@ -87,18 +87,26 @@ pub async fn start_task(
         }
     };
 
-    // Load folder permissions from database
-    let folder_permissions = {
+    // Load workspace-scoped permissions from database
+    let ws_id_for_perms = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::folder_permissions::get_folder_permissions(&conn, &task_id)
+        db::settings::get_last_workspace_id(&conn)
     };
-    let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if folder_permissions.is_empty() {
+    let workspace_perms = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        if let Some(ref ws_id) = ws_id_for_perms {
+            db::workspace_permissions::get_workspace_permissions(&conn, ws_id)
+        } else {
+            vec![]
+        }
+    };
+    let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if workspace_perms.is_empty() {
         None
     } else {
-        Some(folder_permissions.iter().map(|fp| sidecar::FolderPermissionPayload {
-            path: fp.folder_path.clone(),
-            access_level: fp.access_level.clone(),
-            source: Some(fp.source.clone()),
+        Some(workspace_perms.iter().map(|wp| sidecar::FolderPermissionPayload {
+            path: wp.folder_path.clone(),
+            access_level: wp.access_level.clone(),
+            source: Some(wp.source.clone()),
         }).collect())
     };
 
@@ -480,6 +488,17 @@ pub async fn respond_to_permission(
     // For edit/file permissions, patterns are file paths — use the parent directory.
     if response.decision == "allow" {
         if let Some(patterns) = &response.patterns {
+            let ws_id: Option<String> = {
+                let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+                conn.query_row(
+                    "SELECT workspace_id FROM tasks WHERE id = ?1",
+                    [&response.task_id],
+                    |row| row.get(0),
+                )
+                .ok()
+                .flatten()
+            };
+
             for pattern in patterns {
                 let path = std::path::Path::new(pattern);
                 let folder_path = if path.is_dir() {
@@ -489,14 +508,12 @@ pub async fn respond_to_permission(
                 };
                 if let Some(folder_path) = folder_path {
                     if !folder_path.is_empty() {
-                        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-                        let _ = db::folder_permissions::save_folder_permission(
-                            &conn,
-                            &response.task_id,
-                            &folder_path,
-                            "read-write",
-                            "adhoc",
-                        );
+                        if let Some(ref ws_id) = ws_id {
+                            let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+                            let _ = db::workspace_permissions::save_workspace_permission(
+                                &conn, ws_id, &folder_path, "read-write", "adhoc",
+                            );
+                        }
                     }
                 }
             }
@@ -542,18 +559,26 @@ pub async fn resume_session(
             .map(|w| w.folder_path)
     };
 
-    // Load folder permissions from database
-    let folder_permissions = {
+    // Load workspace-scoped permissions from database
+    let ws_id_for_perms = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::folder_permissions::get_folder_permissions(&conn, &task_id)
+        db::settings::get_last_workspace_id(&conn)
     };
-    let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if folder_permissions.is_empty() {
+    let workspace_perms = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        if let Some(ref ws_id) = ws_id_for_perms {
+            db::workspace_permissions::get_workspace_permissions(&conn, ws_id)
+        } else {
+            vec![]
+        }
+    };
+    let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if workspace_perms.is_empty() {
         None
     } else {
-        Some(folder_permissions.iter().map(|fp| sidecar::FolderPermissionPayload {
-            path: fp.folder_path.clone(),
-            access_level: fp.access_level.clone(),
-            source: Some(fp.source.clone()),
+        Some(workspace_perms.iter().map(|wp| sidecar::FolderPermissionPayload {
+            path: wp.folder_path.clone(),
+            access_level: wp.access_level.clone(),
+            source: Some(wp.source.clone()),
         }).collect())
     };
 

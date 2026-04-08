@@ -96,11 +96,10 @@ interface TaskState {
   openLauncher: () => void;
   closeLauncher: () => void;
 
-  // Working folder permissions (per-conversation, persisted in DB)
+  // Working folder permissions (workspace-scoped, persisted in DB)
   folderPermissions: FolderPermission[];
   addFolderPermission: (path: string, accessLevel: string) => void;
   removeFolderPermission: (path: string) => void;
-  loadFolderPermissions: (taskId: string) => Promise<void>;
 
   // Actions
   startTask: (config: TaskConfig) => Promise<Task | null>;
@@ -367,42 +366,36 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   folderPermissions: [],
 
   addFolderPermission: (path: string, accessLevel: string) => {
-    const { folderPermissions, currentTask } = get();
-    // Avoid duplicates
+    const { folderPermissions } = get();
     if (folderPermissions.some((fp) => fp.folderPath === path)) {
       return;
     }
     const newPerms = [...folderPermissions, { folderPath: path, accessLevel: accessLevel as FolderPermission['accessLevel'] }];
     set({ folderPermissions: newPerms });
 
-    // Persist to database if there's an active task
-    if (currentTask) {
-      api.saveFolderPermission(currentTask.id, path, accessLevel).catch((err) => {
-        console.error('Failed to persist folder permission:', err);
-      });
-    }
+    import('./workspaceStore').then(({ useWorkspaceStore }) => {
+      const wsId = useWorkspaceStore.getState().activeWorkspace?.id;
+      if (wsId) {
+        api.saveFolderPermission(wsId, path, accessLevel).catch((err) => {
+          console.error('Failed to persist folder permission:', err);
+        });
+      }
+    });
   },
 
   removeFolderPermission: (path: string) => {
-    const { folderPermissions, currentTask } = get();
+    const { folderPermissions } = get();
     const newPerms = folderPermissions.filter((fp) => fp.folderPath !== path);
     set({ folderPermissions: newPerms });
 
-    // Remove from database if there's an active task
-    if (currentTask) {
-      api.removeFolderPermission(currentTask.id, path).catch((err) => {
-        console.error('Failed to remove folder permission:', err);
-      });
-    }
-  },
-
-  loadFolderPermissions: async (taskId: string) => {
-    try {
-      const perms = await api.getFolderPermissions(taskId);
-      set({ folderPermissions: perms });
-    } catch (err) {
-      console.error('Failed to load folder permissions:', err);
-    }
+    import('./workspaceStore').then(({ useWorkspaceStore }) => {
+      const wsId = useWorkspaceStore.getState().activeWorkspace?.id;
+      if (wsId) {
+        api.removeFolderPermission(wsId, path).catch((err) => {
+          console.error('Failed to remove folder permission:', err);
+        });
+      }
+    });
   },
 
   setStartupStage: (taskId: string | null, stage: string | null, message?: string, modelName?: string, isFirstTask?: boolean) => {

@@ -240,16 +240,16 @@ export async function renameArena(arenaId: string, prompt: string): Promise<void
 // Folder Permissions
 // ============================================================================
 
-export async function saveFolderPermission(taskId: string, folderPath: string, accessLevel: string, source?: string): Promise<void> {
-  return invoke<void>('save_folder_permission', { taskId, folderPath, accessLevel, source });
+export async function saveFolderPermission(workspaceId: string, folderPath: string, accessLevel: string, source?: string): Promise<void> {
+  return invoke<void>('save_workspace_permission', { workspaceId, folderPath, accessLevel, source });
 }
 
-export async function getFolderPermissions(taskId: string): Promise<FolderPermission[]> {
-  return invoke<FolderPermission[]>('get_folder_permissions', { taskId });
+export async function getFolderPermissions(workspaceId: string): Promise<FolderPermission[]> {
+  return invoke<FolderPermission[]>('get_workspace_permissions', { workspaceId });
 }
 
-export async function removeFolderPermission(taskId: string, folderPath: string): Promise<void> {
-  return invoke<void>('remove_folder_permission', { taskId, folderPath });
+export async function removeFolderPermission(workspaceId: string, folderPath: string): Promise<void> {
+  return invoke<void>('remove_workspace_permission', { workspaceId, folderPath });
 }
 
 export async function getDefaultFolderPermissions(): Promise<FolderPermission[]> {

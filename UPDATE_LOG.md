@@ -2,11 +2,14 @@
 
 # UPDATE LOG
 
+## v0.6.6
+
+- 
+
 ## v0.6.5
 
 - **Convention-based workspace permissions** — Workspace `input/` folder is now read-only (agent cannot edit files there); `output/` folder is explicitly writable. Permission approvals are now remembered at the workspace level and automatically applied to all future tasks in the same workspace.
 - **Arena completion tracking** — The Rust backend now automatically marks an arena as completed when all 3 child tasks reach a terminal state (completed, failed, or interrupted); `completed_at` timestamp is set on the arena record
-
 
 ## v0.6.4
 

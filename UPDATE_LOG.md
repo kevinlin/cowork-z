@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.6.7
+
+- 
+
 ## v0.6.6
 
 - **Clickable skill pill** — Clicking a selected skill's name in the pill opens its SKILL.md definition in the file preview panel; skill file resolution follows OpenCode's discovery order (project-level, global, bundled templates)

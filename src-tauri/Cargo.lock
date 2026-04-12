@@ -658,7 +658,7 @@ dependencies = [
 
 [[package]]
 name = "cowork-z"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "base64 0.22.1",
  "chrono",

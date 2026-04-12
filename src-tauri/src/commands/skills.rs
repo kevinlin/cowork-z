@@ -318,6 +318,56 @@ pub fn skills_get_template_path(app: AppHandle, skill_id: String) -> Result<Stri
     Ok(skill_md.to_string_lossy().to_string())
 }
 
+/// Resolve the SKILL.md path for a skill, searching project-level, global,
+/// and bundled template locations in priority order.
+#[tauri::command]
+pub fn skills_get_skill_file_path(
+    app: AppHandle,
+    skill_id: String,
+    workspace_path: Option<String>,
+) -> Result<String, String> {
+    // 1. Project-level locations (if workspace_path provided)
+    if let Some(ref ws) = workspace_path {
+        let ws_path = Path::new(ws);
+        let project_dirs = [
+            ws_path.join(".opencode/skills"),
+            ws_path.join(".claude/skills"),
+            ws_path.join(".agents/skills"),
+        ];
+        for dir in &project_dirs {
+            let candidate = dir.join(&skill_id).join("SKILL.md");
+            if candidate.exists() {
+                return Ok(candidate.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    // 2. Global locations
+    if let Some(home) = dirs::home_dir() {
+        let global_dirs = [
+            home.join(".config/opencode/skills"),
+            home.join(".claude/skills"),
+            home.join(".agents/skills"),
+        ];
+        for dir in &global_dirs {
+            let candidate = dir.join(&skill_id).join("SKILL.md");
+            if candidate.exists() {
+                return Ok(candidate.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    // 3. Fallback to bundled template
+    if let Ok(templates_dir) = resolve_templates_dir(&app) {
+        let template = templates_dir.join(&skill_id).join("SKILL.md");
+        if template.exists() {
+            return Ok(template.to_string_lossy().to_string());
+        }
+    }
+
+    Err(format!("SKILL.md not found for '{}'", skill_id))
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

@@ -637,10 +637,12 @@ Files dropped from the OS file manager or the sidebar file tree are inserted as 
 
 > **Plan:** [Slash Command Skill Invocation](plan_slash-command-skill-invocation.md)
 
-Typing `/` at the start of input triggers a popover autocomplete menu listing installed skills. Features:
+Typing `/` at the start of input triggers a popover autocomplete menu listing installed skills. Available in all three input surfaces: TaskInputBar (Home), ChatInput (follow-up), and ArenaInputBar (Arena). Features:
 - Real-time filtering by name, ID, and description (case-insensitive)
 - Selection via click or Tab key
 - Selected skill renders as a visual pill/chip above the textarea
+- Clicking the pill name opens the skill's `SKILL.md` in the FilePreviewPanel
+- Skill file resolution follows OpenCode's discovery order: project-level (`.opencode/skills/`, `.claude/skills/`, `.agents/skills/` relative to workspace), then global (`~/.config/opencode/skills/`, `~/.claude/skills/`, `~/.agents/skills/`), then bundled templates
 - One skill per message
 - Prompt constructed as `/<skill-id> <user-text>` on submission
 

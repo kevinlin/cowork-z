@@ -1327,6 +1327,10 @@ export async function getSkillTemplatePath(skillId: string): Promise<string> {
   return invoke<string>('skills_get_template_path', { skillId });
 }
 
+export async function getSkillFilePath(skillId: string, workspacePath?: string): Promise<string> {
+  return invoke<string>('skills_get_skill_file_path', { skillId, workspacePath: workspacePath ?? null });
+}
+
 // ============================================================================
 // Skills Manager
 // ============================================================================
@@ -1684,6 +1688,7 @@ export function getTauriApi() {
     listSkillsWithStatus,
     installSkill,
     getSkillTemplatePath,
+    getSkillFilePath,
 
     // Skills Manager
     skillReposList,

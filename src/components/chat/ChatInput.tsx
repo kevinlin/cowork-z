@@ -1,5 +1,5 @@
 import { CornerDownLeft, Square } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { DragDropTextarea } from '@/components/ui/drag-drop-input';
@@ -8,6 +8,10 @@ import { SkillAutocompletePopover } from '@/components/ui/skill-autocomplete-pop
 import { SkillPill } from '@/components/ui/skill-pill';
 import { useSkillAutocomplete } from '@/hooks/useSkillAutocomplete';
 import { insertAtCursor } from '@/lib/file-utils';
+import type { SkillMeta } from '@/lib/tauri-api';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
+import { useFilePreviewStore } from '@/stores/filePreviewStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 interface ChatInputProps {
   isRunning: boolean;
@@ -38,6 +42,20 @@ export function ChatInput({
   const cursorPositionRef = useRef(0);
   const followUpRef = useRef(followUp);
   followUpRef.current = followUp;
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+
+  const handleSkillPillClick = useCallback(
+    async (skill: SkillMeta) => {
+      try {
+        const api = getTauriAPI();
+        const path = await api.getSkillFilePath(skill.id, activeWorkspace?.folderPath);
+        useFilePreviewStore.getState().openPreviewByPath(path);
+      } catch (e) {
+        console.error('Failed to open skill preview:', e);
+      }
+    },
+    [activeWorkspace?.folderPath]
+  );
 
   const skillAutocomplete = useSkillAutocomplete({
     text: followUp,
@@ -108,7 +126,11 @@ export function ChatInput({
 
             {skillAutocomplete.selectedSkill && (
               <div className="flex items-center">
-                <SkillPill onRemove={skillAutocomplete.clearSkill} skill={skillAutocomplete.selectedSkill} />
+                <SkillPill
+                  onClick={() => handleSkillPillClick(skillAutocomplete.selectedSkill!)}
+                  onRemove={skillAutocomplete.clearSkill}
+                  skill={skillAutocomplete.selectedSkill}
+                />
               </div>
             )}
 

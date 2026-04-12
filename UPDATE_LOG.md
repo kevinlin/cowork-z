@@ -4,7 +4,8 @@
 
 ## v0.6.6
 
-- 
+- **Clickable skill pill** — Clicking a selected skill's name in the pill opens its SKILL.md definition in the file preview panel; skill file resolution follows OpenCode's discovery order (project-level, global, bundled templates)
+- **Arena slash commands** — ArenaInputBar now supports `/` slash command skill invocation with autocomplete popover, skill pill, and prompt composition (matching TaskInputBar and ChatInput)
 
 ## v0.6.5
 

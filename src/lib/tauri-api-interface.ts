@@ -300,6 +300,7 @@ export interface TauriAPI {
   listSkillsWithStatus(): Promise<SkillWithStatus[]>;
   installSkill(skillId: string): Promise<void>;
   getSkillTemplatePath(skillId: string): Promise<string>;
+  getSkillFilePath(skillId: string, workspacePath?: string): Promise<string>;
 
   // Skills Manager
   skillReposList(): Promise<SkillRepo[]>;

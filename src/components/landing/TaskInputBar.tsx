@@ -10,6 +10,8 @@ import { useSkillAutocomplete } from '@/hooks/useSkillAutocomplete';
 import { formatPathForChat, insertAtCursor } from '@/lib/file-utils';
 import type { SkillMeta } from '@/lib/tauri-api';
 import { cn } from '@/lib/utils';
+import { useFilePreviewStore } from '@/stores/filePreviewStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { analytics } from '../../lib/analytics';
 import { getTauriAPI } from '../../lib/tauri-api-interface';
 
@@ -58,6 +60,17 @@ export default function TaskInputBar({
   }, [skillAutocomplete.selectedSkill, onSkillChange]);
 
   const selectedSkill = controlledSkill === undefined ? skillAutocomplete.selectedSkill : controlledSkill;
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+
+  const handleSkillPillClick = useCallback(async () => {
+    if (!selectedSkill) return;
+    try {
+      const path = await api.getSkillFilePath(selectedSkill.id, activeWorkspace?.folderPath);
+      useFilePreviewStore.getState().openPreviewByPath(path);
+    } catch (e) {
+      console.error('Failed to open skill preview:', e);
+    }
+  }, [selectedSkill, activeWorkspace?.folderPath, api]);
 
   // Refs to access latest values inside the Tauri event callback
   const valueRef = useRef(value);
@@ -213,7 +226,7 @@ export default function TaskInputBar({
 
       {selectedSkill && (
         <div className="flex items-center">
-          <SkillPill onRemove={skillAutocomplete.clearSkill} skill={selectedSkill} />
+          <SkillPill onClick={handleSkillPillClick} onRemove={skillAutocomplete.clearSkill} skill={selectedSkill} />
         </div>
       )}
 

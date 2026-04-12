@@ -4,9 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clearPendingDragPath, getPendingDragPath } from '@/components/sidebar/FileTreePanel';
 import { Button } from '@/components/ui/button';
+import { SkillAutocompletePopover } from '@/components/ui/skill-autocomplete-popover';
+import { SkillPill } from '@/components/ui/skill-pill';
+import { useSkillAutocomplete } from '@/hooks/useSkillAutocomplete';
 import { formatPathForChat, insertAtCursor } from '@/lib/file-utils';
+import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { cn } from '@/lib/utils';
 import { selectIsRunning, useArenaStore } from '@/stores/arenaStore';
+import { useFilePreviewStore } from '@/stores/filePreviewStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { ArenaModelPickerDialog } from './ArenaModelPickerDialog';
 
 interface ArenaInputBarProps {
@@ -18,23 +24,44 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
   const navigate = useNavigate();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [pickerColumnIndex, setPickerColumnIndex] = useState<0 | 1 | 2 | null>(null);
-
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [inputValue, setInputValue] = useState('');
 
   const { columns, setColumnModel, startArena, sendFollowUp, abortAll, arenaId } = useArenaStore();
   const isRunning = useArenaStore(selectIsRunning);
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+  const api = getTauriAPI();
 
-  const insertTextAtCursor = useCallback((text: string) => {
+  const skillAutocomplete = useSkillAutocomplete({
+    text: inputValue,
+    onTextChange: setInputValue,
+    disabled: isRunning,
+  });
+
+  const handleSkillPillClick = useCallback(async () => {
+    if (!skillAutocomplete.selectedSkill) return;
+    try {
+      const path = await api.getSkillFilePath(skillAutocomplete.selectedSkill.id, activeWorkspace?.folderPath);
+      useFilePreviewStore.getState().openPreviewByPath(path);
+    } catch (e) {
+      console.error('Failed to open skill preview:', e);
+    }
+  }, [skillAutocomplete.selectedSkill, activeWorkspace?.folderPath, api]);
+
+  // Ref for drag-drop access to latest value
+  const inputValueRef = useRef(inputValue);
+  inputValueRef.current = inputValue;
+
+  const doInsertText = useCallback((text: string) => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
-    const cursorPos = textarea.selectionStart ?? textarea.value.length;
-    const { newText, newCursorPosition } = insertAtCursor(textarea.value, text, cursorPos);
-    textarea.value = newText;
-    textarea.style.height = 'auto';
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    const cursorPos = textarea ? (textarea.selectionStart ?? inputValueRef.current.length) : inputValueRef.current.length;
+    const { newText, newCursorPosition } = insertAtCursor(inputValueRef.current, text, cursorPos);
+    setInputValue(newText);
     setTimeout(() => {
-      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
-      textarea.focus();
+      if (textareaRef.current) {
+        textareaRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+        textareaRef.current.focus();
+      }
     }, 0);
   }, []);
 
@@ -43,11 +70,11 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ text: string }>).detail;
       if (!detail?.text) return;
-      insertTextAtCursor(detail.text);
+      doInsertText(detail.text);
     };
     window.addEventListener('add-to-chat', handler);
     return () => window.removeEventListener('add-to-chat', handler);
-  }, [insertTextAtCursor]);
+  }, [doInsertText]);
 
   // Tauri native drag-and-drop listener (OS drops + intra-app file tree drags)
   useEffect(() => {
@@ -69,7 +96,7 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
           if (paths.length === 0 && pendingPath) {
             clearPendingDragPath();
             const formatted = formatPathForChat(pendingPath);
-            if (formatted) insertTextAtCursor(formatted);
+            if (formatted) doInsertText(formatted);
             return;
           }
 
@@ -77,7 +104,7 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
 
           const formattedPaths = paths.map((p) => formatPathForChat(p)).filter((p): p is string => p !== null);
           if (formattedPaths.length === 0) return;
-          insertTextAtCursor(formattedPaths.join(' '));
+          doInsertText(formattedPaths.join(' '));
         } else {
           setIsDraggingOver(false);
         }
@@ -94,26 +121,26 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
       cancelled = true;
       unlisten?.();
     };
-  }, [insertTextAtCursor]);
+  }, [doInsertText]);
 
   // Auto-resize textarea
-  const handleTextareaInput = useCallback(() => {
+  useEffect(() => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
-    textarea.style.height = 'auto';
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
-  }, []);
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    }
+  }, [inputValue]);
 
   const handleStart = async () => {
-    const prompt = textareaRef.current?.value.trim();
-    if (!prompt) return;
+    const raw = inputValue.trim();
+    if (!raw) return;
 
+    const composed = skillAutocomplete.composePrompt();
     try {
-      const newArenaId = await startArena(prompt);
-      if (textareaRef.current) {
-        textareaRef.current.value = '';
-        handleTextareaInput();
-      }
+      const newArenaId = await startArena(composed);
+      setInputValue('');
+      skillAutocomplete.clearSkill();
       if (isNewArena) {
         navigate(`/arena/${newArenaId}`, { replace: true });
       }
@@ -123,15 +150,14 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
   };
 
   const handleFollowUp = async () => {
-    const message = textareaRef.current?.value.trim();
-    if (!message) return;
+    const raw = inputValue.trim();
+    if (!raw) return;
 
+    const composed = skillAutocomplete.composePrompt();
     try {
-      await sendFollowUp(message);
-      if (textareaRef.current) {
-        textareaRef.current.value = '';
-        handleTextareaInput();
-      }
+      await sendFollowUp(composed);
+      setInputValue('');
+      skillAutocomplete.clearSkill();
     } catch (err) {
       console.error('Failed to send follow-up:', err);
     }
@@ -146,6 +172,9 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    skillAutocomplete.handleKeyDown(e);
+    if (e.defaultPrevented) return;
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       if (isRunning) return;
@@ -206,47 +235,65 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
       )}
 
       {/* Input row */}
-      <div className="flex items-end gap-2">
-        <textarea
-          className={cn(
-            'flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm',
-            'placeholder:text-muted-foreground',
-            'focus:outline-none focus:ring-1 focus:ring-ring',
-            'disabled:cursor-not-allowed disabled:opacity-50',
-            'max-h-[120px] min-h-[38px]',
-            isDraggingOver && 'ring-2 ring-ring ring-offset-2 ring-offset-background'
-          )}
-          disabled={isRunning}
-          onInput={handleTextareaInput}
-          onKeyDown={handleKeyDown}
-          placeholder={
-            isRunning ? 'Waiting for responses...' : canFollowUp ? 'Send a follow-up message...' : 'Describe the task for all agents...'
-          }
-          ref={textareaRef}
-          rows={1}
+      <div className="relative flex flex-col gap-1.5">
+        <SkillAutocompletePopover
+          highlightedIndex={skillAutocomplete.highlightedIndex}
+          isOpen={skillAutocomplete.isPopoverOpen}
+          onHighlightChange={skillAutocomplete.setHighlightedIndex}
+          onSelect={skillAutocomplete.selectSkill}
+          position="below"
+          skills={skillAutocomplete.filteredSkills}
         />
 
-        {isRunning ? (
-          <Button className="shrink-0" onClick={handleStop} size="sm" variant="destructive">
-            <Square className="mr-1.5 h-3.5 w-3.5" />
-            Stop All
-          </Button>
-        ) : !arenaId || isNewArena ? (
-          <Button className="shrink-0" disabled={!hasSelectedModels} onClick={handleStart} size="sm">
-            <Play className="mr-1.5 h-3.5 w-3.5" />
-            Start Arena
-          </Button>
-        ) : canFollowUp ? (
-          <Button className="shrink-0" onClick={handleFollowUp} size="sm">
-            <Send className="mr-1.5 h-3.5 w-3.5" />
-            Send
-          </Button>
-        ) : (
-          <Button className="shrink-0" disabled size="sm">
-            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            Running
-          </Button>
+        {skillAutocomplete.selectedSkill && (
+          <div className="flex items-center">
+            <SkillPill onClick={handleSkillPillClick} onRemove={skillAutocomplete.clearSkill} skill={skillAutocomplete.selectedSkill} />
+          </div>
         )}
+
+        <div className="flex items-end gap-2">
+          <textarea
+            className={cn(
+              'flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm',
+              'placeholder:text-muted-foreground',
+              'focus:outline-none focus:ring-1 focus:ring-ring',
+              'disabled:cursor-not-allowed disabled:opacity-50',
+              'max-h-[120px] min-h-[38px]',
+              isDraggingOver && 'ring-2 ring-ring ring-offset-2 ring-offset-background'
+            )}
+            disabled={isRunning}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              isRunning ? 'Waiting for responses...' : canFollowUp ? 'Send a follow-up message...' : 'Describe the task for all agents...'
+            }
+            ref={textareaRef}
+            rows={1}
+            value={inputValue}
+          />
+
+          {isRunning ? (
+            <Button className="shrink-0" onClick={handleStop} size="sm" variant="destructive">
+              <Square className="mr-1.5 h-3.5 w-3.5" />
+              Stop All
+            </Button>
+          ) : !arenaId || isNewArena ? (
+            <Button className="shrink-0" disabled={!hasSelectedModels} onClick={handleStart} size="sm">
+              <Play className="mr-1.5 h-3.5 w-3.5" />
+              Start Arena
+            </Button>
+          ) : canFollowUp ? (
+            <Button className="shrink-0" onClick={handleFollowUp} size="sm">
+              <Send className="mr-1.5 h-3.5 w-3.5" />
+              Send
+            </Button>
+          ) : (
+            <Button className="shrink-0" disabled size="sm">
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              Running
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

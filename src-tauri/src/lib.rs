@@ -361,6 +361,7 @@ pub fn run() {
             commands::skills::skills_list_with_status,
             commands::skills::skills_install,
             commands::skills::skills_get_template_path,
+            commands::skills::skills_get_skill_file_path,
             // Skill Repos (Skills Manager)
             commands::skill_repos::skill_repos_list,
             commands::skill_repos::skill_repos_add,

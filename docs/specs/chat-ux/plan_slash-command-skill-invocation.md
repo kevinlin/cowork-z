@@ -27,8 +27,8 @@ A small Zustand store to cache installed skills globally, so both input componen
 
 Pure presentational component displaying a selected skill as a chip.
 
-- Shows skill name (from `skill.name`)
-- X icon button (lucide `X`) to remove
+- Skill name rendered as a `<button>` with `hover:underline` — clicking opens the skill's SKILL.md in FilePreviewPanel via optional `onClick` prop
+- X icon button (lucide `X`) to remove via `onRemove` prop
 - Uses primary-tinted styling for high visibility across all themes: `border-primary/30 bg-primary/10 text-primary`
 - Tailwind: `inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1 text-sm text-primary`
 
@@ -143,19 +143,53 @@ No explicit `App.tsx` change needed. The `useSkillAutocomplete` hook triggers `f
 | Escape | — | Dismisses popover, clears `/` text |
 | Backspace | Normal | Updates filter; dismisses if text becomes empty |
 
+### Step 11: Clickable skill pill — open SKILL.md in FilePreviewPanel
+
+**Files:**
+- `src-tauri/src/commands/skills.rs` (modify) — Add `skills_get_skill_file_path` Tauri command
+- `src-tauri/src/lib.rs` (modify) — Register the new command
+- `src/lib/tauri-api.ts` (modify) — Add `getSkillFilePath(skillId, workspacePath?)` function
+- `src/lib/tauri-api-interface.ts` (modify) — Add interface method
+- `src/components/ui/skill-pill.tsx` (modify) — Add optional `onClick` prop; render skill name as a `<button>` with `hover:underline`
+- `src/components/chat/ChatInput.tsx` (modify) — Wire `onClick` on SkillPill to resolve and open SKILL.md
+- `src/components/landing/TaskInputBar.tsx` (modify) — Wire `onClick` on SkillPill to resolve and open SKILL.md
+
+**Skill file resolution** follows OpenCode's discovery order:
+1. Project-level: `<workspace>/.opencode/skills/<id>/SKILL.md`, `<workspace>/.claude/skills/<id>/SKILL.md`, `<workspace>/.agents/skills/<id>/SKILL.md`
+2. Global: `~/.config/opencode/skills/<id>/SKILL.md`, `~/.claude/skills/<id>/SKILL.md`, `~/.agents/skills/<id>/SKILL.md`
+3. Bundled templates: `resources/skill-templates/<id>/SKILL.md`
+
+The frontend passes `activeWorkspace.folderPath` from `useWorkspaceStore` to enable project-level resolution.
+
+### Step 12: Integrate slash commands into ArenaInputBar
+
+**File:** `src/components/arena/ArenaInputBar.tsx` (modify)
+
+ArenaInputBar converted from uncontrolled to controlled textarea to support `useSkillAutocomplete` hook:
+- Added `inputValue` state and wired to textarea `value`/`onChange`
+- Integrated `useSkillAutocomplete` hook, `SkillAutocompletePopover` (position below), and `SkillPill`
+- `handleStart` and `handleFollowUp` use `composePrompt()` to prefix skill ID
+- `handleKeyDown` passes through hook's key handler before checking Cmd+Enter
+- Skill pill click opens SKILL.md via `getSkillFilePath` (same pattern as ChatInput/TaskInputBar)
+
 ## Files Summary
 
 | File | Action | Purpose |
 |------|--------|---------|
 | `docs/specs/requirements.md` | Modify | Add requirement 3.8 |
 | `src/stores/skillsStore.ts` | Create | Installed skills Zustand cache |
-| `src/components/ui/skill-pill.tsx` | Create | Skill chip/pill component |
+| `src/components/ui/skill-pill.tsx` | Create | Skill chip/pill component (clickable name opens SKILL.md) |
 | `src/components/ui/skill-autocomplete-popover.tsx` | Create | Autocomplete popover UI (configurable position) |
 | `src/hooks/useSkillAutocomplete.ts` | Create | Shared slash command hook |
-| `src/components/landing/TaskInputBar.tsx` | Modify | Add popover (below) + pill integration with controlled-mode sync |
+| `src/components/landing/TaskInputBar.tsx` | Modify | Add popover (below) + pill integration with controlled-mode sync + pill click |
 | `src/pages/Home.tsx` | Modify | Manage skill state, compose prompt |
-| `src/components/chat/ChatInput.tsx` | Modify | Add popover (above) + pill for follow-ups |
+| `src/components/chat/ChatInput.tsx` | Modify | Add popover (above) + pill for follow-ups + pill click |
+| `src/components/arena/ArenaInputBar.tsx` | Modify | Add slash command support + pill click (controlled textarea) |
 | `src/components/landing/SkillsCatalog.tsx` | Modify | Refresh cache after install |
+| `src-tauri/src/commands/skills.rs` | Modify | Add `skills_get_skill_file_path` command |
+| `src-tauri/src/lib.rs` | Modify | Register new command |
+| `src/lib/tauri-api.ts` | Modify | Add `getSkillFilePath()` |
+| `src/lib/tauri-api-interface.ts` | Modify | Add interface method |
 | `src/hooks/__tests__/useSkillAutocomplete.test.ts` | Create | Hook tests (16 tests) |
 | `src/components/ui/__tests__/skill-pill.test.tsx` | Create | Pill tests (2 tests) |
 | `src/components/ui/__tests__/skill-autocomplete-popover.test.tsx` | Create | Popover tests (5 tests) |
@@ -163,13 +197,17 @@ No explicit `App.tsx` change needed. The `useSkillAutocomplete` hook triggers `f
 ## Verification
 
 1. `pnpm typecheck` — passes
-2. `pnpm test --run` — 258 tests pass (18 files), including 23 new tests
-3. Manual testing:
+2. `pnpm test --run` — all tests pass
+3. `cd src-tauri && cargo check` — passes
+4. Manual testing:
    - Type `/` in TaskInputBar → popover appears **below** the input with installed skills
    - Type `/mar` → filters to marketing skills
    - Press Tab or click → skill pill appears above textarea, popover closes, textarea cleared
    - Type query text → appears in textarea below pill
    - Press Enter → task starts with prompt `/skill-id query text`
    - Click X on pill → pill removed, back to normal input
+   - Click skill name on pill → SKILL.md opens in FilePreviewPanel
    - Same flow in ChatInput follow-up (popover appears **above** the input)
+   - Same flow in ArenaInputBar (popover appears **below** the input)
    - Install a new skill in Catalog → immediately available in autocomplete
+   - Project-level skills (`.opencode/skills/`) resolve before global skills

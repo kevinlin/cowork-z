@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.6.8
+
+- 
+
 ## v0.6.7
 
 - **Mandatory workspace context in system prompt** — the agent is always told the current workspace path and instructed to create every new file under `<workspace>/output/` (including bash-created files like `touch`, `>`, `tee`, `mkdir`), never at the workspace root or in `input/`.

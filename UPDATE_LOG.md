@@ -4,7 +4,7 @@
 
 ## v0.6.7
 
-- 
+- **Mandatory workspace context in system prompt** — `buildSystemPrompt` now requires the workspace directory; the agent is always told the current workspace path and instructed to create every new file under `<workspace>/output/` (including bash-created files like `touch`, `>`, `tee`, `mkdir`), never at the workspace root or in `input/`.
 
 ## v0.6.6
 

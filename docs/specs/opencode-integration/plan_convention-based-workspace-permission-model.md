@@ -188,35 +188,41 @@ if (fp.source === 'workspace') {
 
 ---
 
-## Step 7: System Prompt — Soft Bash Enforcement
+## Step 7: System Prompt — Soft Bash Enforcement + Mandatory Workspace Dir
 
 **File:** `src-tauri/sidecar-opencode/src/config-builder.ts` — `buildSystemPrompt()` (line 33)
 
-Add `workspaceDir?: string` parameter:
+Make `workspaceDir` a **required** parameter (reorder so it comes before the optional `customPrompt`):
 ```typescript
 export function buildSystemPrompt(
-  serverPort: number, serverPassword: string,
-  customPrompt?: string, workspaceDir?: string
+  serverPort: number,
+  serverPassword: string,
+  workspaceDir: string,
+  customPrompt?: string
 ): string {
 ```
 
-Add after `<capabilities>` section (before `<server-access>`):
+Unconditionally emit a `<workspace-conventions>` section after `<capabilities>` (before `<server-access>`). The block embeds the current workspace path and instructs the agent to create every new file under `${workspaceDir}/output/`:
 ```
-${workspaceDir ? `<workspace-conventions>
+<workspace-conventions>
+The current workspace is: \`${workspaceDir}\`
+
 This workspace uses a convention-based folder structure:
 - **\`input/\`** — Read-only reference materials. NEVER modify, delete, move, or overwrite any files in \`input/\`. This applies to ALL tools including bash. Read from \`input/\` and write results to \`output/\`.
-- **\`output/\`** — Your working area. Create, edit, and organize outputs here.
-</workspace-conventions>` : ''}
+- **\`output/\`** — Your working area. **Whenever you create a new file, you MUST place it under \`${workspaceDir}/output/\`** (creating subdirectories inside \`output/\` as appropriate). This applies to ALL file-creating tools including write, edit, and bash commands (e.g., \`touch\`, \`>\`, \`tee\`, \`mkdir\`). Never write new files to the workspace root, to \`input/\`, or to other directories unless the user explicitly requests a different location.
+</workspace-conventions>
 ```
 
 **File:** `src-tauri/sidecar-opencode/src/session-manager.ts` — lines 365 and 421
 
-Thread `workingDirectory` to `buildSystemPrompt`:
+Thread `workingDirectory` to `buildSystemPrompt` in the new argument order. Because the payload types mark `workingDirectory?: string` as optional, coalesce to an empty string defensively:
 ```typescript
-system: buildSystemPrompt(this.serverPort, this.serverPassword, customPrompt, workingDirectory),
+system: buildSystemPrompt(this.serverPort, this.serverPassword, workingDirectory ?? '', customPrompt),
 ```
 
-(`workingDirectory` is already available in both `startTask()` and `resumeSession()` from destructured payload.)
+**File:** `src-tauri/sidecar-opencode/__tests__/server-isolation.test.ts`
+
+Update all existing `buildSystemPrompt` test calls to pass a workspace path (e.g., `'/tmp/workspace'`) and add a new test asserting the prompt contains the workspace path and the `${workspaceDir}/output/` instruction.
 
 ---
 

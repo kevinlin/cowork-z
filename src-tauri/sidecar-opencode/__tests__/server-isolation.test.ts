@@ -59,25 +59,32 @@ describe('Server Isolation', () => {
 
   describe('buildSystemPrompt', () => {
     it('should include the dynamic server port in the skill discovery curl command', () => {
-      const prompt = buildSystemPrompt(12_345, 'my-secret');
+      const prompt = buildSystemPrompt(12_345, 'my-secret', '/tmp/workspace');
       expect(prompt).toContain('http://localhost:12345/skill');
     });
 
     it('should include basic auth credentials in the curl command', () => {
-      const prompt = buildSystemPrompt(12_345, 'my-secret');
+      const prompt = buildSystemPrompt(12_345, 'my-secret', '/tmp/workspace');
       expect(prompt).toContain('curl -s -u opencode:my-secret http://localhost:12345/skill');
     });
 
     it('should not contain hardcoded port 4096', () => {
-      const prompt = buildSystemPrompt(9999, 'pw');
+      const prompt = buildSystemPrompt(9999, 'pw', '/tmp/workspace');
       expect(prompt).not.toContain('localhost:4096');
       expect(prompt).toContain('localhost:9999');
     });
 
     it('should contain the Cowork-Z identity section', () => {
-      const prompt = buildSystemPrompt(5000, 'pw');
+      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/workspace');
       expect(prompt).toContain('Cowork-Z');
       expect(prompt).toContain('<identity>');
+    });
+
+    it('should include the workspace directory and output-folder convention', () => {
+      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
+      expect(prompt).toContain('/tmp/my-ws');
+      expect(prompt).toContain('/tmp/my-ws/output/');
+      expect(prompt).toContain('<workspace-conventions>');
     });
   });
 });

@@ -121,7 +121,19 @@ The system prompt is injected via the `system` field on each `POST /session/{id}
 
 The system prompt includes:
 - Server port and password (so the agent can call the OpenCode server API directly)
+- **Workspace conventions** (always emitted): the current workspace path plus rules that `input/` is read-only and every new file must be created under `<workspace>/output/` (covers write/edit tools and bash commands like `touch`, `>`, `tee`, `mkdir`). See [Workspace Conventions in System Prompt](#workspace-conventions-in-system-prompt).
 - User custom prompt (when enabled, wrapped in `<user-instructions>` XML block)
+
+### Workspace Conventions in System Prompt
+
+`buildSystemPrompt` requires `workspaceDir: string` as a mandatory parameter — the signature order is `(serverPort, serverPassword, workspaceDir, customPrompt?)`. Callers in `session-manager.ts` pass `workingDirectory ?? ''` (the payload type marks `workingDirectory` optional, but in practice every task runs inside a workspace).
+
+The injected `<workspace-conventions>` block:
+1. **Declares the current workspace path** so the agent can resolve relative references.
+2. **Enforces `input/` as read-only** — soft enforcement via prompt, paired with the hard `edit: deny` rules emitted by `buildSessionConfig` (see [Folder Permission Model](#folder-permission-model)).
+3. **Forces new-file creation under `<workspace>/output/`** — every write/edit tool call and every file-creating bash command (`touch`, `>`, `tee`, `mkdir`, etc.) must target a path inside `output/` unless the user explicitly requests a different location.
+
+This removes the prior conditional branch that skipped the block when `workspaceDir` was undefined — the section is now always rendered.
 
 ### User Prompt Customization
 

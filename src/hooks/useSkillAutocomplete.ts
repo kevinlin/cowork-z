@@ -5,13 +5,15 @@ import { useSkillsStore } from '@/stores/skillsStore';
 
 interface UseSkillAutocompleteOptions {
   text: string;
-  onTextChange: (text: string) => void;
+  cursorPosition: number;
+  onTextChange: (text: string, cursor?: number) => void;
   disabled?: boolean;
 }
 
 export interface SkillAutocompleteResult {
-  selectedSkill: SkillMeta | null;
-  clearSkill: () => void;
+  selectedSkills: SkillMeta[];
+  removeSkill: (skillId: string) => void;
+  clearAllSkills: () => void;
   isPopoverOpen: boolean;
   filteredSkills: SkillMeta[];
   highlightedIndex: number;
@@ -19,12 +21,38 @@ export interface SkillAutocompleteResult {
   selectSkill: (skill: SkillMeta) => void;
   handleKeyDown: (e: React.KeyboardEvent) => void;
   composePrompt: () => string;
-  hasSkill: boolean;
+  hasSkills: boolean;
 }
 
-export function useSkillAutocomplete({ text, onTextChange, disabled }: UseSkillAutocompleteOptions): SkillAutocompleteResult {
+interface SlashTrigger {
+  slashStart: number;
+  query: string;
+}
+
+function findSlashTrigger(text: string, cursor: number): SlashTrigger | null {
+  const clampedCursor = Math.max(0, Math.min(cursor, text.length));
+  for (let i = clampedCursor - 1; i >= 0; i--) {
+    const ch = text[i];
+    if (ch === '/') {
+      const prev = i === 0 ? '' : text[i - 1];
+      if (i === 0 || /\s/.test(prev)) {
+        return { slashStart: i, query: text.slice(i + 1, clampedCursor) };
+      }
+      return null;
+    }
+    if (/\s/.test(ch)) return null;
+  }
+  return null;
+}
+
+export function useSkillAutocomplete({
+  text,
+  cursorPosition,
+  onTextChange,
+  disabled,
+}: UseSkillAutocompleteOptions): SkillAutocompleteResult {
   const { installedSkills, isLoaded, fetchInstalledSkills } = useSkillsStore();
-  const [selectedSkill, setSelectedSkill] = useState<SkillMeta | null>(null);
+  const [selectedSkills, setSelectedSkills] = useState<SkillMeta[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   useEffect(() => {
@@ -33,9 +61,13 @@ export function useSkillAutocomplete({ text, onTextChange, disabled }: UseSkillA
     }
   }, [isLoaded, disabled, fetchInstalledSkills]);
 
-  const isPopoverOpen = !(disabled || selectedSkill) && text.startsWith('/');
+  const trigger = useMemo(() => {
+    if (disabled) return null;
+    return findSlashTrigger(text, cursorPosition);
+  }, [disabled, text, cursorPosition]);
 
-  const query = isPopoverOpen ? text.slice(1).toLowerCase() : '';
+  const isPopoverOpen = trigger !== null;
+  const query = trigger ? trigger.query.toLowerCase() : '';
 
   const filteredSkills = useMemo(() => {
     if (!isPopoverOpen) return [];
@@ -51,14 +83,25 @@ export function useSkillAutocomplete({ text, onTextChange, disabled }: UseSkillA
 
   const selectSkill = useCallback(
     (skill: SkillMeta) => {
-      setSelectedSkill(skill);
-      onTextChange('');
+      const currentTrigger = findSlashTrigger(text, cursorPosition);
+      if (currentTrigger) {
+        const newText = text.slice(0, currentTrigger.slashStart) + text.slice(cursorPosition);
+        onTextChange(newText, currentTrigger.slashStart);
+      }
+      setSelectedSkills((prev) => {
+        if (prev.some((s) => s.id === skill.id)) return prev;
+        return [...prev, skill];
+      });
     },
-    [onTextChange]
+    [text, cursorPosition, onTextChange]
   );
 
-  const clearSkill = useCallback(() => {
-    setSelectedSkill(null);
+  const removeSkill = useCallback((skillId: string) => {
+    setSelectedSkills((prev) => prev.filter((s) => s.id !== skillId));
+  }, []);
+
+  const clearAllSkills = useCallback(() => {
+    setSelectedSkills([]);
   }, []);
 
   const handleKeyDown = useCallback(
@@ -76,22 +119,28 @@ export function useSkillAutocomplete({ text, onTextChange, disabled }: UseSkillA
         selectSkill(filteredSkills[highlightedIndex]);
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        onTextChange('');
+        const currentTrigger = findSlashTrigger(text, cursorPosition);
+        if (currentTrigger) {
+          const newText = text.slice(0, currentTrigger.slashStart) + text.slice(cursorPosition);
+          onTextChange(newText, currentTrigger.slashStart);
+        }
       }
     },
-    [isPopoverOpen, filteredSkills, highlightedIndex, selectSkill, onTextChange]
+    [isPopoverOpen, filteredSkills, highlightedIndex, selectSkill, text, cursorPosition, onTextChange]
   );
 
   const composePrompt = useCallback(() => {
-    if (selectedSkill) {
-      return `/${selectedSkill.id} ${text}`.trimEnd();
-    }
-    return text;
-  }, [selectedSkill, text]);
+    if (selectedSkills.length === 0) return text;
+    const prefix = selectedSkills.map((s) => `/${s.id}`).join(' ');
+    const trimmedText = text.trim();
+    if (!trimmedText) return prefix;
+    return `${prefix} ${text}`.trimEnd();
+  }, [selectedSkills, text]);
 
   return {
-    selectedSkill,
-    clearSkill,
+    selectedSkills,
+    removeSkill,
+    clearAllSkills,
     isPopoverOpen,
     filteredSkills,
     highlightedIndex,
@@ -99,6 +148,6 @@ export function useSkillAutocomplete({ text, onTextChange, disabled }: UseSkillA
     selectSkill,
     handleKeyDown,
     composePrompt,
-    hasSkill: selectedSkill !== null,
+    hasSkills: selectedSkills.length > 0,
   };
 }

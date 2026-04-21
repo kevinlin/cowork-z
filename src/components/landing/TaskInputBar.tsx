@@ -24,8 +24,7 @@ interface TaskInputBarProps {
   disabled?: boolean;
   large?: boolean;
   autoFocus?: boolean;
-  selectedSkill?: SkillMeta | null;
-  onSkillChange?: (skill: SkillMeta | null) => void;
+  onSkillsChange?: (skills: SkillMeta[]) => void;
 }
 
 export default function TaskInputBar({
@@ -37,40 +36,56 @@ export default function TaskInputBar({
   disabled = false,
   large = false,
   autoFocus = false,
-  selectedSkill: controlledSkill,
-  onSkillChange,
+  onSkillsChange,
 }: TaskInputBarProps) {
   const isDisabled = disabled || isLoading;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const api = getTauriAPI();
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+
+  const handleSkillTextChange = useCallback(
+    (newText: string, newCursor?: number) => {
+      onChange(newText);
+      if (newCursor !== undefined) {
+        setCursorPosition(newCursor);
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.setSelectionRange(newCursor, newCursor);
+            textareaRef.current.focus();
+          }
+        }, 0);
+      }
+    },
+    [onChange]
+  );
 
   const skillAutocomplete = useSkillAutocomplete({
     text: value,
-    onTextChange: onChange,
+    cursorPosition,
+    onTextChange: handleSkillTextChange,
     disabled: isDisabled,
   });
 
-  // Sync hook's selection state to parent when in controlled mode
+  // Sync hook's selected skills to parent
   useEffect(() => {
-    if (onSkillChange) {
-      onSkillChange(skillAutocomplete.selectedSkill);
+    if (onSkillsChange) {
+      onSkillsChange(skillAutocomplete.selectedSkills);
     }
-  }, [skillAutocomplete.selectedSkill, onSkillChange]);
+  }, [skillAutocomplete.selectedSkills, onSkillsChange]);
 
-  const selectedSkill = controlledSkill === undefined ? skillAutocomplete.selectedSkill : controlledSkill;
-  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
-
-  const handleSkillPillClick = useCallback(async () => {
-    if (!selectedSkill) return;
-    try {
-      const path = await api.getSkillFilePath(selectedSkill.id, activeWorkspace?.folderPath);
-      useFilePreviewStore.getState().openPreviewByPath(path);
-    } catch (e) {
-      console.error('Failed to open skill preview:', e);
-    }
-  }, [selectedSkill, activeWorkspace?.folderPath, api]);
+  const handleSkillPillClick = useCallback(
+    async (skill: SkillMeta) => {
+      try {
+        const path = await api.getSkillFilePath(skill.id, activeWorkspace?.folderPath);
+        useFilePreviewStore.getState().openPreviewByPath(path);
+      } catch (e) {
+        console.error('Failed to open skill preview:', e);
+      }
+    },
+    [activeWorkspace?.folderPath, api]
+  );
 
   // Refs to access latest values inside the Tauri event callback
   const valueRef = useRef(value);
@@ -224,9 +239,16 @@ export default function TaskInputBar({
         skills={skillAutocomplete.filteredSkills}
       />
 
-      {selectedSkill && (
-        <div className="flex items-center">
-          <SkillPill onClick={handleSkillPillClick} onRemove={skillAutocomplete.clearSkill} skill={selectedSkill} />
+      {skillAutocomplete.selectedSkills.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {skillAutocomplete.selectedSkills.map((skill) => (
+            <SkillPill
+              key={skill.id}
+              onClick={() => handleSkillPillClick(skill)}
+              onRemove={() => skillAutocomplete.removeSkill(skill.id)}
+              skill={skill}
+            />
+          ))}
         </div>
       )}
 

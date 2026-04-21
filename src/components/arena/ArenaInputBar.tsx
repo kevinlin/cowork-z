@@ -26,27 +26,44 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
   const [pickerColumnIndex, setPickerColumnIndex] = useState<0 | 1 | 2 | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [cursorPosition, setCursorPosition] = useState(0);
 
   const { columns, setColumnModel, startArena, sendFollowUp, abortAll, arenaId } = useArenaStore();
   const isRunning = useArenaStore(selectIsRunning);
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
   const api = getTauriAPI();
 
+  const handleSkillTextChange = useCallback((newText: string, newCursor?: number) => {
+    setInputValue(newText);
+    if (newCursor !== undefined) {
+      setCursorPosition(newCursor);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.setSelectionRange(newCursor, newCursor);
+          textareaRef.current.focus();
+        }
+      }, 0);
+    }
+  }, []);
+
   const skillAutocomplete = useSkillAutocomplete({
     text: inputValue,
-    onTextChange: setInputValue,
+    cursorPosition,
+    onTextChange: handleSkillTextChange,
     disabled: isRunning,
   });
 
-  const handleSkillPillClick = useCallback(async () => {
-    if (!skillAutocomplete.selectedSkill) return;
-    try {
-      const path = await api.getSkillFilePath(skillAutocomplete.selectedSkill.id, activeWorkspace?.folderPath);
-      useFilePreviewStore.getState().openPreviewByPath(path);
-    } catch (e) {
-      console.error('Failed to open skill preview:', e);
-    }
-  }, [skillAutocomplete.selectedSkill, activeWorkspace?.folderPath, api]);
+  const handleSkillPillClick = useCallback(
+    async (skill: { id: string }) => {
+      try {
+        const path = await api.getSkillFilePath(skill.id, activeWorkspace?.folderPath);
+        useFilePreviewStore.getState().openPreviewByPath(path);
+      } catch (e) {
+        console.error('Failed to open skill preview:', e);
+      }
+    },
+    [activeWorkspace?.folderPath, api]
+  );
 
   // Ref for drag-drop access to latest value
   const inputValueRef = useRef(inputValue);
@@ -57,6 +74,7 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
     const cursorPos = textarea ? (textarea.selectionStart ?? inputValueRef.current.length) : inputValueRef.current.length;
     const { newText, newCursorPosition } = insertAtCursor(inputValueRef.current, text, cursorPos);
     setInputValue(newText);
+    setCursorPosition(newCursorPosition);
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
@@ -140,7 +158,8 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
     try {
       const newArenaId = await startArena(composed);
       setInputValue('');
-      skillAutocomplete.clearSkill();
+      setCursorPosition(0);
+      skillAutocomplete.clearAllSkills();
       if (isNewArena) {
         navigate(`/arena/${newArenaId}`, { replace: true });
       }
@@ -157,7 +176,8 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
     try {
       await sendFollowUp(composed);
       setInputValue('');
-      skillAutocomplete.clearSkill();
+      setCursorPosition(0);
+      skillAutocomplete.clearAllSkills();
     } catch (err) {
       console.error('Failed to send follow-up:', err);
     }
@@ -245,9 +265,16 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
           skills={skillAutocomplete.filteredSkills}
         />
 
-        {skillAutocomplete.selectedSkill && (
-          <div className="flex items-center">
-            <SkillPill onClick={handleSkillPillClick} onRemove={skillAutocomplete.clearSkill} skill={skillAutocomplete.selectedSkill} />
+        {skillAutocomplete.selectedSkills.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {skillAutocomplete.selectedSkills.map((skill) => (
+              <SkillPill
+                key={skill.id}
+                onClick={() => handleSkillPillClick(skill)}
+                onRemove={() => skillAutocomplete.removeSkill(skill.id)}
+                skill={skill}
+              />
+            ))}
           </div>
         )}
 
@@ -262,8 +289,13 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
               isDraggingOver && 'ring-2 ring-ring ring-offset-2 ring-offset-background'
             )}
             disabled={isRunning}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              setCursorPosition(e.target.selectionStart ?? 0);
+            }}
+            onClick={(e) => setCursorPosition(e.currentTarget.selectionStart ?? 0)}
             onKeyDown={handleKeyDown}
+            onKeyUp={(e) => setCursorPosition(e.currentTarget.selectionStart ?? 0)}
             placeholder={
               isRunning ? 'Waiting for responses...' : canFollowUp ? 'Send a follow-up message...' : 'Describe the task for all agents...'
             }

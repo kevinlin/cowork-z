@@ -211,3 +211,53 @@ ArenaInputBar converted from uncontrolled to controlled textarea to support `use
    - Same flow in ArenaInputBar (popover appears **below** the input)
    - Install a new skill in Catalog → immediately available in autocomplete
    - Project-level skills (`.opencode/skills/`) resolve before global skills
+
+## Enhancement: Cursor-aware Trigger + Multi-Skill (v0.6.8)
+
+### Problem
+
+- The popover only opened when `text.startsWith('/')`. Typing `/` after existing prose did nothing, and filtering used the whole remainder of the input rather than only the characters between `/` and the caret. Any text before the `/` broke matching.
+- Only one skill could be referenced per prompt — state was a single `selectedSkill: SkillMeta | null` and the pill UI was rendered as one element.
+
+### Design changes
+
+- **Cursor-aware trigger.** `useSkillAutocomplete` accepts `cursorPosition`. A new `findSlashTrigger(text, cursor)` scans backward from `cursor - 1` for a `/` preceded by string start or whitespace, with no whitespace between the `/` and the cursor. Query is `text.slice(slashStart + 1, cursor)`.
+- **Multi-skill state.** `selectedSkill: SkillMeta | null` is replaced by `selectedSkills: SkillMeta[]` (ordered, id-deduped). `selectSkill(skill)` appends; `removeSkill(id)` removes by id; `clearAllSkills()` replaces the old `clearSkill`.
+- **Selection preserves prose.** On `selectSkill`, the hook removes only the `[slashStart, cursor)` range from text, not the whole textarea. `onTextChange` gains an optional `cursor` argument so callers can restore the textarea's `selectionStart` after React flushes.
+- **Escape clears only the `/query` token** — not the entire input.
+- **Popover open predicate** no longer gates on `!selectedSkill`; a `/` can be typed even while pills are shown.
+- **`composePrompt`** concatenates all selected skill IDs in selection order: `"/skill-a /skill-b user text"` (or just the prefix if text is empty).
+
+### Trigger detection examples
+
+| Input (cursor at end) | Trigger? | Why |
+|---|---|---|
+| `/mar` | ✅ query=`mar` | `/` at position 0 |
+| `Explain this: /mar` | ✅ query=`mar` | `/` preceded by space |
+| `/foo bar /mar` | ✅ query=`mar` | nearest `/` to cursor, preceded by space |
+| `http://foo` | ❌ | `/` preceded by `:` |
+| `@src/Foo` | ❌ | `/` preceded by `c` |
+| `/foo ` (trailing space) | ❌ | whitespace between `/` and cursor |
+
+### Affected files
+
+- `src/hooks/useSkillAutocomplete.ts` — new trigger detection, array state, extended `onTextChange(text, cursor?)` signature
+- `src/components/landing/TaskInputBar.tsx` — controlled props renamed to `onSkillsChange: (skills: SkillMeta[]) => void`; `selectedSkill` prop removed; pill list render
+- `src/pages/Home.tsx` — array state (`selectedSkills`); map-based compose; `pendingPrompt` state preserves composed prompt across the settings-dialog retry
+- `src/components/chat/ChatInput.tsx` — cursor tracked in state (was a ref); pill list render
+- `src/components/arena/ArenaInputBar.tsx` — cursor tracked in state; pill list render; `doInsertText` now updates cursor state
+- `src/hooks/__tests__/useSkillAutocomplete.test.ts` — updated for new API + new cases (cursor-aware trigger, multi-skill, dedupe, Escape semantics)
+
+### Keyboard interaction (updated)
+
+| Key | Popover closed | Popover open |
+|-----|----------------|--------------|
+| `/` at start or after whitespace | Opens popover | Part of the slash token |
+| Characters | Normal typing | Updates filter |
+| Space after `/query` | Normal typing | Closes popover |
+| ArrowUp/Down | Normal cursor | Navigates list (wraps) |
+| Tab | Default | Selects highlighted skill; removes only `/query` token |
+| Enter | Submit message | Selects highlighted skill; removes only `/query` token |
+| Shift+Enter | Newline | Newline |
+| Escape | — | Dismisses popover; removes only the `/query` token |
+| Backspace | Normal | Updates filter; closes popover if `/` is deleted |

@@ -637,14 +637,14 @@ Files dropped from the OS file manager or the sidebar file tree are inserted as 
 
 > **Plan:** [Slash Command Skill Invocation](plan_slash-command-skill-invocation.md)
 
-Typing `/` at the start of input triggers a popover autocomplete menu listing installed skills. Available in all three input surfaces: TaskInputBar (Home), ChatInput (follow-up), and ArenaInputBar (Arena). Features:
-- Real-time filtering by name, ID, and description (case-insensitive)
-- Selection via click or Tab key
-- Selected skill renders as a visual pill/chip above the textarea
-- Clicking the pill name opens the skill's `SKILL.md` in the FilePreviewPanel
+Typing `/` anywhere in the input (at text start, or after a whitespace character) triggers a popover autocomplete menu listing installed skills filtered by the characters typed between the `/` and the caret. Available in all three input surfaces: TaskInputBar (Home), ChatInput (follow-up), and ArenaInputBar (Arena). Features:
+- **Cursor-aware trigger** — the hook scans backward from the caret for a `/` preceded by string start or whitespace, with no whitespace between the `/` and the caret. Prose before and after the `/query` token is preserved on selection.
+- Real-time filtering by name, ID, and description (case-insensitive); the filter uses only the characters between `/` and the caret, not the rest of the input
+- Selection via click, Tab, or Enter removes **only the `/query` token** from the input — the rest of the message stays intact
+- **Multiple skills per message** — each selected skill renders as its own pill in a flex-wrap row above the textarea; deduped by skill id; click ✕ on a pill to remove just that skill
+- Clicking a pill's name opens the skill's `SKILL.md` in the FilePreviewPanel
 - Skill file resolution follows OpenCode's discovery order: project-level (`.opencode/skills/`, `.claude/skills/`, `.agents/skills/` relative to workspace), then global (`~/.config/opencode/skills/`, `~/.claude/skills/`, `~/.agents/skills/`), then bundled templates
-- One skill per message
-- Prompt constructed as `/<skill-id> <user-text>` on submission
+- Prompt constructed as `/<skill-a> /<skill-b> <user-text>` on submission (skills appear in selection order; if the user text is empty, only the prefix is sent)
 
 ---
 

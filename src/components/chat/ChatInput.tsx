@@ -38,8 +38,8 @@ export function ChatInput({
 }: ChatInputProps) {
   const navigate = useNavigate();
   const [followUp, setFollowUp] = useState('');
+  const [cursorPosition, setCursorPosition] = useState(0);
   const followUpInputRef = useRef<HTMLTextAreaElement>(null);
-  const cursorPositionRef = useRef(0);
   const followUpRef = useRef(followUp);
   followUpRef.current = followUp;
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
@@ -57,9 +57,23 @@ export function ChatInput({
     [activeWorkspace?.folderPath]
   );
 
+  const handleSkillTextChange = useCallback((newText: string, newCursor?: number) => {
+    setFollowUp(newText);
+    if (newCursor !== undefined) {
+      setCursorPosition(newCursor);
+      setTimeout(() => {
+        if (followUpInputRef.current) {
+          followUpInputRef.current.setSelectionRange(newCursor, newCursor);
+          followUpInputRef.current.focus();
+        }
+      }, 0);
+    }
+  }, []);
+
   const skillAutocomplete = useSkillAutocomplete({
     text: followUp,
-    onTextChange: setFollowUp,
+    cursorPosition,
+    onTextChange: handleSkillTextChange,
     disabled: !canFollowUp,
   });
 
@@ -68,8 +82,9 @@ export function ChatInput({
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ text: string }>).detail;
       if (!detail?.text) return;
-      const { newText, newCursorPosition } = insertAtCursor(followUpRef.current, detail.text, cursorPositionRef.current);
+      const { newText, newCursorPosition } = insertAtCursor(followUpRef.current, detail.text, cursorPosition);
       setFollowUp(newText);
+      setCursorPosition(newCursorPosition);
       setTimeout(() => {
         if (followUpInputRef.current) {
           followUpInputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
@@ -79,14 +94,15 @@ export function ChatInput({
     };
     window.addEventListener('add-to-chat', handler);
     return () => window.removeEventListener('add-to-chat', handler);
-  }, []);
+  }, [cursorPosition]);
 
   const handleFollowUp = () => {
     if (!followUp.trim()) return;
     const composed = skillAutocomplete.composePrompt();
     onSend(composed);
     setFollowUp('');
-    skillAutocomplete.clearSkill();
+    setCursorPosition(0);
+    skillAutocomplete.clearAllSkills();
   };
 
   // Running state input with Stop button
@@ -124,13 +140,16 @@ export function ChatInput({
               skills={skillAutocomplete.filteredSkills}
             />
 
-            {skillAutocomplete.selectedSkill && (
-              <div className="flex items-center">
-                <SkillPill
-                  onClick={() => handleSkillPillClick(skillAutocomplete.selectedSkill!)}
-                  onRemove={skillAutocomplete.clearSkill}
-                  skill={skillAutocomplete.selectedSkill}
-                />
+            {skillAutocomplete.selectedSkills.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {skillAutocomplete.selectedSkills.map((skill) => (
+                  <SkillPill
+                    key={skill.id}
+                    onClick={() => handleSkillPillClick(skill)}
+                    onRemove={() => skillAutocomplete.removeSkill(skill.id)}
+                    skill={skill}
+                  />
+                ))}
               </div>
             )}
 
@@ -140,15 +159,15 @@ export function ChatInput({
                 data-testid="execution-follow-up-input"
                 disabled={isLoading}
                 onChange={(e) => {
-                  cursorPositionRef.current = e.target.selectionStart ?? 0;
+                  setCursorPosition(e.target.selectionStart ?? 0);
                   setFollowUp(e.target.value);
                 }}
                 onClick={(e) => {
-                  cursorPositionRef.current = e.currentTarget.selectionStart ?? 0;
+                  setCursorPosition(e.currentTarget.selectionStart ?? 0);
                 }}
                 onFilesDropped={(newValue, newCursorPosition) => {
                   setFollowUp(newValue);
-                  cursorPositionRef.current = newCursorPosition;
+                  setCursorPosition(newCursorPosition);
                   setTimeout(() => {
                     if (followUpInputRef.current) {
                       followUpInputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
@@ -166,7 +185,7 @@ export function ChatInput({
                   }
                 }}
                 onKeyUp={(e) => {
-                  cursorPositionRef.current = e.currentTarget.selectionStart ?? 0;
+                  setCursorPosition(e.currentTarget.selectionStart ?? 0);
                 }}
                 placeholder={
                   taskStatus === 'interrupted'

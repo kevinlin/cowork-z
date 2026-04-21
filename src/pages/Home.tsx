@@ -19,7 +19,8 @@ type HomeTab = 'packs' | 'skills';
 
 export default function HomePage() {
   const [prompt, setPrompt] = useState('');
-  const [selectedSkill, setSelectedSkill] = useState<SkillMeta | null>(null);
+  const [selectedSkills, setSelectedSkills] = useState<SkillMeta[]>([]);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<HomeTab>('packs');
 
@@ -52,18 +53,25 @@ export default function HomePage() {
     [startTask, navigate]
   );
 
+  const composeFinalPrompt = useCallback(() => {
+    const trimmed = prompt.trim();
+    if (selectedSkills.length === 0) return trimmed;
+    const prefix = selectedSkills.map((s) => `/${s.id}`).join(' ');
+    return trimmed ? `${prefix} ${trimmed}` : prefix;
+  }, [prompt, selectedSkills]);
+
   const handleSubmit = async () => {
     if (!prompt.trim() || isLoading) return;
+    const finalPrompt = composeFinalPrompt();
     const isE2EMode = await api.isE2EMode();
     if (!isE2EMode) {
       const settings = await api.getProviderSettings();
       if (!hasAnyReadyProvider(settings)) {
+        setPendingPrompt(finalPrompt);
         setShowSettingsDialog(true);
         return;
       }
     }
-    const finalPrompt = selectedSkill ? `/${selectedSkill.id} ${prompt.trim()}`.trimEnd() : prompt.trim();
-    setSelectedSkill(null);
     await executeTask(finalPrompt);
   };
 
@@ -73,8 +81,10 @@ export default function HomePage() {
 
   const handleApiKeySaved = async () => {
     setShowSettingsDialog(false);
-    if (prompt.trim()) {
-      await executeTask(prompt.trim());
+    const toRun = pendingPrompt ?? composeFinalPrompt();
+    setPendingPrompt(null);
+    if (toRun.trim()) {
+      await executeTask(toRun);
     }
   };
 
@@ -125,10 +135,9 @@ export default function HomePage() {
                   isLoading={isLoading}
                   large={true}
                   onChange={setPrompt}
-                  onSkillChange={setSelectedSkill}
+                  onSkillsChange={setSelectedSkills}
                   onSubmit={handleSubmit}
                   placeholder="Describe a task and let AI handle the rest"
-                  selectedSkill={selectedSkill}
                   value={prompt}
                 />
               </CardContent>

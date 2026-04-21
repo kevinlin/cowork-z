@@ -430,6 +430,8 @@ pub fn skills_list_installed(target_folder: Option<String>) -> Result<Vec<Instal
     let install_dir = resolve_target_folder(target)?;
 
     if !install_dir.exists() {
+        fs::create_dir_all(&install_dir)
+            .map_err(|e| format!("Failed to create skills directory: {}", e))?;
         return Ok(Vec::new());
     }
 

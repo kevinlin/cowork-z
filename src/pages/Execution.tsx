@@ -63,6 +63,7 @@ export default function ExecutionPage() {
 
   // Scroll behavior state
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasScrolledOnLoadRef = useRef<string | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   // Elapsed time for startup indicator
@@ -138,6 +139,7 @@ export default function ExecutionPage() {
   // Load task and subscribe to events
   useEffect(() => {
     if (id) {
+      hasScrolledOnLoadRef.current = null;
       loadTaskById(id);
       setDebugLogs([]);
     }
@@ -225,6 +227,20 @@ export default function ExecutionPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, loadTaskById, addTaskUpdate, addTaskUpdateBatch, updateTaskStatus, enqueuePermissionRequest]);
+
+  // On session resume/load, jump to the latest conversation once.
+  useEffect(() => {
+    if (!currentTask || currentTask.messages.length === 0) return;
+    if (hasScrolledOnLoadRef.current === currentTask.id) return;
+
+    hasScrolledOnLoadRef.current = currentTask.id;
+    requestAnimationFrame(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      container.scrollTop = container.scrollHeight;
+      setIsAtBottom(true);
+    });
+  }, [currentTask]);
 
   // Fetch todos when session becomes available
   useEffect(() => {

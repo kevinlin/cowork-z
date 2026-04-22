@@ -660,6 +660,14 @@ Right-clicking a conversation in the sidebar shows a context menu with "Rename" 
 
 Clicking the Stop button or pressing `Escape` during a running task sends `abort_session` to the sidecar with the session's `directory` parameter. The `task:started` event provides the `sessionId` to the frontend early in the session lifecycle, enabling abort at any point during execution (see [Resolved Issue: Stop Button](#resolved-stop-button)).
 
+### Session Resume Scroll Position
+
+When a user opens an existing conversation, the chat auto-scrolls to the latest message so the most recent context is immediately visible.
+
+- **Initial load (resume):** After `loadTaskById` hydrates `currentTask.messages`, `Execution.tsx` performs a one-time bottom jump for that task ID on the next animation frame (`requestAnimationFrame`) by setting the scroll container to `scrollHeight`.
+- **Live updates:** During active sessions, new messages auto-scroll only when the user is already near the bottom (`isAtBottom`), preserving manual scroll position while reading older content.
+- **Manual recovery:** If the user scrolls upward, a floating down-arrow button appears and scrolls to the message end sentinel.
+
 ---
 
 ## Sidebar Panels

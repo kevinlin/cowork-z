@@ -160,6 +160,29 @@ When a user connects to Anthropic, OpenAI, Google AI, xAI, or DeepSeek with a va
 
 ---
 
+## Arena Sidebar Status Sync
+
+Arena sessions in the sidebar are backed by `arenaStore.arenas`, while per-model runtime state is tracked in `arenaStore.columns`. To keep sidebar status indicators current, the store derives an aggregate arena status from all active column statuses and synchronizes it to the matching `ArenaListItem`.
+
+### Status Derivation Rules
+
+- `running` when any column is `starting` or `running`
+- `failed` when no column is running and at least one column is `failed`
+- `interrupted` when no column is running and at least one column is `interrupted` or `cancelled`
+- `completed` when all active columns are `completed` (or terminal without failure)
+
+### Sync Triggers
+
+Sidebar status synchronization runs after status-changing events:
+
+- Task lifecycle updates (`started`, `complete`, `error`)
+- Explicit task status change events
+- Arena-wide abort action (`abortAll`)
+
+This ensures the Sessions panel updates immediately as arena tasks transition between running and terminal states.
+
+---
+
 ## App Update
 
 ### Update Check

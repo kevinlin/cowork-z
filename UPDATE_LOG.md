@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.6.9
+
+- 
+
 ## v0.6.8
 
 - **Fix: Auto-create target skills folder on switching** — Switching the Skills Manager target folder now creates the destination directory if it does not exist yet.

@@ -1,6 +1,5 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
 import { FolderTree, MessageSquare, MessageSquarePlus, Package, Search, Settings } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,9 +8,7 @@ import FoldersPanel from '@/components/sidebar/FoldersPanel';
 import { TodoPanel } from '@/components/sidebar/TodoPanel';
 import WorkspaceSwitcher from '@/components/sidebar/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { analytics } from '@/lib/analytics';
-import { staggerContainer } from '@/lib/animations';
 import { openSkillsManagerWindow } from '@/lib/skills-window';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { Todo } from '@/shared';
@@ -20,9 +17,8 @@ import { useTaskStore } from '@/stores/taskStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import logoImage from '/assets/logo-1.png';
 import CollapsibleSection from '../sidebar/CollapsibleSection';
-import ArenaListItem from './ArenaListItem';
-import ConversationListItem from './ConversationListItem';
 import FeedbackButton from './FeedbackButton';
+import SessionPanel from './SessionPanel';
 
 // Stable empty array to avoid creating new references in selectors
 const EMPTY_TODOS: Todo[] = [];
@@ -221,33 +217,7 @@ export default function Sidebar() {
 
         {/* Tab Content */}
         {activeTab === 'sessions' ? (
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-1 p-2">
-              <AnimatePresence mode="wait">
-                {mergedList.length === 0 ? (
-                  <motion.div
-                    animate={{ opacity: 1 }}
-                    className="px-3 py-8 text-center text-muted-foreground text-sm"
-                    exit={{ opacity: 0 }}
-                    initial={{ opacity: 0 }}
-                    key="empty"
-                  >
-                    No conversations yet
-                  </motion.div>
-                ) : (
-                  <motion.div animate="animate" className="space-y-1" initial="initial" key="task-list" variants={staggerContainer}>
-                    {mergedList.map((entry) =>
-                      entry.type === 'arena' ? (
-                        <ArenaListItem arena={entry.item} key={entry.item.id} />
-                      ) : (
-                        <ConversationListItem key={entry.item.id} task={entry.item} />
-                      )
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </ScrollArea>
+          <SessionPanel mergedList={mergedList} />
         ) : (
           <div className="min-h-0 flex-1 overflow-hidden">
             <FileTreePanel />

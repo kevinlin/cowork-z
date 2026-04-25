@@ -194,8 +194,14 @@ pub async fn read_directory(path: String) -> Result<Vec<DirectoryEntry>, String>
         };
         let is_symlink = file_type.is_symlink();
 
-        // entry.metadata() follows symlinks, giving us the target's properties
-        let metadata = match entry.metadata() {
+        // DirEntry::metadata() may use lstat on some platforms, returning the
+        // symlink's own metadata instead of the target's. Use std::fs::metadata
+        // for symlinks to guarantee we follow the link.
+        let metadata = match if is_symlink {
+            std::fs::metadata(&entry_path)
+        } else {
+            entry.metadata()
+        } {
             Ok(m) => m,
             Err(_) if is_symlink => {
                 let extension = entry_path

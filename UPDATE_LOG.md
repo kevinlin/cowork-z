@@ -4,7 +4,7 @@
 
 ## v0.6.10
 
-- **File tree item actions** — Every row in the file tree shows Open and Delete buttons on hover; folders open in Finder/Explorer, files open with the default app; delete moves both files and folders to system trash with immediate tree refresh
+- **File tree item action buttons** — Every row in the file tree shows Open and Delete buttons on hover; folders open in Finder/Explorer, files open with the default app; delete moves both files and folders to system trash with immediate tree refresh
 - **Symbolic link support in file tree** — Symlinks (macOS/Linux) are now detected and displayed with a link overlay badge; symlink folders expand to show the linked directory's contents
 
 ## v0.6.9

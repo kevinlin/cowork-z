@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.6.11
+
+- 
+
 ## v0.6.10
 
 - **File tree item action buttons** — Every row in the file tree shows Open and Delete buttons on hover; folders open in Finder/Explorer, files open with the default app; delete moves both files and folders to system trash with immediate tree refresh

@@ -184,8 +184,11 @@ Each `DirectoryEntry` contains:
 - `name: String` — file or folder name
 - `path: String` — absolute path
 - `is_directory: bool`
+- `is_symlink: bool` — true if the entry is a symbolic link (macOS/Linux)
 - `size: Option<u64>` — file size in bytes (None for directories)
 - `extension: Option<String>`
+
+For symlinks, `is_directory` reflects the target's type (i.e. a symlink pointing to a directory has `is_directory: true`), and `path` is the entry's own path (not the resolved target). This means the rest of the tree logic (expand, lazy-load children) works identically for symlinks and regular entries — the Rust `read_directory` implementation follows symlinks transparently via `std::fs::metadata` (which follows links, unlike `symlink_metadata`).
 
 Results sorted: directories first, then files, both alphabetical.
 
@@ -198,9 +201,11 @@ Results sorted: directories first, then files, both alphabetical.
   - Code (`ts tsx js jsx rs py java c cpp go`): code file icon
   - Data/config (`json yaml yml toml`): JSON file icon
   - Everything else: text file icon
+  - Symbolic links: a small link arrow badge overlays the base type icon (e.g. a symlinked folder shows the folder icon with a link overlay)
 - File name, truncated with ellipsis if too long
 - File size right-aligned for files only
 - Selected file highlighted with distinct background
+- Hover actions on the right side of each row (see Item Actions below)
 
 ### Search & Filter
 
@@ -261,9 +266,36 @@ This ensures search only matches visible entries when hidden files are off, and 
 
 The toggle button is placed to the right of the search input in the file tree header bar. It is a 26×26px bordered icon button with hover/focus states matching the app's design system.
 
+### Symbolic Link Handling
+
+Symbolic links are supported on macOS and Linux. The `read_directory` command detects symlinks using `std::fs::symlink_metadata` to check `file_type().is_symlink()`, then resolves the target's type via `std::fs::metadata` (which follows the link) to determine `is_directory`. If the symlink target is missing or unreadable, the entry is still returned with `is_directory: false` and `is_symlink: true`.
+
+On the frontend, symlink entries behave identically to their target type — a symlink to a directory expands and lazy-loads children, a symlink to a file opens the preview. The only visual distinction is the link overlay badge on the icon.
+
+Windows shortcuts (`.lnk` files) are not treated as symbolic links.
+
+### Item Actions
+
+Each tree row shows two action buttons on hover (Open + Delete), right-aligned within the row. Buttons use `opacity-0 group-hover/row:opacity-100` for the show-on-hover effect.
+
+**Open button (`ExternalLink` icon):**
+- **Folders** — Uses the existing `revealInFinder()` wrapper (calls `revealItemInDir` from `@tauri-apps/plugin-opener`) to reveal the folder in the platform's native file manager. No new Rust command needed — the opener plugin is already configured with `opener:default` permissions.
+- **Files** — Uses the existing `openFilePath()` wrapper (calls `openPath` from `@tauri-apps/plugin-opener`) to open the file with the system's default application.
+
+**Delete button (`Trash2` icon):**
+- **Both files and folders** — Tauri command: `trash_file(path: String)`. Uses the `trash` crate to move the item to the system trash (macOS Trash, Windows Recycle Bin, Linux freedesktop trash). Returns `Ok(())` on success. No confirmation dialog — the operation is reversible via the system trash.
+
+**Tree refresh after delete:** On successful `trashFile()`, the frontend calls `refreshRoot()` to immediately re-read all expanded directories. This provides instant visual feedback without waiting for the debounced filesystem watcher notification (which also fires independently as a backup).
+
+#### Frontend Implementation
+
+In `FileTreePanel.tsx`, each `TreeRow` is wrapped in a `group/row` class. The action button container is positioned absolutely on the right side of the row with `gap-0.5` between the two buttons. File size text is hidden on hover (`group-hover/row:hidden`) to avoid overlap.
+
+Both buttons use `onClick` with `e.stopPropagation()` to prevent triggering the row's default click behavior (expand folder / open preview). The `onDelete` callback is threaded from the parent `FileTreePanel` (where it is bound to `refreshRoot`) through the recursive `TreeRow` tree.
+
 ### Not Supported
 
-- File mutations (rename, delete, move, copy, create)
+- File mutations other than delete (rename, move, copy, create)
 - Context menus / right-click actions
 - Multi-file selection
 - List or grid view alternatives
@@ -443,7 +475,7 @@ Cmd+N (new task) and Cmd+K (launcher) continue to work within the active workspa
 
 ## Not In Scope
 
-- File mutations (rename, delete, move, copy, create)
+- File mutations other than delete (rename, move, copy, create)
 - Context menus / right-click actions on files
 - Multi-file selection
 - Presentation preview (`.tandem.ppt.json`)

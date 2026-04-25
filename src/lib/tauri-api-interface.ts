@@ -36,6 +36,9 @@ export interface TauriAPI {
   openExternal(url: string): Promise<void>;
   revealInFinder(path: string): Promise<void>;
 
+  // File operations
+  trashFile(path: string): Promise<void>;
+
   // Task operations
   startTask(config: TaskConfig): Promise<Task>;
   cancelTask(taskId: string): Promise<void>;

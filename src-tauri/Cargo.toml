@@ -49,6 +49,9 @@ notify-debouncer-mini = "0.5"
 # HTTP client for provider validation
 reqwest = { version = "0.12", features = ["json"] }
 
+# Move files to system trash
+trash = "5"
+
 # Checksums for skill install detection
 sha2 = "0.10"
 hex = "0.4"

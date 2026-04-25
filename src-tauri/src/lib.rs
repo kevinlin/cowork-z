@@ -349,6 +349,7 @@ pub fn run() {
             // File preview
             commands::files::read_file_content,
             commands::files::read_binary_file,
+            commands::files::trash_file,
             // Workspaces
             commands::workspaces::list_workspaces,
             commands::workspaces::get_active_workspace,

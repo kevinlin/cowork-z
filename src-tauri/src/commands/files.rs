@@ -61,3 +61,13 @@ pub fn read_binary_file(path: String, max_size: Option<u64>) -> Result<String, S
     let bytes = std::fs::read(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
     Ok(STANDARD.encode(&bytes))
 }
+
+/// Move a file to the system trash (macOS Trash / Windows Recycle Bin / Linux freedesktop trash).
+#[tauri::command]
+pub async fn trash_file(path: String) -> Result<(), String> {
+    let file_path = Path::new(&path);
+    if !file_path.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+    trash::delete(file_path).map_err(|e| format!("Failed to move to trash: {}", e))
+}

@@ -37,6 +37,7 @@ export const useFilePreviewStore = create<FilePreviewState>((set) => ({
         name,
         path,
         isDirectory: false,
+        isSymlink: false,
         extension,
       },
       isPreviewOpen: true,

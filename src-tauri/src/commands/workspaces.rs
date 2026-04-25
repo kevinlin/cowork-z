@@ -186,8 +186,31 @@ pub async fn read_directory(path: String) -> Result<Vec<DirectoryEntry>, String>
 
         let name = entry.file_name().to_string_lossy().to_string();
         let entry_path = entry.path();
+        let path_str = entry_path.to_string_lossy().to_string();
+
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+        let is_symlink = file_type.is_symlink();
+
+        // entry.metadata() follows symlinks, giving us the target's properties
         let metadata = match entry.metadata() {
             Ok(m) => m,
+            Err(_) if is_symlink => {
+                let extension = entry_path
+                    .extension()
+                    .map(|e| e.to_string_lossy().to_string());
+                entries.push(DirectoryEntry {
+                    name,
+                    path: path_str,
+                    is_directory: false,
+                    is_symlink: true,
+                    size: None,
+                    extension,
+                });
+                continue;
+            }
             Err(_) => continue,
         };
 
@@ -207,8 +230,9 @@ pub async fn read_directory(path: String) -> Result<Vec<DirectoryEntry>, String>
 
         entries.push(DirectoryEntry {
             name,
-            path: entry_path.to_string_lossy().to_string(),
+            path: path_str,
             is_directory,
+            is_symlink,
             size,
             extension,
         });

@@ -1,9 +1,10 @@
 'use client';
 
-import { ChevronRight, Eye, EyeOff, File, FileCode, FileJson, FileText, Folder, FolderOpen, Image, Loader2, Search } from 'lucide-react';
+import { ChevronRight, ExternalLink, Eye, EyeOff, File, FileCode, FileJson, FileText, Folder, FolderOpen, Image, Link, Loader2, Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type FileTreeNode, useFileTree } from '@/hooks/useFileTree';
+import { openFilePath, revealInFinder, trashFile } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { cn } from '@/lib/utils';
 import type { DirectoryEntry } from '@/shared/types/workspace';
@@ -106,10 +107,11 @@ interface TreeRowProps {
   depth: number;
   onToggle: (path: string) => void;
   onSelect: (entry: DirectoryEntry) => void;
+  onDelete: () => void;
   selectedPath?: string;
 }
 
-function TreeRow({ node, depth, onToggle, onSelect, selectedPath }: TreeRowProps) {
+function TreeRow({ node, depth, onToggle, onSelect, onDelete, selectedPath }: TreeRowProps) {
   const { entry, isExpanded, isLoading } = node;
   const Icon = getFileIcon(entry, isExpanded);
   const isSelected = !entry.isDirectory && entry.path === selectedPath;
@@ -129,35 +131,79 @@ function TreeRow({ node, depth, onToggle, onSelect, selectedPath }: TreeRowProps
     e.dataTransfer.effectAllowed = 'copy';
   };
 
+  const handleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (entry.isDirectory) {
+      revealInFinder(entry.path);
+    } else {
+      openFilePath(entry.path);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await trashFile(entry.path);
+      onDelete();
+    } catch {
+      // Silently ignored — the file may have already been moved/deleted
+    }
+  };
+
   return (
     <>
-      <button
-        className={cn(
-          'flex w-full items-center gap-1 rounded-sm px-1 py-0.5 text-left text-xs',
-          'transition-colors hover:bg-accent hover:text-accent-foreground',
-          'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-          'cursor-grab active:cursor-grabbing',
-          isSelected && 'bg-accent text-accent-foreground'
-        )}
-        draggable
-        onClick={handleClick}
-        onDragStart={handleDragStart}
-        style={{ paddingLeft: `${depth * 16 + 4}px` }}
-        title={entry.path}
-        type="button"
-      >
-        {entry.isDirectory && <ChevronRight className={cn('h-3 w-3 shrink-0 transition-transform', isExpanded && 'rotate-90')} />}
-        {!entry.isDirectory && <span className="w-3" />}
-        {isLoading ? (
-          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
-        ) : (
-          <Icon className={cn('h-3.5 w-3.5 shrink-0', entry.isDirectory ? 'text-blue-500' : 'text-muted-foreground')} />
-        )}
-        <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-        {!entry.isDirectory && entry.size != null && (
-          <span className="shrink-0 text-[10px] text-muted-foreground">{formatFileSize(entry.size)}</span>
-        )}
-      </button>
+      <div className="group/row relative">
+        <button
+          className={cn(
+            'flex w-full items-center gap-1 rounded-sm px-1 py-0.5 text-left text-xs',
+            'transition-colors hover:bg-accent hover:text-accent-foreground',
+            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            'cursor-grab active:cursor-grabbing',
+            isSelected && 'bg-accent text-accent-foreground'
+          )}
+          draggable
+          onClick={handleClick}
+          onDragStart={handleDragStart}
+          style={{ paddingLeft: `${depth * 16 + 4}px` }}
+          title={entry.path}
+          type="button"
+        >
+          {entry.isDirectory && <ChevronRight className={cn('h-3 w-3 shrink-0 transition-transform', isExpanded && 'rotate-90')} />}
+          {!entry.isDirectory && <span className="w-3" />}
+          {isLoading ? (
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+          ) : (
+            <span className="relative shrink-0">
+              <Icon className={cn('h-3.5 w-3.5', entry.isDirectory ? 'text-blue-500' : 'text-muted-foreground')} />
+              {entry.isSymlink && (
+                <Link className="absolute -right-0.5 -bottom-0.5 h-2 w-2 text-muted-foreground" />
+              )}
+            </span>
+          )}
+          <span className="min-w-0 flex-1 truncate">{entry.name}</span>
+          {!entry.isDirectory && entry.size != null && (
+            <span className="shrink-0 text-[10px] text-muted-foreground group-hover/row:hidden">{formatFileSize(entry.size)}</span>
+          )}
+        </button>
+        <div className="absolute top-0 right-1 flex h-full items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100">
+          <button
+            className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            onClick={handleOpen}
+            title={entry.isDirectory ? 'Open in file manager' : 'Open with default app'}
+            type="button"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </button>
+          <button
+            className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            onClick={handleDelete}
+            title="Move to trash"
+            type="button"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
       {isExpanded && node.children && (
         <div>
           {node.children.map((child) => (
@@ -165,6 +211,7 @@ function TreeRow({ node, depth, onToggle, onSelect, selectedPath }: TreeRowProps
               depth={depth + 1}
               key={child.entry.path}
               node={child}
+              onDelete={onDelete}
               onSelect={onSelect}
               onToggle={onToggle}
               selectedPath={selectedPath}
@@ -267,6 +314,7 @@ export default function FileTreePanel() {
               depth={0}
               key={node.entry.path}
               node={node}
+              onDelete={refreshRoot}
               onSelect={handleSelect}
               onToggle={toggleExpand}
               selectedPath={selectedFile?.path}

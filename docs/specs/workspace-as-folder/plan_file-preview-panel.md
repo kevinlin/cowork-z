@@ -100,6 +100,56 @@ Date: 2026-02-17
 - Edit `src/components/landing/TaskInputBar.tsx` — listen for `add-to-chat` event, insert text at cursor
 - Edit `src/components/chat/ChatInput.tsx` — listen for `add-to-chat` event, insert text at cursor
 
+## Task 15: Symbolic Link Support in Backend
+
+**Files:**
+- Edit `src-tauri/src/commands/files.rs` — update `read_directory` to detect symlinks via `symlink_metadata`, set `is_symlink` on `DirectoryEntry`
+- Edit `src-tauri/src/types.rs` — add `is_symlink: bool` to `DirectoryEntry`
+
+**Implementation:**
+- Use `std::fs::symlink_metadata` on each entry to check `file_type().is_symlink()`
+- If symlink, resolve the target type via `std::fs::metadata` (follows the link) for `is_directory`
+- If symlink target is missing/unreadable, return the entry with `is_directory: false`, `is_symlink: true`
+- Windows `.lnk` files are not treated as symbolic links
+
+## Task 16: Symbolic Link Support in Frontend
+
+**Files:**
+- Edit `src/shared/types/workspace.ts` — add `is_symlink: boolean` to `DirectoryEntry`
+- Edit `src/lib/tauri-api.ts` — no changes needed (DirectoryEntry flows through)
+- Edit `src/components/sidebar/FileTreePanel.tsx` — render link overlay badge on symlink entries
+
+**Implementation:**
+- Import a link icon (e.g. `Link` from lucide-react) and render it as a small overlay on the base type icon when `entry.is_symlink` is true
+- Symlink folders expand and lazy-load children identically to regular folders (no frontend logic change needed — `read_directory` follows the link on the backend)
+
+## Task 17: Open in File Manager / Default App (Item Action)
+
+**Files:**
+- Edit `src/components/sidebar/FileTreePanel.tsx` — add hover action button on all rows
+
+**Implementation:**
+- No new Rust commands — reuses existing `revealInFinder()` (folders) and `openFilePath()` (files) from `tauri-api.ts`, both already backed by the `@tauri-apps/plugin-opener` with `opener:default` permissions
+- All rows get an `ExternalLink` icon button (lucide-react), visible on hover via `opacity-0 group-hover/row:opacity-100`
+- Folders: calls `revealInFinder(entry.path)` — reveals in Finder/Explorer
+- Files: calls `openFilePath(entry.path)` — opens with system default app
+
+## Task 18: Delete File/Folder (Move to Trash)
+
+**Files:**
+- Edit `src-tauri/Cargo.toml` — add `trash = "5"` dependency
+- Edit `src-tauri/src/commands/files.rs` — add `trash_file` command
+- Edit `src-tauri/src/lib.rs` — register `trash_file` command
+- Edit `src/lib/tauri-api.ts` — add `trashFile(path: string)` wrapper
+- Edit `src/lib/tauri-api-interface.ts` — add `trashFile` to `TauriAPI` interface
+- Edit `src/components/sidebar/FileTreePanel.tsx` — add hover action button on all rows, refresh tree after delete
+
+**Implementation:**
+- Rust: `trash_file(path: String)` — calls `trash::delete(path)` to move both files and folders to system trash
+- All rows get a `Trash2` icon button (lucide-react), visible on hover via `opacity-0 group-hover/row:opacity-100`
+- On successful delete, calls `refreshRoot()` (via `onDelete` prop) to immediately update the tree
+- The filesystem watcher also triggers a backup refresh after the item is removed
+
 ## Verification
 
 - `pnpm typecheck`

@@ -107,6 +107,14 @@ export async function readBinaryFile(path: string, maxSize?: number): Promise<st
   return invoke<string>('read_binary_file', { path, maxSize });
 }
 
+/**
+ * Move a file to the system trash (macOS Trash / Windows Recycle Bin / Linux freedesktop trash).
+ * @param path Absolute file path
+ */
+export async function trashFile(path: string): Promise<void> {
+  return invoke<void>('trash_file', { path });
+}
+
 // ============================================================================
 // Dialog / Folder Picker
 // ============================================================================
@@ -1541,6 +1549,9 @@ export function getTauriApi() {
     openExternal,
     openFilePath,
     revealInFinder,
+
+    // File operations
+    trashFile,
 
     // Task operations
     startTask,

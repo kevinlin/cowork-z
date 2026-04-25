@@ -342,6 +342,7 @@ pub struct DirectoryEntry {
     pub name: String,
     pub path: String,
     pub is_directory: bool,
+    pub is_symlink: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]

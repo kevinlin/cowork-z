@@ -21,12 +21,15 @@ The application shows a 3-panel workspace for the user:
   - A type-specific icon (see File Type Icons)
   - The file or folder name, truncated with ellipsis if too long
   - File size (e.g. `4.2 KB`) right-aligned for files only; never shown for directories
+- Symbolic links (macOS/Linux) display a small link arrow overlay on their type icon to distinguish them from regular entries.
 - Folder icons visually change between closed and open states.
 - The currently selected file is highlighted with a distinct background and text color.
+- Item actions appear on the right side of a row on hover (see Item Actions).
 
 ### Navigation
 
 - Clicking a folder toggles it open or closed in-place.
+- Clicking a symbolic link to a directory expands it in-place, showing the contents of the linked target directory as if it were a regular folder.
 - The tree root is fixed to the currently active project directory.
 - No breadcrumbs or back/forward navigation — the tree itself is the sole navigation mechanism.
 - Expand state is preserved across filesystem refreshes: when the tree auto-refreshes, previously expanded folders remain expanded.
@@ -50,10 +53,25 @@ The application shows a 3-panel workspace for the user:
 | Category | Extensions | Icon |
 |----------|-----------|------|
 | Directories | — | Folder (closed) / Folder Open (expanded), in primary app color |
+| Symbolic links | — | Base type icon with a small link arrow overlay badge |
 | Images | `png jpg jpeg gif svg webp` | Image |
 | Code | `ts tsx js jsx rs py java c cpp go` | Code File |
 | Data/Config | `json yaml yml toml` | JSON File |
 | Everything else | — | Text File |
+
+### Item Actions
+
+Two action buttons appear on the right side of each tree row on hover: **Open** and **Delete**.
+
+**Folders:**
+- **Open** — Opens the folder in the platform's native file manager (Finder on macOS, Explorer on Windows, default file manager on Linux).
+- **Delete** — Moves the folder and its contents to the system trash.
+
+**Files:**
+- **Open** — Opens the file with the system's default application.
+- **Delete** — Moves the file to the system trash (macOS Trash / Windows Recycle Bin).
+
+No confirmation dialog is shown for delete; the operation is reversible via the system trash. After deletion, the file tree refreshes immediately to reflect the change.
 
 ### Drag-and-Drop from File Tree
 
@@ -149,7 +167,7 @@ On refresh, expanded directories are re-read recursively while preserving the cu
 
 The following are explicitly **not** part of the current feature set:
 
-- File mutations (rename, delete, move, copy, create)
+- File mutations other than delete (rename, move, copy, create)
 - Context menus / right-click actions
 - Multi-file selection
 - List or grid view alternatives

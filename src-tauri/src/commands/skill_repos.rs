@@ -77,6 +77,26 @@ fn resolve_target_folder(target: &str) -> Result<PathBuf, String> {
     }
 }
 
+fn is_symlink(path: &std::path::Path) -> bool {
+    fs::symlink_metadata(path)
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false)
+}
+
+/// Removes a path that may be a symlink or a real directory/file.
+/// Symlinks are removed with `remove_file` to avoid traversing into the target.
+fn remove_path(path: &std::path::Path) -> Result<(), String> {
+    if is_symlink(path) {
+        fs::remove_file(path).map_err(|e| format!("Failed to remove symlink: {}", e))
+    } else if path.is_dir() {
+        fs::remove_dir_all(path).map_err(|e| format!("Failed to remove directory: {}", e))
+    } else if path.is_file() {
+        fs::remove_file(path).map_err(|e| format!("Failed to remove file: {}", e))
+    } else {
+        Ok(())
+    }
+}
+
 // --- Commands ---
 
 #[tauri::command]
@@ -331,8 +351,7 @@ pub fn skill_repos_skills(
         .into_iter()
         .map(|s| {
             let skill_dir = install_dir.join(&s.skill_id);
-            let checksum_file = skill_dir.join(".coworkz-checksum");
-            let installed = checksum_file.exists();
+            let installed = skill_dir.exists();
 
             RepoSkill {
                 repo_id: s.repo_id.clone(),
@@ -388,31 +407,41 @@ pub async fn skills_install_from_repo(
 
     fs::create_dir_all(&install_dir).map_err(|e| format!("Failed to create install dir: {}", e))?;
 
-    // Handle single-file skills (commands) vs directory skills
-    if source.is_file() {
-        fs::create_dir_all(&dest).map_err(|e| format!("Failed to create skill dir: {}", e))?;
-        let dest_file = dest.join("SKILL.md");
-        fs::copy(&source, &dest_file).map_err(|e| format!("Failed to copy skill file: {}", e))?;
-    } else {
-        copy_dir_recursive(&source, &dest)?;
+    #[cfg(unix)]
+    {
+        remove_path(&dest)?;
+        std::os::unix::fs::symlink(&source, &dest)
+            .map_err(|e| format!("Failed to create symlink: {}", e))?;
     }
 
-    let checksum = if source.is_file() {
-        compute_dir_checksum(&dest)?
-    } else {
-        compute_dir_checksum(&source)?
-    };
-    fs::write(dest.join(".coworkz-checksum"), &checksum)
-        .map_err(|e| format!("Failed to write checksum: {}", e))?;
+    #[cfg(not(unix))]
+    {
+        if source.is_file() {
+            fs::create_dir_all(&dest).map_err(|e| format!("Failed to create skill dir: {}", e))?;
+            let dest_file = dest.join("SKILL.md");
+            fs::copy(&source, &dest_file)
+                .map_err(|e| format!("Failed to copy skill file: {}", e))?;
+        } else {
+            copy_dir_recursive(&source, &dest)?;
+        }
 
-    let source_meta = serde_json::json!({
-        "repo_id": repo_id,
-        "repo_url": repo.url,
-        "skill_path": skill.skill_path,
-        "installed_at": chrono::Utc::now().to_rfc3339(),
-    });
-    fs::write(dest.join(".coworkz-source"), source_meta.to_string())
-        .map_err(|e| format!("Failed to write source file: {}", e))?;
+        let checksum = if source.is_file() {
+            compute_dir_checksum(&dest)?
+        } else {
+            compute_dir_checksum(&source)?
+        };
+        fs::write(dest.join(".coworkz-checksum"), &checksum)
+            .map_err(|e| format!("Failed to write checksum: {}", e))?;
+
+        let source_meta = serde_json::json!({
+            "repo_id": repo_id,
+            "repo_url": repo.url,
+            "skill_path": skill.skill_path,
+            "installed_at": chrono::Utc::now().to_rfc3339(),
+        });
+        fs::write(dest.join(".coworkz-source"), source_meta.to_string())
+            .map_err(|e| format!("Failed to write source file: {}", e))?;
+    }
 
     let _ = app.emit("skills:changed", ());
     Ok(())
@@ -492,14 +521,14 @@ pub fn skills_delete_installed(
     let install_dir = resolve_target_folder(target)?;
     let skill_dir = install_dir.join(&skill_id);
 
-    if !skill_dir.exists() {
+    if !is_symlink(&skill_dir) && !skill_dir.exists() {
         return Err(format!(
             "Skill directory not found: {}",
             skill_dir.display()
         ));
     }
 
-    fs::remove_dir_all(&skill_dir).map_err(|e| format!("Failed to delete skill: {}", e))?;
+    remove_path(&skill_dir)?;
 
     let _ = app.emit("skills:changed", ());
     Ok(())

@@ -6,6 +6,7 @@
 
 - **File tree item action buttons** — Every row in the file tree shows Open and Delete buttons on hover; folders open in Finder/Explorer, files open with the default app; delete moves both files and folders to system trash with immediate tree refresh
 - **Symbolic link support in file tree** — Symlinks (macOS/Linux) are now detected and displayed with a link overlay badge; symlink folders expand to show the linked directory's contents
+- **Symlink-based skill installation (macOS/Linux)** — Installing skills from repos now creates a symbolic link instead of copying files; installed skills always reflect the latest repo cache after sync; deletion is symlink-aware to prevent accidental cache removal
 
 ## v0.6.9
 

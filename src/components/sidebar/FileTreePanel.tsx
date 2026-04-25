@@ -1,6 +1,22 @@
 'use client';
 
-import { ChevronRight, ExternalLink, Eye, EyeOff, File, FileCode, FileJson, FileText, Folder, FolderOpen, Image, Link, Loader2, Search, Trash2 } from 'lucide-react';
+import {
+  ChevronRight,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  File,
+  FileCode,
+  FileJson,
+  FileText,
+  Folder,
+  FolderOpen,
+  Image,
+  Link,
+  Loader2,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type FileTreeNode, useFileTree } from '@/hooks/useFileTree';
@@ -111,7 +127,7 @@ interface TreeRowProps {
   selectedPath?: string;
 }
 
-function TreeRow({ node, depth, onToggle, onSelect, onDelete, selectedPath }: TreeRowProps) {
+export function TreeRow({ node, depth, onToggle, onSelect, onDelete, selectedPath }: TreeRowProps) {
   const { entry, isExpanded, isLoading } = node;
   const Icon = getFileIcon(entry, isExpanded);
   const isSelected = !entry.isDirectory && entry.path === selectedPath;
@@ -175,9 +191,7 @@ function TreeRow({ node, depth, onToggle, onSelect, onDelete, selectedPath }: Tr
           ) : (
             <span className="relative shrink-0">
               <Icon className={cn('h-3.5 w-3.5', entry.isDirectory ? 'text-blue-500' : 'text-muted-foreground')} />
-              {entry.isSymlink && (
-                <Link className="absolute -right-0.5 -bottom-0.5 h-2 w-2 text-muted-foreground" />
-              )}
+              {entry.isSymlink && <Link className="absolute -right-0.5 -bottom-0.5 h-2 w-2 text-muted-foreground" />}
             </span>
           )}
           <span className="min-w-0 flex-1 truncate">{entry.name}</span>

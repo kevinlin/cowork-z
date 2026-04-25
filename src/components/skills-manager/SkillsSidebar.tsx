@@ -1,7 +1,7 @@
 import { homeDir } from '@tauri-apps/api/path';
-import { Eye, EyeOff, Search } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { isHiddenEntry } from '@/components/sidebar/FileTreePanel';
+import { isHiddenEntry, TreeRow } from '@/components/sidebar/FileTreePanel';
 import { useFileTree } from '@/hooks/useFileTree';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { cn } from '@/lib/utils';
@@ -12,7 +12,7 @@ import { FolderSwitcher } from './FolderSwitcher';
 
 export function SkillsSidebar() {
   const { targetFolder } = useSkillsManagerStore();
-  const { openPreview } = useFilePreviewStore();
+  const { selectedFile, openPreview } = useFilePreviewStore();
   const [showHidden, setShowHidden] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
@@ -54,15 +54,11 @@ export function SkillsSidebar() {
     };
   }, [refreshRoot]);
 
-  const handleFileClick = useCallback(
+  const handleSelect = useCallback(
     (entry: DirectoryEntry) => {
-      if (entry.isDirectory) {
-        toggleExpand(entry.path);
-      } else {
-        openPreview(entry);
-      }
+      openPreview(entry);
     },
-    [toggleExpand, openPreview]
+    [openPreview]
   );
 
   return (
@@ -95,56 +91,29 @@ export function SkillsSidebar() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto p-1">
+      <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
         {isLoadingRoot ? (
-          <div className="p-2 text-muted-foreground text-xs">Loading...</div>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
         ) : nodes.length === 0 ? (
-          <div className="p-2 text-muted-foreground text-xs">No skills installed</div>
+          <div className="px-2 py-8 text-center text-muted-foreground text-xs">
+            {searchQuery ? 'No files found' : 'No skills installed'}
+          </div>
         ) : (
-          <FileTreeNodes nodes={nodes} onFileClick={handleFileClick} onToggle={toggleExpand} />
+          nodes.map((node) => (
+            <TreeRow
+              depth={0}
+              key={node.entry.path}
+              node={node}
+              onDelete={refreshRoot}
+              onSelect={handleSelect}
+              onToggle={toggleExpand}
+              selectedPath={selectedFile?.path}
+            />
+          ))
         )}
       </div>
     </div>
-  );
-}
-
-function FileTreeNodes({
-  nodes,
-  onFileClick,
-  onToggle,
-  depth = 0,
-}: {
-  nodes: ReturnType<typeof useFileTree>['nodes'];
-  onFileClick: (entry: DirectoryEntry) => void;
-  onToggle: (path: string) => void;
-  depth?: number;
-}) {
-  return (
-    <>
-      {nodes.map((node) => (
-        <div key={node.entry.path}>
-          <button
-            className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-xs hover:bg-accent"
-            onClick={() => {
-              if (node.entry.isDirectory) {
-                onToggle(node.entry.path);
-              } else {
-                onFileClick(node.entry);
-              }
-            }}
-            style={{ paddingLeft: `${depth * 12 + 4}px` }}
-            type="button"
-          >
-            <span className="shrink-0 text-muted-foreground">
-              {node.entry.isDirectory ? (node.isExpanded ? '\u25BE' : '\u25B8') : '\u00B7'}
-            </span>
-            <span className="truncate">{node.entry.name}</span>
-          </button>
-          {node.isExpanded && node.children && (
-            <FileTreeNodes depth={depth + 1} nodes={node.children} onFileClick={onFileClick} onToggle={onToggle} />
-          )}
-        </div>
-      ))}
-    </>
   );
 }

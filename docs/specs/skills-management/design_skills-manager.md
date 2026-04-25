@@ -114,14 +114,38 @@ Cache directories use a human-readable name derived from the repo URL (`derive_c
     ...
 ```
 
-### Source Tracking Files (per installed skill)
+### Source Tracking Files (per installed skill, Windows only)
+
+On Windows (copy-based installs), each installed skill directory contains tracking metadata:
 
 ```
 ~/.config/opencode/skills/{skill-id}/
   SKILL.md
-  .coworkz-checksum       ← SHA256 hex digest (existing)
+  .coworkz-checksum       ← SHA256 hex digest
   .coworkz-source         ← JSON: { repo_id, repo_url, skill_path, installed_at }
 ```
+
+On macOS/Linux, skills are installed as symbolic links (see below), so these files are not written — the symlink itself is the tracking mechanism.
+
+### Skill Installation Strategy
+
+On **macOS/Linux**, `skills_install_from_repo` creates a symbolic link from the target skills folder to the skill directory inside the repo cache:
+
+```
+~/.config/opencode/skills/sql-queries -> {app_data}/skill-repo-cache/owner_repo/data/skills/sql-queries/
+```
+
+Before creating the symlink, any existing entry at the destination (whether a real directory from a previous copy-based install or a stale symlink) is removed. This means:
+
+- Installed skills always reflect the latest repo cache state after `git pull` sync
+- No file duplication on disk
+- Reinstall is idempotent (removes and recreates the same symlink)
+
+On **Windows**, the existing copy-based behavior is preserved (`copy_dir_recursive` + `.coworkz-checksum` + `.coworkz-source`), because creating symlinks on Windows requires elevated privileges.
+
+**Install detection** uses `skill_dir.exists()` (which follows symlinks), so both symlinked and copied installs are detected consistently. Dangling symlinks (e.g. after a repo is removed and its cache deleted) correctly show as "not installed."
+
+**Deletion** is symlink-aware: `skills_delete_installed` checks `symlink_metadata()` to determine whether the entry is a symlink. Symlinks are removed with `fs::remove_file` (removes only the link). Real directories are removed with `fs::remove_dir_all`. This prevents accidental deletion of the shared repo cache.
 
 ---
 
@@ -261,7 +285,7 @@ Both are bound to the same state. Switching folders refreshes the file tree and 
 ### Left Sidebar
 - **Adjustable width** (drag handle on right edge, min 200px, max 400px, default 250px)
 - **Folder switcher dropdown** at the top — styled with **primary color** border and text to emphasize the active target folder
-- **File tree** of the selected skills folder, reusing the existing file tree pattern (lazy-load, expand/collapse, icons)
+- **File tree** of the selected skills folder, reusing the exported `TreeRow` component from `FileTreePanel.tsx` for full feature parity with the main window's file tree: file type icons, symlink overlay badges, hover action buttons ("Open in Finder/default app" and "Move to trash"), drag-and-drop, selected state highlighting, and lazy-load expand/collapse.
 - **Auto-refresh:** The sidebar subscribes to `skills:changed` Tauri events and calls `refreshRoot()` (debounced 200ms) to reload the file tree whenever a skill is installed, updated, or deleted — from either the Skills Manager or the main window's catalog
 - **Hidden file filter toggle:** An eye icon button next to the search input toggles visibility of dotfiles and system entries (`.coworkz-checksum`, `.coworkz-source`, `.DS_Store`, etc.). Uses the shared `isHiddenEntry()` from `FileTreePanel.tsx`. Hidden by default (matching the main window's file tree behavior).
 - Click a file → opens in right preview pane

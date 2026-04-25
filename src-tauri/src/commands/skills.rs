@@ -119,8 +119,7 @@ pub fn compute_dir_checksum(dir: &Path) -> Result<String, String> {
 
 /// Recursively collect all non-hidden files under `root`, appending relative paths to `out`.
 fn collect_files(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
-    let entries =
-        fs::read_dir(dir).map_err(|e| format!("Failed to read dir {:?}: {}", dir, e))?;
+    let entries = fs::read_dir(dir).map_err(|e| format!("Failed to read dir {:?}: {}", dir, e))?;
     for entry in entries.flatten() {
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
@@ -380,10 +379,7 @@ mod tests {
         assert_eq!(derive_category("marketing-brand-voice"), "Marketing");
         assert_eq!(derive_category("sales-call-prep"), "Sales");
         assert_eq!(derive_category("finance-variance-analysis"), "Finance");
-        assert_eq!(
-            derive_category("enterprise-search-strategy"),
-            "Enterprise"
-        );
+        assert_eq!(derive_category("enterprise-search-strategy"), "Enterprise");
         assert_eq!(derive_category("legal-contract-review"), "Legal");
         assert_eq!(derive_category("product-roadmap"), "Product");
         assert_eq!(derive_category("support-ticket-triage"), "Support");

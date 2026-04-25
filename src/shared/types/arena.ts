@@ -25,6 +25,15 @@ export interface Arena {
   tasks: Task[];
 }
 
+/** Lightweight child task info for sidebar expandable display (no messages) */
+export interface ArenaChildTask {
+  id: string;
+  status: string;
+  modelId?: string;
+  arenaSlot?: number;
+  summary?: string;
+}
+
 /** Lightweight arena for sidebar listing */
 export interface ArenaListItem {
   id: string;
@@ -36,4 +45,6 @@ export interface ArenaListItem {
   status: string;
   /** Model IDs of the 3 columns */
   modelIds: (string | null)[];
+  /** Child tasks for expandable sidebar display */
+  tasks: ArenaChildTask[];
 }

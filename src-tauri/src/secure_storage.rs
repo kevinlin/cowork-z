@@ -34,7 +34,8 @@ pub const PROVIDERS: &[&str] = &[
 
 /// Store an API key in the OS keychain
 pub fn store_api_key(provider: &str, api_key: &str) -> Result<(), String> {
-    let entry = Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
+    let entry =
+        Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
 
     entry
         .set_password(api_key)
@@ -45,7 +46,8 @@ pub fn store_api_key(provider: &str, api_key: &str) -> Result<(), String> {
 
 /// Retrieve an API key from the OS keychain
 pub fn get_api_key(provider: &str) -> Result<Option<String>, String> {
-    let entry = Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
+    let entry =
+        Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
 
     match entry.get_password() {
         Ok(password) => Ok(Some(password)),
@@ -56,7 +58,8 @@ pub fn get_api_key(provider: &str) -> Result<Option<String>, String> {
 
 /// Delete an API key from the OS keychain
 pub fn delete_api_key(provider: &str) -> Result<bool, String> {
-    let entry = Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
+    let entry =
+        Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
 
     match entry.delete_password() {
         Ok(()) => Ok(true),
@@ -67,7 +70,8 @@ pub fn delete_api_key(provider: &str) -> Result<bool, String> {
 
 /// Check if an API key exists for a provider
 pub fn has_api_key(provider: &str) -> Result<bool, String> {
-    let entry = Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
+    let entry =
+        Entry::new(service_name(), provider).map_err(|e| format!("Keychain error: {}", e))?;
 
     match entry.get_password() {
         Ok(_) => Ok(true),
@@ -99,13 +103,7 @@ pub fn get_all_api_key_status() -> Result<HashMap<String, ApiKeyStatus>, String>
             None
         };
 
-        result.insert(
-            provider.to_string(),
-            ApiKeyStatus {
-                exists,
-                prefix,
-            },
-        );
+        result.insert(provider.to_string(), ApiKeyStatus { exists, prefix });
     }
 
     Ok(result)
@@ -153,4 +151,3 @@ pub struct BedrockCredentials {
     pub secret_access_key: String,
     pub region: String,
 }
-

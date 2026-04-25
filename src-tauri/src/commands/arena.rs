@@ -124,8 +124,8 @@ fn resolve_shared_state(
         None
     };
 
-    let mcp_servers = db::settings::get_mcp_servers_config(&conn)
-        .map(|c| serde_json::to_value(c).unwrap());
+    let mcp_servers =
+        db::settings::get_mcp_servers_config(&conn).map(|c| serde_json::to_value(c).unwrap());
 
     Ok((
         api_keys,
@@ -371,10 +371,7 @@ pub async fn resume_arena(
 
 /// Get an arena with its 3 tasks.
 #[tauri::command]
-pub async fn get_arena(
-    arena_id: String,
-    db_state: State<'_, DbState>,
-) -> Result<Arena, String> {
+pub async fn get_arena(arena_id: String, db_state: State<'_, DbState>) -> Result<Arena, String> {
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
     let stored = db::arenas::get_arena_with_tasks(&conn, &arena_id)
         .ok_or_else(|| format!("Arena not found: {}", arena_id))?;
@@ -404,10 +401,7 @@ pub async fn list_arenas(
 
 /// Delete an arena and all its child tasks.
 #[tauri::command]
-pub async fn delete_arena(
-    arena_id: String,
-    db_state: State<'_, DbState>,
-) -> Result<(), String> {
+pub async fn delete_arena(arena_id: String, db_state: State<'_, DbState>) -> Result<(), String> {
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
     db::arenas::delete_arena(&conn, &arena_id)
 }

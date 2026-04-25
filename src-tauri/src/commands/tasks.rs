@@ -36,25 +36,23 @@ pub async fn start_task(
         }
         .or_else(|| {
             let settings = db::providers::get_provider_settings(&conn);
-            settings
-                .connected_providers
-                .values()
-                .find_map(|provider| {
-                    if provider.connection_status == "connected" {
-                        provider.selected_model_id.clone()
-                    } else {
-                        None
-                    }
-                })
+            settings.connected_providers.values().find_map(|provider| {
+                if provider.connection_status == "connected" {
+                    provider.selected_model_id.clone()
+                } else {
+                    None
+                }
+            })
         })
     };
     // Allow frontend to override model (used by Arena)
     let resolved_model_id = config.model_id.or(resolved_model_id);
 
     // Generate task ID
-    let task_id = config.task_id.clone().unwrap_or_else(|| {
-        format!("task_{}", uuid::Uuid::new_v4())
-    });
+    let task_id = config
+        .task_id
+        .clone()
+        .unwrap_or_else(|| format!("task_{}", uuid::Uuid::new_v4()));
 
     let created_at = chrono::Utc::now().to_rfc3339();
     let started_at = chrono::Utc::now().to_rfc3339();
@@ -62,17 +60,20 @@ pub async fn start_task(
     // Create initial task record in database
     {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::tasks::save_task(&conn, &db::tasks::TaskInput {
-            id: task_id.clone(),
-            prompt: config.prompt.clone(),
-            status: "starting".to_string(),
-            session_id: None,
-            summary: None,
-            messages: vec![],
-            created_at: created_at.clone(),
-            started_at: Some(started_at.clone()),
-            completed_at: None,
-        })?;
+        db::tasks::save_task(
+            &conn,
+            &db::tasks::TaskInput {
+                id: task_id.clone(),
+                prompt: config.prompt.clone(),
+                status: "starting".to_string(),
+                session_id: None,
+                summary: None,
+                messages: vec![],
+                created_at: created_at.clone(),
+                started_at: Some(started_at.clone()),
+                completed_at: None,
+            },
+        )?;
     }
 
     // Assign task to active workspace and get working directory
@@ -100,15 +101,21 @@ pub async fn start_task(
             vec![]
         }
     };
-    let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if workspace_perms.is_empty() {
-        None
-    } else {
-        Some(workspace_perms.iter().map(|wp| sidecar::FolderPermissionPayload {
-            path: wp.folder_path.clone(),
-            access_level: wp.access_level.clone(),
-            source: Some(wp.source.clone()),
-        }).collect())
-    };
+    let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> =
+        if workspace_perms.is_empty() {
+            None
+        } else {
+            Some(
+                workspace_perms
+                    .iter()
+                    .map(|wp| sidecar::FolderPermissionPayload {
+                        path: wp.folder_path.clone(),
+                        access_level: wp.access_level.clone(),
+                        source: Some(wp.source.clone()),
+                    })
+                    .collect(),
+            )
+        };
 
     // Prepend workspace folder as trusted read-write permission
     if let Some(ref wd) = working_directory {
@@ -140,8 +147,7 @@ pub async fn start_task(
     // Load MCP servers config
     let mcp_servers = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::settings::get_mcp_servers_config(&conn)
-            .map(|c| serde_json::to_value(c).unwrap())
+        db::settings::get_mcp_servers_config(&conn).map(|c| serde_json::to_value(c).unwrap())
     };
 
     // Ensure sidecar is running
@@ -265,10 +271,7 @@ pub async fn reply_to_question(
     };
 
     manager
-        .send_command(sidecar::SidecarCommand::SendQuestionReply {
-            task_id,
-            payload,
-        })
+        .send_command(sidecar::SidecarCommand::SendQuestionReply { task_id, payload })
         .await
 }
 
@@ -527,7 +530,11 @@ pub async fn respond_to_permission(
                         if let Some(ref ws_id) = ws_id {
                             let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
                             let _ = db::workspace_permissions::save_workspace_permission(
-                                &conn, ws_id, &folder_path, "read-write", "adhoc",
+                                &conn,
+                                ws_id,
+                                &folder_path,
+                                "read-write",
+                                "adhoc",
                             );
                         }
                     }
@@ -537,7 +544,11 @@ pub async fn respond_to_permission(
     }
 
     // Map frontend decision to sidecar reply format
-    let reply = if response.decision == "allow" { "once" } else { "reject" };
+    let reply = if response.decision == "allow" {
+        "once"
+    } else {
+        "reject"
+    };
 
     let payload = sidecar::PermissionReplyPayload {
         request_id: response.request_id.clone(),
@@ -563,9 +574,7 @@ pub async fn resume_session(
     db_state: State<'_, DbState>,
 ) -> Result<Task, String> {
     // Generate task ID
-    let task_id = task_id.unwrap_or_else(|| {
-        format!("task_{}", uuid::Uuid::new_v4())
-    });
+    let task_id = task_id.unwrap_or_else(|| format!("task_{}", uuid::Uuid::new_v4()));
 
     // Get workspace working directory
     let working_directory = {
@@ -588,15 +597,21 @@ pub async fn resume_session(
             vec![]
         }
     };
-    let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> = if workspace_perms.is_empty() {
-        None
-    } else {
-        Some(workspace_perms.iter().map(|wp| sidecar::FolderPermissionPayload {
-            path: wp.folder_path.clone(),
-            access_level: wp.access_level.clone(),
-            source: Some(wp.source.clone()),
-        }).collect())
-    };
+    let mut sidecar_perms: Option<Vec<sidecar::FolderPermissionPayload>> =
+        if workspace_perms.is_empty() {
+            None
+        } else {
+            Some(
+                workspace_perms
+                    .iter()
+                    .map(|wp| sidecar::FolderPermissionPayload {
+                        path: wp.folder_path.clone(),
+                        access_level: wp.access_level.clone(),
+                        source: Some(wp.source.clone()),
+                    })
+                    .collect(),
+            )
+        };
 
     // Prepend workspace folder as trusted read-write permission
     if let Some(ref wd) = working_directory {
@@ -628,8 +643,7 @@ pub async fn resume_session(
     // Load MCP servers config
     let mcp_servers = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::settings::get_mcp_servers_config(&conn)
-            .map(|c| serde_json::to_value(c).unwrap())
+        db::settings::get_mcp_servers_config(&conn).map(|c| serde_json::to_value(c).unwrap())
     };
 
     // Ensure sidecar is running

@@ -71,8 +71,8 @@ fn find_skill_dirs(root: &Path, dir: &Path, results: &mut Vec<StoredRepoSkill>, 
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
 
-                let (parsed_name, parsed_desc) = parse_frontmatter(&path)
-                    .unwrap_or_else(|| (skill_id.clone(), String::new()));
+                let (parsed_name, parsed_desc) =
+                    parse_frontmatter(&path).unwrap_or_else(|| (skill_id.clone(), String::new()));
 
                 let category = derive_category(&skill_id).to_string();
 

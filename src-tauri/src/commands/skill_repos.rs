@@ -226,8 +226,7 @@ pub async fn skill_repos_sync(
 ) -> Result<(), String> {
     let repo = {
         let conn = db.conn.lock().map_err(|e| e.to_string())?;
-        skill_repos::get_skill_repo(&conn, &id)
-            .ok_or_else(|| format!("Repo not found: {}", id))?
+        skill_repos::get_skill_repo(&conn, &id).ok_or_else(|| format!("Repo not found: {}", id))?
     };
 
     let _ = app.emit(
@@ -298,10 +297,7 @@ pub async fn skill_repos_sync(
 }
 
 #[tauri::command]
-pub async fn skill_repos_sync_all(
-    app: AppHandle,
-    db: State<'_, DbState>,
-) -> Result<(), String> {
+pub async fn skill_repos_sync_all(app: AppHandle, db: State<'_, DbState>) -> Result<(), String> {
     let repos = {
         let conn = db.conn.lock().map_err(|e| e.to_string())?;
         skill_repos::list_skill_repos(&conn)
@@ -390,15 +386,13 @@ pub async fn skills_install_from_repo(
     let install_dir = resolve_target_folder(target)?;
     let dest = install_dir.join(&skill.skill_id);
 
-    fs::create_dir_all(&install_dir)
-        .map_err(|e| format!("Failed to create install dir: {}", e))?;
+    fs::create_dir_all(&install_dir).map_err(|e| format!("Failed to create install dir: {}", e))?;
 
     // Handle single-file skills (commands) vs directory skills
     if source.is_file() {
         fs::create_dir_all(&dest).map_err(|e| format!("Failed to create skill dir: {}", e))?;
         let dest_file = dest.join("SKILL.md");
-        fs::copy(&source, &dest_file)
-            .map_err(|e| format!("Failed to copy skill file: {}", e))?;
+        fs::copy(&source, &dest_file).map_err(|e| format!("Failed to copy skill file: {}", e))?;
     } else {
         copy_dir_recursive(&source, &dest)?;
     }

@@ -4,7 +4,8 @@
 
 ## v0.6.9
 
-- 
+- **Expandable arena sessions in sidebar** — Arena entries in the Sessions panel now show a disclosure triangle that expands to reveal the 3 individual chat sessions; clicking a child session opens the standard chat view while clicking the arena row opens the tabbed Arena view
+
 
 ## v0.6.8
 

@@ -41,10 +41,16 @@ pub async fn test_litellm_connection(
                             .collect();
                         Ok(models_ok(models))
                     }
-                    Err(e) => Ok(models_error(format!("Failed to parse LiteLLM response: {}", e))),
+                    Err(e) => Ok(models_error(format!(
+                        "Failed to parse LiteLLM response: {}",
+                        e
+                    ))),
                 }
             } else {
-                Ok(models_error(format!("LiteLLM returned status: {}", response.status())))
+                Ok(models_error(format!(
+                    "LiteLLM returned status: {}",
+                    response.status()
+                )))
             }
         }
         Err(e) => Ok(models_error(format!("Failed to connect to LiteLLM: {}", e))),
@@ -57,7 +63,9 @@ pub async fn fetch_litellm_models() -> Result<ProviderModelsResult, String> {
 }
 
 #[tauri::command]
-pub async fn get_litellm_config(state: State<'_, DbState>) -> Result<Option<LiteLLMConfig>, String> {
+pub async fn get_litellm_config(
+    state: State<'_, DbState>,
+) -> Result<Option<LiteLLMConfig>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let config = db::settings::get_litellm_config(&conn);
     Ok(config.map(|c| LiteLLMConfig {

@@ -7,7 +7,11 @@ use crate::types::OpenCodeCliStatus;
 /// This function merges the current PATH with login-shell PATH (Unix only)
 /// and well-known tool directories for each platform.
 fn get_augmented_path() -> String {
-    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+    let separator = if cfg!(target_os = "windows") {
+        ";"
+    } else {
+        ":"
+    };
     let current_path = std::env::var("PATH").unwrap_or_default();
     let mut seen = std::collections::HashSet::new();
     let mut dirs: Vec<String> = Vec::new();
@@ -28,11 +32,11 @@ fn get_augmented_path() -> String {
     if cfg!(not(target_os = "windows")) {
         if let Some(user_shell) = get_safe_login_shell() {
             if let Ok(output) = std::process::Command::new(&user_shell)
-            .args(["-ilc", "echo $PATH"])
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null())
-            .stdin(std::process::Stdio::null())
-            .output()
+                .args(["-ilc", "echo $PATH"])
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::null())
+                .stdin(std::process::Stdio::null())
+                .output()
             {
                 if output.status.success() {
                     if let Ok(shell_path) = String::from_utf8(output.stdout) {
@@ -61,13 +65,13 @@ fn get_augmented_path() -> String {
         let programfiles = std::env::var("ProgramFiles").unwrap_or_default();
 
         vec![
-            format!("{}\\npm", appdata),                          // npm global
-            format!("{}\\nodejs", programfiles),                   // Node.js install
-            format!("{}\\Volta\\bin", localappdata),               // Volta
+            format!("{}\\npm", appdata),                             // npm global
+            format!("{}\\nodejs", programfiles),                     // Node.js install
+            format!("{}\\Volta\\bin", localappdata),                 // Volta
             home.join("scoop\\shims").to_string_lossy().to_string(), // Scoop
-            "C:\\ProgramData\\chocolatey\\bin".to_string(),        // Chocolatey
-            format!("{}\\Yarn\\bin", localappdata),                // Yarn
-            format!("{}\\pnpm", localappdata),                     // pnpm
+            "C:\\ProgramData\\chocolatey\\bin".to_string(),          // Chocolatey
+            format!("{}\\Yarn\\bin", localappdata),                  // Yarn
+            format!("{}\\pnpm", localappdata),                       // pnpm
         ]
     } else {
         vec![
@@ -87,11 +91,10 @@ fn get_augmented_path() -> String {
     // Add nvm/nvm-windows latest node version
     let nvm_base = if cfg!(target_os = "windows") {
         // nvm-windows: %APPDATA%\nvm or %NVM_HOME%
-        let nvm_home = std::env::var("NVM_HOME")
-            .unwrap_or_else(|_| {
-                let appdata = std::env::var("APPDATA").unwrap_or_default();
-                format!("{}\\nvm", appdata)
-            });
+        let nvm_home = std::env::var("NVM_HOME").unwrap_or_else(|_| {
+            let appdata = std::env::var("APPDATA").unwrap_or_default();
+            format!("{}\\nvm", appdata)
+        });
         std::path::PathBuf::from(nvm_home)
     } else {
         home.join(".nvm/versions/node")
@@ -110,7 +113,11 @@ fn get_augmented_path() -> String {
                     // nvm-windows puts node.exe directly in the version dir
                     nvm_base.join(latest).to_string_lossy().to_string()
                 } else {
-                    nvm_base.join(latest).join("bin").to_string_lossy().to_string()
+                    nvm_base
+                        .join(latest)
+                        .join("bin")
+                        .to_string_lossy()
+                        .to_string()
                 };
                 let key = if cfg!(target_os = "windows") {
                     nvm_bin.to_lowercase()
@@ -193,7 +200,9 @@ pub async fn check_opencode_cli() -> Result<OpenCodeCliStatus, String> {
 
             let version = version_output.ok().and_then(|v| {
                 if v.status.success() {
-                    String::from_utf8(v.stdout).ok().map(|s| s.trim().to_string())
+                    String::from_utf8(v.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
                 } else {
                     None
                 }
@@ -223,7 +232,9 @@ pub async fn get_opencode_version() -> Result<Option<String>, String> {
 
     Ok(output.ok().and_then(|v| {
         if v.status.success() {
-            String::from_utf8(v.stdout).ok().map(|s| s.trim().to_string())
+            String::from_utf8(v.stdout)
+                .ok()
+                .map(|s| s.trim().to_string())
         } else {
             None
         }

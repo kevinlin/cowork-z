@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Clock, Loader2, PauseCircle, Pencil, Square, Trash2, X, XCircle } from 'lucide-react';
+import { Pencil, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { TaskStatusIcon } from '@/components/ui/task-status-icon';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/shared';
 import { useTaskStore } from '@/stores/taskStore';
@@ -105,25 +106,6 @@ export default function ConversationListItem({ task }: ConversationListItemProps
     setContextMenuOpen(true);
   };
 
-  const getStatusIcon = () => {
-    switch (task.status) {
-      case 'running':
-        return <Loader2 className="h-3 w-3 shrink-0 animate-spin-ccw text-primary" />;
-      case 'completed':
-        return <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />;
-      case 'failed':
-        return <XCircle className="h-3 w-3 shrink-0 text-red-500" />;
-      case 'cancelled':
-        return <Square className="h-3 w-3 shrink-0 text-zinc-400" />;
-      case 'interrupted':
-        return <PauseCircle className="h-3 w-3 shrink-0 text-amber-500" />;
-      case 'queued':
-        return <Clock className="h-3 w-3 shrink-0 text-amber-500" />;
-      default:
-        return null;
-    }
-  };
-
   return (
     <>
       <DropdownMenu
@@ -173,7 +155,7 @@ export default function ConversationListItem({ task }: ConversationListItemProps
             tabIndex={0}
             title={isRenaming ? undefined : displayName}
           >
-            {getStatusIcon()}
+            <TaskStatusIcon status={task.status} />
             {isRenaming ? (
               <input
                 className="block flex-1 rounded border border-input bg-background px-1 py-0 text-foreground text-sm caret-foreground outline-none focus:ring-1 focus:ring-ring"

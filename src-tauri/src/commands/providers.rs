@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde::Deserialize;
+use std::collections::HashMap;
 use tauri::State;
 
 use crate::db;
@@ -8,7 +8,9 @@ use crate::secure_storage;
 use crate::types::*;
 
 #[tauri::command]
-pub async fn get_selected_model(state: State<'_, DbState>) -> Result<Option<SelectedModel>, String> {
+pub async fn get_selected_model(
+    state: State<'_, DbState>,
+) -> Result<Option<SelectedModel>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let model = db::settings::get_selected_model(&conn);
     Ok(model.map(|m| SelectedModel {
@@ -20,7 +22,10 @@ pub async fn get_selected_model(state: State<'_, DbState>) -> Result<Option<Sele
 }
 
 #[tauri::command]
-pub async fn set_selected_model(model: SelectedModel, state: State<'_, DbState>) -> Result<(), String> {
+pub async fn set_selected_model(
+    model: SelectedModel,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let db_model = db::settings::SelectedModel {
         provider: model.provider,
@@ -122,9 +127,7 @@ pub async fn set_connected_provider(
         .config
         .as_ref()
         .and_then(|c| c.get("availableModels"))
-        .and_then(|v| {
-            serde_json::from_value::<Vec<db::providers::AvailableModel>>(v.clone()).ok()
-        });
+        .and_then(|v| serde_json::from_value::<Vec<db::providers::AvailableModel>>(v.clone()).ok());
 
     // Convert input to db type
     let db_provider = db::providers::ConnectedProvider {
@@ -165,7 +168,10 @@ pub async fn update_provider_model(
 }
 
 #[tauri::command]
-pub async fn set_provider_debug_mode(enabled: bool, state: State<'_, DbState>) -> Result<(), String> {
+pub async fn set_provider_debug_mode(
+    enabled: bool,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     db::providers::set_provider_debug_mode(&conn, enabled)
 }
@@ -221,10 +227,16 @@ async fn fetch_openai_compatible_models(
                             .collect();
                         models_ok(models)
                     }
-                    Err(e) => models_error(format!("Failed to parse {} response: {}", provider_name, e)),
+                    Err(e) => {
+                        models_error(format!("Failed to parse {} response: {}", provider_name, e))
+                    }
                 }
             } else {
-                models_error(format!("{} returned status: {}", provider_name, response.status()))
+                models_error(format!(
+                    "{} returned status: {}",
+                    provider_name,
+                    response.status()
+                ))
             }
         }
         Err(e) => models_error(format!("Failed to connect to {}: {}", provider_name, e)),
@@ -346,7 +358,12 @@ async fn fetch_google_models(api_key: &str) -> ProviderModelsResult {
     let client = reqwest::Client::new();
     let url = "https://generativelanguage.googleapis.com/v1beta/models";
 
-    match client.get(url).header("x-goog-api-key", api_key).send().await {
+    match client
+        .get(url)
+        .header("x-goog-api-key", api_key)
+        .send()
+        .await
+    {
         Ok(response) => {
             if response.status().is_success() {
                 #[derive(Deserialize)]
@@ -431,12 +448,8 @@ async fn fetch_openrouter_models(api_key: &str) -> ProviderModelsResult {
                             .data
                             .into_iter()
                             .map(|m| {
-                                let provider = m
-                                    .id
-                                    .split('/')
-                                    .next()
-                                    .unwrap_or("unknown")
-                                    .to_string();
+                                let provider =
+                                    m.id.split('/').next().unwrap_or("unknown").to_string();
                                 ProviderModel {
                                     id: m.id,
                                     name: m.name,
@@ -474,9 +487,7 @@ pub async fn fetch_provider_models(provider: String) -> Result<ProviderModelsRes
         "anthropic" => fetch_anthropic_models(&api_key).await,
         "openai" => fetch_openai_models(&api_key).await,
         "google" => fetch_google_models(&api_key).await,
-        "xai" => {
-            fetch_openai_compatible_models(&api_key, "https://api.x.ai/v1", "xai").await
-        }
+        "xai" => fetch_openai_compatible_models(&api_key, "https://api.x.ai/v1", "xai").await,
         "deepseek" => {
             fetch_openai_compatible_models(&api_key, "https://api.deepseek.com", "deepseek").await
         }

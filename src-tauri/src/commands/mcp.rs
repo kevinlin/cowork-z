@@ -3,33 +3,25 @@ use tauri::State;
 use crate::sidecar::{McpServerNamePayload, SidecarCommand, SidecarState};
 
 #[tauri::command]
-pub async fn get_mcp_status(
-    sidecar_state: State<'_, SidecarState>,
-) -> Result<(), String> {
+pub async fn get_mcp_status(sidecar_state: State<'_, SidecarState>) -> Result<(), String> {
     let mut manager = sidecar_state.manager.lock().await;
 
     if !manager.is_running() {
         return Ok(());
     }
 
-    manager
-        .send_command(SidecarCommand::GetMcpStatus)
-        .await
+    manager.send_command(SidecarCommand::GetMcpStatus).await
 }
 
 #[tauri::command]
-pub async fn get_mcp_tools(
-    sidecar_state: State<'_, SidecarState>,
-) -> Result<(), String> {
+pub async fn get_mcp_tools(sidecar_state: State<'_, SidecarState>) -> Result<(), String> {
     let mut manager = sidecar_state.manager.lock().await;
 
     if !manager.is_running() {
         return Ok(());
     }
 
-    manager
-        .send_command(SidecarCommand::GetMcpTools)
-        .await
+    manager.send_command(SidecarCommand::GetMcpTools).await
 }
 
 #[tauri::command]

@@ -26,21 +26,50 @@ fn validate_unix(folder_path: &str) -> Result<(), String> {
     let path = Path::new(folder_path);
 
     // Blocked exact paths and prefixes
-    let blocked_exact = ["/", "/System", "/usr", "/bin", "/sbin", "/etc", "/var", "/private", "/Applications"];
+    let blocked_exact = [
+        "/",
+        "/System",
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/etc",
+        "/var",
+        "/private",
+        "/Applications",
+    ];
     for blocked in &blocked_exact {
-        if folder_path == *blocked || (folder_path != "/" && folder_path.starts_with(&format!("{}/", blocked)) && *blocked != "/") {
+        if folder_path == *blocked
+            || (folder_path != "/"
+                && folder_path.starts_with(&format!("{}/", blocked))
+                && *blocked != "/")
+        {
             // Allow subfolders of home, but block system paths and their children
         }
         if folder_path == *blocked {
-            return Err(format!("'{}' is a system directory and cannot be used as a workspace", blocked));
+            return Err(format!(
+                "'{}' is a system directory and cannot be used as a workspace",
+                blocked
+            ));
         }
     }
 
     // Block system directory subtrees (but not home subtrees)
-    let blocked_prefixes = ["/System/", "/usr/", "/bin/", "/sbin/", "/etc/", "/var/", "/private/", "/Applications/"];
+    let blocked_prefixes = [
+        "/System/",
+        "/usr/",
+        "/bin/",
+        "/sbin/",
+        "/etc/",
+        "/var/",
+        "/private/",
+        "/Applications/",
+    ];
     for prefix in &blocked_prefixes {
         if folder_path.starts_with(prefix) {
-            return Err(format!("Paths under '{}' cannot be used as workspaces", &prefix[..prefix.len() - 1]));
+            return Err(format!(
+                "Paths under '{}' cannot be used as workspaces",
+                &prefix[..prefix.len() - 1]
+            ));
         }
     }
 
@@ -52,7 +81,10 @@ fn validate_unix(folder_path: &str) -> Result<(), String> {
         // /Volumes/DriveName is blocked, /Volumes/DriveName/subfolder is allowed
         let rest = &folder_path["/Volumes/".len()..];
         if !rest.contains('/') {
-            return Err(format!("Volume root '{}' cannot be used as a workspace. Choose a subfolder instead.", folder_path));
+            return Err(format!(
+                "Volume root '{}' cannot be used as a workspace. Choose a subfolder instead.",
+                folder_path
+            ));
         }
     }
 
@@ -77,17 +109,28 @@ fn validate_windows(folder_path: &str) -> Result<(), String> {
 
     // Block drive roots (e.g., C:\, D:\)
     if upper.len() <= 3 && upper.chars().nth(1) == Some(':') {
-        return Err(format!("Drive root '{}' cannot be used as a workspace", folder_path));
+        return Err(format!(
+            "Drive root '{}' cannot be used as a workspace",
+            folder_path
+        ));
     }
 
     // Block system directories
-    let blocked = ["\\WINDOWS", "\\PROGRAM FILES", "\\PROGRAM FILES (X86)", "\\PROGRAMDATA"];
+    let blocked = [
+        "\\WINDOWS",
+        "\\PROGRAM FILES",
+        "\\PROGRAM FILES (X86)",
+        "\\PROGRAMDATA",
+    ];
     for suffix in &blocked {
         // Match C:\Windows, D:\Windows, etc.
         if upper.len() >= 3 && upper[2..].starts_with(suffix) {
             let blocked_path = &normalized[..2 + suffix.len()];
             if upper.len() == 2 + suffix.len() || upper.as_bytes()[2 + suffix.len()] == b'\\' {
-                return Err(format!("'{}' is a system directory and cannot be used as a workspace", blocked_path));
+                return Err(format!(
+                    "'{}' is a system directory and cannot be used as a workspace",
+                    blocked_path
+                ));
             }
         }
     }

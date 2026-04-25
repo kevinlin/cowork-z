@@ -125,30 +125,40 @@ fn get_messages_for_task(conn: &Connection, task_id: &str) -> Vec<StoredTaskMess
 
             let tool_input = tool_input_str.and_then(|s| serde_json::from_str(&s).ok());
 
-            Ok((id, msg_type, content, tool_name, tool_input, timestamp, tool_output))
+            Ok((
+                id,
+                msg_type,
+                content,
+                tool_name,
+                tool_input,
+                timestamp,
+                tool_output,
+            ))
         })
         .expect("Failed to query messages");
 
     message_iter
         .filter_map(|r| r.ok())
-        .map(|(id, msg_type, content, tool_name, tool_input, timestamp, tool_output)| {
-            let attachments = get_attachments_for_message(conn, &id);
+        .map(
+            |(id, msg_type, content, tool_name, tool_input, timestamp, tool_output)| {
+                let attachments = get_attachments_for_message(conn, &id);
 
-            StoredTaskMessage {
-                id,
-                msg_type,
-                content,
-                timestamp,
-                tool_name,
-                tool_input,
-                tool_output,
-                attachments: if attachments.is_empty() {
-                    None
-                } else {
-                    Some(attachments)
-                },
-            }
-        })
+                StoredTaskMessage {
+                    id,
+                    msg_type,
+                    content,
+                    timestamp,
+                    tool_name,
+                    tool_input,
+                    tool_output,
+                    attachments: if attachments.is_empty() {
+                        None
+                    } else {
+                        Some(attachments)
+                    },
+                }
+            },
+        )
         .collect()
 }
 
@@ -203,7 +213,17 @@ pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Stor
     task_iter
         .filter_map(|r| r.ok())
         .map(
-            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at, ws_id)| {
+            |(
+                id,
+                prompt,
+                summary,
+                status,
+                session_id,
+                created_at,
+                started_at,
+                completed_at,
+                ws_id,
+            )| {
                 let messages = get_messages_for_task(conn, &id);
                 StoredTask {
                     id,
@@ -255,7 +275,17 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
     task_iter
         .filter_map(|r| r.ok())
         .map(
-            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id)| {
+            |(
+                id,
+                prompt,
+                summary,
+                status,
+                session_id,
+                created_at,
+                started_at,
+                completed_at,
+                workspace_id,
+            )| {
                 let messages = get_messages_for_task(conn, &id);
                 StoredTask {
                     id,
@@ -299,7 +329,17 @@ pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
     );
 
     match result {
-        Ok((id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id)) => {
+        Ok((
+            id,
+            prompt,
+            summary,
+            status,
+            session_id,
+            created_at,
+            started_at,
+            completed_at,
+            workspace_id,
+        )) => {
             let messages = get_messages_for_task(conn, &id);
             Some(StoredTask {
                 id,
@@ -574,7 +614,20 @@ pub fn get_tasks_by_arena(conn: &Connection, arena_id: &str) -> Vec<StoredTask> 
     task_iter
         .filter_map(|r| r.ok())
         .map(
-            |(id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id, arena_id, arena_slot, model_id)| {
+            |(
+                id,
+                prompt,
+                summary,
+                status,
+                session_id,
+                created_at,
+                started_at,
+                completed_at,
+                workspace_id,
+                arena_id,
+                arena_slot,
+                model_id,
+            )| {
                 let messages = get_messages_for_task(conn, &id);
                 StoredTask {
                     id,
@@ -595,4 +648,3 @@ pub fn get_tasks_by_arena(conn: &Connection, arena_id: &str) -> Vec<StoredTask> 
         )
         .collect()
 }
-

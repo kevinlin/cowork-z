@@ -456,6 +456,35 @@ Replace the 3-column side-by-side layout with a tabbed UI where each tab shows t
   - Active: `border-primary border-b-2 text-foreground`
   - Inactive: `border-transparent border-b-2 text-muted-foreground hover:text-foreground`
 
+### Step 20: Expandable Arena Sessions in Sidebar
+
+Arena session entries in the sidebar are now expandable, revealing the 3 individual chat sessions as nested child items. This enables quick access to each model's chat without opening the full Arena tabbed view.
+
+**Backend — `src-tauri/src/db/arenas.rs`:**
+- Add `ArenaChildTask` struct: lightweight child task info (id, status, model_id, arena_slot, summary) for sidebar display without loading messages
+- Add `tasks: Vec<ArenaChildTask>` field to `ArenaListItem`
+- Rename `derive_arena_status` to `derive_arena_info`; extend its query to `SELECT id, status, model_id, arena_slot, summary` and return child tasks alongside status and model_ids
+- Update `get_arenas_by_workspace` to populate the new `tasks` field
+
+**Frontend types — `src/shared/types/arena.ts`:**
+- Add `ArenaChildTask` interface matching the Rust struct
+- Add `tasks: ArenaChildTask[]` to `ArenaListItem`
+
+**Store — `src/stores/arenaStore.ts`:**
+- In `startArena`, populate `tasks` on the `newListItem` from `Arena.tasks` so child sessions are immediately available in the sidebar
+
+**Component — `src/components/layout/ArenaListItem.tsx`:**
+- Add `expanded` boolean state (default: false)
+- Add `ChevronRight` disclosure triangle on the left (before the `Columns3` icon), mirroring the `FileTreePanel.tsx` expand/collapse pattern:
+  - `h-3 w-3 transition-transform` with `rotate-90` when expanded
+  - Click handler calls `e.stopPropagation(); setExpanded(prev => !prev)`
+- When expanded, render child task rows below the main arena row:
+  - Indented (`pl-9`) with model display name (extracted from `modelId` after `/`, falling back to `summary` or `Agent N`)
+  - Status icon per child (reuses `ConversationListItem`'s icon pattern: Loader2, CheckCircle2, XCircle, etc.)
+  - Click navigates to `/execution/:taskId` to open the standard chat UI
+  - Active highlight when current route matches
+- Arena child tasks remain hidden from the top-level session list (existing `WHERE arena_id IS NULL` filter)
+
 ---
 
 ## Files Modified (Summary)
@@ -463,7 +492,7 @@ Replace the 3-column side-by-side layout with a tabbed UI where each tab shows t
 | File | Type | Change |
 |------|------|--------|
 | `src-tauri/src/db/migrations.rs` | Edit | Add migration v5 (arenas table, task columns) |
-| `src-tauri/src/db/arenas.rs` | New | Arena CRUD operations |
+| `src-tauri/src/db/arenas.rs` | New | Arena CRUD operations; ArenaChildTask struct; expandable sidebar data |
 | `src-tauri/src/db/mod.rs` | Edit | Register arenas module |
 | `src-tauri/src/db/tasks.rs` | Edit | Filter arena tasks from workspace list |
 | `src-tauri/src/types.rs` | Edit | Add ArenaConfig, Arena types; extend TaskConfig, Task |
@@ -474,7 +503,7 @@ Replace the 3-column side-by-side layout with a tabbed UI where each tab shows t
 | `src-tauri/src/lib.rs` | Edit | Register arena commands |
 | `src-tauri/sidecar-opencode/src/types.ts` | Edit | Add skipConfig, arenaId fields |
 | `src-tauri/sidecar-opencode/src/session-manager.ts` | Edit | Arena-aware cleanup + skipConfig |
-| `src/shared/types/arena.ts` | New | Arena TypeScript types |
+| `src/shared/types/arena.ts` | New | Arena TypeScript types; ArenaChildTask for expandable sidebar |
 | `src/shared/types/task.ts` | Edit | Add arenaId, arenaSlot, modelId to Task/TaskConfig |
 | `src/lib/tauri-api.ts` | Edit | Add arena API functions |
 | `src/stores/arenaStore.ts` | New | Arena Zustand store (incl. question request handling, sidebar list update) |
@@ -483,7 +512,7 @@ Replace the 3-column side-by-side layout with a tabbed UI where each tab shows t
 | `src/components/arena/ArenaColumns.tsx` | New | Tabbed layout container (model name tabs + single active column) |
 | `src/components/arena/ArenaColumn.tsx` | New | Single column — reuses `MessageBubble`; exports `StatusBadge` |
 | `src/components/arena/ArenaModelPickerDialog.tsx` | New | Model selection dialog (reuses ProviderGrid + ProviderSettingsPanel) |
-| `src/components/layout/ArenaListItem.tsx` | New | Sidebar arena entry |
+| `src/components/layout/ArenaListItem.tsx` | New | Sidebar arena entry; expandable with disclosure triangle and child session rows |
 | `src/components/layout/Sidebar.tsx` | Edit | Load & render arena items |
 | `src/pages/Home.tsx` | Edit | Compact Arena button in top-right corner with tooltip |
 | `src/App.tsx` | Edit | Add /arena/:arenaId route |
@@ -512,9 +541,13 @@ Replace the 3-column side-by-side layout with a tabbed UI where each tab shows t
    - Verify question requests show `QuestionDialog` and agent resumes after reply
    - Send follow-up message → all 3 agents respond
    - Verify `abort_arena` stops all 3 agents
-6. Manual testing — Sidebar:
+6. Manual testing — Expandable arena sessions:
    - Verify Arena appears in sidebar session list with `Columns3` icon (distinct from regular task icon)
    - Verify Arena sessions are interleaved chronologically with regular tasks
-   - Click Arena in sidebar → returns to Arena view
-   - Verify Arena tasks don't appear as separate items in sidebar
-   - Verify non-Arena tasks still work normally
+   - Verify disclosure triangle appears to the left of each arena entry
+   - Click triangle → expands to show 3 child chat sessions with model names and status icons
+   - Click triangle again → collapses child list
+   - Click a child session → navigates to `/execution/:taskId` (standard chat UI)
+   - Click the arena row (not the triangle) → navigates to `/arena/:arenaId` (tabbed view)
+   - Verify child sessions show correct status icons (spinner for running, checkmark for completed, etc.)
+   - Verify active child session is highlighted when its route is active

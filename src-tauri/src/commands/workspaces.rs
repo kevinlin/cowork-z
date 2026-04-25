@@ -64,7 +64,10 @@ pub async fn add_workspace(
 
     // Check if folder exists
     if !Path::new(&folder_path).is_dir() {
-        return Err(format!("'{}' does not exist or is not a directory", folder_path));
+        return Err(format!(
+            "'{}' does not exist or is not a directory",
+            folder_path
+        ));
     }
 
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -102,13 +105,19 @@ pub async fn remove_workspace(
     // Cannot remove the active workspace
     if let Some(active_id) = db::settings::get_last_workspace_id(&conn) {
         if active_id == workspace_id {
-            return Err("Cannot remove the active workspace. Switch to another workspace first.".to_string());
+            return Err(
+                "Cannot remove the active workspace. Switch to another workspace first."
+                    .to_string(),
+            );
         }
     }
 
     db::workspaces::remove_workspace(&conn, &workspace_id)?;
 
-    let _ = app.emit("workspace:removed", serde_json::json!({ "workspaceId": workspace_id }));
+    let _ = app.emit(
+        "workspace:removed",
+        serde_json::json!({ "workspaceId": workspace_id }),
+    );
     Ok(())
 }
 
@@ -150,7 +159,10 @@ pub async fn switch_workspace(
         eprintln!("[warn] Failed to watch workspace folder: {}", e);
     }
 
-    let _ = app.emit("workspace:changed", serde_json::json!({ "workspace": &result }));
+    let _ = app.emit(
+        "workspace:changed",
+        serde_json::json!({ "workspace": &result }),
+    );
     Ok(result)
 }
 
@@ -203,12 +215,10 @@ pub async fn read_directory(path: String) -> Result<Vec<DirectoryEntry>, String>
     }
 
     // Sort: directories first, then files, both alphabetical (case-insensitive)
-    entries.sort_by(|a, b| {
-        match (a.is_directory, b.is_directory) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        }
+    entries.sort_by(|a, b| match (a.is_directory, b.is_directory) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
 
     Ok(entries)
@@ -271,6 +281,9 @@ pub async fn initialize_workspace(
     if let Err(e) = fs_watcher::watch_folder(&app, &result.folder_path) {
         eprintln!("[warn] Failed to watch workspace folder: {}", e);
     }
-    let _ = app.emit("workspace:changed", serde_json::json!({ "workspace": &result }));
+    let _ = app.emit(
+        "workspace:changed",
+        serde_json::json!({ "workspace": &result }),
+    );
     Ok(result)
 }

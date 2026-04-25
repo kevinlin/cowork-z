@@ -29,8 +29,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Initialize database
-            let db_state = db::init_database(app.handle())
-                .expect("Failed to initialize database");
+            let db_state = db::init_database(app.handle()).expect("Failed to initialize database");
             app.manage(db_state);
 
             // Initialize sidecar state
@@ -58,9 +57,15 @@ pub fn run() {
 
                         if source_file.exists() {
                             if let Err(e) = std::fs::create_dir_all(&target_dir) {
-                                eprintln!("[warn] Failed to create skill directory {:?}: {}", target_dir, e);
+                                eprintln!(
+                                    "[warn] Failed to create skill directory {:?}: {}",
+                                    target_dir, e
+                                );
                             } else if let Err(e) = std::fs::copy(&source_file, &target_file) {
-                                eprintln!("[warn] Failed to copy skill SKILL.md to {:?}: {}", target_file, e);
+                                eprintln!(
+                                    "[warn] Failed to copy skill SKILL.md to {:?}: {}",
+                                    target_file, e
+                                );
                             }
                         } else {
                             eprintln!("[warn] Bundled SKILL.md not found at {:?}", source_file);
@@ -104,9 +109,10 @@ pub fn run() {
                         },
                     );
 
-                    let token = repo.auth_token_key.as_ref().and_then(|key| {
-                        crate::secure_storage::get_api_key(key).ok().flatten()
-                    });
+                    let token = repo
+                        .auth_token_key
+                        .as_ref()
+                        .and_then(|key| crate::secure_storage::get_api_key(key).ok().flatten());
 
                     let result = if cache.exists() {
                         crate::git_ops::pull_repo(&cache, token.as_deref())
@@ -216,19 +222,17 @@ pub fn run() {
 
             app.set_menu(menu)?;
 
-            app.on_menu_event(move |app_handle, event| {
-                match event.id().0.as_str() {
-                    "show-about" => {
-                        let _ = app_handle.emit("show-about", ());
-                    }
-                    "show-keyboard-shortcuts" => {
-                        let _ = app_handle.emit("show-keyboard-shortcuts", ());
-                    }
-                    "check-for-updates" => {
-                        let _ = app_handle.emit("check-for-updates", ());
-                    }
-                    _ => {}
+            app.on_menu_event(move |app_handle, event| match event.id().0.as_str() {
+                "show-about" => {
+                    let _ = app_handle.emit("show-about", ());
                 }
+                "show-keyboard-shortcuts" => {
+                    let _ = app_handle.emit("show-keyboard-shortcuts", ());
+                }
+                "check-for-updates" => {
+                    let _ = app_handle.emit("check-for-updates", ());
+                }
+                _ => {}
             });
 
             Ok(())

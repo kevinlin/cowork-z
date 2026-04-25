@@ -4,12 +4,12 @@
 //! Provides SQLite-based persistence for tasks, settings, and provider configurations.
 
 pub mod arenas;
-pub mod workspace_permissions;
 pub mod migrations;
 pub mod providers;
 pub mod settings;
 pub mod skill_repos;
 pub mod tasks;
+pub mod workspace_permissions;
 pub mod workspaces;
 
 use rusqlite::Connection;

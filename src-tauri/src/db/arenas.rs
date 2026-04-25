@@ -30,6 +30,20 @@ pub struct StoredArena {
     pub tasks: Vec<StoredTask>,
 }
 
+/// Lightweight child task info for sidebar display (no messages)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArenaChildTask {
+    pub id: String,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arena_slot: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+}
+
 /// Lightweight arena for sidebar listing (no messages loaded)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,6 +59,8 @@ pub struct ArenaListItem {
     pub status: String,
     /// Model IDs of the 3 columns
     pub model_ids: Vec<Option<String>>,
+    /// Child tasks for expandable sidebar display
+    pub tasks: Vec<ArenaChildTask>,
 }
 
 /// Save a new arena record
@@ -107,19 +123,32 @@ pub fn get_arena_with_tasks(conn: &Connection, arena_id: &str) -> Option<StoredA
     }
 }
 
-/// List arenas for a workspace (for sidebar display)
+/// List arenas for a workspace (for sidebar display).
+/// Uses a single JOIN to fetch arenas and their child tasks together.
 pub fn get_arenas_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<ArenaListItem> {
     let mut stmt = conn
         .prepare(
-            "SELECT a.id, a.prompt, a.workspace_id, a.created_at, a.completed_at
+            "SELECT a.id, a.prompt, a.workspace_id, a.created_at, a.completed_at,
+                    t.id, t.status, t.model_id, t.arena_slot, t.summary
              FROM arenas a
+             LEFT JOIN tasks t ON t.arena_id = a.id
              WHERE a.workspace_id = ?1
-             ORDER BY a.created_at DESC
-             LIMIT 50",
+             ORDER BY a.created_at DESC, t.arena_slot ASC",
         )
         .expect("Failed to prepare arenas query");
 
-    let arena_iter = stmt
+    let rows: Vec<(
+        String,
+        String,
+        Option<String>,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<i32>,
+        Option<String>,
+    )> = stmt
         .query_map([workspace_id], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -127,67 +156,88 @@ pub fn get_arenas_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Are
                 row.get::<_, Option<String>>(2)?,
                 row.get::<_, String>(3)?,
                 row.get::<_, Option<String>>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, Option<String>>(6)?,
+                row.get::<_, Option<String>>(7)?,
+                row.get::<_, Option<i32>>(8)?,
+                row.get::<_, Option<String>>(9)?,
             ))
         })
-        .expect("Failed to query arenas");
-
-    arena_iter
-        .filter_map(|r| r.ok())
-        .map(|(id, prompt, workspace_id, created_at, completed_at)| {
-            let (status, model_ids) = derive_arena_status(conn, &id);
-            ArenaListItem {
-                id,
-                prompt,
-                workspace_id,
-                created_at,
-                completed_at,
-                status,
-                model_ids,
-            }
-        })
-        .collect()
-}
-
-/// Derive arena status and model IDs from child tasks
-fn derive_arena_status(conn: &Connection, arena_id: &str) -> (String, Vec<Option<String>>) {
-    let mut stmt = conn
-        .prepare(
-            "SELECT status, model_id FROM tasks
-             WHERE arena_id = ?1
-             ORDER BY arena_slot ASC",
-        )
-        .expect("Failed to prepare arena status query");
-
-    let rows: Vec<(String, Option<String>)> = stmt
-        .query_map([arena_id], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, Option<String>>(1)?,
-            ))
-        })
-        .expect("Failed to query arena tasks")
+        .expect("Failed to query arenas")
         .filter_map(|r| r.ok())
         .collect();
 
-    let model_ids: Vec<Option<String>> = rows.iter().map(|(_, m)| m.clone()).collect();
-    let statuses: Vec<&str> = rows.iter().map(|(s, _)| s.as_str()).collect();
+    let mut arenas: Vec<ArenaListItem> = Vec::new();
 
-    // Derive overall status: running > starting > queued > failed > completed
-    let status = if statuses.iter().any(|s| *s == "running") {
+    for (
+        arena_id,
+        prompt,
+        ws_id,
+        created_at,
+        completed_at,
+        task_id,
+        task_status,
+        model_id,
+        arena_slot,
+        summary,
+    ) in rows
+    {
+        let needs_new = arenas.last().map_or(true, |a| a.id != arena_id);
+        if needs_new {
+            arenas.push(ArenaListItem {
+                id: arena_id,
+                prompt,
+                workspace_id: ws_id,
+                created_at,
+                completed_at,
+                status: String::new(),
+                model_ids: Vec::new(),
+                tasks: Vec::new(),
+            });
+        }
+
+        if let (Some(tid), Some(tstatus)) = (task_id, task_status) {
+            let entry = arenas.last_mut().unwrap();
+            entry.model_ids.push(model_id.clone());
+            entry.tasks.push(ArenaChildTask {
+                id: tid,
+                status: tstatus,
+                model_id,
+                arena_slot,
+                summary,
+            });
+        }
+    }
+
+    for item in &mut arenas {
+        item.status = derive_arena_status(&item.tasks);
+    }
+
+    arenas.truncate(50);
+    arenas
+}
+
+fn derive_arena_status(tasks: &[ArenaChildTask]) -> String {
+    if tasks.is_empty() {
+        return "pending".to_string();
+    }
+    if tasks.iter().any(|t| t.status == "running") {
         "running"
-    } else if statuses.iter().any(|s| *s == "starting" || *s == "queued") {
+    } else if tasks
+        .iter()
+        .any(|t| t.status == "starting" || t.status == "queued")
+    {
         "starting"
-    } else if statuses.iter().any(|s| *s == "failed") {
+    } else if tasks.iter().any(|t| t.status == "failed") {
         "failed"
-    } else if statuses.iter().all(|s| *s == "completed") {
+    } else if tasks.iter().all(|t| t.status == "completed") {
         "completed"
-    } else if statuses.iter().any(|s| *s == "interrupted") {
+    } else if tasks.iter().any(|t| t.status == "interrupted") {
         "interrupted"
     } else {
         "pending"
-    };
-
-    (status.to_string(), model_ids)
+    }
+    .to_string()
 }
 
 /// Check if all tasks in an arena have reached a terminal state.
@@ -248,11 +298,7 @@ pub fn delete_arena(conn: &Connection, arena_id: &str) -> Result<(), String> {
 }
 
 /// Update arena prompt (for rename)
-pub fn update_arena_prompt(
-    conn: &Connection,
-    arena_id: &str,
-    prompt: &str,
-) -> Result<(), String> {
+pub fn update_arena_prompt(conn: &Connection, arena_id: &str, prompt: &str) -> Result<(), String> {
     conn.execute(
         "UPDATE arenas SET prompt = ?1 WHERE id = ?2",
         params![prompt, arena_id],

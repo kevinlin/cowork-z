@@ -54,10 +54,9 @@ pub async fn set_mcp_servers_config(
 ) -> Result<(), String> {
     // Parse and validate config
     let parsed_config: Option<db::settings::McpServersConfig> = match config.clone() {
-        Some(val) => Some(
-            serde_json::from_value(val)
-                .map_err(|e| format!("Invalid MCP config: {}", e))?,
-        ),
+        Some(val) => {
+            Some(serde_json::from_value(val).map_err(|e| format!("Invalid MCP config: {}", e))?)
+        }
         None => None,
     };
 
@@ -100,10 +99,7 @@ pub async fn get_theme(state: State<'_, DbState>) -> Result<Option<String>, Stri
 }
 
 #[tauri::command]
-pub async fn set_theme(
-    theme_id: Option<String>,
-    state: State<'_, DbState>,
-) -> Result<(), String> {
+pub async fn set_theme(theme_id: Option<String>, state: State<'_, DbState>) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     db::settings::set_theme_id(&conn, theme_id.as_deref())
 }
@@ -115,7 +111,10 @@ pub async fn get_onboarding_complete(state: State<'_, DbState>) -> Result<bool, 
 }
 
 #[tauri::command]
-pub async fn set_onboarding_complete(complete: bool, state: State<'_, DbState>) -> Result<(), String> {
+pub async fn set_onboarding_complete(
+    complete: bool,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     db::settings::set_onboarding_complete(&conn, complete)
 }

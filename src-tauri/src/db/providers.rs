@@ -226,8 +226,11 @@ pub fn set_connected_provider(
 
 /// Remove a connected provider
 pub fn remove_connected_provider(conn: &Connection, provider_id: &str) -> Result<(), String> {
-    conn.execute("DELETE FROM providers WHERE provider_id = ?1", [provider_id])
-        .map_err(|e| format!("Failed to remove provider: {}", e))?;
+    conn.execute(
+        "DELETE FROM providers WHERE provider_id = ?1",
+        [provider_id],
+    )
+    .map_err(|e| format!("Failed to remove provider: {}", e))?;
 
     // If this was the active provider, clear it
     let active_id = get_active_provider_id(conn);

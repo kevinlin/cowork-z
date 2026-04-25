@@ -181,9 +181,9 @@ export const useArenaStore = create<ArenaState>((set, get) => {
     const isTerminal = nextStatus !== 'idle' && nextStatus !== 'running';
     set({
       arenas: arenas.map((a) =>
-        a.id !== arenaId
-          ? a
-          : { ...a, status: nextStatus, completedAt: isTerminal ? (a.completedAt ?? new Date().toISOString()) : a.completedAt }
+        a.id === arenaId
+          ? { ...a, status: nextStatus, completedAt: isTerminal ? (a.completedAt ?? new Date().toISOString()) : a.completedAt }
+          : a
       ),
     });
   };
@@ -259,6 +259,13 @@ export const useArenaStore = create<ArenaState>((set, get) => {
         completedAt: arena.completedAt,
         status: 'running',
         modelIds: arena.tasks.map((t) => t.modelId ?? null),
+        tasks: arena.tasks.map((t) => ({
+          id: t.id,
+          status: t.status,
+          modelId: t.modelId,
+          arenaSlot: t.arenaSlot,
+          summary: t.summary,
+        })),
       };
 
       // Grab buffered events before clearing

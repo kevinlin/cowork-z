@@ -31,7 +31,8 @@ pub fn list_packs() -> Vec<PackMeta> {
         PackMeta {
             id: "data-visualization-pack".to_string(),
             title: "Data Visualization".to_string(),
-            description: "Create professional charts with Matplotlib, Seaborn, and Plotly".to_string(),
+            description: "Create professional charts with Matplotlib, Seaborn, and Plotly"
+                .to_string(),
             complexity: "Intermediate".to_string(),
             time_estimate: "15-20 min".to_string(),
             tags: vec!["data".to_string(), "visualization".to_string()],
@@ -285,9 +286,6 @@ pub fn packs_install(
 }
 
 #[tauri::command]
-pub fn packs_install_default(
-    app: AppHandle,
-    pack_id: String,
-) -> Result<PackInstallResult, String> {
+pub fn packs_install_default(app: AppHandle, pack_id: String) -> Result<PackInstallResult, String> {
     install_pack_default(&app, &pack_id)
 }

@@ -386,7 +386,11 @@ impl SidecarManager {
         // Log spawn success
         {
             let mut file = log_file.lock().unwrap();
-            let _ = writeln!(file, "[{}] Sidecar process spawned successfully", Local::now().format("%H:%M:%S%.3f"));
+            let _ = writeln!(
+                file,
+                "[{}] Sidecar process spawned successfully",
+                Local::now().format("%H:%M:%S%.3f")
+            );
         }
 
         // Clone app handle and log file for event forwarding
@@ -401,7 +405,12 @@ impl SidecarManager {
                         let line_str = String::from_utf8_lossy(&line);
                         // Write to log file
                         if let Ok(mut file) = log_file_clone.lock() {
-                            let _ = write!(file, "[{}] [stdout] {}", Local::now().format("%H:%M:%S%.3f"), line_str);
+                            let _ = write!(
+                                file,
+                                "[{}] [stdout] {}",
+                                Local::now().format("%H:%M:%S%.3f"),
+                                line_str
+                            );
                         }
                         for json_line in line_str.lines() {
                             if let Ok(event) = serde_json::from_str::<SidecarEvent>(json_line) {
@@ -414,25 +423,37 @@ impl SidecarManager {
                         eprintln!("[sidecar stderr] {}", line_str);
                         // Write to log file
                         if let Ok(mut file) = log_file_clone.lock() {
-                            let _ = write!(file, "[{}] [stderr] {}", Local::now().format("%H:%M:%S%.3f"), line_str);
+                            let _ = write!(
+                                file,
+                                "[{}] [stderr] {}",
+                                Local::now().format("%H:%M:%S%.3f"),
+                                line_str
+                            );
                         }
                     }
                     CommandEvent::Error(err) => {
                         eprintln!("[sidecar error] {}", err);
                         // Write to log file
                         if let Ok(mut file) = log_file_clone.lock() {
-                            let _ = writeln!(file, "[{}] ERROR: {}", Local::now().format("%H:%M:%S%.3f"), err);
+                            let _ = writeln!(
+                                file,
+                                "[{}] ERROR: {}",
+                                Local::now().format("%H:%M:%S%.3f"),
+                                err
+                            );
                         }
                         let _ = app_handle.emit("sidecar:error", &err);
                     }
                     CommandEvent::Terminated(payload) => {
-                        println!(
-                            "[sidecar] terminated with code: {:?}",
-                            payload.code
-                        );
+                        println!("[sidecar] terminated with code: {:?}", payload.code);
                         // Write to log file
                         if let Ok(mut file) = log_file_clone.lock() {
-                            let _ = writeln!(file, "[{}] Sidecar terminated with code: {:?}", Local::now().format("%H:%M:%S%.3f"), payload.code);
+                            let _ = writeln!(
+                                file,
+                                "[{}] Sidecar terminated with code: {:?}",
+                                Local::now().format("%H:%M:%S%.3f"),
+                                payload.code
+                            );
                             let _ = writeln!(file, "=== Sidecar Log Ended: {} ===", Local::now());
                         }
                         let _ = app_handle.emit("sidecar:terminated", payload.code);
@@ -470,10 +491,7 @@ impl SidecarManager {
             SidecarCommand::CheckServer => "check_server",
         };
 
-        let child = self
-            .child
-            .as_mut()
-            .ok_or("Sidecar not running")?;
+        let child = self.child.as_mut().ok_or("Sidecar not running")?;
 
         let json = serde_json::to_string(&cmd)
             .map_err(|e| format!("Failed to serialize command: {}", e))?;

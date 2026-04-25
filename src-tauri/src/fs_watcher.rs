@@ -49,10 +49,7 @@ pub fn watch_folder(app: &AppHandle, folder_path: &str) -> Result<(), String> {
 
     debouncer
         .watcher()
-        .watch(
-            Path::new(folder_path),
-            notify::RecursiveMode::NonRecursive,
-        )
+        .watch(Path::new(folder_path), notify::RecursiveMode::NonRecursive)
         .map_err(|e| format!("Failed to watch folder: {}", e))?;
 
     *watcher_guard = Some(debouncer);

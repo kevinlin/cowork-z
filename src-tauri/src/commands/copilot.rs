@@ -15,9 +15,7 @@ pub async fn copilot_oauth_authorize(
     }
 
     manager
-        .send_command(SidecarCommand::CopilotOAuthAuthorize {
-            enterprise_url,
-        })
+        .send_command(SidecarCommand::CopilotOAuthAuthorize { enterprise_url })
         .await
 }
 
@@ -32,9 +30,7 @@ pub async fn copilot_get_models(
         manager.spawn(&app).await?;
     }
 
-    manager
-        .send_command(SidecarCommand::CopilotGetModels)
-        .await
+    manager.send_command(SidecarCommand::CopilotGetModels).await
 }
 
 #[tauri::command]

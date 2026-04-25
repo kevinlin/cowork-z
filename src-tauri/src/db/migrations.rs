@@ -267,11 +267,8 @@ fn migrate_v3(conn: &Connection) -> Result<(), String> {
 fn migrate_v4(conn: &Connection) -> Result<(), String> {
     println!("[Migrations] Running migration v4 (tool_output column)");
 
-    conn.execute(
-        "ALTER TABLE task_messages ADD COLUMN tool_output TEXT",
-        [],
-    )
-    .map_err(|e| format!("Failed to add tool_output column: {}", e))?;
+    conn.execute("ALTER TABLE task_messages ADD COLUMN tool_output TEXT", [])
+        .map_err(|e| format!("Failed to add tool_output column: {}", e))?;
 
     set_stored_version(conn, 4)?;
     println!("[Migrations] Migration v4 complete");

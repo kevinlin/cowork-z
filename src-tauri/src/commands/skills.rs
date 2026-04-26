@@ -243,18 +243,26 @@ pub fn list_skills_with_status(app: &AppHandle) -> Vec<SkillWithStatus> {
         let install_dir = skills_dir.join(&id);
         let checksum_file = install_dir.join(".coworkz-checksum");
 
-        let status = if !checksum_file.exists() {
-            SkillStatus {
-                installed: false,
-                needs_update: false,
-            }
-        } else {
+        let status = if checksum_file.exists() {
+            // Copy-based install (Windows / legacy): compare checksums
             let installed_checksum = fs::read_to_string(&checksum_file).unwrap_or_default();
             let bundled_checksum = compute_dir_checksum(&path).unwrap_or_default();
             let up_to_date = installed_checksum.trim() == bundled_checksum.trim();
             SkillStatus {
                 installed: true,
                 needs_update: !up_to_date,
+            }
+        } else if install_dir.exists() && install_dir.join("SKILL.md").exists() {
+            // Symlink install (macOS/Linux): always up-to-date since it
+            // points to the repo cache which is updated via git pull
+            SkillStatus {
+                installed: true,
+                needs_update: false,
+            }
+        } else {
+            SkillStatus {
+                installed: false,
+                needs_update: false,
             }
         };
 

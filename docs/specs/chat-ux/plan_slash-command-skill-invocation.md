@@ -261,3 +261,35 @@ ArenaInputBar converted from uncontrolled to controlled textarea to support `use
 | Shift+Enter | Newline | Newline |
 | Escape | — | Dismisses popover; removes only the `/query` token |
 | Backspace | Normal | Updates filter; closes popover if `/` is deleted |
+
+## Fix: Symlink-Installed Skills Not Appearing in Autocomplete (v0.6.11)
+
+### Problem
+
+Skills installed via the Skills Manager on macOS/Linux are symbolic links pointing to the repo cache directory. The `skills_list_with_status` Rust command determined install status solely by checking for a `.coworkz-checksum` file inside the install directory. Symlink-based installs do not contain this file (the symlink itself is the tracking mechanism), so they were reported as `installed: false` and excluded from the slash command autocomplete.
+
+### Root cause
+
+In `src-tauri/src/commands/skills.rs`, `list_skills_with_status()` used a single condition:
+
+```rust
+let status = if !checksum_file.exists() {
+    SkillStatus { installed: false, needs_update: false }
+} else { ... };
+```
+
+This only recognized copy-based installs (which write `.coworkz-checksum`). The Skills Manager's own `skills_list_installed` command in `skill_repos.rs` correctly handled symlinks by checking `path.is_dir()` + `SKILL.md` existence, but the Skills Catalog command did not.
+
+### Fix
+
+Updated the install detection to a three-branch check:
+
+1. **`.coworkz-checksum` exists** — copy-based install (Windows / legacy): compare checksums for `needs_update`
+2. **Directory exists with `SKILL.md` but no checksum file** — symlink install (macOS/Linux): mark `installed: true`, `needs_update: false` (symlinks always reflect the latest repo cache)
+3. **Neither** — not installed
+
+No frontend changes were needed. `ChatInput.tsx` and `Home.tsx` already correctly filter by `s.status.installed` from the store.
+
+### Affected files
+
+- `src-tauri/src/commands/skills.rs` — updated `list_skills_with_status()` install detection logic

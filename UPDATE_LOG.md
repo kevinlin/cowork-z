@@ -4,7 +4,8 @@
 
 ## v0.6.11
 
-- 
+- **Fix: Symlink-installed skills not appearing in slash command autocomplete** — Skills installed via the Skills Manager on macOS/Linux (which use symbolic links) were not recognized by the Skills Catalog's install detection, causing them to be excluded from the `/` slash command autocomplete in TaskInputBar and ChatInput; updated `skills_list_with_status` to detect both copy-based and symlink-based installs
+
 
 ## v0.6.10
 

@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.6.12
+
+- 
+
 ## v0.6.11
 
 - **Categorized output subfolders** — The system prompt now requires the agent to organize every new file under a category subfolder; the agent reuses existing categories when they fit and picks short, kebab-case names based on the file's nature, so workspace artefacts stay neatly grouped instead of dumped into `output/` root

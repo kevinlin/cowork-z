@@ -2,6 +2,7 @@
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, Manager};
@@ -204,72 +205,51 @@ pub fn list_skills_with_status(app: &AppHandle) -> Vec<SkillWithStatus> {
         }
     };
     let skills_dir = opencode_skills_dir().unwrap_or_default();
+    list_skills_in_dirs(&templates_dir, &skills_dir)
+}
 
-    let mut result = vec![];
-    let entries = match fs::read_dir(&templates_dir) {
-        Ok(e) => e,
-        Err(e) => {
-            eprintln!("[skills] Failed to read templates dir: {}", e);
-            return vec![];
-        }
-    };
+/// Enumerate skills from bundled templates and the global install dir.
+/// Bundled-template entries take precedence on ID collision so that
+/// `needs_update` semantics are preserved for skills that exist in both.
+pub fn list_skills_in_dirs(templates_dir: &Path, skills_dir: &Path) -> Vec<SkillWithStatus> {
+    let mut result: Vec<SkillWithStatus> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
 
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let id = entry.file_name().to_string_lossy().to_string();
-        if id.starts_with('.') {
-            continue;
-        }
-
-        let (name, description) = match parse_frontmatter(&path) {
-            Some(pair) => pair,
-            None => {
+    // Pass 1 — bundled templates with install-status detection
+    if let Ok(entries) = fs::read_dir(templates_dir) {
+        for (id, path) in scan_skill_dirs(entries) {
+            let Some((name, description)) = parse_frontmatter(&path) else {
                 eprintln!("[skills] Skipping '{}': failed to parse SKILL.md", id);
                 continue;
-            }
-        };
-
-        let category = derive_category(&id).to_string();
-        let meta = SkillMeta {
-            id: id.clone(),
-            name,
-            description,
-            category,
-        };
-
-        let install_dir = skills_dir.join(&id);
-        let checksum_file = install_dir.join(".coworkz-checksum");
-
-        let status = if checksum_file.exists() {
-            // Copy-based install (Windows / legacy): compare checksums
-            let installed_checksum = fs::read_to_string(&checksum_file).unwrap_or_default();
-            let bundled_checksum = compute_dir_checksum(&path).unwrap_or_default();
-            let up_to_date = installed_checksum.trim() == bundled_checksum.trim();
-            SkillStatus {
-                installed: true,
-                needs_update: !up_to_date,
-            }
-        } else if install_dir.exists() && install_dir.join("SKILL.md").exists() {
-            // Symlink install (macOS/Linux): always up-to-date since it
-            // points to the repo cache which is updated via git pull
-            SkillStatus {
-                installed: true,
-                needs_update: false,
-            }
-        } else {
-            SkillStatus {
-                installed: false,
-                needs_update: false,
-            }
-        };
-
-        result.push(SkillWithStatus { meta, status });
+            };
+            let status = detect_install_status(&path, &skills_dir.join(&id));
+            result.push(make_skill(id.clone(), name, description, status));
+            seen.insert(id);
+        }
+    } else {
+        eprintln!("[skills] Failed to read templates dir: {:?}", templates_dir);
     }
 
-    // Sort by category then name for stable UI ordering
+    // Pass 2 — custom skills not covered by bundled templates
+    if let Ok(entries) = fs::read_dir(skills_dir) {
+        for (id, path) in scan_skill_dirs(entries) {
+            if seen.contains(&id) {
+                continue;
+            }
+            if !path.join("SKILL.md").exists() {
+                continue;
+            }
+            let Some((name, description)) = parse_frontmatter(&path) else {
+                continue;
+            };
+            let status = SkillStatus {
+                installed: true,
+                needs_update: false,
+            };
+            result.push(make_skill(id, name, description, status));
+        }
+    }
+
     result.sort_by(|a, b| {
         a.meta
             .category
@@ -277,6 +257,64 @@ pub fn list_skills_with_status(app: &AppHandle) -> Vec<SkillWithStatus> {
             .then(a.meta.name.cmp(&b.meta.name))
     });
     result
+}
+
+/// Yield `(id, path)` for each non-hidden directory in a `read_dir` iterator.
+fn scan_skill_dirs(entries: fs::ReadDir) -> impl Iterator<Item = (String, PathBuf)> {
+    entries.flatten().filter_map(|entry| {
+        let path = entry.path();
+        if !path.is_dir() {
+            return None;
+        }
+        let id = entry.file_name().to_string_lossy().to_string();
+        if id.starts_with('.') {
+            return None;
+        }
+        Some((id, path))
+    })
+}
+
+/// Determine install status by checking the skills dir for a copy or symlink.
+fn detect_install_status(template_path: &Path, install_dir: &Path) -> SkillStatus {
+    let checksum_file = install_dir.join(".coworkz-checksum");
+    if checksum_file.exists() {
+        // Copy-based install (Windows / legacy)
+        let installed = fs::read_to_string(&checksum_file).unwrap_or_default();
+        let bundled = compute_dir_checksum(template_path).unwrap_or_default();
+        SkillStatus {
+            installed: true,
+            needs_update: installed.trim() != bundled.trim(),
+        }
+    } else if install_dir.join("SKILL.md").exists() {
+        // Symlink install (macOS/Linux) — always up-to-date via git pull
+        SkillStatus {
+            installed: true,
+            needs_update: false,
+        }
+    } else {
+        SkillStatus {
+            installed: false,
+            needs_update: false,
+        }
+    }
+}
+
+fn make_skill(
+    id: String,
+    name: String,
+    description: String,
+    status: SkillStatus,
+) -> SkillWithStatus {
+    let category = derive_category(&id).to_string();
+    SkillWithStatus {
+        meta: SkillMeta {
+            id,
+            name,
+            description,
+            category,
+        },
+        status,
+    }
 }
 
 /// Install (or re-install) a skill by copying its template to the OpenCode skills dir.
@@ -459,5 +497,67 @@ mod tests {
         fs::write(tmp.path().join(".coworkz-checksum"), &h1).unwrap();
         let h2 = compute_dir_checksum(tmp.path()).unwrap();
         assert_eq!(h1, h2);
+    }
+
+    fn write_skill_dir(parent: &Path, id: &str, name: &str, desc: &str) {
+        let dir = parent.join(id);
+        fs::create_dir_all(&dir).unwrap();
+        write_skill_md(&dir, name, desc);
+    }
+
+    #[test]
+    fn test_list_skills_in_dirs_includes_custom_skills_in_global_dir() {
+        let templates = TempDir::new().unwrap();
+        let skills = TempDir::new().unwrap();
+
+        // A bundled template that is NOT installed
+        write_skill_dir(templates.path(), "marketing-brand-voice", "Brand Voice", "bundled");
+
+        // A user-copied custom skill — only present in the global skills dir
+        write_skill_dir(skills.path(), "my-custom-skill", "Custom", "hand-rolled");
+
+        let result = list_skills_in_dirs(templates.path(), skills.path());
+        let ids: Vec<&str> = result.iter().map(|s| s.meta.id.as_str()).collect();
+
+        assert!(ids.contains(&"my-custom-skill"), "custom skill should be enumerated");
+        let custom = result.iter().find(|s| s.meta.id == "my-custom-skill").unwrap();
+        assert!(custom.status.installed);
+        assert!(!custom.status.needs_update);
+        assert_eq!(custom.meta.category, "General");
+
+        let bundled = result.iter().find(|s| s.meta.id == "marketing-brand-voice").unwrap();
+        assert!(!bundled.status.installed, "uninstalled template stays uninstalled");
+    }
+
+    #[test]
+    fn test_list_skills_in_dirs_template_takes_precedence_over_custom() {
+        let templates = TempDir::new().unwrap();
+        let skills = TempDir::new().unwrap();
+
+        // Bundled template "shared-id" with checksum-based install present
+        write_skill_dir(templates.path(), "shared-id", "Template Name", "from template");
+        let installed = skills.path().join("shared-id");
+        fs::create_dir_all(&installed).unwrap();
+        write_skill_md(&installed, "Template Name", "from template");
+        // Pre-compute matching checksum so the install reports up-to-date
+        let checksum = compute_dir_checksum(&templates.path().join("shared-id")).unwrap();
+        fs::write(installed.join(".coworkz-checksum"), &checksum).unwrap();
+
+        let result = list_skills_in_dirs(templates.path(), skills.path());
+        let entry = result.iter().find(|s| s.meta.id == "shared-id").unwrap();
+        assert_eq!(entry.meta.name, "Template Name");
+        assert!(entry.status.installed);
+        assert!(!entry.status.needs_update, "matching checksum means up-to-date");
+    }
+
+    #[test]
+    fn test_list_skills_in_dirs_skips_custom_entries_without_skill_md() {
+        let templates = TempDir::new().unwrap();
+        let skills = TempDir::new().unwrap();
+        fs::create_dir_all(skills.path().join("not-a-skill")).unwrap(); // no SKILL.md
+        fs::create_dir_all(skills.path().join(".hidden")).unwrap();
+
+        let result = list_skills_in_dirs(templates.path(), skills.path());
+        assert!(result.is_empty());
     }
 }

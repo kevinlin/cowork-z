@@ -293,3 +293,42 @@ No frontend changes were needed. `ChatInput.tsx` and `Home.tsx` already correctl
 ### Affected files
 
 - `src-tauri/src/commands/skills.rs` — updated `list_skills_with_status()` install detection logic
+
+## Fix: Custom Skills in `~/.config/opencode/skills` Not Appearing in Autocomplete (v0.6.11)
+
+### Problem
+
+Skills that exist directly in `~/.config/opencode/skills/<id>/` but were never registered in the Skills Catalog — for example, folders the user copies in by hand or skills installed from custom repos that do not ship as bundled templates — never appeared in the `/` slash command autocomplete.
+
+The Skills Catalog UI also missed them, since `listSkillsWithStatus()` is the single source of truth for the `skillsStore` cache that drives both surfaces.
+
+### Root cause
+
+`list_skills_with_status()` in `src-tauri/src/commands/skills.rs` enumerated only the bundled `resources/skill-templates/` directory and looked up each template's install state at `<skills_dir>/<id>`. Any skill present in the global skills dir without a matching bundled template was therefore invisible — the function never opened that directory for enumeration.
+
+The earlier v0.6.11 fix (above) only changed install *detection* for IDs already in the bundled set. It did not address skills that are not in the bundled set at all.
+
+### Fix
+
+Refactored the body of `list_skills_with_status()` into a pure helper `list_skills_in_dirs(templates_dir, skills_dir)` that performs two passes:
+
+1. **Bundled templates pass** — same as before. Each template gets an install/needs_update status by inspecting `<skills_dir>/<id>` (checksum file → copy install, `SKILL.md` only → symlink install, neither → not installed).
+2. **Custom skills pass** — `read_dir(skills_dir)` and, for every entry not already produced by pass 1 that is a directory containing `SKILL.md`, parse the frontmatter and emit a `SkillWithStatus { installed: true, needs_update: false }`. `is_dir()` follows symlinks, so symlink-installed skills from custom repos are also covered.
+
+Bundled-template entries take precedence on ID collision so existing `needs_update` semantics are preserved.
+
+### Why no frontend changes
+
+`skillsStore.fetchInstalledSkills()` already filters by `s.status.installed` and the autocomplete already binds to that store, so newly enumerated custom skills flow through automatically.
+
+### Tests
+
+Added three unit tests in `src-tauri/src/commands/skills.rs`:
+
+- `test_list_skills_in_dirs_includes_custom_skills_in_global_dir` — a custom skill present only in the skills dir is enumerated as installed; an uninstalled bundled template stays uninstalled.
+- `test_list_skills_in_dirs_template_takes_precedence_over_custom` — when an ID exists in both sets, the bundled-template entry (with checksum-based status) wins.
+- `test_list_skills_in_dirs_skips_custom_entries_without_skill_md` — directories without `SKILL.md` and dotfile entries are ignored.
+
+### Affected files
+
+- `src-tauri/src/commands/skills.rs` — extracted `list_skills_in_dirs()` and added the custom-skill discovery pass; new unit tests

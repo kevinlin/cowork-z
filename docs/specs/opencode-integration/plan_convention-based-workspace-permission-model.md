@@ -202,16 +202,37 @@ export function buildSystemPrompt(
 ): string {
 ```
 
-Unconditionally emit a `<workspace-conventions>` section after `<capabilities>` (before `<server-access>`). The block embeds the current workspace path and instructs the agent to create every new file under `${workspaceDir}/output/`:
+Unconditionally emit a `<workspace-conventions>` section after `<capabilities>` (before `<server-access>`). The block embeds the current workspace path, marks `input/` as read-only, and forces every new file under a **category subfolder** of `${workspaceDir}/output/` (the agent picks the actual subfolder name based on the file's nature):
 ```
 <workspace-conventions>
 The current workspace is: \`${workspaceDir}\`
 
 This workspace uses a convention-based folder structure:
 - **\`input/\`** — Read-only reference materials. NEVER modify, delete, move, or overwrite any files in \`input/\`. This applies to ALL tools including bash. Read from \`input/\` and write results to \`output/\`.
-- **\`output/\`** — Your working area. **Whenever you create a new file, you MUST place it under \`${workspaceDir}/output/\`** (creating subdirectories inside \`output/\` as appropriate). This applies to ALL file-creating tools including write, edit, and bash commands (e.g., \`touch\`, \`>\`, \`tee\`, \`mkdir\`). Never write new files to the workspace root, to \`input/\`, or to other directories unless the user explicitly requests a different location.
+- **\`output/\`** — Your working area. Every new file you create MUST live under a **category subfolder** of \`${workspaceDir}/output/\` — never directly in \`output/\`, never at the workspace root, never in \`input/\`, and never elsewhere unless the user explicitly requests a different location. This applies to ALL file-creating tools including write, edit, and bash commands (e.g., \`touch\`, \`>\`, \`tee\`, \`mkdir\`, \`cp\`, \`mv\`).
+
+**Choosing the category subfolder:**
+1. **Reuse first.** Before creating a new subfolder, list \`${workspaceDir}/output/\`. If an existing subfolder already fits the file's nature, put the file there.
+2. **Otherwise, pick a short, lowercase, kebab-case name that describes the *nature* of the artifact** (not the task or date). Create nested subfolders inside the category when it helps organization (e.g., \`engineering/adr/\`, \`testing/e2e/\`).
+3. **Common categories** (use these names when they fit; invent new ones only when none of these apply):
+   - \`executable/\` — runnable code and scripts (Python, shell, Node, etc.)
+   - \`product/\` — requirement docs, feature specs, user stories, PRDs
+   - \`ux-prototype/\` — UI/UX mockups, HTML prototypes, wireframes, design assets
+   - \`engineering/\` — technical/solution design, architecture docs, ADRs
+   - \`testing/\` — test cases, test scripts, test data, test reports
+   - \`research/\` — investigation notes, comparisons, summaries of source material
+   - \`data/\` — generated datasets, exports, intermediate data files
+
+**Examples:**
+- A Python utility script → \`${workspaceDir}/output/executable/<name>.py\`
+- A feature requirements doc → \`${workspaceDir}/output/product/<name>.md\`
+- A clickable HTML prototype → \`${workspaceDir}/output/ux-prototype/<name>/index.html\`
+- An ADR → \`${workspaceDir}/output/engineering/adr/<NNN>-<title>.md\`
+- A pytest suite → \`${workspaceDir}/output/testing/test_<name>.py\`
 </workspace-conventions>
 ```
+
+The category list and examples are soft-enforced via the system prompt only. The hard `edit: allow` rule for `${workspaceDir}/output/` and its descendants (Step 6) already permits any subfolder layout, so no permission-rule changes are needed to support categorized output.
 
 **File:** `src-tauri/sidecar-opencode/src/session-manager.ts` — lines 365 and 421
 
@@ -222,7 +243,9 @@ system: buildSystemPrompt(this.serverPort, this.serverPassword, workingDirectory
 
 **File:** `src-tauri/sidecar-opencode/__tests__/server-isolation.test.ts`
 
-Update all existing `buildSystemPrompt` test calls to pass a workspace path (e.g., `'/tmp/workspace'`) and add a new test asserting the prompt contains the workspace path and the `${workspaceDir}/output/` instruction.
+Update all existing `buildSystemPrompt` test calls to pass a workspace path (e.g., `'/tmp/workspace'`) and add **two** new tests:
+1. Asserts the prompt contains the workspace path and the `${workspaceDir}/output/` instruction.
+2. Asserts the prompt contains the phrase `category subfolder` and each of the common category names (`executable/`, `product/`, `ux-prototype/`, `engineering/`, `testing/`) so the categorized-output guidance is locked in against accidental deletion.
 
 ---
 
@@ -340,7 +363,9 @@ Also update the **Key Source Locations** table to reference `workspace_permissio
 5. **Manual — Convention enforcement:**
    - Create workspace with `input/data.txt` and `output/`
    - Start task: "Edit the file at input/data.txt" → agent denied by OpenCode
-   - Start task: "Create a summary in output/" → succeeds without prompt
+   - Start task: "Create a summary in output/" → succeeds without prompt, file lands under a category subfolder (e.g., `output/research/` or `output/product/`), not directly in `output/`
+   - Start task: "Write a Python script that prints today's date and an ADR explaining the choice of Python" → script lands in `output/executable/`, ADR lands in `output/engineering/` (or `output/engineering/adr/`)
+   - Follow-up task in same workspace: "Add unit tests for the script" → tests land in `output/testing/`; the script remains in `output/executable/` (agent reused the existing category)
 6. **Manual — Workspace-scoped persistence:**
    - In task A, approve an external folder permission
    - Start task B in same workspace → external folder auto-allowed (no prompt)

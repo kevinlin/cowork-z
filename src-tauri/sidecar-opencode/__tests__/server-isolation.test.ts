@@ -86,5 +86,15 @@ describe('Server Isolation', () => {
       expect(prompt).toContain('/tmp/my-ws/output/');
       expect(prompt).toContain('<workspace-conventions>');
     });
+
+    it('should instruct the agent to organize output into category subfolders', () => {
+      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
+      expect(prompt).toContain('category subfolder');
+      expect(prompt).toContain('executable/');
+      expect(prompt).toContain('product/');
+      expect(prompt).toContain('ux-prototype/');
+      expect(prompt).toContain('engineering/');
+      expect(prompt).toContain('testing/');
+    });
   });
 });

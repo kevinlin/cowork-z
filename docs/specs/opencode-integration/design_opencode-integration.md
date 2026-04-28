@@ -121,7 +121,7 @@ The system prompt is injected via the `system` field on each `POST /session/{id}
 
 The system prompt includes:
 - Server port and password (so the agent can call the OpenCode server API directly)
-- **Workspace conventions** (always emitted): the current workspace path plus rules that `input/` is read-only and every new file must be created under `<workspace>/output/` (covers write/edit tools and bash commands like `touch`, `>`, `tee`, `mkdir`). See [Workspace Conventions in System Prompt](#workspace-conventions-in-system-prompt).
+- **Workspace conventions** (always emitted): the current workspace path plus rules that `input/` is read-only and every new file must be created under a **category subfolder** of `<workspace>/output/` (covers write/edit tools and bash commands like `touch`, `>`, `tee`, `mkdir`, `cp`, `mv`). See [Workspace Conventions in System Prompt](#workspace-conventions-in-system-prompt).
 - User custom prompt (when enabled, wrapped in `<user-instructions>` XML block)
 
 ### Workspace Conventions in System Prompt
@@ -131,7 +131,9 @@ The system prompt includes:
 The injected `<workspace-conventions>` block:
 1. **Declares the current workspace path** so the agent can resolve relative references.
 2. **Enforces `input/` as read-only** — soft enforcement via prompt, paired with the hard `edit: deny` rules emitted by `buildSessionConfig` (see [Folder Permission Model](#folder-permission-model)).
-3. **Forces new-file creation under `<workspace>/output/`** — every write/edit tool call and every file-creating bash command (`touch`, `>`, `tee`, `mkdir`, etc.) must target a path inside `output/` unless the user explicitly requests a different location.
+3. **Forces new-file creation under a category subfolder of `<workspace>/output/`** — every write/edit tool call and every file-creating bash command (`touch`, `>`, `tee`, `mkdir`, `cp`, `mv`, etc.) must target a path inside a subfolder of `output/`, never directly in `output/` root. The agent picks the subfolder name based on the file's nature, with these common categories suggested in the prompt: `executable/` (scripts), `product/` (PRDs, user stories), `ux-prototype/` (mockups, HTML prototypes), `engineering/` (design docs, ADRs), `testing/` (test cases, scripts), `research/` (notes, summaries), `data/` (datasets, exports). The agent is instructed to **reuse existing subfolders first** before creating new ones, so artefacts stay grouped consistently across follow-up tasks in the same workspace.
+
+This is soft-enforced via the prompt only — the hard `edit: allow` rule on `<workspace>/output/` and its descendants in `buildSessionConfig` already permits any subfolder layout, so the categorized convention requires no permission-rule changes.
 
 This removes the prior conditional branch that skipped the block when `workspaceDir` was undefined — the section is now always rendered.
 

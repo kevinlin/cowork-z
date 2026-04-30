@@ -1,10 +1,11 @@
-# Plan: Keyboard Shortcuts (Requirement 6)
+# Plan: Keyboard Shortcuts (Requirement 6 + 4.3.3)
 
 ## Context
 
 The requirements specify two groups of keyboard shortcuts:
 - **6.1 App-Level** — `Cmd+,`/`Ctrl+,` (open settings), `Cmd+N`/`Ctrl+N` (new task)
 - **6.2 Chat Shortcuts** — `Cmd+Enter`/`Ctrl+Enter` (send message), `Escape` (cancel running task)
+- **4.3.3 Keyboard Shortcuts Help** — A modal listing all shortcuts, triggered by `Shift+?` or Help menu
 
 Previously, only `Cmd+K` (open task launcher) was implemented as a global shortcut in `App.tsx`. Settings and new task were button-click only. Message send used plain `Enter`. Cancel task was button-click only.
 
@@ -100,7 +101,7 @@ Uses `handleFollowUpRef` pattern to avoid stale closures without adding `handleF
 | Sidebar | `src/components/layout/Sidebar.tsx` | Use store for settings state, remove SettingsDialog |
 | Chat | `src/pages/Execution.tsx` | Add Escape + Cmd+Enter useEffect |
 | Docs | `docs/specs/requirements.md` | Mark 6.1, 6.2 as complete |
-| Docs | `docs/specs/app-ux/plan_keyboard-shortcuts.md` | **New** — this plan |
+| Docs | `docs/specs/app-ux/plan_keyboard-shortcuts.md` | **New** — this plan (includes Part 2: Help Modal) |
 
 ## Verification
 
@@ -112,3 +113,95 @@ Uses `handleFollowUpRef` pattern to avoid stale closures without adding `handleF
    - `Cmd+K` opens task launcher
    - `Escape` cancels running task in chat view (not during permission dialog)
    - `Cmd+Enter` sends follow-up message in chat view
+
+---
+
+## Part 2: Keyboard Shortcuts Help Modal (Requirement 4.3.3)
+
+### Context
+
+Users have no way to discover available keyboard shortcuts. This adds a "Keyboard Shortcuts" modal triggered by `Shift+?` or the Help menu, displaying all shortcuts in a categorized list. Escape dismisses the modal.
+
+### Requirement Addition
+
+Add **4.3.3 Keyboard Shortcuts Help** to `docs/specs/requirements.md`:
+
+```
+##### 4.3.3 Keyboard Shortcuts Help
+1. THE SYSTEM SHALL display a modal dialog listing all keyboard shortcuts, grouped by category (App, Chat)
+2. THE SYSTEM SHALL trigger the modal via `Shift+?` keyboard shortcut or Help > Keyboard Shortcuts menu item
+3. THE SYSTEM SHALL dismiss the modal when the user presses Escape or clicks outside
+4. THE SYSTEM SHALL display platform-appropriate modifier keys (⌘ on macOS, Ctrl on Windows/Linux)
+```
+
+### Implementation Steps
+
+#### 1. Zustand store — add toggle state
+**File:** `src/stores/taskStore.ts`
+
+Add alongside `showAbout`:
+- Interface: `showKeyboardShortcuts: boolean` + `setShowKeyboardShortcuts: (show: boolean) => void`
+- Implementation: `showKeyboardShortcuts: false, setShowKeyboardShortcuts: (show) => set({ showKeyboardShortcuts: show })`
+- Reset: `showKeyboardShortcuts: false`
+
+#### 2. Create dialog component
+**New file:** `src/components/layout/KeyboardShortcutsDialog.tsx`
+
+Follow the `AboutDialog.tsx` pattern — `{ open, onOpenChange }` props, shadcn `Dialog`.
+
+- Platform detection: `const isMac = /Mac/.test(navigator.platform)` at module level
+- Static `SHORTCUT_GROUPS` array with two categories:
+  - **App:** `Cmd/Ctrl + ,` (Settings), `Cmd/Ctrl + N` (New Task), `Cmd/Ctrl + K` (Task Launcher), `Shift + ?` (Shortcuts Help)
+  - **Chat:** `Enter` (Send Message), `Shift + Enter` (New Line), `Esc` (Cancel Task)
+- `<kbd>` element for each key with muted styling
+- `max-w-sm` — compact since it's just a reference list
+
+#### 3. Update keyboard shortcuts hook
+**File:** `src/hooks/useKeyboardShortcuts.ts`
+
+- Add `openKeyboardShortcuts` to `ShortcutActions` interface
+- Add `Shift+?` handler **before** the `if (!mod) return` guard, since `?` has no Cmd/Ctrl
+- Guard against firing in inputs/textareas: skip when `e.target` is `INPUT`, `TEXTAREA`, or `contentEditable`
+- Update `useMemo` deps array to include `actions.openKeyboardShortcuts`
+
+#### 4. Add Rust menu item
+**File:** `src-tauri/src/lib.rs`
+
+- Add `keyboard_shortcuts_item` MenuItemBuilder with id `"show-keyboard-shortcuts"`
+- Insert into `help_menu` before the separator
+- Add match arm in `on_menu_event`: emit `"show-keyboard-shortcuts"` event
+
+#### 5. Wire up in App.tsx
+**File:** `src/App.tsx`
+
+- Import `KeyboardShortcutsDialog`
+- Destructure `showKeyboardShortcuts`, `setShowKeyboardShortcuts` from store
+- Add `useEffect` listener for `'show-keyboard-shortcuts'` Tauri event
+- Add `handleOpenKeyboardShortcuts` callback, pass to `useKeyboardShortcuts`
+- Render `<KeyboardShortcutsDialog>` alongside other dialogs
+
+#### 6. Add tests
+**New file:** `src/components/layout/__tests__/KeyboardShortcutsDialog.test.tsx`
+
+- Renders all categories and shortcut descriptions when open
+- Does not render content when closed
+- Displays `<kbd>` elements for keys
+
+### Files Changed (Part 2)
+
+| File | Change |
+|------|--------|
+| `src/stores/taskStore.ts` | Add `showKeyboardShortcuts` state |
+| `src/components/layout/KeyboardShortcutsDialog.tsx` | **New** — dialog component |
+| `src/hooks/useKeyboardShortcuts.ts` | Add `Shift+?` handler + input guard |
+| `src-tauri/src/lib.rs` | Add menu item + event emission |
+| `src/App.tsx` | Wire menu event, hook action, render dialog |
+| `src/components/layout/__tests__/KeyboardShortcutsDialog.test.tsx` | **New** — tests |
+| `docs/specs/requirements.md` | Add requirement 4.3.3 |
+
+### Verification (Part 2)
+
+1. `pnpm typecheck` — passes
+2. `cd src-tauri && cargo check` — passes
+3. `pnpm test --run` — passes (including new tests)
+4. Manual: `Shift+?` on home page opens modal; typing `?` in chat input does NOT; Help menu item works; Escape dismisses

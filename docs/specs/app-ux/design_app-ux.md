@@ -55,7 +55,7 @@ Handled by a `useEffect` in `src/pages/Execution.tsx` that attaches a `window.ad
 
 ### Shortcuts Help Modal
 
-> **Plan:** [Keyboard Shortcuts Help Modal](plan_keyboard-shortcuts-help-modal.md)
+> **Plan:** [Keyboard Shortcuts (Part 2)](plan_keyboard-shortcuts.md)
 
 A modal dialog listing all keyboard shortcuts, grouped by category (App, Chat). Triggered via `Shift+?` or Help menu. Displays platform-appropriate modifier keys (⌘ on macOS, Ctrl on Windows/Linux).
 

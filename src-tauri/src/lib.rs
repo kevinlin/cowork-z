@@ -2,6 +2,7 @@ use std::sync::Mutex;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{Emitter, Manager};
 
+mod automation_scheduler;
 mod commands;
 mod db;
 mod fs_watcher;
@@ -40,6 +41,13 @@ pub fn run() {
 
             // Initialize pending update state
             app.manage(PendingUpdate(Mutex::new(None)));
+
+            // Initialize automation scheduler state
+            app.manage(automation_scheduler::AutomationSchedulerState::new());
+
+            // Start automation scheduler
+            let scheduler = automation_scheduler::AutomationScheduler::new();
+            scheduler.start(app.handle().clone());
 
             // Copy bundled OpenCode Server API skill to global skills directory
             // so that OpenCode discovers it automatically.
@@ -367,6 +375,18 @@ pub fn run() {
             commands::skills::skills_install,
             commands::skills::skills_get_template_path,
             commands::skills::skills_get_skill_file_path,
+            // Automations
+            commands::automations::create_automation,
+            commands::automations::update_automation,
+            commands::automations::delete_automation,
+            commands::automations::list_automations,
+            commands::automations::get_automation,
+            commands::automations::toggle_automation_enabled,
+            commands::automations::list_automation_runs,
+            commands::automations::mark_run_read,
+            commands::automations::mark_all_runs_read,
+            commands::automations::get_automation_unread_count,
+            commands::automations::run_automation_now,
             // Skill Repos (Skills Manager)
             commands::skill_repos::skill_repos_list,
             commands::skill_repos::skill_repos_add,

@@ -4,7 +4,7 @@
 use rusqlite::Connection;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 6;
+const CURRENT_VERSION: i32 = 7;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -336,6 +336,50 @@ fn migrate_v6(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v7: Automations tables + tasks.automation_run_id
+fn migrate_v7(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v7 (automations)");
+
+    conn.execute_batch(
+        "CREATE TABLE automations (
+            id TEXT PRIMARY KEY,
+            workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            prompt TEXT NOT NULL,
+            schedule_cron TEXT NOT NULL,
+            schedule_display TEXT NOT NULL,
+            provider_id TEXT NOT NULL,
+            model_id TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX idx_automations_workspace_id ON automations(workspace_id);
+
+        CREATE TABLE automation_runs (
+            id TEXT PRIMARY KEY,
+            automation_id TEXT NOT NULL REFERENCES automations(id) ON DELETE CASCADE,
+            task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            has_findings INTEGER NOT NULL DEFAULT 0,
+            is_read INTEGER NOT NULL DEFAULT 0,
+            started_at TEXT,
+            completed_at TEXT
+        );
+
+        CREATE INDEX idx_automation_runs_automation_id ON automation_runs(automation_id);
+        CREATE INDEX idx_automation_runs_status ON automation_runs(status);
+
+        ALTER TABLE tasks ADD COLUMN automation_run_id TEXT REFERENCES automation_runs(id) ON DELETE SET NULL;",
+    )
+    .map_err(|e| format!("Migration v7 failed: {}", e))?;
+
+    set_stored_version(conn, 7)?;
+    println!("[Migrations] Migration v7 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -378,6 +422,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
 
     if stored_version < 6 {
         migrate_v6(conn)?;
+    }
+
+    if stored_version < 7 {
+        migrate_v7(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

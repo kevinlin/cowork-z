@@ -188,7 +188,7 @@ pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Stor
         .prepare(
             "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id
              FROM tasks
-             WHERE workspace_id = ?1 AND arena_id IS NULL
+             WHERE workspace_id = ?1 AND arena_id IS NULL AND automation_run_id IS NULL
              ORDER BY created_at DESC
              LIMIT ?2",
         )
@@ -251,6 +251,7 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
         .prepare(
             "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id
              FROM tasks
+             WHERE automation_run_id IS NULL
              ORDER BY created_at DESC
              LIMIT ?1",
         )

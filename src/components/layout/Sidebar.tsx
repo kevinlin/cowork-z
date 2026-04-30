@@ -1,8 +1,9 @@
 'use client';
 
-import { FolderTree, MessageSquare, MessageSquarePlus, Package, Search, Settings } from 'lucide-react';
+import { FolderTree, MessageSquare, MessageSquarePlus, Package, Search, Settings, Zap } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AutomationRunsPanel from '@/components/sidebar/AutomationRunsPanel';
 import FileTreePanel from '@/components/sidebar/FileTreePanel';
 import FoldersPanel from '@/components/sidebar/FoldersPanel';
 import { TodoPanel } from '@/components/sidebar/TodoPanel';
@@ -13,6 +14,7 @@ import { openSkillsManagerWindow } from '@/lib/skills-window';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import type { Todo } from '@/shared';
 import { useArenaStore } from '@/stores/arenaStore';
+import { useAutomationStore } from '@/stores/automationStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import logoImage from '/assets/logo-1.png';
@@ -28,7 +30,7 @@ const MIN_WIDTH = 200; // pixels
 const MAX_WIDTH_PERCENT = 0.5; // 50% of window
 const DEFAULT_WIDTH = 260;
 
-type SidebarTab = 'sessions' | 'files';
+type SidebarTab = 'sessions' | 'automations' | 'files';
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -38,6 +40,7 @@ export default function Sidebar() {
   const hasTodos = currentTaskTodos.length > 0;
 
   const [activeTab, setActiveTab] = useState<SidebarTab>('sessions');
+  const automationUnreadCount = useAutomationStore((s) => s.unreadCount);
 
   // Controlled open state for Todos section — auto-expand when todos arrive
   const [todosOpen, setTodosOpen] = useState(hasTodos);
@@ -122,6 +125,10 @@ export default function Sidebar() {
     useWorkspaceStore.getState().initialize();
     loadTasks();
     loadArenas(useWorkspaceStore.getState().activeWorkspace?.id);
+    const wsId = useWorkspaceStore.getState().activeWorkspace?.id;
+    if (wsId) {
+      useAutomationStore.getState().loadUnreadCount(wsId);
+    }
   }, [loadTasks, loadArenas]);
 
   // When the active workspace changes: reset the current task, navigate to
@@ -136,6 +143,7 @@ export default function Sidebar() {
         navigate('/');
         loadTasks();
         loadArenas(currentId);
+        useAutomationStore.getState().loadUnreadCount(currentId);
       }
     });
     return unsubscribe;
@@ -156,6 +164,19 @@ export default function Sidebar() {
       unsubscribeTaskUpdate();
     };
   }, [updateTaskStatus, addTaskUpdate, api]);
+
+  // Subscribe to automation run completion to refresh unread badge
+  useEffect(() => {
+    const unsub = api.onAutomationRunCompleted?.(() => {
+      const wsId = useWorkspaceStore.getState().activeWorkspace?.id;
+      if (wsId) {
+        useAutomationStore.getState().loadUnreadCount(wsId);
+      }
+    });
+    return () => {
+      unsub?.();
+    };
+  }, [api]);
 
   const handleNewConversation = () => {
     analytics.trackNewTask();
@@ -205,6 +226,17 @@ export default function Sidebar() {
           </button>
           <button
             className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 font-medium text-xs transition-colors ${
+              activeTab === 'automations' ? 'border-primary border-b-2 text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setActiveTab('automations')}
+            type="button"
+          >
+            <Zap className="h-3.5 w-3.5" />
+            Auto
+            {automationUnreadCount > 0 && <span className="h-2 w-2 rounded-full bg-destructive" />}
+          </button>
+          <button
+            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 font-medium text-xs transition-colors ${
               activeTab === 'files' ? 'border-primary border-b-2 text-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setActiveTab('files')}
@@ -216,9 +248,9 @@ export default function Sidebar() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'sessions' ? (
-          <SessionPanel mergedList={mergedList} />
-        ) : (
+        {activeTab === 'sessions' && <SessionPanel mergedList={mergedList} />}
+        {activeTab === 'automations' && <AutomationRunsPanel />}
+        {activeTab === 'files' && (
           <div className="min-h-0 flex-1 overflow-hidden">
             <FileTreePanel />
           </div>

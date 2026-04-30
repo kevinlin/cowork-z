@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SkillMeta } from '@/lib/tauri-api';
 import { hasAnyReadyProvider } from '@/shared';
+import AutomationsList from '../components/landing/AutomationsList';
 import SkillsCatalog from '../components/landing/SkillsCatalog';
 import StarterPacks from '../components/landing/StarterPacks';
 import TaskInputBar from '../components/landing/TaskInputBar';
@@ -15,7 +16,7 @@ import { springs } from '../lib/animations';
 import { getTauriAPI } from '../lib/tauri-api-interface';
 import { useTaskStore } from '../stores/taskStore';
 
-type HomeTab = 'packs' | 'skills';
+type HomeTab = 'packs' | 'skills' | 'automations';
 
 export default function HomePage() {
   const [prompt, setPrompt] = useState('');
@@ -166,10 +167,23 @@ export default function HomePage() {
                 >
                   Skills Catalog
                 </button>
+                <button
+                  className={`flex-1 px-4 py-2.5 font-medium text-sm transition-colors ${
+                    activeTab === 'automations'
+                      ? 'border-primary border-b-2 text-foreground'
+                      : 'border-transparent border-b-2 text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setActiveTab('automations')}
+                  type="button"
+                >
+                  Automations
+                </button>
               </div>
 
               {/* Tab content */}
-              {activeTab === 'packs' ? <StarterPacks onPromptSeed={setPrompt} /> : <SkillsCatalog />}
+              {activeTab === 'packs' && <StarterPacks onPromptSeed={setPrompt} />}
+              {activeTab === 'skills' && <SkillsCatalog />}
+              {activeTab === 'automations' && <AutomationsList />}
             </Card>
           </motion.div>
         </div>

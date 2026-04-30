@@ -1,0 +1,85 @@
+import { Clock, MoreVertical, Pause, Play, Trash2, Zap } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import type { Automation } from '@/shared';
+
+interface AutomationCardProps {
+  automation: Automation;
+  onEdit: (automation: Automation) => void;
+  onToggleEnabled: (id: string, enabled: boolean) => void;
+  onRunNow: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+export default function AutomationCard({ automation, onEdit, onToggleEnabled, onRunNow, onDelete }: AutomationCardProps) {
+  return (
+    <div
+      className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-background p-3 transition-colors hover:bg-accent/50"
+      onClick={() => onEdit(automation)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onEdit(automation);
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate font-medium text-sm">{automation.name}</span>
+          {automation.enabled ? (
+            <span className="flex items-center gap-1 text-green-500 text-xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+              Active
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-xs">Disabled</span>
+          )}
+        </div>
+        <div className="mt-1 flex items-center gap-2 text-muted-foreground text-xs">
+          <Clock className="h-3 w-3" />
+          <span>{automation.scheduleDisplay}</span>
+        </div>
+      </div>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            onClick={(e) => e.stopPropagation()}
+            type="button"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onRunNow(automation.id);
+            }}
+          >
+            <Zap className="mr-2 h-4 w-4" />
+            Run Now
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleEnabled(automation.id, !automation.enabled);
+            }}
+          >
+            {automation.enabled ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
+            {automation.enabled ? 'Disable' : 'Enable'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(automation.id);
+            }}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}

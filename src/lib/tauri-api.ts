@@ -1488,6 +1488,90 @@ export async function onCopilotModelsResult(
 }
 
 // ============================================================================
+// Automations
+// ============================================================================
+
+export async function createAutomation(input: import('@/shared').CreateAutomationInput): Promise<import('@/shared').Automation> {
+  return invoke<import('@/shared').Automation>('create_automation', { input });
+}
+
+export async function updateAutomation(input: import('@/shared').UpdateAutomationInput): Promise<void> {
+  return invoke<void>('update_automation', { input });
+}
+
+export async function deleteAutomation(id: string): Promise<void> {
+  return invoke<void>('delete_automation', { id });
+}
+
+export async function listAutomations(workspaceId?: string): Promise<import('@/shared').Automation[]> {
+  return invoke<import('@/shared').Automation[]>('list_automations', { workspaceId: workspaceId ?? null });
+}
+
+export async function getAutomation(id: string): Promise<import('@/shared').Automation | null> {
+  return invoke<import('@/shared').Automation | null>('get_automation', { id });
+}
+
+export async function toggleAutomationEnabled(id: string, enabled: boolean): Promise<void> {
+  return invoke<void>('toggle_automation_enabled', { id, enabled });
+}
+
+export async function listAutomationRuns(workspaceId: string, unreadOnly: boolean): Promise<import('@/shared').AutomationRun[]> {
+  return invoke<import('@/shared').AutomationRun[]>('list_automation_runs', { workspaceId, unreadOnly });
+}
+
+export async function markRunRead(runId: string): Promise<void> {
+  return invoke<void>('mark_run_read', { runId });
+}
+
+export async function markAllRunsRead(workspaceId: string): Promise<void> {
+  return invoke<void>('mark_all_runs_read', { workspaceId });
+}
+
+export async function getAutomationUnreadCount(workspaceId: string): Promise<number> {
+  return invoke<number>('get_automation_unread_count', { workspaceId });
+}
+
+export async function runAutomationNow(automationId: string): Promise<void> {
+  return invoke<void>('run_automation_now', { automationId });
+}
+
+export function onAutomationRunStarted(callback: (event: { automationId: string; runId: string }) => void): () => void {
+  let unlisten: UnlistenFn | null = null;
+  listen<{ automationId: string; runId: string }>('automation:run_started', (event) => {
+    callback(event.payload);
+  }).then((fn) => {
+    unlisten = fn;
+  });
+  return () => {
+    unlisten?.();
+  };
+}
+
+export function onAutomationRunCompleted(callback: (event: { runId: string; hasFindings: boolean; status: string }) => void): () => void {
+  let unlisten: UnlistenFn | null = null;
+  listen<{ runId: string; hasFindings: boolean; status: string }>('automation:run_completed', (event) => {
+    callback(event.payload);
+  }).then((fn) => {
+    unlisten = fn;
+  });
+  return () => {
+    unlisten?.();
+  };
+}
+
+export function onAutomationChanged(callback: (event: { automationId: string; action: string }) => void): () => void {
+  let unlisten: UnlistenFn | null = null;
+  listen<{ automationId: string; action: string }>('automation:changed', (event) => {
+    callback(event.payload);
+  }).then((fn) => {
+    unlisten = fn;
+  });
+  return () => {
+    unlisten?.();
+  };
+}
+
+// ============================================================================
 // Compatibility Helpers
 // ============================================================================
 
@@ -1721,5 +1805,21 @@ export function getTauriApi() {
     onCopilotOAuthResult,
     onCopilotOAuthComplete,
     onCopilotModelsResult,
+
+    // Automations
+    createAutomation,
+    updateAutomation,
+    deleteAutomation,
+    listAutomations,
+    getAutomation,
+    toggleAutomationEnabled,
+    listAutomationRuns,
+    markRunRead,
+    markAllRunsRead,
+    getAutomationUnreadCount,
+    runAutomationNow,
+    onAutomationRunStarted,
+    onAutomationRunCompleted,
+    onAutomationChanged,
   };
 }

@@ -1,5 +1,6 @@
 export * from './arena';
 export * from './auth';
+export * from './automation';
 export * from './mcpSettings';
 export * from './opencode';
 export * from './permission';

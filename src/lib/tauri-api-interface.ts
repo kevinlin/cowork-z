@@ -327,6 +327,22 @@ export interface TauriAPI {
   onCopilotModelsResult(
     callback: (result: { success: boolean; models?: Array<{ id: string; name: string }>; error?: string }) => void
   ): () => void;
+
+  // Automations
+  createAutomation(input: import('@/shared').CreateAutomationInput): Promise<import('@/shared').Automation>;
+  updateAutomation(input: import('@/shared').UpdateAutomationInput): Promise<void>;
+  deleteAutomation(id: string): Promise<void>;
+  listAutomations(workspaceId?: string): Promise<import('@/shared').Automation[]>;
+  getAutomation(id: string): Promise<import('@/shared').Automation | null>;
+  toggleAutomationEnabled(id: string, enabled: boolean): Promise<void>;
+  listAutomationRuns(workspaceId: string, unreadOnly: boolean): Promise<import('@/shared').AutomationRun[]>;
+  markRunRead(runId: string): Promise<void>;
+  markAllRunsRead(workspaceId: string): Promise<void>;
+  getAutomationUnreadCount(workspaceId: string): Promise<number>;
+  runAutomationNow(automationId: string): Promise<void>;
+  onAutomationRunStarted(callback: (event: { automationId: string; runId: string }) => void): () => void;
+  onAutomationRunCompleted(callback: (event: { runId: string; hasFindings: boolean; status: string }) => void): () => void;
+  onAutomationChanged(callback: (event: { automationId: string; action: string }) => void): () => void;
 }
 
 const toSyncUnlisten = (promise: Promise<() => void>) => {

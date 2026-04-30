@@ -24,6 +24,10 @@ The following corrections were applied during implementation and differ from the
 
 5. **Inline toggle switch on AutomationCard:** The card includes a visible toggle switch (`role="switch"`) between the card content and the dropdown action menu. This provides quick enable/disable without opening the menu. The toggle calls `onToggleEnabled` which persists the state via `toggle_automation_enabled` → DB. The dropdown menu retains a "Disable/Enable" item as a secondary option.
 
+6. **Run completion wiring (`complete_task` → `mark_automation_run_complete`):** The original plan omitted the critical linkage between task completion and automation run status. The `complete_task` Tauri command now queries `get_running_run_by_task_id` (added to `db/automations.rs`) to find an automation run associated with the completing task. If found, it calls `mark_automation_run_complete` which updates the run's DB status to `completed`, releases the scheduler's `is_running` lock, and emits the `automation:run_completed` event. Without this wiring, runs stayed stuck in "running" status permanently.
+
+7. **Sidebar event subscriptions refresh the runs list:** The original plan only subscribed to `automation:run_completed` to refresh `unreadCount`. The corrected implementation subscribes to both `automation:run_started` and `automation:run_completed` in `Sidebar.tsx`, calling `loadRuns` on both events so the `AutomationRunsPanel` reactively updates run statuses without requiring page refresh.
+
 ---
 
 ## File Structure
@@ -1982,17 +1986,28 @@ useEffect(() => {
 }, [activeWorkspace?.id, loadUnreadCount]);
 ```
 
-Also subscribe to automation events to refresh the count:
+Also subscribe to automation events to refresh both the count and the runs list:
 
 ```typescript
 useEffect(() => {
-  const unsub1 = api.onAutomationRunCompleted(() => {
-    if (activeWorkspace?.id) {
-      loadUnreadCount(activeWorkspace.id);
+  const unsubCompleted = api.onAutomationRunCompleted?.(() => {
+    const wsId = useWorkspaceStore.getState().activeWorkspace?.id;
+    if (wsId) {
+      useAutomationStore.getState().loadUnreadCount(wsId);
+      useAutomationStore.getState().loadRuns(wsId, false);
     }
   });
-  return () => { unsub1(); };
-}, [activeWorkspace?.id, loadUnreadCount, api]);
+  const unsubStarted = api.onAutomationRunStarted?.(() => {
+    const wsId = useWorkspaceStore.getState().activeWorkspace?.id;
+    if (wsId) {
+      useAutomationStore.getState().loadRuns(wsId, false);
+    }
+  });
+  return () => {
+    unsubCompleted?.();
+    unsubStarted?.();
+  };
+}, [api]);
 ```
 
 - [ ] **Step 3: Verify typecheck**

@@ -85,7 +85,7 @@ When a task completes, the scheduler checks for pending automation runs and star
 ### Lifecycle events
 
 - Automation created/updated/deleted → scheduler reloads its queue
-- Task complete → scheduler checks pending runs
+- Task complete → `complete_task` command looks up the associated automation run via `get_running_run_by_task_id`, calls `mark_automation_run_complete` which updates DB status to `completed`, releases the scheduler lock, and emits `automation:run_completed`; scheduler then checks for pending runs on next tick
 - App quit → persists pending run states, resumes on next launch
 
 ### Determining `has_findings`
@@ -197,7 +197,14 @@ None. The sidecar receives automation runs as standard `start_task` commands. It
 - Automation runs (for sidebar triage)
 - Unread count (drives badge)
 - CRUD operations (wrapping Tauri commands)
-- Event listeners for `automation:run_started`, `automation:run_completed`
+
+### Event-driven refresh (Sidebar.tsx)
+
+The Sidebar subscribes to both `automation:run_started` and `automation:run_completed` Tauri events:
+- `automation:run_started` → reloads the runs list so new runs appear immediately as "Running..."
+- `automation:run_completed` → reloads both the runs list (to update status from "Running..." to "Completed") and the unread count (to drive the badge)
+
+This ensures the `AutomationRunsPanel` always reflects fresh run status without requiring user-initiated refresh.
 
 ## User Flows
 

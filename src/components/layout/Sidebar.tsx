@@ -165,16 +165,24 @@ export default function Sidebar() {
     };
   }, [updateTaskStatus, addTaskUpdate, api]);
 
-  // Subscribe to automation run completion to refresh unread badge
+  // Subscribe to automation run events to refresh runs panel and unread badge
   useEffect(() => {
-    const unsub = api.onAutomationRunCompleted?.(() => {
+    const unsubCompleted = api.onAutomationRunCompleted?.(() => {
       const wsId = useWorkspaceStore.getState().activeWorkspace?.id;
       if (wsId) {
         useAutomationStore.getState().loadUnreadCount(wsId);
+        useAutomationStore.getState().loadRuns(wsId, false);
+      }
+    });
+    const unsubStarted = api.onAutomationRunStarted?.(() => {
+      const wsId = useWorkspaceStore.getState().activeWorkspace?.id;
+      if (wsId) {
+        useAutomationStore.getState().loadRuns(wsId, false);
       }
     });
     return () => {
-      unsub?.();
+      unsubCompleted?.();
+      unsubStarted?.();
     };
   }, [api]);
 

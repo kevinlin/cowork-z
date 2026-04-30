@@ -469,6 +469,7 @@ pub async fn complete_task(
     status: String,
     session_id: Option<String>,
     state: State<'_, DbState>,
+    app: tauri::AppHandle,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
 
@@ -486,6 +487,13 @@ pub async fn complete_task(
     // mark the arena as completed.
     if let Some(arena_id) = db::arenas::check_arena_all_tasks_terminal(&conn, &task_id) {
         let _ = db::arenas::update_arena_completed(&conn, &arena_id, &completed_at);
+    }
+
+    // If this task belongs to an automation run, mark the run as complete
+    if let Some(run) = db::automations::get_running_run_by_task_id(&conn, &task_id) {
+        let has_findings = status == "completed";
+        drop(conn);
+        crate::automation_scheduler::mark_automation_run_complete(&app, &run.id, has_findings);
     }
 
     Ok(())

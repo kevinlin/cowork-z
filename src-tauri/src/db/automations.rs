@@ -294,6 +294,27 @@ pub fn get_unread_count(conn: &Connection, workspace_id: &str) -> i32 {
     .unwrap_or(0)
 }
 
+pub fn get_running_run_by_task_id(conn: &Connection, task_id: &str) -> Option<StoredAutomationRun> {
+    conn.query_row(
+        "SELECT id, automation_id, task_id, status, has_findings, is_read, started_at, completed_at
+         FROM automation_runs WHERE task_id = ?1 AND status = 'running'",
+        params![task_id],
+        |row| {
+            Ok(StoredAutomationRun {
+                id: row.get(0)?,
+                automation_id: row.get(1)?,
+                task_id: row.get(2)?,
+                status: row.get(3)?,
+                has_findings: row.get(4)?,
+                is_read: row.get(5)?,
+                started_at: row.get(6)?,
+                completed_at: row.get(7)?,
+            })
+        },
+    )
+    .ok()
+}
+
 pub fn get_pending_runs(conn: &Connection) -> Vec<StoredAutomationRun> {
     let mut stmt = match conn.prepare(
         "SELECT id, automation_id, task_id, status, has_findings, is_read, started_at, completed_at

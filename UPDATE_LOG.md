@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.7.2
+
+- 
+
 ## v0.7.1
 
 - **Automation enable/disable toggle** — Automations card now shows an inline toggle switch for quick enable/disable without opening the dropdown menu; disabled automations are not triggered by the scheduler

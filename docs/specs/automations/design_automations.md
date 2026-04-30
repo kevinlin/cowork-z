@@ -15,7 +15,7 @@ Automations let users define recurring tasks that execute on a schedule. Each au
 | Scope | Standalone automations only (thread automations as future work) |
 | Entry point | Home page "Automations" tab (third tab after Starter Packs, Skills Catalog) |
 | Triage location | Sidebar "Automations" tab (between Sessions and Files) |
-| Scheduling | Presets + natural language, parsed to cron internally |
+| Scheduling | Structured picker (frequency + weekday + time dropdowns) with cron preview; Custom mode for direct cron input |
 | Scheduler location | Rust backend (Tauri side) |
 | Workspace binding | 1:1 (one automation = one workspace) |
 | Skills support | `/skill-name` in prompt text (same as regular tasks) |
@@ -94,7 +94,19 @@ When a run completes, inspect the final task output. Heuristic: if the task prod
 
 ### Schedule parsing
 
-The frontend provides preset schedule options (Hourly, Daily, Weekly) that map to standard 5-field Unix cron expressions (e.g., `0 9 * * *`). A "Custom" option allows direct cron input.
+The frontend provides a structured schedule picker with three dropdowns in a single row:
+
+1. **Frequency picker:** Hourly, Daily, Weekdays, Weekly, Custom
+2. **Weekday picker:** Monday–Sunday (only shown when frequency is "Weekly")
+3. **Time picker:** Scrollable list of times in 15-minute increments, 12-hour format with AM/PM (hidden when frequency is "Hourly")
+
+The grid layout adapts based on frequency:
+- **Hourly:** 1 column (frequency only)
+- **Daily / Weekdays:** 2 columns (frequency + time)
+- **Weekly:** 3 columns (frequency + weekday + time)
+- **Custom:** Frequency dropdown + free-text cron input field
+
+Once a schedule is configured, the computed 5-field Unix cron expression is displayed below the pickers in a read-only monospace field for user verification.
 
 **Cron normalization:** The Rust `cron` crate (v0.12) requires 6-7 field expressions (`sec min hour dom month dow [year]`). The scheduler's `normalize_cron()` method automatically prepends `"0 "` (seconds = 0) to 5-field expressions before parsing. This allows the frontend and DB to store standard Unix cron while the scheduler handles the conversion internally.
 
@@ -137,16 +149,18 @@ None. The sidecar receives automation runs as standard `start_task` commands. It
 - Content: list view of automation cards
 
 **List view (automation cards):**
-- Each card shows: name, schedule (human-readable), status (Active/Disabled), last run time
-- Action menu per card: Edit, Run Now, Disable/Enable, Delete
+- Each card shows: name, schedule (human-readable), status badge (Active/Disabled), inline toggle switch for quick enable/disable, last run time
+- Toggle switch: positioned between card content and action menu; persists enabled state to DB; when disabled, the scheduler will not fire the automation
+- Action menu per card: Edit, Run Now, Disable/Enable (secondary to toggle), Delete
 - "+ New" button at the top-right of the list
 - Empty state when no automations exist (with "Create your first automation" CTA)
 
 **Inline creation/edit form:**
 - Replaces the list view when creating or editing
-- Fields: Name, Prompt (textarea, supports `/skill-name`), Schedule (preset chips: Hourly/Daily/Weekly/Custom + natural language text input), Model (provider + model dropdown, populated from `getProviderSettings` — same source as the main task model selector)
+- Fields: Name, Prompt (textarea, supports `/skill-name`), Schedule (3-dropdown row: frequency/weekday/time + cron preview), Model (provider + model picker dialog)
+- Schedule picker: Radix Select for frequency and weekday, custom time picker with scrollable 15-min increments and clock icon. Cron expression displayed below as read-only monospace text.
 - Buttons: Cancel (returns to list), Create/Save
-- Validation: all fields required, schedule must parse successfully, selected model must still be configured
+- Validation: all fields required, schedule must produce a valid cron expression, selected model must still be configured
 
 ### Sidebar — Automations Tab
 
@@ -229,7 +243,7 @@ None. The sidecar receives automation runs as standard `start_task` commands. It
 ### In scope (v1)
 - Automation CRUD on Home tab (inline form)
 - List view with status, schedule, enable/disable, "Run Now"
-- Preset schedule chips + natural language input → cron
+- Structured schedule picker (frequency + weekday + time dropdowns) with cron preview; Custom mode for direct cron input
 - Required explicit model selection
 - Cron-based scheduler in Rust (sequential, one-at-a-time)
 - Automation runs as tasks (full sidecar pipeline reuse)

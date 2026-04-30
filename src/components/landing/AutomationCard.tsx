@@ -39,6 +39,26 @@ export default function AutomationCard({ automation, onEdit, onToggleEnabled, on
         </div>
       </div>
 
+      <button
+        type="button"
+        role="switch"
+        aria-checked={automation.enabled}
+        aria-label={automation.enabled ? 'Disable automation' : 'Enable automation'}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+          automation.enabled ? 'bg-green-500' : 'bg-muted-foreground/30'
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleEnabled(automation.id, !automation.enabled);
+        }}
+      >
+        <span
+          className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+            automation.enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
+          }`}
+        />
+      </button>
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button

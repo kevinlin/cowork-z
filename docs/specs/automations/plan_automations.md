@@ -22,6 +22,8 @@ The following corrections were applied during implementation and differ from the
 
 4. **`model_id` is already provider-qualified:** The `automation.model_id` field stores the full model identifier (e.g., `github-copilot/claude-sonnet-4.6`). When passing to the sidecar, use it directly — do NOT prepend `provider_id/`.
 
+5. **Inline toggle switch on AutomationCard:** The card includes a visible toggle switch (`role="switch"`) between the card content and the dropdown action menu. This provides quick enable/disable without opening the menu. The toggle calls `onToggleEnabled` which persists the state via `toggle_automation_enabled` → DB. The dropdown menu retains a "Disable/Enable" item as a secondary option.
+
 ---
 
 ## File Structure
@@ -1491,6 +1493,22 @@ export default function AutomationCard({ automation, onEdit, onToggleEnabled, on
 
 Create `src/components/landing/AutomationForm.tsx`.
 
+**Schedule picker design:** The form uses a structured 3-dropdown row layout for schedule configuration:
+
+1. **Frequency picker (Radix Select):** Hourly, Daily, Weekdays, Weekly, Custom. Controls which other pickers are visible.
+2. **Weekday picker (Radix Select):** Monday–Sunday. Only shown when frequency is "Weekly".
+3. **Time picker (custom scrollable dropdown):** 15-minute increments in 12-hour format (e.g., "09:00 AM"). Shows a clock icon. Hidden when frequency is "Hourly".
+
+The grid layout adapts responsively:
+- Hourly → 1 column (frequency only)
+- Daily / Weekdays → 2 columns (frequency + time)
+- Weekly → 3 columns (frequency + weekday + time)
+- Custom → frequency dropdown + free-text cron input below
+
+A **cron preview** is displayed below the pickers as read-only monospace text, showing the computed 5-field Unix cron expression (e.g., `0 9 * * 1`) for user verification.
+
+Helper functions: `buildCron(frequency, time, weekday)` generates the cron expression; `buildDisplay(frequency, time, weekday)` generates human-readable text; `parseTimeTo24(time)` converts 12-hour to 24-hour for cron fields.
+
 **Model selection approach:** Instead of a plain `<select>` dropdown, the form uses a button that displays the current model name and opens a **model picker dialog** (similar to `ArenaModelPickerDialog`). Key behaviors:
 
 1. **Default to global model:** On mount (for new automations), reads `getActiveProvider(settings)` from `useProviderSettings()` to pre-populate `providerId`, `modelId`, and `modelDisplayName` with the globally configured provider/model.
@@ -1498,7 +1516,7 @@ Create `src/components/landing/AutomationForm.tsx`.
 3. **Picker dialog (`AutomationModelPickerDialog`):** A local component that reuses `ProviderGrid` and `ProviderSettingsPanel` (same as `ArenaModelPickerDialog`) inside a `Dialog`. Title is "Select Model". On "Select Model" click, extracts `providerId` from the full model ID and calls back with `(fullModelId, displayName)`.
 4. **Edit mode:** When editing an existing automation, resolves the display name from the stored `providerId`/`modelId` against `settings.connectedProviders`.
 
-Dependencies: `useProviderSettings`, `ProviderGrid`, `ProviderSettingsPanel`, `Dialog` components, `getActiveProvider`, `isProviderReady` from `@/shared`, `AnimatePresence`/`motion` from framer-motion, `ChevronDown` from lucide-react.
+Dependencies: `useProviderSettings`, `ProviderGrid`, `ProviderSettingsPanel`, `Dialog` components, `Select`/`SelectContent`/`SelectItem`/`SelectTrigger`/`SelectValue` from `@/components/ui/select`, `getActiveProvider`, `isProviderReady` from `@/shared`, `AnimatePresence`/`motion` from framer-motion, `ChevronDown`/`Clock` from lucide-react.
 
 - [ ] **Step 3: Create AutomationsList.tsx**
 

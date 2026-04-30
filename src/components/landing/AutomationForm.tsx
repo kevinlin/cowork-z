@@ -13,6 +13,16 @@ import { getActiveProvider, isProviderReady } from '@/shared';
 
 const SCHEDULE_FREQUENCIES = ['Hourly', 'Daily', 'Weekdays', 'Weekly', 'Custom'] as const;
 
+const WEEKDAYS = [
+  { value: '1', label: 'Monday' },
+  { value: '2', label: 'Tuesday' },
+  { value: '3', label: 'Wednesday' },
+  { value: '4', label: 'Thursday' },
+  { value: '5', label: 'Friday' },
+  { value: '6', label: 'Saturday' },
+  { value: '0', label: 'Sunday' },
+] as const;
+
 function generateTimeOptions(): string[] {
   const times: string[] = [];
   for (let h = 0; h < 24; h++) {
@@ -20,7 +30,7 @@ function generateTimeOptions(): string[] {
       const hour12 = h % 12 || 12;
       const ampm = h < 12 ? 'AM' : 'PM';
       const minuteStr = m.toString().padStart(2, '0');
-      times.push(`${hour12}:${minuteStr} ${ampm}`);
+      times.push(`${hour12.toString().padStart(2, '0')}:${minuteStr} ${ampm}`);
     }
   }
   return times;
@@ -39,7 +49,7 @@ function parseTimeTo24(time: string): { hour: number; minute: number } {
   return { hour, minute };
 }
 
-function buildCron(frequency: string, time: string): string {
+function buildCron(frequency: string, time: string, weekday: string): string {
   const { hour, minute } = parseTimeTo24(time);
   switch (frequency) {
     case 'Hourly':
@@ -49,13 +59,14 @@ function buildCron(frequency: string, time: string): string {
     case 'Weekdays':
       return `${minute} ${hour} * * 1-5`;
     case 'Weekly':
-      return `${minute} ${hour} * * 1`;
+      return `${minute} ${hour} * * ${weekday}`;
     default:
       return `${minute} ${hour} * * *`;
   }
 }
 
-function buildDisplay(frequency: string, time: string): string {
+function buildDisplay(frequency: string, time: string, weekday: string): string {
+  const dayName = WEEKDAYS.find((d) => d.value === weekday)?.label ?? 'Monday';
   switch (frequency) {
     case 'Hourly':
       return 'Every hour';
@@ -64,7 +75,7 @@ function buildDisplay(frequency: string, time: string): string {
     case 'Weekdays':
       return `Weekdays at ${time}`;
     case 'Weekly':
-      return `Weekly on Monday at ${time}`;
+      return `${dayName}s at ${time}`;
     default:
       return `${frequency} at ${time}`;
   }
@@ -81,7 +92,8 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
   const [name, setName] = useState(editing?.name ?? '');
   const [prompt, setPrompt] = useState(editing?.prompt ?? '');
   const [selectedFrequency, setSelectedFrequency] = useState<string>('Daily');
-  const [selectedTime, setSelectedTime] = useState('9:00 AM');
+  const [selectedWeekday, setSelectedWeekday] = useState('1');
+  const [selectedTime, setSelectedTime] = useState('09:00 AM');
   const [customSchedule, setCustomSchedule] = useState(editing?.scheduleDisplay ?? '');
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const timeListRef = useRef<HTMLDivElement>(null);
@@ -142,11 +154,14 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
     }
   }, [timePickerOpen]);
 
+  const computedCron = selectedFrequency === 'Custom' ? '' : buildCron(selectedFrequency, selectedTime, selectedWeekday);
+  const computedDisplay = selectedFrequency === 'Custom' ? customSchedule : buildDisplay(selectedFrequency, selectedTime, selectedWeekday);
+
   const handleSubmit = () => {
     if (!(name.trim() && prompt.trim() && providerId && modelId)) return;
 
-    const scheduleCron = selectedFrequency === 'Custom' ? '' : buildCron(selectedFrequency, selectedTime);
-    const scheduleDisplay = selectedFrequency === 'Custom' ? customSchedule : buildDisplay(selectedFrequency, selectedTime);
+    const scheduleCron = computedCron;
+    const scheduleDisplay = computedDisplay;
 
     if (editing) {
       onSave({
@@ -202,58 +217,102 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
         />
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <label className="font-medium text-sm">Schedule</label>
-        <Select onValueChange={setSelectedFrequency} value={selectedFrequency}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select frequency" />
-          </SelectTrigger>
-          <SelectContent>
-            {SCHEDULE_FREQUENCIES.map((freq) => (
-              <SelectItem key={freq} value={freq}>
-                {freq}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
 
         {selectedFrequency === 'Custom' ? (
-          <input
-            className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            onChange={(e) => setCustomSchedule(e.target.value)}
-            placeholder="every weekday at 9am"
-            value={customSchedule}
-          />
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-2">
+              <Select onValueChange={setSelectedFrequency} value={selectedFrequency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Frequency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCHEDULE_FREQUENCIES.map((freq) => (
+                    <SelectItem key={freq} value={freq}>
+                      {freq}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <input
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              onChange={(e) => setCustomSchedule(e.target.value)}
+              placeholder="e.g. 0 9 * * 1-5"
+              value={customSchedule}
+            />
+          </div>
         ) : (
-          <div className="relative mt-2">
-            <button
-              className="flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-left text-sm transition-colors hover:border-ring"
-              onClick={() => setTimePickerOpen(!timePickerOpen)}
-              type="button"
-            >
-              <span>{selectedTime}</span>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </button>
-            {timePickerOpen && (
-              <div
-                className="absolute z-50 mt-1 max-h-52 w-full overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md"
-                ref={timeListRef}
-              >
-                {TIME_OPTIONS.map((time) => (
+          <div className="space-y-2">
+            <div className={`grid gap-2 ${selectedFrequency === 'Weekly' ? 'grid-cols-3' : selectedFrequency === 'Hourly' ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              <Select onValueChange={setSelectedFrequency} value={selectedFrequency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Frequency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCHEDULE_FREQUENCIES.map((freq) => (
+                    <SelectItem key={freq} value={freq}>
+                      {freq}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedFrequency === 'Weekly' && (
+                <Select onValueChange={setSelectedWeekday} value={selectedWeekday}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WEEKDAYS.map((day) => (
+                      <SelectItem key={day.value} value={day.value}>
+                        {day.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {selectedFrequency !== 'Hourly' && (
+                <div className="relative">
                   <button
-                    className={`w-full rounded-sm px-3 py-1.5 text-left text-sm transition-colors ${
-                      time === selectedTime ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-accent/50'
-                    }`}
-                    data-active={time === selectedTime}
-                    key={time}
-                    onClick={() => handleTimeChange(time)}
+                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background hover:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                    onClick={() => setTimePickerOpen(!timePickerOpen)}
                     type="button"
                   >
-                    {time}
+                    <span>{selectedTime}</span>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
                   </button>
-                ))}
-              </div>
-            )}
+                  {timePickerOpen && (
+                    <div
+                      className="absolute z-50 mt-1 max-h-52 w-full overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md"
+                      ref={timeListRef}
+                    >
+                      {TIME_OPTIONS.map((time) => (
+                        <button
+                          className={`w-full rounded-sm px-3 py-1.5 text-left text-sm transition-colors ${
+                            time === selectedTime ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-accent/50'
+                          }`}
+                          data-active={time === selectedTime}
+                          key={time}
+                          onClick={() => handleTimeChange(time)}
+                          type="button"
+                        >
+                          {time}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {computedCron && (
+          <div className="rounded-md bg-muted/50 px-3 py-1.5">
+            <span className="font-mono text-muted-foreground text-xs">{computedCron}</span>
           </div>
         )}
       </div>

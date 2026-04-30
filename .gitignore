@@ -38,3 +38,6 @@ src-tauri/binaries/
 
 # Sidecar build artifacts
 src-tauri/sidecar-opencode/dist/
+
+# Superpowers brainstorming
+.superpowers/brainstorm/

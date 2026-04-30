@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.7.1
+
+- 
+
 ## v0.7.0
 
 - **Automations** — Scheduled AI automations: creation/management on the Home tab, cron-based scheduling in Rust, a run triage panel in the Sidebar, and filtering of automation-triggered tasks from the regular Sessions tab

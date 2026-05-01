@@ -147,6 +147,17 @@ export default function HomePage() {
               <div className="flex border-border border-t">
                 <button
                   className={`flex-1 px-4 py-2.5 font-medium text-sm transition-colors ${
+                    activeTab === 'automations'
+                      ? 'border-primary border-b-2 text-foreground'
+                      : 'border-transparent border-b-2 text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setActiveTab('automations')}
+                  type="button"
+                >
+                  Automations
+                </button>
+                <button
+                  className={`flex-1 px-4 py-2.5 font-medium text-sm transition-colors ${
                     activeTab === 'packs'
                       ? 'border-primary border-b-2 text-foreground'
                       : 'border-transparent border-b-2 text-muted-foreground hover:text-foreground'
@@ -166,17 +177,6 @@ export default function HomePage() {
                   type="button"
                 >
                   Skills Catalog
-                </button>
-                <button
-                  className={`flex-1 px-4 py-2.5 font-medium text-sm transition-colors ${
-                    activeTab === 'automations'
-                      ? 'border-primary border-b-2 text-foreground'
-                      : 'border-transparent border-b-2 text-muted-foreground hover:text-foreground'
-                  }`}
-                  onClick={() => setActiveTab('automations')}
-                  type="button"
-                >
-                  Automations
                 </button>
               </div>
 

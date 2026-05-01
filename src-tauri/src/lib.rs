@@ -2,6 +2,7 @@ use std::sync::Mutex;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{Emitter, Manager};
 
+mod automation_dispatch;
 mod automation_scheduler;
 mod commands;
 mod db;

@@ -4,15 +4,12 @@ use std::sync::{Arc, Mutex};
 
 use chrono::{DateTime, Utc};
 use cron::Schedule;
-use rusqlite::Connection;
 use std::str::FromStr;
 use tauri::{AppHandle, Emitter, Manager};
 use uuid::Uuid;
 
+use crate::automation_dispatch::{build_dispatch_context, spawn_start_task_dispatch};
 use crate::db::{automations as db_automations, DbState};
-use crate::sidecar::{
-    self, ApiKeys, FolderPermissionPayload, SidecarCommand, SidecarState, StartTaskPayload,
-};
 
 struct ScheduledItem {
     next_fire: DateTime<Utc>,
@@ -62,115 +59,6 @@ impl Default for AutomationSchedulerState {
 
 pub struct AutomationScheduler {
     queue: Arc<Mutex<BinaryHeap<ScheduledItem>>>,
-}
-
-/// Resolved context needed to dispatch a `StartTask` to the sidecar.
-struct StartTaskDispatch {
-    task_id: String,
-    prompt: String,
-    working_directory: Option<String>,
-    folder_permissions: Option<Vec<FolderPermissionPayload>>,
-    custom_prompt: Option<String>,
-    mcp_servers: Option<serde_json::Value>,
-    model_id: String,
-    api_keys: ApiKeys,
-}
-
-/// Resolve workspace + settings + secrets needed to dispatch a `StartTask` for an automation.
-fn build_dispatch_context(
-    conn: &Connection,
-    automation: &db_automations::StoredAutomation,
-    task_id: String,
-) -> Result<StartTaskDispatch, String> {
-    let working_directory = crate::db::workspaces::get_workspace(conn, &automation.workspace_id)
-        .map(|w| w.folder_path);
-
-    let workspace_perms =
-        crate::db::workspace_permissions::get_workspace_permissions(conn, &automation.workspace_id);
-    let mut perms: Vec<FolderPermissionPayload> = Vec::new();
-    if let Some(ref wd) = working_directory {
-        perms.push(FolderPermissionPayload {
-            path: wd.clone(),
-            access_level: "read-write".to_string(),
-            source: Some("workspace".to_string()),
-        });
-    }
-    perms.extend(workspace_perms.into_iter().map(|wp| FolderPermissionPayload {
-        path: wp.folder_path,
-        access_level: wp.access_level,
-        source: Some(wp.source),
-    }));
-    let folder_permissions = if perms.is_empty() { None } else { Some(perms) };
-
-    let custom_prompt = if crate::db::settings::get_user_prompt_enabled(conn) {
-        crate::db::settings::get_user_prompt_text(conn)
-    } else {
-        None
-    };
-
-    let mcp_servers = crate::db::settings::get_mcp_servers_config(conn)
-        .map(|c| serde_json::to_value(c).unwrap());
-
-    let api_keys = sidecar::get_all_api_keys()
-        .map_err(|e| format!("Failed to get API keys: {}", e))?;
-
-    Ok(StartTaskDispatch {
-        task_id,
-        prompt: automation.prompt.clone(),
-        working_directory,
-        folder_permissions,
-        custom_prompt,
-        mcp_servers,
-        model_id: automation.model_id.clone(),
-        api_keys,
-    })
-}
-
-/// Send `StartTask` to the sidecar, spawning it if needed. Errors are logged.
-fn spawn_start_task_dispatch(app: &AppHandle, dispatch: StartTaskDispatch) {
-    let app_handle = app.clone();
-    tauri::async_runtime::spawn(async move {
-        let sidecar_state = app_handle.state::<SidecarState>();
-        let mut manager = sidecar_state.manager.lock().await;
-        if !manager.is_running() {
-            if let Err(e) = manager.spawn(&app_handle).await {
-                eprintln!("[AutomationScheduler] Failed to spawn sidecar: {}", e);
-                return;
-            }
-        }
-
-        let StartTaskDispatch {
-            task_id,
-            prompt,
-            working_directory,
-            folder_permissions,
-            custom_prompt,
-            mcp_servers,
-            model_id,
-            api_keys,
-        } = dispatch;
-
-        if let Err(e) = manager
-            .send_command(SidecarCommand::StartTask {
-                task_id: task_id.clone(),
-                payload: StartTaskPayload {
-                    task_id,
-                    prompt,
-                    api_keys: Some(api_keys),
-                    working_directory,
-                    model_id: Some(model_id),
-                    folder_permissions,
-                    custom_prompt,
-                    mcp_servers,
-                    skip_config: None,
-                    arena_id: None,
-                },
-            })
-            .await
-        {
-            eprintln!("[AutomationScheduler] Failed to send StartTask: {}", e);
-        }
-    });
 }
 
 impl AutomationScheduler {

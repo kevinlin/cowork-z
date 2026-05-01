@@ -71,12 +71,62 @@ impl AutomationScheduler {
     /// Normalize a cron expression for the `cron` crate which requires 6-7 fields
     /// (sec min hour dom month dow [year]). Standard 5-field Unix cron (min hour dom month dow)
     /// is converted by prepending "0" for seconds.
+    ///
+    /// The `cron` crate interprets numeric day-of-week as 1-indexed Sunday-first
+    /// (1=Sun … 7=Sat), whereas standard Unix cron uses 0-indexed (0=Sun … 6=Sat).
+    /// To avoid mismatches we replace the dow field with named abbreviations.
     fn normalize_cron(expr: &str) -> String {
         let fields: Vec<&str> = expr.split_whitespace().collect();
         if fields.len() == 5 {
-            format!("0 {}", expr)
+            let dow_converted = Self::convert_dow_to_named(fields[4]);
+            format!(
+                "0 {} {} {} {} {}",
+                fields[0], fields[1], fields[2], fields[3], dow_converted
+            )
         } else {
             expr.to_string()
+        }
+    }
+
+    /// Convert a numeric Unix-cron dow field (0=Sun,1=Mon..6=Sat) to named
+    /// abbreviations that the `cron` crate handles unambiguously.
+    fn convert_dow_to_named(field: &str) -> String {
+        const NAMES: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+        if field == "*" {
+            return field.to_string();
+        }
+
+        let mut parts: Vec<String> = Vec::new();
+        for segment in field.split(',') {
+            if let Some(slash_pos) = segment.find('/') {
+                let (base, step) = segment.split_at(slash_pos);
+                let converted_base = Self::convert_dow_segment(base, &NAMES);
+                parts.push(format!("{}{}", converted_base, step));
+            } else {
+                parts.push(Self::convert_dow_segment(segment, &NAMES));
+            }
+        }
+        parts.join(",")
+    }
+
+    fn convert_dow_segment(segment: &str, names: &[&str; 7]) -> String {
+        if segment == "*" {
+            return segment.to_string();
+        }
+        if let Some((start_s, end_s)) = segment.split_once('-') {
+            let start = Self::dow_to_name(start_s, names);
+            let end = Self::dow_to_name(end_s, names);
+            format!("{}-{}", start, end)
+        } else {
+            Self::dow_to_name(segment, names)
+        }
+    }
+
+    fn dow_to_name(value: &str, names: &[&str; 7]) -> String {
+        match value.parse::<u8>() {
+            Ok(n) => names[(n % 7) as usize].to_string(),
+            Err(_) => value.to_string(), // already named (Mon, Tue, etc.)
         }
     }
 
@@ -187,7 +237,6 @@ impl AutomationScheduler {
         let run_id = Uuid::new_v4().to_string();
 
         if scheduler_state.is_running.load(Ordering::Relaxed) {
-            // Queue as pending
             let run = db_automations::StoredAutomationRun {
                 id: run_id,
                 automation_id: automation_id.to_string(),

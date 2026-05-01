@@ -34,6 +34,8 @@ The following corrections were applied during implementation and differ from the
 
 10. **Single-row `AutomationRunItem` layout:** The original plan rendered each run item as a two-row card (name + time on row 1, status text on row 2). The corrected implementation collapses this into a single row: `automationName | status | timeAgo`. The status text sits between the name and time, truncating with ellipsis when space is tight. This reduces vertical space and improves scan-ability in the sidebar triage panel.
 
+11. **Cron day-of-week numeric mismatch (`cron` crate v0.12):** The `cron` crate interprets numeric day-of-week values as 1-indexed Sunday-first (`1=Sun … 7=Sat`), whereas standard Unix cron uses 0-indexed (`0=Sun, 1=Mon … 6=Sat`). The frontend's `buildCron()` generates standard Unix format (e.g., `1-5` for Mon–Fri), but the crate treated `1-5` as Sun–Thu, silently skipping Fridays (and shifting all other days). This caused scheduled automations to never fire on the correct days. The fix converts numeric dow values to named abbreviations (`Mon`, `Tue`, etc.) in `normalize_cron()` before passing to the crate, since named days are handled unambiguously. Affected expressions: ranges (`1-5` → `Mon-Fri`), lists (`1,3,5` → `Mon,Wed,Fri`), single values (`5` → `Fri`), and step patterns (`*/2` passthrough).
+
 ---
 
 ## File Structure

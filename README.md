@@ -15,7 +15,9 @@
 </p>
 
 <p align="center">
-  <img src="assets/ScreenRecording_LocatePhotos.gif" alt="Cowork-Z — AI agent locating and organizing photos locally" width="800" />
+  <a href="https://github.com/kevinlin/cowork-z/releases/latest">
+    <img src="assets/Automation Announcement.png" alt="Cowork-Z — Automation Tasks: schedule recurring AI tasks that run unattended" width="800" />
+  </a>
 </p>
 
 <p align="center">
@@ -37,6 +39,32 @@ Whether you're a developer protecting proprietary code, a researcher with sensit
 ---
 
 ## Features
+
+### 🤖 Automation Tasks <sup>NEW</sup>
+
+Schedule recurring AI tasks that run unattended — and only ping you when there's something worth your attention.
+
+- **Set it on a cron** — Daily, weekdays, weekly, or any custom schedule. A structured picker lets you configure frequency, day, and time with a live cron preview; switch to Custom mode for direct cron input.
+- **Runs while you sleep** — Each automation goes through the full task pipeline, hands-free. The Rust-based scheduler fires on schedule, dispatches work to the sidecar, and queues runs when the agent is busy.
+- **Smart triage** — Findings surface in a dedicated sidebar tab with unread badges; quiet runs with no findings are auto-archived. Click any run to jump straight to the full agent output.
+- **Bring your own model** — Pin a specific provider and model per automation. Works with all 12+ supported providers.
+- **Workspace-scoped** — Each automation is bound to a workspace. Switch workspaces and the automations list and triage view update automatically.
+- **Run Now** — Trigger any automation on demand from the action menu, bypassing the schedule.
+
+---
+
+### 🏟️ Arena — Side-by-Side Model Comparison
+
+Type one prompt, run 3 models in parallel, and compare results side-by-side. Arena helps you find the best model for a given task without switching back and forth.
+
+- **3 independent agents** — each column runs its own OpenCode session with a different model, sharing the same prompt and workspace
+- **Any model mix** — pick from all 12+ supported providers per column (e.g., Claude + GPT + Gemini in one arena)
+- **Rich output** — full Markdown rendering, syntax-highlighted code blocks, tool call cards, clickable links, and streaming in every column
+- **Tabbed layout** — switch between columns with model-name tabs and live status badges
+- **Follow-up conversations** — send additional messages and all 3 agents continue from where they left off
+- **Sidebar integration** — arena sessions appear alongside regular tasks with an expandable disclosure triangle showing each model's individual chat
+
+---
 
 ### 🔒 Private by design
 
@@ -231,6 +259,7 @@ Type a prompt in the launcher (or press **`Cmd + N`**) and hit Enter. The agent 
 
 ### Go further (optional)
 
+- **Automations** — Switch to the **Automations** tab on the Home screen. Create a recurring task with a schedule and model, and let it run on its own. Findings appear in the sidebar triage tab.
 - **Starter Packs** — Browse the Home screen, pick a guided workspace pack, and click **Install**. The app creates a workspace and the agent walks you through `START_HERE.md`.
 - **Skills Catalog** — Click **Install** on any skill from the Home screen to add it to your OpenCode skills directory. No restart needed.
 - **Skills Manager** — Open the Skills Manager from the sidebar to register Git repositories as skill sources, browse discovered skills, and install or update them across multiple skills directories.

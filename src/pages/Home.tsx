@@ -23,7 +23,7 @@ export default function HomePage() {
   const [selectedSkills, setSelectedSkills] = useState<SkillMeta[]>([]);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState<HomeTab>('packs');
+  const [activeTab, setActiveTab] = useState<HomeTab>('automations');
 
   const { startTask, isLoading, addTaskUpdate, enqueuePermissionRequest } = useTaskStore();
   const navigate = useNavigate();

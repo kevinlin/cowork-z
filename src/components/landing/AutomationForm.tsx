@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Clock } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useProviderSettings } from '@/components/settings/hooks/useProviderSettings';
 import { ProviderGrid } from '@/components/settings/ProviderGrid';
 import { ProviderSettingsPanel } from '@/components/settings/ProviderSettingsPanel';
@@ -8,76 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
+import { buildCron, buildDisplay, detectFrequencyFromCron, formatHour24ToDisplay, WEEKDAY_OPTIONS } from '@/lib/cron-utils';
 import type { Automation, ConnectedProvider, CreateAutomationInput, ProviderId, UpdateAutomationInput } from '@/shared';
 import { getActiveProvider, isProviderReady } from '@/shared';
 
 const SCHEDULE_FREQUENCIES = ['Hourly', 'Daily', 'Weekdays', 'Weekly', 'Custom'] as const;
 
-const WEEKDAYS = [
-  { value: '1', label: 'Monday' },
-  { value: '2', label: 'Tuesday' },
-  { value: '3', label: 'Wednesday' },
-  { value: '4', label: 'Thursday' },
-  { value: '5', label: 'Friday' },
-  { value: '6', label: 'Saturday' },
-  { value: '0', label: 'Sunday' },
-] as const;
-
-function generateTimeOptions(): string[] {
-  const times: string[] = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const hour12 = h % 12 || 12;
-      const ampm = h < 12 ? 'AM' : 'PM';
-      const minuteStr = m.toString().padStart(2, '0');
-      times.push(`${hour12.toString().padStart(2, '0')}:${minuteStr} ${ampm}`);
-    }
-  }
-  return times;
-}
-
-const TIME_OPTIONS = generateTimeOptions();
-
-function parseTimeTo24(time: string): { hour: number; minute: number } {
-  const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return { hour: 9, minute: 0 };
-  let hour = Number.parseInt(match[1], 10);
-  const minute = Number.parseInt(match[2], 10);
-  const period = match[3].toUpperCase();
-  if (period === 'AM' && hour === 12) hour = 0;
-  if (period === 'PM' && hour !== 12) hour += 12;
-  return { hour, minute };
-}
-
-function buildCron(frequency: string, time: string, weekday: string): string {
-  const { hour, minute } = parseTimeTo24(time);
-  switch (frequency) {
-    case 'Hourly':
-      return `${minute} * * * *`;
-    case 'Daily':
-      return `${minute} ${hour} * * *`;
-    case 'Weekdays':
-      return `${minute} ${hour} * * 1-5`;
-    case 'Weekly':
-      return `${minute} ${hour} * * ${weekday}`;
-    default:
-      return `${minute} ${hour} * * *`;
-  }
-}
-
-function buildDisplay(frequency: string, time: string, weekday: string): string {
-  const dayName = WEEKDAYS.find((d) => d.value === weekday)?.label ?? 'Monday';
-  switch (frequency) {
-    case 'Hourly':
-      return 'Every hour';
-    case 'Daily':
-      return `Daily at ${time}`;
-    case 'Weekdays':
-      return `Weekdays at ${time}`;
-    case 'Weekly':
-      return `${dayName}s at ${time}`;
-    default:
-      return `${frequency} at ${time}`;
+const TIME_OPTIONS: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 15) {
+    TIME_OPTIONS.push(formatHour24ToDisplay(h, m));
   }
 }
 
@@ -88,37 +28,8 @@ interface AutomationFormProps {
   onCancel: () => void;
 }
 
-function detectFrequencyFromCron(cron: string): { frequency: string; weekday: string; time: string } {
-  const fields = cron.trim().split(/\s+/);
-  if (fields.length !== 5) return { frequency: 'Custom', weekday: '1', time: '09:00 AM' };
-
-  const [minField, hourField, , , dowField] = fields;
-  const numericPattern = /^\d+$/;
-
-  if (hourField === '*' && dowField === '*') {
-    return { frequency: 'Hourly', weekday: '1', time: '09:00 AM' };
-  }
-
-  const hasNumericTime = numericPattern.test(minField) && numericPattern.test(hourField);
-  if (!hasNumericTime) {
-    return { frequency: 'Custom', weekday: '1', time: '09:00 AM' };
-  }
-
-  const hour = Number.parseInt(hourField, 10);
-  const minute = Number.parseInt(minField, 10);
-  const hour12 = hour % 12 || 12;
-  const ampm = hour < 12 ? 'AM' : 'PM';
-  const time = `${hour12.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${ampm}`;
-
-  if (dowField === '*') return { frequency: 'Daily', weekday: '1', time };
-  if (dowField === '1-5') return { frequency: 'Weekdays', weekday: '1', time };
-  if (numericPattern.test(dowField)) return { frequency: 'Weekly', weekday: dowField, time };
-
-  return { frequency: 'Custom', weekday: '1', time };
-}
-
 export default function AutomationForm({ workspaceId, editing, onSave, onCancel }: AutomationFormProps) {
-  const editingSchedule = editing ? detectFrequencyFromCron(editing.scheduleCron) : null;
+  const editingSchedule = useMemo(() => (editing ? detectFrequencyFromCron(editing.scheduleCron) : null), [editing]);
 
   const [name, setName] = useState(editing?.name ?? '');
   const [prompt, setPrompt] = useState(editing?.prompt ?? '');
@@ -296,7 +207,7 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
                     <SelectValue placeholder="Day" />
                   </SelectTrigger>
                   <SelectContent>
-                    {WEEKDAYS.map((day) => (
+                    {WEEKDAY_OPTIONS.map((day) => (
                       <SelectItem key={day.value} value={day.value}>
                         {day.label}
                       </SelectItem>

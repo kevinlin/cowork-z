@@ -30,6 +30,8 @@ The following corrections were applied during implementation and differ from the
 
 8. **Sidebar event subscriptions refresh the runs list:** The original plan only subscribed to `automation:run_completed` to refresh `unreadCount`. The corrected implementation subscribes to both `automation:run_started` and `automation:run_completed` in `Sidebar.tsx`, calling `loadRuns` on both events so the `AutomationRunsPanel` reactively updates run statuses without requiring page refresh.
 
+9. **Scheduler `fire_automation` and `process_pending_runs` must create tasks and dispatch to sidecar:** The original plan's `fire_automation()` only created an `automation_run` record with `status: "running"` but never created a `task` record, linked `automation_run.task_id`, or dispatched `StartTask` to the sidecar. This caused scheduled runs to show as "Running..." in the UI with no actual task executing, and `complete_task` could never find the run (since `task_id` was `None`). The corrected implementation mirrors the `run_automation_now` command flow: creates a task record, sets `automation_run_id` on it, creates the run linked to the task, resolves workspace context (permissions, API keys, model, MCP config), and dispatches `StartTask` to the sidecar. The same fix was applied to `process_pending_runs` for queued runs. Since the scheduler runs on a `std::thread` (not Tokio), sidecar dispatch uses a spawned `tokio::runtime::Runtime` on a new thread.
+
 ---
 
 ## File Structure

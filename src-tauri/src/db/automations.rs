@@ -222,6 +222,15 @@ pub fn update_automation_run_status(
     Ok(())
 }
 
+pub fn set_run_task_id(conn: &Connection, run_id: &str, task_id: &str) -> Result<(), String> {
+    conn.execute(
+        "UPDATE automation_runs SET task_id = ?1 WHERE id = ?2",
+        params![task_id, run_id],
+    )
+    .map_err(|e| format!("Failed to set automation_run task_id: {}", e))?;
+    Ok(())
+}
+
 pub fn mark_run_read(conn: &Connection, run_id: &str) -> Result<(), String> {
     conn.execute(
         "UPDATE automation_runs SET is_read = 1 WHERE id = ?1",

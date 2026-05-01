@@ -7,6 +7,7 @@
 - **Next run time on automation cards** — Automation cards on the Home tab now display the next scheduled run time; daily automations show just the time (e.g., "9:00 AM"), weekly automations show the weekday and time (e.g., "Monday 9:00 AM"); disabled automations hide the next run indicator
 - **Fix: Custom cron schedules not saved** — Custom cron expressions (e.g., `*/5 * * * *`) were saved as empty strings, causing the scheduler to reject them; the custom cron input now correctly populates `scheduleCron`
 - **Fix: Editing custom-schedule automations defaults to Daily** — Opening the edit form for an automation with a custom cron now correctly detects the frequency and defaults the picker to "Custom" with the cron expression pre-filled
+- **Fix: Scheduled automation tasks never started** — The scheduler's `fire_automation` created an automation run record with "running" status but never created a task record or dispatched `StartTask` to the sidecar, so scheduled runs appeared as "Running..." with no actual execution; the same issue affected `process_pending_runs` for queued runs; both now mirror the `run_automation_now` flow: create task, link run, resolve workspace context, and dispatch to sidecar via a spawned Tokio runtime
 
 ## v0.7.1
 

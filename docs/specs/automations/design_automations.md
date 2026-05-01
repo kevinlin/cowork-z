@@ -68,7 +68,8 @@ A long-lived struct spawned at app startup:
 - Loads all enabled automations from SQLite on init
 - Maintains an in-memory priority queue ordered by next-fire-time
 - Tick loop runs every 30 seconds checking if any automation is due
-- On fire: creates an `automation_run` record, then calls the existing `start_task` flow
+- On fire: creates a `task` record, creates an `automation_run` linked to that task (with `task_id` set), sets `automation_run_id` on the task, resolves workspace context (permissions, API keys, model, MCP config), and dispatches `StartTask` to the sidecar — mirroring the `run_automation_now` / `start_task` command flow
+- Sidecar dispatch uses a spawned Tokio runtime (`std::thread` → `tokio::runtime::Runtime::new()`) since the scheduler runs on a standard thread, not the Tauri async runtime
 - Sequential execution (v1): if a task is already active, the run is queued as `pending`
 
 ### Concurrency model (v1)
@@ -80,7 +81,7 @@ A long-lived struct spawned at app startup:
   → No:      sleep until next tick
 ```
 
-When a task completes, the scheduler checks for pending automation runs and starts the next one (FIFO).
+When a task completes, the scheduler checks for pending automation runs and starts the next one (FIFO). Pending runs go through the same full dispatch flow: create task, link run, resolve context, and send `StartTask` to the sidecar.
 
 ### Lifecycle events
 

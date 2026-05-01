@@ -4,7 +4,8 @@
 
 ## v0.7.3
 
-- 
+- **Compact automation run items** — Sidebar automation run items now display as a single row (name, status, time) instead of two rows; status text truncates with ellipsis when space is tight
+
 
 ## v0.7.2
 

@@ -32,6 +32,8 @@ The following corrections were applied during implementation and differ from the
 
 9. **Scheduler `fire_automation` and `process_pending_runs` must create tasks and dispatch to sidecar:** The original plan's `fire_automation()` only created an `automation_run` record with `status: "running"` but never created a `task` record, linked `automation_run.task_id`, or dispatched `StartTask` to the sidecar. This caused scheduled runs to show as "Running..." in the UI with no actual task executing, and `complete_task` could never find the run (since `task_id` was `None`). The corrected implementation mirrors the `run_automation_now` command flow: creates a task record, sets `automation_run_id` on it, creates the run linked to the task, resolves workspace context (permissions, API keys, model, MCP config), and dispatches `StartTask` to the sidecar. The same fix was applied to `process_pending_runs` for queued runs. Since the scheduler runs on a `std::thread` (not Tokio), sidecar dispatch uses a spawned `tokio::runtime::Runtime` on a new thread.
 
+10. **Single-row `AutomationRunItem` layout:** The original plan rendered each run item as a two-row card (name + time on row 1, status text on row 2). The corrected implementation collapses this into a single row: `automationName | status | timeAgo`. The status text sits between the name and time, truncating with ellipsis when space is tight. This reduces vertical space and improves scan-ability in the sidebar triage panel.
+
 ---
 
 ## File Structure
@@ -1644,6 +1646,8 @@ git commit -m "feat(ui): add Automations tab to Home page with list, card, and f
 
 Create `src/components/sidebar/AutomationRunItem.tsx`:
 
+Single-row layout: `automationName | status (truncated) | timeAgo`. The status label sits between name and time with `truncate` so it ellipses when space is tight. See implementation note #10 above.
+
 ```typescript
 import type { AutomationRun } from '@/shared';
 
@@ -1656,7 +1660,7 @@ interface AutomationRunItemProps {
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
+  const minutes = Math.floor(diff / 60_000);
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
@@ -1664,32 +1668,32 @@ function timeAgo(dateStr: string | null): string {
   return `${days}d ago`;
 }
 
+function statusLabel(run: AutomationRun): { text: string; className: string } {
+  if (run.status === 'running') return { text: 'Running…', className: 'text-blue-500' };
+  if (run.status === 'completed' && run.hasFindings) return { text: 'Has findings', className: 'text-amber-500' };
+  if (run.status === 'completed') return { text: 'No issues', className: 'text-green-500' };
+  if (run.status === 'failed') return { text: 'Failed', className: 'text-destructive' };
+  if (run.status === 'pending') return { text: 'Pending…', className: 'text-muted-foreground' };
+  return { text: '', className: '' };
+}
+
 export default function AutomationRunItem({ run, automationName, onClick }: AutomationRunItemProps) {
   const isUnread = !run.isRead && run.hasFindings;
+  const status = statusLabel(run);
 
   return (
     <button
-      className={`w-full rounded-md border p-2.5 text-left transition-colors hover:bg-accent/50 ${
-        isUnread ? 'border-l-amber-500 border-l-[3px] border-border' : 'border-border opacity-60'
+      className={`w-full rounded-md border border-border px-2.5 py-1.5 text-left transition-colors hover:bg-accent/50 ${
+        isUnread ? 'border-l-[3px] border-l-amber-500' : 'opacity-60'
       }`}
       onClick={onClick}
       type="button"
     >
-      <div className="flex items-center justify-between">
-        <span className={`truncate text-sm ${isUnread ? 'font-semibold text-foreground' : 'text-foreground'}`}>
-          {automationName}
-        </span>
-        <span className="text-muted-foreground text-xs">{timeAgo(run.startedAt)}</span>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className={`shrink-0 text-sm ${isUnread ? 'font-semibold text-foreground' : 'text-foreground'}`}>{automationName}</span>
+        {status.text && <span className={`min-w-0 truncate text-xs ${status.className}`}>{status.text}</span>}
+        <span className="ml-auto shrink-0 text-muted-foreground text-xs">{timeAgo(run.startedAt)}</span>
       </div>
-      {run.status === 'running' && (
-        <div className="mt-1 text-blue-500 text-xs">Running...</div>
-      )}
-      {run.status === 'completed' && !run.hasFindings && (
-        <div className="mt-1 text-green-500 text-xs">No issues found</div>
-      )}
-      {run.status === 'failed' && (
-        <div className="mt-1 text-destructive text-xs">Failed</div>
-      )}
     </button>
   );
 }

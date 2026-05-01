@@ -8,15 +8,19 @@ const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', '
 function parseCronField(field: string, max: number): number[] {
   const values: number[] = [];
   for (const part of field.split(',')) {
-    const rangeParts = part.split('-');
-    if (rangeParts.length === 2) {
-      const start = Number.parseInt(rangeParts[0], 10);
-      const end = Number.parseInt(rangeParts[1], 10);
-      for (let i = start; i <= end; i++) values.push(i);
-    } else if (part === '*') {
-      for (let i = 0; i <= max; i++) values.push(i);
+    const stepMatch = part.match(/^(.+)\/(\d+)$/);
+    const step = stepMatch ? Number.parseInt(stepMatch[2], 10) : 1;
+    const base = stepMatch ? stepMatch[1] : part;
+
+    if (base === '*') {
+      for (let i = 0; i <= max; i += step) values.push(i);
+    } else if (base.includes('-')) {
+      const [startStr, endStr] = base.split('-');
+      const start = Number.parseInt(startStr, 10);
+      const end = Number.parseInt(endStr, 10);
+      for (let i = start; i <= end; i += step) values.push(i);
     } else {
-      values.push(Number.parseInt(part, 10));
+      values.push(Number.parseInt(base, 10));
     }
   }
   return values.sort((a, b) => a - b);

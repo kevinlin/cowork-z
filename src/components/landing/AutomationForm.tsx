@@ -88,13 +88,44 @@ interface AutomationFormProps {
   onCancel: () => void;
 }
 
+function detectFrequencyFromCron(cron: string): { frequency: string; weekday: string; time: string } {
+  const fields = cron.trim().split(/\s+/);
+  if (fields.length !== 5) return { frequency: 'Custom', weekday: '1', time: '09:00 AM' };
+
+  const [minField, hourField, , , dowField] = fields;
+  const numericPattern = /^\d+$/;
+
+  if (hourField === '*' && dowField === '*') {
+    return { frequency: 'Hourly', weekday: '1', time: '09:00 AM' };
+  }
+
+  const hasNumericTime = numericPattern.test(minField) && numericPattern.test(hourField);
+  if (!hasNumericTime) {
+    return { frequency: 'Custom', weekday: '1', time: '09:00 AM' };
+  }
+
+  const hour = Number.parseInt(hourField, 10);
+  const minute = Number.parseInt(minField, 10);
+  const hour12 = hour % 12 || 12;
+  const ampm = hour < 12 ? 'AM' : 'PM';
+  const time = `${hour12.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${ampm}`;
+
+  if (dowField === '*') return { frequency: 'Daily', weekday: '1', time };
+  if (dowField === '1-5') return { frequency: 'Weekdays', weekday: '1', time };
+  if (numericPattern.test(dowField)) return { frequency: 'Weekly', weekday: dowField, time };
+
+  return { frequency: 'Custom', weekday: '1', time };
+}
+
 export default function AutomationForm({ workspaceId, editing, onSave, onCancel }: AutomationFormProps) {
+  const editingSchedule = editing ? detectFrequencyFromCron(editing.scheduleCron) : null;
+
   const [name, setName] = useState(editing?.name ?? '');
   const [prompt, setPrompt] = useState(editing?.prompt ?? '');
-  const [selectedFrequency, setSelectedFrequency] = useState<string>('Daily');
-  const [selectedWeekday, setSelectedWeekday] = useState('1');
-  const [selectedTime, setSelectedTime] = useState('09:00 AM');
-  const [customSchedule, setCustomSchedule] = useState(editing?.scheduleDisplay ?? '');
+  const [selectedFrequency, setSelectedFrequency] = useState<string>(editingSchedule?.frequency ?? 'Daily');
+  const [selectedWeekday, setSelectedWeekday] = useState(editingSchedule?.weekday ?? '1');
+  const [selectedTime, setSelectedTime] = useState(editingSchedule?.time ?? '09:00 AM');
+  const [customCron, setCustomCron] = useState(editingSchedule?.frequency === 'Custom' ? (editing?.scheduleCron ?? '') : '');
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const timeListRef = useRef<HTMLDivElement>(null);
   const [providerId, setProviderId] = useState(editing?.providerId ?? '');
@@ -154,8 +185,8 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
     }
   }, [timePickerOpen]);
 
-  const computedCron = selectedFrequency === 'Custom' ? '' : buildCron(selectedFrequency, selectedTime, selectedWeekday);
-  const computedDisplay = selectedFrequency === 'Custom' ? customSchedule : buildDisplay(selectedFrequency, selectedTime, selectedWeekday);
+  const computedCron = selectedFrequency === 'Custom' ? customCron : buildCron(selectedFrequency, selectedTime, selectedWeekday);
+  const computedDisplay = selectedFrequency === 'Custom' ? customCron : buildDisplay(selectedFrequency, selectedTime, selectedWeekday);
 
   const handleSubmit = () => {
     if (!(name.trim() && prompt.trim() && providerId && modelId)) return;
@@ -221,26 +252,24 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
         <label className="font-medium text-sm">Schedule</label>
 
         {selectedFrequency === 'Custom' ? (
-          <div className="space-y-2">
-            <div className="grid grid-cols-1 gap-2">
-              <Select onValueChange={setSelectedFrequency} value={selectedFrequency}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Frequency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SCHEDULE_FREQUENCIES.map((freq) => (
-                    <SelectItem key={freq} value={freq}>
-                      {freq}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Select onValueChange={setSelectedFrequency} value={selectedFrequency}>
+              <SelectTrigger>
+                <SelectValue placeholder="Frequency" />
+              </SelectTrigger>
+              <SelectContent>
+                {SCHEDULE_FREQUENCIES.map((freq) => (
+                  <SelectItem key={freq} value={freq}>
+                    {freq}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <input
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              onChange={(e) => setCustomSchedule(e.target.value)}
-              placeholder="e.g. 0 9 * * 1-5"
-              value={customSchedule}
+              className="h-9 rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring"
+              onChange={(e) => setCustomCron(e.target.value)}
+              placeholder="*/5 * * * *"
+              value={customCron}
             />
           </div>
         ) : (

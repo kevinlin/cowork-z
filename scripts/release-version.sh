@@ -111,7 +111,7 @@ sleep 1
 # ── 7. Commit and push ───────────────────────────────────────────────
 echo ""
 echo "📝 Committing and pushing …"
-git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json UPDATE_LOG.md
+git add package.json src-tauri/Cargo.lock src-tauri/Cargo.toml src-tauri/tauri.conf.json UPDATE_LOG.md
 git commit -m "Release version ${NEW_VERSION}"
 # git push
 

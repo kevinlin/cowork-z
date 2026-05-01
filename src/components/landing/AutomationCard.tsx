@@ -1,6 +1,69 @@
 import { Clock, MoreVertical, Pause, Play, Trash2, Zap } from 'lucide-react';
+import { useMemo } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { Automation } from '@/shared';
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+
+function parseCronField(field: string, max: number): number[] {
+  const values: number[] = [];
+  for (const part of field.split(',')) {
+    const rangeParts = part.split('-');
+    if (rangeParts.length === 2) {
+      const start = Number.parseInt(rangeParts[0], 10);
+      const end = Number.parseInt(rangeParts[1], 10);
+      for (let i = start; i <= end; i++) values.push(i);
+    } else if (part === '*') {
+      for (let i = 0; i <= max; i++) values.push(i);
+    } else {
+      values.push(Number.parseInt(part, 10));
+    }
+  }
+  return values.sort((a, b) => a - b);
+}
+
+function getNextCronDate(cron: string): Date | null {
+  const fields = cron.trim().split(/\s+/);
+  if (fields.length !== 5) return null;
+
+  const minutes = parseCronField(fields[0], 59);
+  const hours = parseCronField(fields[1], 23);
+  const daysOfWeek = parseCronField(fields[4], 7).map((d) => d % 7);
+
+  const now = new Date();
+  const candidate = new Date(now);
+  candidate.setSeconds(0, 0);
+
+  for (let dayOffset = 0; dayOffset < 8; dayOffset++) {
+    candidate.setFullYear(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset);
+    if (!daysOfWeek.includes(candidate.getDay())) continue;
+
+    for (const h of hours) {
+      for (const m of minutes) {
+        candidate.setHours(h, m, 0, 0);
+        if (candidate > now) return candidate;
+      }
+    }
+  }
+  return null;
+}
+
+function getNextRunDisplay(cron: string): string | null {
+  const next = getNextCronDate(cron);
+  if (!next) return null;
+
+  const timeStr = next.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s+/g, ' ');
+
+  const fields = cron.trim().split(/\s+/);
+  const dowField = fields[4];
+  const isSpecificDay = dowField !== '*' && !/[-,]/.test(dowField);
+
+  if (isSpecificDay) {
+    return `${WEEKDAY_NAMES[next.getDay()]} ${timeStr}`;
+  }
+
+  return timeStr;
+}
 
 interface AutomationCardProps {
   automation: Automation;
@@ -11,6 +74,11 @@ interface AutomationCardProps {
 }
 
 export default function AutomationCard({ automation, onEdit, onToggleEnabled, onRunNow, onDelete }: AutomationCardProps) {
+  const nextRunDisplay = useMemo(
+    () => (automation.enabled ? getNextRunDisplay(automation.scheduleCron) : null),
+    [automation.scheduleCron, automation.enabled]
+  );
+
   return (
     <div
       className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-background p-3 transition-colors hover:bg-accent/50"
@@ -36,12 +104,16 @@ export default function AutomationCard({ automation, onEdit, onToggleEnabled, on
         <div className="mt-1 flex items-center gap-2 text-muted-foreground text-xs">
           <Clock className="h-3 w-3" />
           <span>{automation.scheduleDisplay}</span>
+          {nextRunDisplay && (
+            <>
+              <span className="text-muted-foreground/50">·</span>
+              <span>Next: {nextRunDisplay}</span>
+            </>
+          )}
         </div>
       </div>
 
       <button
-        type="button"
-        role="switch"
         aria-checked={automation.enabled}
         aria-label={automation.enabled ? 'Disable automation' : 'Enable automation'}
         className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
@@ -51,6 +123,8 @@ export default function AutomationCard({ automation, onEdit, onToggleEnabled, on
           e.stopPropagation();
           onToggleEnabled(automation.id, !automation.enabled);
         }}
+        role="switch"
+        type="button"
       >
         <span
           className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${

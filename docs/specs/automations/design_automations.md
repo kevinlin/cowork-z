@@ -149,7 +149,8 @@ None. The sidecar receives automation runs as standard `start_task` commands. It
 - Content: list view of automation cards
 
 **List view (automation cards):**
-- Each card shows: name, schedule (human-readable), status badge (Active/Disabled), inline toggle switch for quick enable/disable, last run time
+- Each card shows: name, schedule (human-readable), next scheduled run time, status badge (Active/Disabled), inline toggle switch for quick enable/disable, last run time
+- **Next run time display:** For enabled automations, the card displays the next scheduled run time computed from the cron expression. Daily/hourly automations show just the time (e.g., "9:00 AM"). Weekly automations show the weekday followed by the time (e.g., "Monday 9:00 AM"). Disabled automations do not show a next run time.
 - Toggle switch: positioned between card content and action menu; persists enabled state to DB; when disabled, the scheduler will not fire the automation
 - Action menu per card: Edit, Run Now, Disable/Enable (secondary to toggle), Delete
 - "+ New" button at the top-right of the list

@@ -4,7 +4,8 @@
 
 ## v0.7.2
 
-- 
+- **Next run time on automation cards** — Automation cards on the Home tab now display the next scheduled run time; daily automations show just the time (e.g., "9:00 AM"), weekly automations show the weekday and time (e.g., "Monday 9:00 AM"); disabled automations hide the next run indicator
+
 
 ## v0.7.1
 

@@ -57,7 +57,7 @@ export default function AutomationsList() {
     <div className="flex flex-col gap-3 overflow-y-auto p-4">
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm">
-          {automations.length} automation{automations.length !== 1 ? 's' : ''}
+          {automations.length} automation{automations.length === 1 ? '' : 's'}
         </span>
         <button
           className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs transition-colors hover:bg-primary/90"

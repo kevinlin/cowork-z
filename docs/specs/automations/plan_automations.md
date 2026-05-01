@@ -26,7 +26,9 @@ The following corrections were applied during implementation and differ from the
 
 6. **Run completion wiring (`complete_task` → `mark_automation_run_complete`):** The original plan omitted the critical linkage between task completion and automation run status. The `complete_task` Tauri command now queries `get_running_run_by_task_id` (added to `db/automations.rs`) to find an automation run associated with the completing task. If found, it calls `mark_automation_run_complete` which updates the run's DB status to `completed`, releases the scheduler's `is_running` lock, and emits the `automation:run_completed` event. Without this wiring, runs stayed stuck in "running" status permanently.
 
-7. **Sidebar event subscriptions refresh the runs list:** The original plan only subscribed to `automation:run_completed` to refresh `unreadCount`. The corrected implementation subscribes to both `automation:run_started` and `automation:run_completed` in `Sidebar.tsx`, calling `loadRuns` on both events so the `AutomationRunsPanel` reactively updates run statuses without requiring page refresh.
+7. **Next scheduled run time on AutomationCard:** The card now displays the next scheduled run time alongside the schedule description. The next fire time is computed client-side from the cron expression using a lightweight parser (`getNextCronDate()`). Display format: daily/hourly automations show just the time (e.g., "9:00 AM"); weekly automations show the weekday followed by the time (e.g., "Monday 9:00 AM"). Disabled automations hide the next run time.
+
+8. **Sidebar event subscriptions refresh the runs list:** The original plan only subscribed to `automation:run_completed` to refresh `unreadCount`. The corrected implementation subscribes to both `automation:run_started` and `automation:run_completed` in `Sidebar.tsx`, calling `loadRuns` on both events so the `AutomationRunsPanel` reactively updates run statuses without requiring page refresh.
 
 ---
 
@@ -1422,76 +1424,11 @@ git commit -m "feat(store): add Zustand automation store with CRUD and triage"
 - Create: `src/components/landing/AutomationForm.tsx`
 - Modify: `src/pages/Home.tsx`
 
-- [ ] **Step 1: Create AutomationCard.tsx**
+- [x] **Step 1: Create AutomationCard.tsx**
 
-Create `src/components/landing/AutomationCard.tsx`:
+Create `src/components/landing/AutomationCard.tsx`.
 
-```typescript
-import { Clock, MoreVertical, Pause, Play, Trash2, Zap } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import type { Automation } from '@/shared';
-
-interface AutomationCardProps {
-  automation: Automation;
-  onEdit: (automation: Automation) => void;
-  onToggleEnabled: (id: string, enabled: boolean) => void;
-  onRunNow: (id: string) => void;
-  onDelete: (id: string) => void;
-}
-
-export default function AutomationCard({ automation, onEdit, onToggleEnabled, onRunNow, onDelete }: AutomationCardProps) {
-  return (
-    <div
-      className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-background p-3 transition-colors hover:bg-accent/50"
-      onClick={() => onEdit(automation)}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate font-medium text-sm">{automation.name}</span>
-          {automation.enabled ? (
-            <span className="flex items-center gap-1 text-green-500 text-xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-              Active
-            </span>
-          ) : (
-            <span className="text-muted-foreground text-xs">Disabled</span>
-          )}
-        </div>
-        <div className="mt-1 flex items-center gap-2 text-muted-foreground text-xs">
-          <Clock className="h-3 w-3" />
-          <span>{automation.scheduleDisplay}</span>
-        </div>
-      </div>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-            onClick={(e) => e.stopPropagation()}
-            type="button"
-          >
-            <MoreVertical className="h-4 w-4" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onRunNow(automation.id)}>
-            <Zap className="mr-2 h-4 w-4" />
-            Run Now
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onToggleEnabled(automation.id, !automation.enabled)}>
-            {automation.enabled ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
-            {automation.enabled ? 'Disable' : 'Enable'}
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-destructive" onClick={() => onDelete(automation.id)}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
-```
+The card displays the automation name, status badge, schedule display, and **next scheduled run time** (computed client-side from the cron expression using `getNextCronDate()`). For daily/hourly automations, only the time is shown (e.g., "9:00 AM"). For weekly automations, the weekday is prepended (e.g., "Monday 9:00 AM"). Disabled automations hide the next run time. The card also includes an inline toggle switch and a dropdown action menu (Run Now, Disable/Enable, Delete).
 
 - [x] **Step 2: Create AutomationForm.tsx**
 

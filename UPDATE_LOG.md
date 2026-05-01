@@ -5,7 +5,7 @@
 ## v0.7.3
 
 - **Compact automation run items** — Sidebar automation run items now display as a single row (name, status, time) instead of two rows; status text truncates with ellipsis when space is tight
-
+- **Fix: Automations scheduled on weekdays not triggering** — The `cron` crate (v0.12) interprets numeric day-of-week values differently from standard Unix cron (`1-5` was parsed as Sun–Thu instead of Mon–Fri), causing automations with weekday schedules to never fire on the correct days
 
 ## v0.7.2
 

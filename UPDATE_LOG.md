@@ -4,7 +4,8 @@
 
 ## v0.7.4
 
-- 
+- **Per-automation scheduler threads** — Refactored the automation scheduler from a single shared priority-queue thread to one dedicated thread per active automation; each thread sleeps precisely until its next fire time using a condvar, replacing the 30-second polling loop; cancel-on-change semantics instantly stop/restart threads when automations are created, updated, toggled, or deleted; next run times are now computed and served by the Rust backend (removing client-side cron parsing from the frontend)
+
 
 ## v0.7.3
 

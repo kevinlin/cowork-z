@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 use uuid::Uuid;
 
 use crate::automation_dispatch::{build_dispatch_context, dispatch_start_task};
+use crate::automation_scheduler::AutomationSchedulerRegistry;
 use crate::db::{self, automations as db_automations, DbState};
 
 #[derive(Debug, Deserialize)]
@@ -58,8 +60,10 @@ pub async fn create_automation(
         updated_at: now,
     };
 
-    let conn = db.conn.lock().unwrap();
-    db_automations::create_automation(&conn, &automation)?;
+    {
+        let conn = db.conn.lock().unwrap();
+        db_automations::create_automation(&conn, &automation)?;
+    }
 
     let _ = app.emit(
         "automation:changed",
@@ -68,6 +72,9 @@ pub async fn create_automation(
             action: "created".to_string(),
         },
     );
+
+    let registry = app.state::<AutomationSchedulerRegistry>();
+    registry.on_changed(&app, &automation.id);
 
     Ok(automation)
 }
@@ -78,35 +85,42 @@ pub async fn update_automation(
     db: State<'_, DbState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let now = chrono::Utc::now().to_rfc3339();
-    let conn = db.conn.lock().unwrap();
+    let automation_id = input.id.clone();
 
-    let existing = db_automations::get_automation(&conn, &input.id)?
-        .ok_or_else(|| format!("Automation not found: {}", input.id))?;
+    {
+        let now = chrono::Utc::now().to_rfc3339();
+        let conn = db.conn.lock().unwrap();
 
-    let updated = db_automations::StoredAutomation {
-        id: input.id.clone(),
-        workspace_id: existing.workspace_id,
-        name: input.name,
-        prompt: input.prompt,
-        schedule_cron: input.schedule_cron,
-        schedule_display: input.schedule_display,
-        provider_id: input.provider_id,
-        model_id: input.model_id,
-        enabled: input.enabled,
-        created_at: existing.created_at,
-        updated_at: now,
-    };
+        let existing = db_automations::get_automation(&conn, &automation_id)?
+            .ok_or_else(|| format!("Automation not found: {}", automation_id))?;
 
-    db_automations::update_automation(&conn, &updated)?;
+        let updated = db_automations::StoredAutomation {
+            id: automation_id.clone(),
+            workspace_id: existing.workspace_id,
+            name: input.name,
+            prompt: input.prompt,
+            schedule_cron: input.schedule_cron,
+            schedule_display: input.schedule_display,
+            provider_id: input.provider_id,
+            model_id: input.model_id,
+            enabled: input.enabled,
+            created_at: existing.created_at,
+            updated_at: now,
+        };
+
+        db_automations::update_automation(&conn, &updated)?;
+    }
 
     let _ = app.emit(
         "automation:changed",
         AutomationChangedEvent {
-            automation_id: input.id,
+            automation_id: automation_id.clone(),
             action: "updated".to_string(),
         },
     );
+
+    let registry = app.state::<AutomationSchedulerRegistry>();
+    registry.on_changed(&app, &automation_id);
 
     Ok(())
 }
@@ -117,16 +131,21 @@ pub async fn delete_automation(
     db: State<'_, DbState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let conn = db.conn.lock().unwrap();
-    db_automations::delete_automation(&conn, &id)?;
+    {
+        let conn = db.conn.lock().unwrap();
+        db_automations::delete_automation(&conn, &id)?;
+    }
 
     let _ = app.emit(
         "automation:changed",
         AutomationChangedEvent {
-            automation_id: id,
+            automation_id: id.clone(),
             action: "deleted".to_string(),
         },
     );
+
+    let registry = app.state::<AutomationSchedulerRegistry>();
+    registry.stop_automation(&id);
 
     Ok(())
 }
@@ -159,16 +178,21 @@ pub async fn toggle_automation_enabled(
     db: State<'_, DbState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let conn = db.conn.lock().unwrap();
-    db_automations::toggle_automation_enabled(&conn, &id, enabled)?;
+    {
+        let conn = db.conn.lock().unwrap();
+        db_automations::toggle_automation_enabled(&conn, &id, enabled)?;
+    }
 
     let _ = app.emit(
         "automation:changed",
         AutomationChangedEvent {
-            automation_id: id,
+            automation_id: id.clone(),
             action: "updated".to_string(),
         },
     );
+
+    let registry = app.state::<AutomationSchedulerRegistry>();
+    registry.on_changed(&app, &id);
 
     Ok(())
 }
@@ -273,4 +297,13 @@ pub async fn run_automation_now(
     );
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn get_automation_next_runs(
+    automation_ids: Vec<String>,
+    registry: State<'_, AutomationSchedulerRegistry>,
+    app: tauri::AppHandle,
+) -> Result<HashMap<String, Option<String>>, String> {
+    Ok(registry.get_next_runs(&automation_ids, &app))
 }

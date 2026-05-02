@@ -61,33 +61,32 @@ The `tasks` table gains an optional `automation_run_id` column (nullable FK) to 
 
 ## Scheduler Design
 
-### `AutomationScheduler` (Rust)
+### `AutomationSchedulerRegistry` (Rust)
 
-A long-lived struct spawned at app startup:
+A per-automation thread registry managed as Tauri state:
 
-- Loads all enabled automations from SQLite on init
-- Maintains an in-memory priority queue ordered by next-fire-time
-- Tick loop runs every 30 seconds checking if any automation is due
-- On fire: creates a `task` record, creates an `automation_run` linked to that task (with `task_id` set), sets `automation_run_id` on the task, resolves workspace context (permissions, API keys, model, MCP config), and dispatches `StartTask` to the sidecar — mirroring the `run_automation_now` / `start_task` command flow
-- Sidecar dispatch uses a spawned Tokio runtime (`std::thread` → `tokio::runtime::Runtime::new()`) since the scheduler runs on a standard thread, not the Tauri async runtime
-- Sequential execution (v1): if a task is already active, the run is queued as `pending`
+- Each enabled automation gets its own `std::thread` that sleeps until the next fire time via a `Condvar` with timeout
+- On wake: if not cancelled, fires the automation (creates task, links run, dispatches to sidecar), then computes the next fire time and sleeps again
+- A `CancellationToken` (`Arc<AtomicBool>` + `Condvar`) per thread allows clean cancellation on schedule change or disable
+- Maintains an in-memory `next_runs` map (`Arc<Mutex<HashMap<String, Option<String>>>>`) storing the next fire time (RFC 3339) per automation, updated whenever a thread computes its next fire time
+- New Tauri command `get_automation_next_runs(automation_ids)` reads from the in-memory map — the frontend uses this instead of client-side cron computation
+- On `automation:changed`: the Tauri command handler directly calls `registry.on_changed()` which cancels the existing thread and spawns a new one if the automation is still enabled
+- On startup: `reload_all()` iterates enabled automations and spawns a thread for each
 
 ### Concurrency model (v1)
 
-```
-[Scheduler tick] → Is anything due? → Is sidecar idle?
-  → Yes/Yes: start the run immediately
-  → Yes/No:  enqueue as pending, retry on next tick
-  → No:      sleep until next tick
-```
+Each automation thread independently determines when to fire. When firing, the thread checks the global `AutomationSchedulerState.is_running` flag:
+- If idle: starts the run immediately
+- If busy: queues the run as `pending` in the database
 
-When a task completes, the scheduler checks for pending automation runs and starts the next one (FIFO). Pending runs go through the same full dispatch flow: create task, link run, resolve context, and send `StartTask` to the sidecar.
+When a task completes, `mark_automation_run_complete` releases the lock and calls `process_pending_runs` to start the next queued run (FIFO).
 
 ### Lifecycle events
 
-- Automation created/updated/deleted → scheduler reloads its queue
-- Task complete → `complete_task` command looks up the associated automation run via `get_running_run_by_task_id`, calls `mark_automation_run_complete` which updates DB status to `completed`, releases the scheduler lock, and emits `automation:run_completed`; scheduler then checks for pending runs on next tick
-- App quit → persists pending run states, resumes on next launch
+- Automation created/updated/deleted → command handler calls `registry.on_changed()` (stop + restart thread)
+- Automation deleted → `registry.stop_automation()` (thread cancelled, next_run removed)
+- Task complete → `complete_task` command looks up the associated automation run via `get_running_run_by_task_id`, calls `mark_automation_run_complete` which updates DB status to `completed`, releases the scheduler lock, processes pending runs, and emits `automation:run_completed`
+- App quit → threads are cancelled; pending run states persist in DB and resume on next launch
 
 ### Determining `has_findings`
 
@@ -128,6 +127,7 @@ Once a schedule is configured, the computed 5-field Unix cron expression is disp
 | `mark_run_read` | Marks a triage item as read |
 | `toggle_automation_enabled` | Quick enable/disable without full update |
 | `run_automation_now` | Manual trigger — directly dispatches task to sidecar (bypasses scheduler queue) |
+| `get_automation_next_runs` | Returns next scheduled fire times from the in-memory registry (backend-computed) |
 
 ### Sidecar changes
 
@@ -151,7 +151,7 @@ None. The sidecar receives automation runs as standard `start_task` commands. It
 
 **List view (automation cards):**
 - Each card shows: name, schedule (human-readable), next scheduled run time, status badge (Active/Disabled), inline toggle switch for quick enable/disable, last run time
-- **Next run time display:** For enabled automations, the card displays the next scheduled run time computed from the cron expression. Daily/hourly automations show just the time (e.g., "9:00 AM"). Weekly automations show the weekday followed by the time (e.g., "Monday 9:00 AM"). Disabled automations do not show a next run time.
+- **Next run time display:** For enabled automations, the card displays the next scheduled run time sourced from the Rust backend's in-memory `next_runs` map (via `get_automation_next_runs` command). The backend computes next fire times from cron expressions using the `cron` crate; the frontend only formats the ISO timestamp for display. Daily/hourly automations show just the time (e.g., "9:00 AM"). Weekly automations show the weekday followed by the time (e.g., "Monday 9:00 AM"). Disabled automations do not show a next run time.
 - Toggle switch: positioned between card content and action menu; persists enabled state to DB; when disabled, the scheduler will not fire the automation
 - Action menu per card: Edit, Run Now, Disable/Enable (secondary to toggle), Delete
 - "+ New" button at the top-right of the list

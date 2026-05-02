@@ -1535,6 +1535,10 @@ export async function runAutomationNow(automationId: string): Promise<void> {
   return invoke<void>('run_automation_now', { automationId });
 }
 
+export async function getAutomationNextRuns(automationIds: string[]): Promise<Record<string, string | null>> {
+  return invoke<Record<string, string | null>>('get_automation_next_runs', { automationIds });
+}
+
 export function onAutomationRunStarted(callback: (event: { automationId: string; runId: string }) => void): () => void {
   let unlisten: UnlistenFn | null = null;
   listen<{ automationId: string; runId: string }>('automation:run_started', (event) => {
@@ -1818,6 +1822,7 @@ export function getTauriApi() {
     markAllRunsRead,
     getAutomationUnreadCount,
     runAutomationNow,
+    getAutomationNextRuns,
     onAutomationRunStarted,
     onAutomationRunCompleted,
     onAutomationChanged,

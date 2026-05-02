@@ -10,7 +10,7 @@ export default function AutomationsList() {
   const [showForm, setShowForm] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
 
-  const { automations, isLoading, loadAutomations, createAutomation, updateAutomation, deleteAutomation, toggleEnabled, runNow } =
+  const { automations, isLoading, nextRuns, loadAutomations, createAutomation, updateAutomation, deleteAutomation, toggleEnabled, runNow } =
     useAutomationStore();
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
 
@@ -90,6 +90,7 @@ export default function AutomationsList() {
         <AutomationCard
           automation={automation}
           key={automation.id}
+          nextRunAt={nextRuns[automation.id] ?? null}
           onDelete={deleteAutomation}
           onEdit={handleEdit}
           onRunNow={runNow}

@@ -7,10 +7,12 @@ interface AutomationState {
   runs: AutomationRun[];
   unreadCount: number;
   isLoading: boolean;
+  nextRuns: Record<string, string | null>;
 
   loadAutomations: (workspaceId: string) => Promise<void>;
   loadRuns: (workspaceId: string, unreadOnly?: boolean) => Promise<void>;
   loadUnreadCount: (workspaceId: string) => Promise<void>;
+  loadNextRuns: (automationIds?: string[]) => Promise<void>;
   createAutomation: (input: CreateAutomationInput) => Promise<Automation>;
   updateAutomation: (input: UpdateAutomationInput) => Promise<void>;
   deleteAutomation: (id: string) => Promise<void>;
@@ -20,16 +22,25 @@ interface AutomationState {
   markAllRead: (workspaceId: string) => Promise<void>;
 }
 
-export const useAutomationStore = create<AutomationState>((set) => ({
+export const useAutomationStore = create<AutomationState>((set, get) => ({
   automations: [],
   runs: [],
   unreadCount: 0,
   isLoading: false,
+  nextRuns: {},
 
   loadAutomations: async (workspaceId: string) => {
     set({ isLoading: true });
     const automations = await api.listAutomations(workspaceId);
     set({ automations, isLoading: false });
+
+    const ids = automations.filter((a) => a.enabled).map((a) => a.id);
+    if (ids.length > 0) {
+      const nextRuns = await api.getAutomationNextRuns(ids);
+      set({ nextRuns });
+    } else {
+      set({ nextRuns: {} });
+    }
   },
 
   loadRuns: async (workspaceId: string, unreadOnly = false) => {
@@ -42,9 +53,24 @@ export const useAutomationStore = create<AutomationState>((set) => ({
     set({ unreadCount });
   },
 
+  loadNextRuns: async (automationIds?: string[]) => {
+    const ids =
+      automationIds ??
+      get()
+        .automations.filter((a) => a.enabled)
+        .map((a) => a.id);
+    if (ids.length === 0) {
+      set({ nextRuns: {} });
+      return;
+    }
+    const nextRuns = await api.getAutomationNextRuns(ids);
+    set({ nextRuns });
+  },
+
   createAutomation: async (input: CreateAutomationInput) => {
     const automation = await api.createAutomation(input);
     set((state) => ({ automations: [automation, ...state.automations] }));
+    get().loadNextRuns();
     return automation;
   },
 
@@ -53,6 +79,7 @@ export const useAutomationStore = create<AutomationState>((set) => ({
     set((state) => ({
       automations: state.automations.map((a) => (a.id === input.id ? { ...a, ...input, updatedAt: new Date().toISOString() } : a)),
     }));
+    get().loadNextRuns();
   },
 
   deleteAutomation: async (id: string) => {
@@ -60,6 +87,7 @@ export const useAutomationStore = create<AutomationState>((set) => ({
     set((state) => ({
       automations: state.automations.filter((a) => a.id !== id),
     }));
+    get().loadNextRuns();
   },
 
   toggleEnabled: async (id: string, enabled: boolean) => {
@@ -67,6 +95,7 @@ export const useAutomationStore = create<AutomationState>((set) => ({
     set((state) => ({
       automations: state.automations.map((a) => (a.id === id ? { ...a, enabled } : a)),
     }));
+    get().loadNextRuns();
   },
 
   runNow: async (automationId: string) => {

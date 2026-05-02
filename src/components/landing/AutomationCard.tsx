@@ -1,21 +1,39 @@
 import { Clock, MoreVertical, Pause, Play, Trash2, Zap } from 'lucide-react';
 import { useMemo } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { getNextRunDisplay } from '@/lib/cron-utils';
+import { WEEKDAY_NAMES } from '@/lib/cron-utils';
 import type { Automation } from '@/shared';
 
 interface AutomationCardProps {
   automation: Automation;
+  nextRunAt: string | null;
   onEdit: (automation: Automation) => void;
   onToggleEnabled: (id: string, enabled: boolean) => void;
   onRunNow: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
-export default function AutomationCard({ automation, onEdit, onToggleEnabled, onRunNow, onDelete }: AutomationCardProps) {
+function formatNextRun(isoTimestamp: string, cron: string): string {
+  const date = new Date(isoTimestamp);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s+/g, ' ');
+
+  const fields = cron.trim().split(/\s+/);
+  const dowField = fields[4];
+  const isSpecificDay = dowField !== '*' && !/[-,]/.test(dowField);
+
+  if (isSpecificDay) {
+    return `${WEEKDAY_NAMES[date.getDay()]} ${timeStr}`;
+  }
+
+  return timeStr;
+}
+
+export default function AutomationCard({ automation, nextRunAt, onEdit, onToggleEnabled, onRunNow, onDelete }: AutomationCardProps) {
   const nextRunDisplay = useMemo(
-    () => (automation.enabled ? getNextRunDisplay(automation.scheduleCron) : null),
-    [automation.scheduleCron, automation.enabled]
+    () => (automation.enabled && nextRunAt ? formatNextRun(nextRunAt, automation.scheduleCron) : null),
+    [automation.scheduleCron, automation.enabled, nextRunAt]
   );
 
   return (

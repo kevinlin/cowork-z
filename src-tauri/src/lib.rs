@@ -46,9 +46,17 @@ pub fn run() {
             // Initialize automation scheduler state
             app.manage(automation_scheduler::AutomationSchedulerState::new());
 
-            // Start automation scheduler
-            let scheduler = automation_scheduler::AutomationScheduler::new();
-            scheduler.start(app.handle().clone());
+            // Initialize per-automation scheduler registry
+            let registry = automation_scheduler::AutomationSchedulerRegistry::new();
+            app.manage(registry);
+
+            // Start all enabled automation scheduler threads after a delay
+            let app_for_scheduler = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                let registry = app_for_scheduler.state::<automation_scheduler::AutomationSchedulerRegistry>();
+                registry.reload_all(&app_for_scheduler);
+            });
 
             // Copy bundled OpenCode Server API skill to global skills directory
             // so that OpenCode discovers it automatically.
@@ -388,6 +396,7 @@ pub fn run() {
             commands::automations::mark_all_runs_read,
             commands::automations::get_automation_unread_count,
             commands::automations::run_automation_now,
+            commands::automations::get_automation_next_runs,
             // Skill Repos (Skills Manager)
             commands::skill_repos::skill_repos_list,
             commands::skill_repos::skill_repos_add,

@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.7.6
+
+- 
+
 ## v0.7.5
 
 - **Fix: Automation schedules firing at UTC instead of local time** — Scheduler now evaluates cron expressions against the system's local timezone

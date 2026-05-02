@@ -133,7 +133,7 @@ When a task completes, `mark_automation_run_complete` releases the lock and call
 
 ### Determining `has_findings`
 
-When a run completes, inspect the final task output. Heuristic: if the task produced assistant messages beyond a simple "nothing to report" acknowledgment, mark `has_findings = true`. The prompt can also instruct the agent to explicitly signal "no findings" (convention-based).
+When a run completes, the `complete_task` handler inspects the last assistant message from the task's conversation. The message content is checked (case-insensitive) against a list of "no findings" phrases (e.g., "nothing to report", "no files to", "already up to date"). If any phrase matches, `has_findings` is set to `false` and the run is auto-archived. If none match, `has_findings` is `true` and the run surfaces in the triage panel. Failed or cancelled runs always have `has_findings = false`. The prompt can also instruct the agent to use specific phrasing to signal empty results.
 
 ### Schedule parsing
 

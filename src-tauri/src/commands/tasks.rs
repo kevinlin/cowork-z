@@ -491,7 +491,11 @@ pub async fn complete_task(
 
     // If this task belongs to an automation run, mark the run as complete
     if let Some(run) = db::automations::get_running_run_by_task_id(&conn, &task_id) {
-        let has_findings = status == "completed";
+        let has_findings = if status == "completed" {
+            db::automations::determine_has_findings(&conn, &task_id)
+        } else {
+            false
+        };
         drop(conn);
         crate::automation_scheduler::mark_automation_run_complete(&app, &run.id, has_findings);
     }

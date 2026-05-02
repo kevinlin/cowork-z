@@ -4,7 +4,8 @@
 
 ## v0.7.6
 
-- 
+- **Fix: All automation runs incorrectly shown as "Has findings"** — The `has_findings` flag now inspects the agent's final response for "no findings" phrases instead of marking every completed run as having findings
+
 
 ## v0.7.5
 
@@ -31,7 +32,7 @@
 ## v0.7.1
 
 - **Automation enable/disable toggle** — Automations card now shows an inline toggle switch for quick enable/disable without opening the dropdown menu; disabled automations are not triggered by the scheduler
-- **Fix: Automation run status not updating after task completion** — Automation runs were stuck showing "Running..." after the task completed because `complete_task` never marked the associated automation run as complete; added `get_running_run_by_task_id` DB lookup and wired `mark_automation_run_complete` call in the task completion flow; sidebar now subscribes to both `automation:run_started` and `automation:run_completed` events to reactively refresh the runs panel
+- **Fix: Automation run status not updating after task completion** — Automation runs were stuck showing "Running..." after the task completed because `complete_task` never marked the associated automation run as complete
 
 ## v0.7.0
 

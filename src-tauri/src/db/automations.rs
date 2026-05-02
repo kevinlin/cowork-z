@@ -351,3 +351,34 @@ pub fn get_pending_runs(conn: &Connection) -> Vec<StoredAutomationRun> {
         Err(_) => vec![],
     }
 }
+
+pub fn determine_has_findings(conn: &Connection, task_id: &str) -> bool {
+    let content: Option<String> = conn
+        .query_row(
+            "SELECT content FROM task_messages
+             WHERE task_id = ?1 AND type = 'assistant'
+             ORDER BY sort_order DESC LIMIT 1",
+            params![task_id],
+            |row| row.get(0),
+        )
+        .ok();
+
+    let Some(text) = content else { return false };
+    let lower = text.to_lowercase();
+
+    const NO_FINDINGS_PATTERNS: &[&str] = &[
+        "nothing to report",
+        "nothing to ingest",
+        "no files to",
+        "no new changes",
+        "no findings",
+        "no issues found",
+        "nothing to process",
+        "already up to date",
+        "no articles to",
+        "no action needed",
+        "nothing new",
+    ];
+
+    !NO_FINDINGS_PATTERNS.iter().any(|p| lower.contains(p))
+}

@@ -397,6 +397,7 @@ pub fn run() {
             commands::automations::get_automation_unread_count,
             commands::automations::run_automation_now,
             commands::automations::get_automation_next_runs,
+            commands::automations::validate_cron,
             // Skill Repos (Skills Manager)
             commands::skill_repos::skill_repos_list,
             commands::skill_repos::skill_repos_add,

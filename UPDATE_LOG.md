@@ -5,6 +5,7 @@
 ## v0.7.4
 
 - **Per-automation scheduler threads** — Refactored the automation scheduler from a single shared priority-queue thread to one dedicated thread per active automation; each thread sleeps precisely until its next fire time using a condvar, replacing the 30-second polling loop; cancel-on-change semantics instantly stop/restart threads when automations are created, updated, toggled, or deleted; next run times are now computed and served by the Rust backend (removing client-side cron parsing from the frontend)
+- **Fix: Invalid custom cron expressions silently accepted** — Custom cron expressions (e.g., `* \5 * * 1-5`) were saved without validation, causing the scheduler to silently ignore them; the automation form now validates cron expressions in real-time against the Rust backend's scheduler-identical normalization pipeline, displaying an error message and blocking save on invalid input
 
 
 ## v0.7.3

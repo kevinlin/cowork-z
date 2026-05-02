@@ -1539,6 +1539,10 @@ export async function getAutomationNextRuns(automationIds: string[]): Promise<Re
   return invoke<Record<string, string | null>>('get_automation_next_runs', { automationIds });
 }
 
+export async function validateCron(cronExpression: string): Promise<boolean> {
+  return invoke<boolean>('validate_cron', { cronExpression });
+}
+
 export function onAutomationRunStarted(callback: (event: { automationId: string; runId: string }) => void): () => void {
   let unlisten: UnlistenFn | null = null;
   listen<{ automationId: string; runId: string }>('automation:run_started', (event) => {
@@ -1823,6 +1827,7 @@ export function getTauriApi() {
     getAutomationUnreadCount,
     runAutomationNow,
     getAutomationNextRuns,
+    validateCron,
     onAutomationRunStarted,
     onAutomationRunCompleted,
     onAutomationChanged,

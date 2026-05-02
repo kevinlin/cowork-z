@@ -32,6 +32,10 @@ impl AutomationSchedulerRegistry {
         }
     }
 
+    pub fn normalize_cron_public(expr: &str) -> String {
+        Self::normalize_cron(expr)
+    }
+
     pub fn get_next_runs(
         &self,
         automation_ids: &[String],

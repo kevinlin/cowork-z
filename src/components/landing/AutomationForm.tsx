@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { settingsTransitions, settingsVariants } from '@/lib/animations';
 import { buildCron, buildDisplay, detectFrequencyFromCron, formatHour24ToDisplay, WEEKDAY_OPTIONS } from '@/lib/cron-utils';
+import { validateCron } from '@/lib/tauri-api';
 import type { Automation, ConnectedProvider, CreateAutomationInput, ProviderId, UpdateAutomationInput } from '@/shared';
 import { getActiveProvider, isProviderReady } from '@/shared';
 
@@ -43,6 +44,8 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
   const [modelId, setModelId] = useState(editing?.modelId ?? '');
   const [modelDisplayName, setModelDisplayName] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [cronError, setCronError] = useState('');
+  const cronValidationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     settings,
@@ -99,8 +102,29 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
   const computedCron = selectedFrequency === 'Custom' ? customCron : buildCron(selectedFrequency, selectedTime, selectedWeekday);
   const computedDisplay = selectedFrequency === 'Custom' ? customCron : buildDisplay(selectedFrequency, selectedTime, selectedWeekday);
 
+  useEffect(() => {
+    if (!computedCron.trim()) {
+      setCronError('');
+      return;
+    }
+    if (cronValidationTimer.current) clearTimeout(cronValidationTimer.current);
+    cronValidationTimer.current = setTimeout(
+      () => {
+        validateCron(computedCron)
+          .then(() => setCronError(''))
+          .catch((err: unknown) => {
+            setCronError(typeof err === 'string' ? err : ((err as Error)?.message ?? 'Invalid cron expression'));
+          });
+      },
+      selectedFrequency === 'Custom' ? 400 : 0
+    );
+    return () => {
+      if (cronValidationTimer.current) clearTimeout(cronValidationTimer.current);
+    };
+  }, [computedCron, selectedFrequency]);
+
   const handleSubmit = () => {
-    if (!(name.trim() && prompt.trim() && providerId && modelId)) return;
+    if (!(name.trim() && prompt.trim() && providerId && modelId) || cronError) return;
 
     const scheduleCron = computedCron;
     const scheduleDisplay = computedDisplay;
@@ -253,10 +277,11 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
         )}
 
         {computedCron && (
-          <div className="rounded-md bg-muted/50 px-3 py-1.5">
-            <span className="font-mono text-muted-foreground text-xs">{computedCron}</span>
+          <div className={`rounded-md px-3 py-1.5 ${cronError ? 'bg-destructive/10' : 'bg-muted/50'}`}>
+            <span className={`font-mono text-xs ${cronError ? 'text-destructive' : 'text-muted-foreground'}`}>{computedCron}</span>
           </div>
         )}
+        {cronError && <p className="text-destructive text-xs">{cronError}</p>}
       </div>
 
       <div className="space-y-1.5">
@@ -293,7 +318,7 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
         </button>
         <button
           className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
-          disabled={!(name.trim() && prompt.trim() && modelId)}
+          disabled={!(name.trim() && prompt.trim() && modelId && computedCron.trim()) || !!cronError}
           onClick={handleSubmit}
           type="button"
         >

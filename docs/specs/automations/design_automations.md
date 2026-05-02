@@ -61,6 +61,30 @@ The `tasks` table gains an optional `automation_run_id` column (nullable FK) to 
 
 ## Scheduler Design
 
+### Architecture
+
+```mermaid
+flowchart TD
+    subgraph rustBackend [Rust Backend]
+        SchedulerRegistry["AutomationSchedulerRegistry<br/>(HashMap: automation_id -> JoinHandle + cancel_token)"]
+        PerThread1["Thread: automation A<br/>sleeps until next_fire, then fires"]
+        PerThread2["Thread: automation B<br/>sleeps until next_fire, then fires"]
+        NextRunState["In-memory next_run_at map<br/>(Arc Mutex HashMap)"]
+    end
+
+    subgraph frontend [Frontend]
+        AutomationCard["AutomationCard<br/>displays next_run_at from backend"]
+        TauriAPI["get_automation_next_runs() command"]
+    end
+
+    SchedulerRegistry -->|spawns| PerThread1
+    SchedulerRegistry -->|spawns| PerThread2
+    PerThread1 -->|updates| NextRunState
+    PerThread2 -->|updates| NextRunState
+    TauriAPI -->|reads| NextRunState
+    AutomationCard -->|calls| TauriAPI
+```
+
 ### `AutomationSchedulerRegistry` (Rust)
 
 A per-automation thread registry managed as Tauri state:
@@ -72,6 +96,25 @@ A per-automation thread registry managed as Tauri state:
 - New Tauri command `get_automation_next_runs(automation_ids)` reads from the in-memory map — the frontend uses this instead of client-side cron computation
 - On `automation:changed`: the Tauri command handler directly calls `registry.on_changed()` which cancels the existing thread and spawns a new one if the automation is still enabled
 - On startup: `reload_all()` iterates enabled automations and spawns a thread for each
+
+### Thread Lifecycle
+
+Each per-automation thread follows this loop:
+
+1. Computes `next_fire` from the cron expression
+2. Updates the `next_runs` map with an RFC 3339 timestamp
+3. Emits `automation:schedule_updated` event (optional, for reactive UI)
+4. Waits on condvar with timeout = (`next_fire` - now)
+5. On wake: if cancelled, exit; otherwise fire the automation, loop back to step 1
+
+### Cancel-on-Change Protocol
+
+When `toggle_automation_enabled(id, false)` or `update_automation(id, ...)` is called:
+
+1. Tauri command updates DB
+2. Emits `automation:changed` event
+3. Registry listener calls `stop_automation(id)` (cancels thread via `AtomicBool` + condvar signal)
+4. If automation is still enabled (for update case), calls `start_automation(id)` with new cron
 
 ### Concurrency model (v1)
 
@@ -110,6 +153,8 @@ Once a schedule is configured, the computed 5-field Unix cron expression is disp
 
 **Cron normalization:** The Rust `cron` crate (v0.12) requires 6-7 field expressions (`sec min hour dom month dow [year]`). The scheduler's `normalize_cron()` method automatically prepends `"0 "` (seconds = 0) to 5-field expressions before parsing. This allows the frontend and DB to store standard Unix cron while the scheduler handles the conversion internally.
 
+**Cron validation:** The `validate_cron` Tauri command validates a cron expression using the same `normalize_cron()` + `cron::Schedule::from_str()` pipeline as the scheduler. The frontend calls this on every cron change (debounced 400ms for Custom mode, immediate for structured pickers). Invalid expressions display an error below the cron preview and prevent form submission. This ensures only scheduler-parseable expressions are saved to the database.
+
 **Model ID format:** The `model_id` field stores the full provider-qualified identifier (e.g., `github-copilot/claude-sonnet-4.6`). The `provider_id` field stores just the provider key (e.g., `github-copilot`) for filtering/display purposes. When dispatching to the sidecar, `model_id` is used directly without additional prefixing.
 
 ## IPC & Sidecar Integration
@@ -128,6 +173,7 @@ Once a schedule is configured, the computed 5-field Unix cron expression is disp
 | `toggle_automation_enabled` | Quick enable/disable without full update |
 | `run_automation_now` | Manual trigger — directly dispatches task to sidecar (bypasses scheduler queue) |
 | `get_automation_next_runs` | Returns next scheduled fire times from the in-memory registry (backend-computed) |
+| `validate_cron` | Validates a cron expression using the scheduler's normalization pipeline; returns error string on failure |
 
 ### Sidecar changes
 
@@ -162,7 +208,7 @@ None. The sidecar receives automation runs as standard `start_task` commands. It
 - Fields: Name, Prompt (textarea, supports `/skill-name`), Schedule (3-dropdown row: frequency/weekday/time + cron preview), Model (provider + model picker dialog)
 - Schedule picker: Radix Select for frequency and weekday, custom time picker with scrollable 15-min increments and clock icon. Cron expression displayed below as read-only monospace text.
 - Buttons: Cancel (returns to list), Create/Save
-- Validation: all fields required, schedule must produce a valid cron expression, selected model must still be configured
+- Validation: all fields required, schedule must produce a valid cron expression (validated by Rust backend in real-time), selected model must still be configured; invalid cron shows error message and blocks save
 
 ### Sidebar — Automations Tab
 

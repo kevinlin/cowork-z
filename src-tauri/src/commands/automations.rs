@@ -7,6 +7,15 @@ use crate::automation_dispatch::{build_dispatch_context, dispatch_start_task};
 use crate::automation_scheduler::AutomationSchedulerRegistry;
 use crate::db::{self, automations as db_automations, DbState};
 
+#[tauri::command]
+pub async fn validate_cron(cron_expression: String) -> Result<bool, String> {
+    let normalized = AutomationSchedulerRegistry::normalize_cron_public(&cron_expression);
+    match normalized.parse::<cron::Schedule>() {
+        Ok(_) => Ok(true),
+        Err(e) => Err(format!("Invalid cron expression: {}", e)),
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateAutomationInput {

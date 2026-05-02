@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use cron::Schedule;
 use std::str::FromStr;
 use tauri::{AppHandle, Emitter, Manager};
@@ -136,7 +136,7 @@ impl AutomationSchedulerRegistry {
     fn compute_next_fire(cron_expr: &str) -> Option<DateTime<Utc>> {
         let normalized = Self::normalize_cron(cron_expr);
         let schedule = Schedule::from_str(&normalized).ok()?;
-        schedule.upcoming(Utc).next()
+        schedule.upcoming(Local).next().map(|t| t.with_timezone(&Utc))
     }
 
     fn start_automation(

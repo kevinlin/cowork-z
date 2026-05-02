@@ -92,7 +92,7 @@ A per-automation thread registry managed as Tauri state:
 - Each enabled automation gets its own `std::thread` that sleeps until the next fire time via a `Condvar` with timeout
 - On wake: if not cancelled, fires the automation (creates task, links run, dispatches to sidecar), then computes the next fire time and sleeps again
 - A `CancellationToken` (`Arc<AtomicBool>` + `Condvar`) per thread allows clean cancellation on schedule change or disable
-- Maintains an in-memory `next_runs` map (`Arc<Mutex<HashMap<String, Option<String>>>>`) storing the next fire time (RFC 3339) per automation, updated whenever a thread computes its next fire time
+- Maintains an in-memory `next_runs` map (`Arc<Mutex<HashMap<String, Option<String>>>>`) storing the next fire time (RFC 3339, UTC) per automation, updated whenever a thread computes its next fire time; cron expressions are evaluated against the system's local timezone and converted to UTC for storage
 - New Tauri command `get_automation_next_runs(automation_ids)` reads from the in-memory map — the frontend uses this instead of client-side cron computation
 - On `automation:changed`: the Tauri command handler directly calls `registry.on_changed()` which cancels the existing thread and spawns a new one if the automation is still enabled
 - On startup: `reload_all()` iterates enabled automations and spawns a thread for each
@@ -152,6 +152,8 @@ The grid layout adapts based on frequency:
 Once a schedule is configured, the computed 5-field Unix cron expression is displayed below the pickers in a read-only monospace field for user verification.
 
 **Cron normalization:** The Rust `cron` crate (v0.12) requires 6-7 field expressions (`sec min hour dom month dow [year]`). The scheduler's `normalize_cron()` method automatically prepends `"0 "` (seconds = 0) to 5-field expressions before parsing. This allows the frontend and DB to store standard Unix cron while the scheduler handles the conversion internally.
+
+**Timezone handling:** Schedule times are interpreted in the system's local timezone (e.g., if the user picks "9:00 AM" and the system is in `America/New_York`, the automation fires at 9:00 AM ET). The scheduler evaluates cron expressions against `chrono::Local` and converts the resulting fire times to UTC for internal storage and IPC. The frontend time picker displays local times directly — no timezone conversion is needed on the frontend side.
 
 **Cron validation:** The `validate_cron` Tauri command validates a cron expression using the same `normalize_cron()` + `cron::Schedule::from_str()` pipeline as the scheduler. The frontend calls this on every cron change (debounced 400ms for Custom mode, immediate for structured pickers). Invalid expressions display an error below the cron preview and prevent form submission. This ensures only scheduler-parseable expressions are saved to the database.
 

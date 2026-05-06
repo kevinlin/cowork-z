@@ -122,7 +122,7 @@ Each automation thread independently determines when to fire. When firing, the t
 - If idle: starts the run immediately
 - If busy: queues the run as `pending` in the database
 
-When a task completes, `mark_automation_run_complete` releases the lock and calls `process_pending_runs` to start the next queued run (FIFO).
+When a task completes, `mark_automation_run_complete` releases the lock and calls `process_pending_runs` to start the next queued run (FIFO). **Important:** `mark_automation_run_complete` must drop its DB connection before calling `process_pending_runs`, because `process_pending_runs` also acquires the DB connection. Since `DbState.conn` uses `std::sync::Mutex` (which is not reentrant), holding the lock across both calls causes a self-deadlock on the same thread.
 
 ### Lifecycle events
 

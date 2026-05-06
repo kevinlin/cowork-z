@@ -5,6 +5,7 @@
 ## v0.7.6
 
 - **Fix: All automation runs incorrectly shown as "Has findings"** — The `has_findings` flag now inspects the agent's final response for "no findings" phrases instead of marking every completed run as having findings
+- **Fix: Automation form freezes and pending runs pile up after a run completes** — `mark_automation_run_complete` held the DB mutex while calling `process_pending_runs`, which also acquires the DB mutex; since `std::sync::Mutex` is not reentrant, this caused a self-deadlock that permanently blocked the worker thread, preventing all subsequent Tauri commands from executing; the form now also disables the Save button while a save is in-flight to prevent duplicate submissions
 
 
 ## v0.7.5

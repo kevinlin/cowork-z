@@ -360,17 +360,19 @@ impl Default for AutomationSchedulerState {
 /// Call this when an automation run completes to release the scheduler lock
 /// and process any pending runs.
 pub fn mark_automation_run_complete(app: &AppHandle, run_id: &str, has_findings: bool) {
-    let db_state = app.state::<DbState>();
-    let conn = db_state.conn.lock().unwrap();
-    let now = Utc::now().to_rfc3339();
+    {
+        let db_state = app.state::<DbState>();
+        let conn = db_state.conn.lock().unwrap();
+        let now = Utc::now().to_rfc3339();
 
-    let _ = db_automations::update_automation_run_status(
-        &conn,
-        run_id,
-        "completed",
-        has_findings,
-        Some(&now),
-    );
+        let _ = db_automations::update_automation_run_status(
+            &conn,
+            run_id,
+            "completed",
+            has_findings,
+            Some(&now),
+        );
+    }
 
     let scheduler_state = app.state::<AutomationSchedulerState>();
     scheduler_state.is_running.store(false, Ordering::Relaxed);

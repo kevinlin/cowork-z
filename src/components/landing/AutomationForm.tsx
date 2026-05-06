@@ -45,6 +45,7 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
   const [modelDisplayName, setModelDisplayName] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [cronError, setCronError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const cronValidationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
@@ -124,8 +125,9 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
   }, [computedCron, selectedFrequency]);
 
   const handleSubmit = () => {
-    if (!(name.trim() && prompt.trim() && providerId && modelId) || cronError) return;
+    if (!(name.trim() && prompt.trim() && providerId && modelId) || cronError || isSaving) return;
 
+    setIsSaving(true);
     const scheduleCron = computedCron;
     const scheduleDisplay = computedDisplay;
 
@@ -318,7 +320,7 @@ export default function AutomationForm({ workspaceId, editing, onSave, onCancel 
         </button>
         <button
           className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
-          disabled={!(name.trim() && prompt.trim() && modelId && computedCron.trim()) || !!cronError}
+          disabled={!(name.trim() && prompt.trim() && modelId && computedCron.trim()) || !!cronError || isSaving}
           onClick={handleSubmit}
           type="button"
         >

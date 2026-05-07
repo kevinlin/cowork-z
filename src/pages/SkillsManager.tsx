@@ -43,16 +43,20 @@ export default function SkillsManagerPage() {
   }, [refreshAll]);
 
   useEffect(() => {
-    let cancelled = false;
-
+    // NOTE: We intentionally do NOT use a `cancelled` flag here. In React
+    // StrictMode (dev), the effect is mounted twice with a synthetic cleanup
+    // between runs. `readAndClearPendingFocusRepo()` is synchronous and
+    // destructive, so mount #1 synchronously consumes the localStorage key and
+    // mount #2 sees `pending: null` and exits — that's our natural dedupe.
+    // If we set `cancelled = true` in cleanup, mount #1's in-flight async work
+    // would bail before `addRepo`, leaving the new repo unregistered until the
+    // user clicks again. Zustand store updates after unmount are safe (the
+    // store is module-level), so we let mount #1's work run to completion.
     const processPending = async () => {
       const pending = readAndClearPendingFocusRepo();
       if (!pending) return;
 
-      const store = useSkillsManagerStore.getState();
-      // Make sure the latest repo list is loaded before checking for matches
-      await store.fetchRepos();
-      if (cancelled) return;
+      await useSkillsManagerStore.getState().fetchRepos();
 
       const existing = useSkillsManagerStore.getState().repos.find((r) => r.url === pending.url);
       if (existing) {
@@ -65,11 +69,9 @@ export default function SkillsManagerPage() {
           url: pending.url,
           branch: pending.branch,
         });
-        if (cancelled) return;
         useSkillsManagerStore.getState().setSelectedRepoId(added.id);
         toast.success('Repository added', { description: added.name });
-      } catch (e) {
-        if (cancelled) return;
+      } catch {
         toast.error('Failed to add repository', {
           description: 'Add an access token if this is a private repo.',
         });
@@ -87,7 +89,6 @@ export default function SkillsManagerPage() {
 
     window.addEventListener('storage', onStorage);
     return () => {
-      cancelled = true;
       window.removeEventListener('storage', onStorage);
     };
   }, []);

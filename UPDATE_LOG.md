@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.7.10
+
+- 
+
 ## v0.7.9
 
 - **Polished card hover interactions** — Curated repo cards in **Skills Catalog**, starter pack cards in **Starter Packs**, and skill cards in **Skills Manager** now share a consistent shadow and lift-on-hover effect, with the `Skills Catalog` "Open" arrow nudging on group hover. `SkillCard` also picks up the missing `bg-card` background so its hover shadow reads correctly against the page.

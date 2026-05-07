@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.7.9
+
+- 
+
 ## v0.7.8
 
 - **Smarter Skills Manager category badges** — `SkillCard` and the Skills Manager filter tabs now derive each skill's category from its name (keyword match against the closed `CATEGORY_COLORS` taxonomy), falling back to the source repo's curated categories, then the backend-derived path category, then `General`. Repos that don't follow the `{category}/skills/{name}` convention (e.g. `openai/skills`, `mattpocock/skills`) now show meaningful, color-coded badges that match a selectable filter tab.

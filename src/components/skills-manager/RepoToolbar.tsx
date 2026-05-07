@@ -7,10 +7,10 @@ import { useSkillsManagerStore } from '@/stores/skillsManagerStore';
 import { AddRepoDialog } from './AddRepoDialog';
 
 export function RepoToolbar() {
-  const { repos, selectedRepoId, setSelectedRepoId, removeRepo, refreshAll } = useSkillsManagerStore();
+  const { repos, selectedRepoId, setSelectedRepoId, removeRepo, refreshAll, addRepoDialogOpen, setAddRepoDialogOpen } =
+    useSkillsManagerStore();
   const [syncing, setSyncing] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [showAddRepo, setShowAddRepo] = useState(false);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -59,7 +59,7 @@ export function RepoToolbar() {
           </SelectContent>
         </Select>
 
-        <Button className="h-8 text-xs" onClick={() => setShowAddRepo(true)} size="sm" variant="outline">
+        <Button className="h-8 text-xs" onClick={() => setAddRepoDialogOpen(true)} size="sm" variant="outline">
           <Plus className="mr-1 h-3 w-3" />
           Add Repo
         </Button>
@@ -92,7 +92,7 @@ export function RepoToolbar() {
         </div>
       </div>
 
-      <AddRepoDialog onOpenChange={setShowAddRepo} open={showAddRepo} />
+      <AddRepoDialog onOpenChange={setAddRepoDialogOpen} open={addRepoDialogOpen} />
     </>
   );
 }

@@ -2,23 +2,9 @@ import { appDataDir } from '@tauri-apps/api/path';
 import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { getCategoryColorClass } from '@/lib/skill-categories';
 import type { RepoSkill } from '@/lib/tauri-api';
 import { useFilePreviewStore } from '@/stores/filePreviewStore';
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Data: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-  Design: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
-  Document: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
-  Enterprise: 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300',
-  Finance: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  General: 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300',
-  Legal: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
-  Marketing: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300',
-  Product: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300',
-  Productivity: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300',
-  Sales: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
-  Support: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300',
-};
 
 interface SkillCardProps {
   skill: RepoSkill;
@@ -32,7 +18,7 @@ interface SkillCardProps {
 export function SkillCard({ skill, installing, deleting, error, onInstall, onDelete }: SkillCardProps) {
   const { openPreviewByPath } = useFilePreviewStore();
   const [viewError, setViewError] = useState<string | null>(null);
-  const colorClass = CATEGORY_COLORS[skill.category] ?? 'bg-muted text-muted-foreground';
+  const colorClass = getCategoryColorClass(skill.category);
 
   const handleView = async () => {
     setViewError(null);
@@ -53,6 +39,9 @@ export function SkillCard({ skill, installing, deleting, error, onInstall, onDel
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-medium text-sm">{skill.name}</h3>
           <p className="line-clamp-2 text-muted-foreground text-xs">{skill.description}</p>
+          <p className="truncate font-mono text-[10px] text-muted-foreground/70" title={skill.skillPath}>
+            {skill.skillPath}
+          </p>
         </div>
       </div>
 

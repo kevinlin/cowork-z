@@ -1,106 +1,138 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SkillWithStatus } from '@/lib/tauri-api';
 
-// Mock tauri-api-interface at module level
-const mockListSkillsWithStatus = vi.fn();
-const mockInstallSkill = vi.fn();
-const mockOnSkillsChanged = vi.fn(() => () => {});
+const mockOpenSkillsManagerForRepo = vi.fn();
+const mockOpenSkillsManagerWindow = vi.fn();
 
-vi.mock('@/lib/tauri-api-interface', () => ({
-  getTauriAPI: vi.fn(() => ({
-    listSkillsWithStatus: mockListSkillsWithStatus,
-    installSkill: mockInstallSkill,
-    onSkillsChanged: mockOnSkillsChanged,
-  })),
+vi.mock('@/lib/skills-window', () => ({
+  openSkillsManagerForRepo: (...args: unknown[]) => mockOpenSkillsManagerForRepo(...args),
+  openSkillsManagerWindow: (...args: unknown[]) => mockOpenSkillsManagerWindow(...args),
 }));
 
+import { CURATED_SKILL_REPOS } from '../curatedSkillRepos';
 import SkillsCatalog from '../SkillsCatalog';
 
-const makeSkill = (id: string, category: string, installed = false, needs_update = false): SkillWithStatus => ({
-  meta: { id, name: id, description: `desc for ${id}`, category },
-  status: { installed, needs_update },
-});
+const findCardByName = (name: string) => {
+  const heading = screen.getByText(name);
+  // Walk up to the card container that holds both the name and the Open button
+  let node: HTMLElement | null = heading;
+  while (node && !node.classList.contains('rounded-lg')) {
+    node = node.parentElement;
+  }
+  if (!node) throw new Error(`Card for ${name} not found`);
+  return node;
+};
 
-describe('SkillsCatalog', () => {
+describe('SkillsCatalog (curated repo browser)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockInstallSkill.mockResolvedValue(undefined);
   });
 
-  it('shows loading state initially', () => {
-    mockListSkillsWithStatus.mockReturnValue(new Promise(() => {})); // never resolves
+  it('renders one card per curated repo by default', () => {
     render(<SkillsCatalog />);
-    expect(screen.getByText(/loading skills/i)).toBeInTheDocument();
+    for (const repo of CURATED_SKILL_REPOS) {
+      expect(screen.getByText(repo.name)).toBeInTheDocument();
+    }
   });
 
-  it('renders skill cards after loading', async () => {
-    mockListSkillsWithStatus.mockResolvedValue([
-      makeSkill('competitor-alternatives', 'General'),
-      makeSkill('marketing-brand-voice', 'Marketing'),
-    ]);
+  it('renders one badge per entry in each repo\u2019s categories array', () => {
     render(<SkillsCatalog />);
-    await waitFor(() => {
-      expect(screen.getByText('competitor-alternatives')).toBeInTheDocument();
-      expect(screen.getByText('marketing-brand-voice')).toBeInTheDocument();
-    });
+    const multi = CURATED_SKILL_REPOS.find((r) => r.categories.length >= 2);
+    expect(multi).toBeDefined();
+    if (!multi) return;
+
+    const card = findCardByName(multi.name);
+    for (const category of multi.categories) {
+      expect(within(card).getByText(category)).toBeInTheDocument();
+    }
   });
 
-  it('shows "Failed to load skills" on error', async () => {
-    mockListSkillsWithStatus.mockRejectedValue(new Error('network error'));
+  it('filters by category to packs whose categories array includes the active pill', async () => {
     render(<SkillsCatalog />);
-    await waitFor(() => {
-      expect(screen.getByText(/failed to load skills/i)).toBeInTheDocument();
-    });
+    await userEvent.click(screen.getByRole('button', { name: 'Sales' }));
+
+    const expected = CURATED_SKILL_REPOS.filter((r) => r.categories.includes('Sales'));
+    expect(expected.length).toBeGreaterThan(0);
+    for (const repo of expected) {
+      expect(screen.getByText(repo.name)).toBeInTheDocument();
+    }
+
+    const excluded = CURATED_SKILL_REPOS.filter((r) => !r.categories.includes('Sales'));
+    for (const repo of excluded) {
+      expect(screen.queryByText(repo.name)).not.toBeInTheDocument();
+    }
   });
 
-  it('filters by category tab', async () => {
-    mockListSkillsWithStatus.mockResolvedValue([
-      makeSkill('competitor-alternatives', 'General'),
-      makeSkill('marketing-brand-voice', 'Marketing'),
-    ]);
+  it('search filters by name (case-insensitive)', async () => {
     render(<SkillsCatalog />);
-    await waitFor(() => screen.getByRole('button', { name: 'Marketing' }));
-
-    await userEvent.click(screen.getByRole('button', { name: 'Marketing' }));
-    expect(screen.getByText('marketing-brand-voice')).toBeInTheDocument();
-    expect(screen.queryByText('competitor-alternatives')).not.toBeInTheDocument();
-  });
-
-  it('filters by search query', async () => {
-    mockListSkillsWithStatus.mockResolvedValue([makeSkill('competitor-alternatives', 'General'), makeSkill('copywriting', 'General')]);
-    render(<SkillsCatalog />);
-    await waitFor(() => screen.getByText('competitor-alternatives'));
-
     const searchInput = screen.getByPlaceholderText(/search skills/i);
-    await userEvent.type(searchInput, 'copy');
-    expect(screen.getByText('copywriting')).toBeInTheDocument();
-    expect(screen.queryByText('competitor-alternatives')).not.toBeInTheDocument();
+    await userEvent.type(searchInput, 'ANTHROPICS/SKILLS');
+
+    expect(screen.getByText('anthropics/skills')).toBeInTheDocument();
+    expect(screen.queryByText('openai/skills')).not.toBeInTheDocument();
   });
 
-  it('calls installSkill when Install button clicked', async () => {
-    mockListSkillsWithStatus.mockResolvedValue([makeSkill('brainstorming', 'General')]);
+  it('search filters by summary text', async () => {
     render(<SkillsCatalog />);
-    await waitFor(() => screen.getByText('brainstorming'));
+    const searchInput = screen.getByPlaceholderText(/search skills/i);
+    await userEvent.type(searchInput, 'caveman');
 
-    await userEvent.click(screen.getByRole('button', { name: /^install$/i }));
-    expect(mockInstallSkill).toHaveBeenCalledWith('brainstorming');
+    expect(screen.getByText('JuliusBrussee/caveman')).toBeInTheDocument();
+    expect(screen.queryByText('openai/skills')).not.toBeInTheDocument();
   });
 
-  it('shows Installed badge for installed up-to-date skill', async () => {
-    mockListSkillsWithStatus.mockResolvedValue([makeSkill('brainstorming', 'General', true, false)]);
+  it('search filters by category name', async () => {
     render(<SkillsCatalog />);
-    await waitFor(() => {
-      expect(screen.getByText(/installed/i)).toBeInTheDocument();
+    const searchInput = screen.getByPlaceholderText(/search skills/i);
+    await userEvent.type(searchInput, 'design');
+
+    const designRepos = CURATED_SKILL_REPOS.filter((r) => r.categories.some((c) => c.toLowerCase().includes('design')));
+    expect(designRepos.length).toBeGreaterThan(0);
+    for (const repo of designRepos) {
+      expect(screen.getByText(repo.name)).toBeInTheDocument();
+    }
+  });
+
+  it('the "All" pill is the first pill and resets the filter', async () => {
+    render(<SkillsCatalog />);
+    const allPills = screen.getAllByRole('button');
+    const filterPills = allPills.filter((b) => b.classList.contains('rounded-full'));
+    expect(filterPills[0]).toHaveTextContent('All');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sales' }));
+    await userEvent.click(screen.getByRole('button', { name: 'All' }));
+
+    for (const repo of CURATED_SKILL_REPOS) {
+      expect(screen.getByText(repo.name)).toBeInTheDocument();
+    }
+  });
+
+  it('clicking Open invokes openSkillsManagerForRepo with the url and branch', async () => {
+    render(<SkillsCatalog />);
+    const target = CURATED_SKILL_REPOS[0];
+    const card = findCardByName(target.name);
+    await userEvent.click(within(card).getByRole('button', { name: /open/i }));
+
+    expect(mockOpenSkillsManagerForRepo).toHaveBeenCalledWith({
+      url: target.url,
+      branch: target.branch,
     });
   });
 
-  it('shows Re-install button for outdated skill', async () => {
-    mockListSkillsWithStatus.mockResolvedValue([makeSkill('brainstorming', 'General', true, true)]);
+  it('shows the empty-state message when search yields zero matches', async () => {
     render(<SkillsCatalog />);
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /re-install/i })).toBeInTheDocument();
-    });
+    const searchInput = screen.getByPlaceholderText(/search skills/i);
+    await userEvent.type(searchInput, 'zzzzz-no-such-skill-xyz');
+
+    expect(screen.getByText(/no skills match your search/i)).toBeInTheDocument();
+  });
+
+  it('the footer Skills Manager link calls openSkillsManagerWindow without a repo payload', async () => {
+    render(<SkillsCatalog />);
+    await userEvent.click(screen.getByRole('button', { name: /^Skills Manager$/i }));
+
+    expect(mockOpenSkillsManagerWindow).toHaveBeenCalledTimes(1);
+    expect(mockOpenSkillsManagerForRepo).not.toHaveBeenCalled();
   });
 });

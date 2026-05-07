@@ -1327,14 +1327,6 @@ export async function listSkillsWithStatus(): Promise<SkillWithStatus[]> {
   return invoke<SkillWithStatus[]>('skills_list_with_status');
 }
 
-export async function installSkill(skillId: string): Promise<void> {
-  return invoke<void>('skills_install', { skillId });
-}
-
-export async function getSkillTemplatePath(skillId: string): Promise<string> {
-  return invoke<string>('skills_get_template_path', { skillId });
-}
-
 export async function getSkillFilePath(skillId: string, workspacePath?: string): Promise<string> {
   return invoke<string>('skills_get_skill_file_path', { skillId, workspacePath: workspacePath ?? null });
 }
@@ -1789,8 +1781,6 @@ export function getTauriApi() {
 
     // Skills
     listSkillsWithStatus,
-    installSkill,
-    getSkillTemplatePath,
     getSkillFilePath,
 
     // Skills Manager

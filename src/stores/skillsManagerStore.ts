@@ -15,6 +15,10 @@ interface SkillsManagerState {
   selectedRepoId: string | null;
   searchQuery: string;
   activeCategory: string;
+  /** URL to pre-fill in the Add Repo dialog when it opens (consumed once). */
+  prefillAddRepoUrl: string | null;
+  /** Controls the Add Repo dialog from outside the toolbar. */
+  addRepoDialogOpen: boolean;
 
   fetchRepos: () => Promise<void>;
   fetchRepoSkills: () => Promise<void>;
@@ -23,11 +27,30 @@ interface SkillsManagerState {
   setSelectedRepoId: (id: string | null) => void;
   setSearchQuery: (query: string) => void;
   setActiveCategory: (category: string) => void;
+  setPrefillAddRepoUrl: (url: string | null) => void;
+  setAddRepoDialogOpen: (open: boolean) => void;
+  addRepo: (input: { url: string; branch?: string; authToken?: string }) => Promise<SkillRepo>;
   removeRepo: (id: string) => Promise<void>;
   refreshAll: () => Promise<void>;
 }
 
-export const useSkillsManagerStore = create<SkillsManagerState>((set, get) => ({
+type SkillsManagerData = Omit<
+  SkillsManagerState,
+  | 'fetchRepos'
+  | 'fetchRepoSkills'
+  | 'fetchInstalledSkills'
+  | 'setTargetFolder'
+  | 'setSelectedRepoId'
+  | 'setSearchQuery'
+  | 'setActiveCategory'
+  | 'setPrefillAddRepoUrl'
+  | 'setAddRepoDialogOpen'
+  | 'addRepo'
+  | 'removeRepo'
+  | 'refreshAll'
+>;
+
+export const INITIAL_SKILLS_MANAGER_STATE: SkillsManagerData = {
   repos: [],
   reposLoading: false,
   repoSkills: [],
@@ -38,6 +61,12 @@ export const useSkillsManagerStore = create<SkillsManagerState>((set, get) => ({
   selectedRepoId: null,
   searchQuery: '',
   activeCategory: 'All',
+  prefillAddRepoUrl: null,
+  addRepoDialogOpen: false,
+};
+
+export const useSkillsManagerStore = create<SkillsManagerState>((set, get) => ({
+  ...INITIAL_SKILLS_MANAGER_STATE,
 
   fetchRepos: async () => {
     set({ reposLoading: true });
@@ -88,6 +117,15 @@ export const useSkillsManagerStore = create<SkillsManagerState>((set, get) => ({
 
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveCategory: (category) => set({ activeCategory: category }),
+  setPrefillAddRepoUrl: (url) => set({ prefillAddRepoUrl: url }),
+  setAddRepoDialogOpen: (open) => set({ addRepoDialogOpen: open }),
+
+  addRepo: async ({ url, branch, authToken }) => {
+    const api = getTauriAPI();
+    const repo = await api.skillReposAdd(url, branch, authToken);
+    await get().refreshAll();
+    return repo;
+  },
 
   removeRepo: async (id: string) => {
     const api = getTauriAPI();

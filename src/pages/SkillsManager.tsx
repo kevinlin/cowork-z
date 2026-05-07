@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { FilePreviewPanel } from '@/components/file-preview';
 import { RepoSkillsGrid } from '@/components/skills-manager/RepoSkillsGrid';
 import { RepoToolbar } from '@/components/skills-manager/RepoToolbar';
 import { SkillsSidebar } from '@/components/skills-manager/SkillsSidebar';
 import { SkillsStatusBar } from '@/components/skills-manager/SkillsStatusBar';
 import { useTheme } from '@/hooks/useTheme';
+import { PENDING_FOCUS_REPO_KEY, readAndClearPendingFocusRepo } from '@/lib/skills-window';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { useFilePreviewStore } from '@/stores/filePreviewStore';
 import { useSkillsManagerStore } from '@/stores/skillsManagerStore';
@@ -39,6 +41,56 @@ export default function SkillsManagerPage() {
       unlisten();
     };
   }, [refreshAll]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const processPending = async () => {
+      const pending = readAndClearPendingFocusRepo();
+      if (!pending) return;
+
+      const store = useSkillsManagerStore.getState();
+      // Make sure the latest repo list is loaded before checking for matches
+      await store.fetchRepos();
+      if (cancelled) return;
+
+      const existing = useSkillsManagerStore.getState().repos.find((r) => r.url === pending.url);
+      if (existing) {
+        useSkillsManagerStore.getState().setSelectedRepoId(existing.id);
+        return;
+      }
+
+      try {
+        const added = await useSkillsManagerStore.getState().addRepo({
+          url: pending.url,
+          branch: pending.branch,
+        });
+        if (cancelled) return;
+        useSkillsManagerStore.getState().setSelectedRepoId(added.id);
+        toast.success('Repository added', { description: added.name });
+      } catch (e) {
+        if (cancelled) return;
+        toast.error('Failed to add repository', {
+          description: 'Add an access token if this is a private repo.',
+        });
+        useSkillsManagerStore.getState().setPrefillAddRepoUrl(pending.url);
+        useSkillsManagerStore.getState().setAddRepoDialogOpen(true);
+      }
+    };
+
+    processPending();
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== PENDING_FOCUS_REPO_KEY || !event.newValue) return;
+      processPending();
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

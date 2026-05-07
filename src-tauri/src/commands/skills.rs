@@ -1,11 +1,11 @@
-//! Skills Catalog — list bundled skill templates and install to OpenCode global skills dir.
+//! Skills — list installed skills in `~/.config/opencode/skills/` and resolve
+//! their SKILL.md paths.
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::AppHandle;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -145,27 +145,9 @@ fn collect_files(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), 
 // ── Path resolution ──────────────────────────────────────────────────────────
 
 /// `~/.config/opencode/skills` — the OpenCode global skills directory.
-fn opencode_skills_dir() -> Result<PathBuf, String> {
+pub fn opencode_skills_dir() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
     Ok(home.join(".config").join("opencode").join("skills"))
-}
-
-/// Resolve the `resources/skill-templates/` directory from the Tauri app handle.
-fn resolve_templates_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let resource_dir = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("Failed to get resource dir: {}", e))?;
-
-    let candidates = vec![
-        resource_dir.join("resources").join("skill-templates"),
-        resource_dir.join("skill-templates"),
-    ];
-
-    candidates
-        .into_iter()
-        .find(|p| p.exists())
-        .ok_or_else(|| "skill-templates directory not found in resources".to_string())
 }
 
 // ── Recursive copy ────────────────────────────────────────────────────────────
@@ -195,47 +177,19 @@ pub fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
 
 // ── Core logic ────────────────────────────────────────────────────────────────
 
-/// List all bundled skills with their install status.
-pub fn list_skills_with_status(app: &AppHandle) -> Vec<SkillWithStatus> {
-    let templates_dir = match resolve_templates_dir(app) {
-        Ok(d) => d,
-        Err(e) => {
-            eprintln!("[skills] Failed to resolve templates dir: {}", e);
-            return vec![];
-        }
-    };
+/// List all skills installed under `~/.config/opencode/skills/`. Entries always
+/// carry `installed: true, needs_update: false`.
+pub fn list_skills_with_status(_app: &AppHandle) -> Vec<SkillWithStatus> {
     let skills_dir = opencode_skills_dir().unwrap_or_default();
-    list_skills_in_dirs(&templates_dir, &skills_dir)
+    list_skills_in_dir(&skills_dir)
 }
 
-/// Enumerate skills from bundled templates and the global install dir.
-/// Bundled-template entries take precedence on ID collision so that
-/// `needs_update` semantics are preserved for skills that exist in both.
-pub fn list_skills_in_dirs(templates_dir: &Path, skills_dir: &Path) -> Vec<SkillWithStatus> {
+/// Enumerate skills from a single global install directory.
+pub fn list_skills_in_dir(skills_dir: &Path) -> Vec<SkillWithStatus> {
     let mut result: Vec<SkillWithStatus> = Vec::new();
-    let mut seen: HashSet<String> = HashSet::new();
 
-    // Pass 1 — bundled templates with install-status detection
-    if let Ok(entries) = fs::read_dir(templates_dir) {
-        for (id, path) in scan_skill_dirs(entries) {
-            let Some((name, description)) = parse_frontmatter(&path) else {
-                eprintln!("[skills] Skipping '{}': failed to parse SKILL.md", id);
-                continue;
-            };
-            let status = detect_install_status(&path, &skills_dir.join(&id));
-            result.push(make_skill(id.clone(), name, description, status));
-            seen.insert(id);
-        }
-    } else {
-        eprintln!("[skills] Failed to read templates dir: {:?}", templates_dir);
-    }
-
-    // Pass 2 — custom skills not covered by bundled templates
     if let Ok(entries) = fs::read_dir(skills_dir) {
         for (id, path) in scan_skill_dirs(entries) {
-            if seen.contains(&id) {
-                continue;
-            }
             if !path.join("SKILL.md").exists() {
                 continue;
             }
@@ -274,31 +228,6 @@ fn scan_skill_dirs(entries: fs::ReadDir) -> impl Iterator<Item = (String, PathBu
     })
 }
 
-/// Determine install status by checking the skills dir for a copy or symlink.
-fn detect_install_status(template_path: &Path, install_dir: &Path) -> SkillStatus {
-    let checksum_file = install_dir.join(".coworkz-checksum");
-    if checksum_file.exists() {
-        // Copy-based install (Windows / legacy)
-        let installed = fs::read_to_string(&checksum_file).unwrap_or_default();
-        let bundled = compute_dir_checksum(template_path).unwrap_or_default();
-        SkillStatus {
-            installed: true,
-            needs_update: installed.trim() != bundled.trim(),
-        }
-    } else if install_dir.join("SKILL.md").exists() {
-        // Symlink install (macOS/Linux) — always up-to-date via git pull
-        SkillStatus {
-            installed: true,
-            needs_update: false,
-        }
-    } else {
-        SkillStatus {
-            installed: false,
-            needs_update: false,
-        }
-    }
-}
-
 fn make_skill(
     id: String,
     name: String,
@@ -317,28 +246,6 @@ fn make_skill(
     }
 }
 
-/// Install (or re-install) a skill by copying its template to the OpenCode skills dir.
-pub fn install_skill(app: &AppHandle, skill_id: &str) -> Result<(), String> {
-    let templates_dir = resolve_templates_dir(app)?;
-    let source = templates_dir.join(skill_id);
-    if !source.exists() {
-        return Err(format!("Skill template not found: {}", skill_id));
-    }
-
-    let dest_root = opencode_skills_dir()?;
-    let dest = dest_root.join(skill_id);
-
-    println!("[skills] Installing '{}' -> {:?}", skill_id, dest);
-    copy_dir_recursive(&source, &dest)?;
-
-    // Write checksum of bundled source (not dest) so future checks compare correctly
-    let checksum = compute_dir_checksum(&source)?;
-    fs::write(dest.join(".coworkz-checksum"), &checksum)
-        .map_err(|e| format!("Failed to write checksum: {}", e))?;
-
-    Ok(())
-}
-
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -346,28 +253,11 @@ pub fn skills_list_with_status(app: AppHandle) -> Vec<SkillWithStatus> {
     list_skills_with_status(&app)
 }
 
-#[tauri::command]
-pub fn skills_install(app: AppHandle, skill_id: String) -> Result<(), String> {
-    install_skill(&app, &skill_id)?;
-    let _ = app.emit("skills:changed", ());
-    Ok(())
-}
-
-#[tauri::command]
-pub fn skills_get_template_path(app: AppHandle, skill_id: String) -> Result<String, String> {
-    let templates_dir = resolve_templates_dir(&app)?;
-    let skill_md = templates_dir.join(&skill_id).join("SKILL.md");
-    if !skill_md.exists() {
-        return Err(format!("SKILL.md not found for '{}'", skill_id));
-    }
-    Ok(skill_md.to_string_lossy().to_string())
-}
-
-/// Resolve the SKILL.md path for a skill, searching project-level, global,
-/// and bundled template locations in priority order.
+/// Resolve the SKILL.md path for a skill, searching project-level then global
+/// install locations in priority order.
 #[tauri::command]
 pub fn skills_get_skill_file_path(
-    app: AppHandle,
+    _app: AppHandle,
     skill_id: String,
     workspace_path: Option<String>,
 ) -> Result<String, String> {
@@ -399,14 +289,6 @@ pub fn skills_get_skill_file_path(
             if candidate.exists() {
                 return Ok(candidate.to_string_lossy().to_string());
             }
-        }
-    }
-
-    // 3. Fallback to bundled template
-    if let Ok(templates_dir) = resolve_templates_dir(&app) {
-        let template = templates_dir.join(&skill_id).join("SKILL.md");
-        if template.exists() {
-            return Ok(template.to_string_lossy().to_string());
         }
     }
 
@@ -470,6 +352,14 @@ mod tests {
     }
 
     #[test]
+    fn parse_frontmatter_invalid_returns_none() {
+        let tmp = TempDir::new().unwrap();
+        // No frontmatter delimiters at all
+        fs::write(tmp.path().join("SKILL.md"), "no frontmatter here\n").unwrap();
+        assert!(parse_frontmatter(tmp.path()).is_none());
+    }
+
+    #[test]
     fn test_compute_dir_checksum_stable() {
         let tmp = TempDir::new().unwrap();
         fs::write(tmp.path().join("SKILL.md"), "content a").unwrap();
@@ -506,58 +396,49 @@ mod tests {
     }
 
     #[test]
-    fn test_list_skills_in_dirs_includes_custom_skills_in_global_dir() {
-        let templates = TempDir::new().unwrap();
+    fn list_skills_with_status_returns_installed_only() {
         let skills = TempDir::new().unwrap();
 
-        // A bundled template that is NOT installed
-        write_skill_dir(templates.path(), "marketing-brand-voice", "Brand Voice", "bundled");
+        // Two skill folders — one with valid SKILL.md, one without
+        write_skill_dir(skills.path(), "marketing-brand-voice", "Brand Voice", "from install");
+        fs::create_dir_all(skills.path().join("incomplete-skill")).unwrap();
 
-        // A user-copied custom skill — only present in the global skills dir
-        write_skill_dir(skills.path(), "my-custom-skill", "Custom", "hand-rolled");
+        let result = list_skills_in_dir(skills.path());
 
-        let result = list_skills_in_dirs(templates.path(), skills.path());
-        let ids: Vec<&str> = result.iter().map(|s| s.meta.id.as_str()).collect();
-
-        assert!(ids.contains(&"my-custom-skill"), "custom skill should be enumerated");
-        let custom = result.iter().find(|s| s.meta.id == "my-custom-skill").unwrap();
-        assert!(custom.status.installed);
-        assert!(!custom.status.needs_update);
-        assert_eq!(custom.meta.category, "General");
-
-        let bundled = result.iter().find(|s| s.meta.id == "marketing-brand-voice").unwrap();
-        assert!(!bundled.status.installed, "uninstalled template stays uninstalled");
-    }
-
-    #[test]
-    fn test_list_skills_in_dirs_template_takes_precedence_over_custom() {
-        let templates = TempDir::new().unwrap();
-        let skills = TempDir::new().unwrap();
-
-        // Bundled template "shared-id" with checksum-based install present
-        write_skill_dir(templates.path(), "shared-id", "Template Name", "from template");
-        let installed = skills.path().join("shared-id");
-        fs::create_dir_all(&installed).unwrap();
-        write_skill_md(&installed, "Template Name", "from template");
-        // Pre-compute matching checksum so the install reports up-to-date
-        let checksum = compute_dir_checksum(&templates.path().join("shared-id")).unwrap();
-        fs::write(installed.join(".coworkz-checksum"), &checksum).unwrap();
-
-        let result = list_skills_in_dirs(templates.path(), skills.path());
-        let entry = result.iter().find(|s| s.meta.id == "shared-id").unwrap();
-        assert_eq!(entry.meta.name, "Template Name");
+        assert_eq!(result.len(), 1, "only the skill with SKILL.md should be enumerated");
+        let entry = &result[0];
+        assert_eq!(entry.meta.id, "marketing-brand-voice");
+        assert_eq!(entry.meta.name, "Brand Voice");
+        assert_eq!(entry.meta.description, "from install");
+        assert_eq!(entry.meta.category, "Marketing");
         assert!(entry.status.installed);
-        assert!(!entry.status.needs_update, "matching checksum means up-to-date");
+        assert!(!entry.status.needs_update);
     }
 
     #[test]
-    fn test_list_skills_in_dirs_skips_custom_entries_without_skill_md() {
-        let templates = TempDir::new().unwrap();
+    fn list_skills_with_status_skips_dotfiles_and_files() {
         let skills = TempDir::new().unwrap();
-        fs::create_dir_all(skills.path().join("not-a-skill")).unwrap(); // no SKILL.md
-        fs::create_dir_all(skills.path().join(".hidden")).unwrap();
 
-        let result = list_skills_in_dirs(templates.path(), skills.path());
+        // Valid skill
+        write_skill_dir(skills.path(), "valid-skill", "Valid", "ok");
+        // Hidden directory — should be skipped
+        fs::create_dir_all(skills.path().join(".hidden")).unwrap();
+        write_skill_md(&skills.path().join(".hidden"), "Hidden", "skipped");
+        // Loose files — should be skipped
+        fs::write(skills.path().join(".DS_Store"), b"junk").unwrap();
+        fs::write(skills.path().join("README.md"), b"loose readme").unwrap();
+
+        let result = list_skills_in_dir(skills.path());
+
+        let ids: Vec<&str> = result.iter().map(|s| s.meta.id.as_str()).collect();
+        assert_eq!(ids, vec!["valid-skill"]);
+    }
+
+    #[test]
+    fn list_skills_in_dir_returns_empty_for_missing_dir() {
+        let tmp = TempDir::new().unwrap();
+        let missing = tmp.path().join("does-not-exist");
+        let result = list_skills_in_dir(&missing);
         assert!(result.is_empty());
     }
 }

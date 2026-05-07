@@ -10,7 +10,7 @@ Most AI tools force you to choose between capability and privacy — and leave y
 
 **One project at a time** — Work is organized around workspaces: one folder, one focus. Each workspace holds its own files, chat sessions, permissions, and agent history in one place. Switch workspaces to switch projects — nothing bleeds between them.
 
-**Ready in minutes** — No configuration marathons. A built-in Skills Catalog provides reusable AI behaviors you can install with one click. Starter Packs bundle files, prompts, and step-by-step guidance for real-world tasks — writing, research, security audits, legal review, and more.
+**Ready in minutes** — No configuration marathons. A curated Skills Catalog points at hand-picked Git skill repositories so you can browse, clone, and install reusable AI behaviours through the Skills Manager. Starter Packs bundle files, prompts, and step-by-step guidance for real-world tasks — writing, research, security audits, legal review, and more.
 
 ---
 
@@ -28,7 +28,7 @@ Technical design documents and implementation plans organized by module. Design 
 | **App Experience** | [`design_app-ux.md`](app-ux/design_app-ux.md) | Themes, keyboard shortcuts, settings, about panel, feedback, updates, CLI detection |
 | **Workspace-as-Folder** | [`design_workspace-as-folder.md`](workspace-as-folder/design_workspace-as-folder.md) | Workspace lifecycle, file tree, permissions, file preview panel |
 | **Workspace Packs** | [`design_workspace-packs.md`](workspace-packs/design_workspace-packs.md) | Starter pack catalog, installation, workspace creation |
-| **Skills Management** | [`skills-management/design_skills-catalog.md`](skills-management/design_skills-catalog.md), [`design_skills-manager.md`](skills-management/design_skills-manager.md) | Bundled skill catalog, repo-based skill management |
+| **Skills Management** | [`skills-management/design_skills-catalog.md`](skills-management/design_skills-catalog.md), [`design_skills-manager.md`](skills-management/design_skills-manager.md) | Curated skill repo catalog, Skills Manager (clone, sync, install) |
 | **Windows Support** | [`windows-support/design_windows-support.md`](windows-support/design_windows-support.md) | Platform-specific runtime fixes, PATH resolution, build targets |
 
 ### cowork-z — Platform & Security
@@ -96,8 +96,7 @@ Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#re
 
 | Plan | Location | Requirements |
 |------|----------|--------------|
-| Skills Catalog | [`skills-management/plan_skills-catalog.md`](skills-management/plan_skills-catalog.md) | 8.1–8.2 |
-| View Skill | [`skills-management/plan_view-skill.md`](skills-management/plan_view-skill.md) | 8.2.5 |
+| Skills Catalog (curated repo browser) | [`skills-management/plan_skills-catalog-reimplement.md`](skills-management/plan_skills-catalog-reimplement.md) | 8.1–8.2 |
 | Skills Manager | [`skills-management/plan_skills-manager.md`](skills-management/plan_skills-manager.md) | 8.3 |
 
 ---
@@ -769,60 +768,48 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 > **Design:** [Skills Catalog Design](skills-management/design_skills-catalog.md)
 > **Plan:** [Skills Catalog Plan](skills-management/plan_skills-catalog.md)
 
-**User Story:** As a user, I want to browse and install bundled AI skill templates from the Home screen, and manage skills from remote Git repositories in a dedicated Skills Manager, so that I can quickly discover, install, update, and organize reusable AI skills.
+**User Story:** As a user, I want to discover curated Git skill repositories from the Home screen and manage them in a dedicated Skills Manager, so that I can quickly find, install, sync, and organise reusable AI skills.
 
 #### 8.1 Skills Catalog ✅
 
+> **Plan:** [Skills Catalog Re-implement](skills-management/plan_skills-catalog-reimplement.md)
+
+The Skills Catalog is a curated discovery surface for Git-backed skill repositories. It does not install skills directly — clicking a card opens the Skills Manager (see 8.3), which performs the actual clone + install.
+
 **Acceptance Criteria:**
 
-##### 8.1.1 Built-in Skill Library
-1. THE SYSTEM SHALL include a built-in catalog of bundled skill templates in `resources/skill-templates/`, each containing a `SKILL.md` with YAML frontmatter (`name`, `description`)
-2. THE SYSTEM SHALL derive display categories automatically from folder name prefixes (e.g., `marketing-*` → Marketing, `sales-*` → Sales, `enterprise-*` → Enterprise, etc.)
-3. THE SYSTEM SHALL expose the skill catalog via a `skills_list_with_status` Tauri command
+##### 8.1.1 Curated Repo List
+1. THE SYSTEM SHALL ship a static, curated list of Git skill repositories in `src/components/landing/curatedSkillRepos.ts`, each with `url`, `name`, `summary`, `categories[]`, and optional `branch`
+2. THE SYSTEM SHALL allow each repository to carry one to three categories from a closed taxonomy (Marketing, Sales, Finance, Legal, Product, Support, Data, Design, Document, Productivity, Enterprise, General)
+3. THE SYSTEM SHALL NOT bundle individual skill templates with the app binary; all skill discovery and install flows through the Skills Manager
 
-##### 8.1.2 Skill Installation
-1. THE SYSTEM SHALL install skills to the OpenCode user-level skills folder: `~/.config/opencode/skills/<skill_id>/`
-2. WHEN the user clicks Install on a skill card, THE SYSTEM SHALL recursively copy the bundled skill template to the target directory
-3. THE SYSTEM SHALL create the target directory if it does not exist
-4. AFTER installation, THE SYSTEM SHALL write a `.coworkz-checksum` file containing the SHA256 hash of the bundled source for future update detection
+##### 8.1.2 Click-to-Open Handoff
+1. WHEN the user clicks **Open** on a curated card, THE SYSTEM SHALL hand off the `{ url, branch? }` payload via `localStorage` (`skills:pendingFocusRepo`) and open or focus the Skills Manager window
+2. WHERE the Skills Manager is already open, THE SYSTEM SHALL deliver the handoff via a same-origin `storage` event and bring the window to focus
+3. WHERE the URL matches a repo already registered in the Skills Manager, THE SYSTEM SHALL select that repo in the toolbar dropdown without re-cloning
+4. WHERE the URL is new, THE SYSTEM SHALL auto-add it via `skill_repos_add(url, branch?)`, refresh the repo list, select the new repo, and surface a success toast
 
-##### 8.1.3 Update Detection
-1. THE SYSTEM SHALL compute SHA256 checksums over all files in each bundled skill directory (sorted by relative path, excluding `.coworkz-checksum` and hidden files)
-2. THE SYSTEM SHALL compare the bundled checksum with the installed `.coworkz-checksum` to determine if an update is available
-3. WHERE the installed checksum differs from the bundled checksum, THE SYSTEM SHALL display a "Re-install" button (amber/warning style)
-4. THE SYSTEM SHALL allow re-install even when the skill is up-to-date (overwrites the installed folder)
+##### 8.1.3 Error Handling
+1. WHERE the auto-add fails (network, auth, invalid repo), THE SYSTEM SHALL show an error toast and open the Add Repo dialog with the URL prefilled so the user can supply an access token
+2. WHERE the `localStorage` payload is missing or malformed, THE SYSTEM SHALL clear the key and continue without crashing the Skills Manager
 
 #### 8.2 Home Screen Skills Browser ✅
 
 **Acceptance Criteria:**
 
-##### 8.2.1 Skills Grid
+##### 8.2.1 Curated Cards Grid
 1. THE SYSTEM SHALL display a "Skills Catalog" section on the Home screen below the Starter Packs section
-2. THE SYSTEM SHALL render skills in a 2-column grid, each card showing name, description, and an install/re-install button
-3. THE SYSTEM SHALL display a loading state while the skill catalog is being fetched
+2. THE SYSTEM SHALL render curated repos in a 2-column grid; each card shows the repo name, summary, one or more category badges, and a single **Open** button
+3. THE SYSTEM SHALL color-code category badges via the existing `CATEGORY_COLORS` map and fall back to `bg-muted text-muted-foreground` for unknown categories
 
-##### 8.2.2 Category Tabs and Search
-1. THE SYSTEM SHALL display horizontally scrollable category tabs ("All" plus dynamically derived categories) for filtering skills
-2. THE SYSTEM SHALL provide a search input that filters skills by name, description, or category in real-time
-3. WHERE no skills match the filter, THE SYSTEM SHALL display a "No skills match your search" message
+##### 8.2.2 Category Filter and Search
+1. THE SYSTEM SHALL display a horizontally scrollable pill row built from the union of all `categories` arrays plus a leading "All" pill
+2. WHEN a category pill is active, THE SYSTEM SHALL show repos whose `categories` array *includes* the active category (`Array.includes` semantics — multi-category packs appear under each of their categories)
+3. THE SYSTEM SHALL provide a search input that filters by repo name, summary, and category in real-time (case-insensitive)
+4. WHERE no repos match the filter, THE SYSTEM SHALL display a "No skills match your search" message
 
-##### 8.2.3 Button States
-1. FOR uninstalled skills, THE SYSTEM SHALL show a primary "Install" button
-2. WHILE a skill is being installed, THE SYSTEM SHALL disable the button and show "Installing…"
-3. FOR installed up-to-date skills, THE SYSTEM SHALL show an "Installed" badge with a secondary "Re-install" link
-4. FOR installed outdated skills, THE SYSTEM SHALL show an amber "Re-install" button
-
-##### 8.2.4 Error Handling
-1. WHERE skill installation fails, THE SYSTEM SHALL display the error message inline on the affected skill card
-2. WHERE the skills catalog fails to load, THE SYSTEM SHALL display a "Failed to load skills" message
-
-##### 8.2.5 Skill Preview ✅
-
-> **Plan:** [View Skill](skills-catalog/plan_view-skill.md)
-
-1. THE SYSTEM SHALL display a "View" link on each skill card in the Skills Catalog
-2. WHEN the user clicks "View", THE SYSTEM SHALL resolve the bundled skill template's `SKILL.md` path via a backend command and open it in the in-app file preview panel (see 6.4)
-3. THE SYSTEM SHALL display an error toast if the skill template path cannot be resolved
+##### 8.2.3 Footer Link
+1. THE SYSTEM SHALL display a footer link to open the Skills Manager directly (without a repo handoff) for users who want to manage all installed skills and add their own repos
 
 #### 8.3 Skills Manager ✅
 

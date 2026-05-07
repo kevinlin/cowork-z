@@ -381,8 +381,6 @@ pub fn run() {
             commands::packs::packs_install_default,
             // Skills
             commands::skills::skills_list_with_status,
-            commands::skills::skills_install,
-            commands::skills::skills_get_template_path,
             commands::skills::skills_get_skill_file_path,
             // Automations
             commands::automations::create_automation,

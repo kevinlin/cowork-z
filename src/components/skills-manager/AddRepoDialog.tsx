@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { useSkillsManagerStore } from '@/stores/skillsManagerStore';
 
 interface AddRepoDialogProps {
@@ -17,7 +16,24 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
   const [authToken, setAuthToken] = useState('');
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
-  const { refreshAll } = useSkillsManagerStore();
+  const { addRepo, prefillAddRepoUrl, setPrefillAddRepoUrl } = useSkillsManagerStore();
+
+  useEffect(() => {
+    if (open && prefillAddRepoUrl) {
+      setUrl(prefillAddRepoUrl);
+      setPrefillAddRepoUrl(null);
+    }
+  }, [open, prefillAddRepoUrl, setPrefillAddRepoUrl]);
+
+  const handleClose = (next: boolean) => {
+    if (!next) {
+      setUrl('');
+      setBranch('main');
+      setAuthToken('');
+      setError('');
+    }
+    onOpenChange(next);
+  };
 
   const handleAdd = async () => {
     if (!url.trim()) {
@@ -27,9 +43,11 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
     setAdding(true);
     setError('');
     try {
-      const api = getTauriAPI();
-      await api.skillReposAdd(url.trim(), branch.trim() || undefined, authToken.trim() || undefined);
-      await refreshAll();
+      await addRepo({
+        url: url.trim(),
+        branch: branch.trim() || undefined,
+        authToken: authToken.trim() || undefined,
+      });
       setUrl('');
       setBranch('main');
       setAuthToken('');
@@ -42,7 +60,7 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
   };
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
+    <Dialog onOpenChange={handleClose} open={open}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add Skill Repository</DialogTitle>
@@ -66,7 +84,7 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
           {error && <div className="rounded border border-destructive/50 bg-destructive/10 p-2 text-destructive text-xs">{error}</div>}
         </div>
         <DialogFooter>
-          <Button disabled={adding} onClick={() => onOpenChange(false)} variant="outline">
+          <Button disabled={adding} onClick={() => handleClose(false)} variant="outline">
             Cancel
           </Button>
           <Button disabled={adding || !url.trim()} onClick={handleAdd}>

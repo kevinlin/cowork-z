@@ -23,7 +23,7 @@ export default function HomePage() {
   const [selectedSkills, setSelectedSkills] = useState<SkillMeta[]>([]);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState<HomeTab>('automations');
+  const [activeTab, setActiveTab] = useState<HomeTab>('skills');
 
   const { startTask, isLoading, addTaskUpdate, enqueuePermissionRequest } = useTaskStore();
   const navigate = useNavigate();
@@ -147,14 +147,14 @@ export default function HomePage() {
               <div className="flex border-border border-t">
                 <button
                   className={`flex-1 px-4 py-2.5 font-medium text-sm transition-colors ${
-                    activeTab === 'automations'
+                    activeTab === 'skills'
                       ? 'border-primary border-b-2 text-foreground'
                       : 'border-transparent border-b-2 text-muted-foreground hover:text-foreground'
                   }`}
-                  onClick={() => setActiveTab('automations')}
+                  onClick={() => setActiveTab('skills')}
                   type="button"
                 >
-                  Automations
+                  Skills Catalog
                 </button>
                 <button
                   className={`flex-1 px-4 py-2.5 font-medium text-sm transition-colors ${
@@ -169,20 +169,20 @@ export default function HomePage() {
                 </button>
                 <button
                   className={`flex-1 px-4 py-2.5 font-medium text-sm transition-colors ${
-                    activeTab === 'skills'
+                    activeTab === 'automations'
                       ? 'border-primary border-b-2 text-foreground'
                       : 'border-transparent border-b-2 text-muted-foreground hover:text-foreground'
                   }`}
-                  onClick={() => setActiveTab('skills')}
+                  onClick={() => setActiveTab('automations')}
                   type="button"
                 >
-                  Skills Catalog
+                  Automations
                 </button>
               </div>
 
               {/* Tab content */}
-              {activeTab === 'packs' && <StarterPacks onPromptSeed={setPrompt} />}
               {activeTab === 'skills' && <SkillsCatalog />}
+              {activeTab === 'packs' && <StarterPacks onPromptSeed={setPrompt} />}
               {activeTab === 'automations' && <AutomationsList />}
             </Card>
           </motion.div>

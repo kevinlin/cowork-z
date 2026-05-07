@@ -1,110 +1,36 @@
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { openSkillsManagerWindow } from '@/lib/skills-window';
-import type { SkillWithStatus } from '@/lib/tauri-api';
-import { getTauriAPI } from '@/lib/tauri-api-interface';
-import { useFilePreviewStore } from '@/stores/filePreviewStore';
-import { useSkillsStore } from '@/stores/skillsStore';
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Marketing: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400',
-  Sales: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-  Finance: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-  Enterprise: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-  Legal: 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-400',
-  Product: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  Support: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-  Data: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400',
-  Productivity: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400',
-  General: 'bg-muted text-muted-foreground',
-};
+import { ArrowUpRight } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { getCategoryColorClass } from '@/lib/skill-categories';
+import { openSkillsManagerForRepo, openSkillsManagerWindow } from '@/lib/skills-window';
+import { CURATED_SKILL_REPOS, type CuratedSkillRepo } from './curatedSkillRepos';
 
 export default function SkillsCatalog() {
-  const [skills, setSkills] = useState<SkillWithStatus[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [installingId, setInstallingId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [query, setQuery] = useState('');
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const api = getTauriAPI();
+  const categories = useMemo(() => ['All', ...Array.from(new Set(CURATED_SKILL_REPOS.flatMap((r) => r.categories))).sort()], []);
 
-  useEffect(() => {
-    api
-      .listSkillsWithStatus()
-      .then(setSkills)
-      .catch(() => setLoadError(true))
-      .finally(() => setLoading(false));
-  }, [api]);
-
-  useEffect(() => {
-    const unlisten = api.onSkillsChanged(() => {
-      api
-        .listSkillsWithStatus()
-        .then(setSkills)
-        .catch(() => {});
-      useSkillsStore.getState().fetchInstalledSkills();
-    });
-    return () => {
-      unlisten();
-    };
-  }, [api]);
-
-  const categories = ['All', ...Array.from(new Set(skills.map((s) => s.meta.category))).sort()];
-
-  const filtered = skills
-    .filter((s) => {
-      const matchCategory = activeCategory === 'All' || s.meta.category === activeCategory;
-      const q = query.toLowerCase();
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return CURATED_SKILL_REPOS.filter((repo) => {
+      const matchCategory = activeCategory === 'All' || repo.categories.includes(activeCategory);
       const matchQuery =
         !q ||
-        s.meta.name.toLowerCase().includes(q) ||
-        s.meta.description.toLowerCase().includes(q) ||
-        s.meta.category.toLowerCase().includes(q);
+        repo.name.toLowerCase().includes(q) ||
+        repo.summary.toLowerCase().includes(q) ||
+        repo.categories.some((c) => c.toLowerCase().includes(q));
       return matchCategory && matchQuery;
-    })
-    .sort((a, b) => a.meta.name.localeCompare(b.meta.name));
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [activeCategory, query]);
 
-  const handleView = async (skillId: string) => {
-    try {
-      const path = await api.getSkillTemplatePath(skillId);
-      useFilePreviewStore.getState().openPreviewByPath(path);
-    } catch (e) {
-      toast.error('Failed to open skill preview', { description: String(e) });
-    }
-  };
-
-  const handleInstall = async (skillId: string) => {
-    setInstallingId(skillId);
-    setErrors((prev) => {
-      const next = { ...prev };
-      delete next[skillId];
-      return next;
-    });
-    try {
-      const wasInstalled = skills.find((s) => s.meta.id === skillId)?.status.installed;
-      await api.installSkill(skillId);
-      const updated = await api.listSkillsWithStatus();
-      setSkills(updated);
-
-      const skill = updated.find((s) => s.meta.id === skillId);
-      toast.success(skill ? `${skill.meta.name} ${wasInstalled ? 're-installed' : 'installed'}` : 'Skill installed', {
-        description: 'Skill is now available to the AI agent.',
-      });
-      useSkillsStore.getState().fetchInstalledSkills();
-    } catch (e) {
-      setErrors((prev) => ({ ...prev, [skillId]: String(e) }));
-    } finally {
-      setInstallingId(null);
-    }
+  const handleOpen = (repo: CuratedSkillRepo) => {
+    openSkillsManagerForRepo({ url: repo.url, branch: repo.branch });
   };
 
   return (
     <div>
-      {/* Header row */}
       <div className="flex items-center justify-between px-6 py-3">
-        <p className="text-muted-foreground text-xs">Install reusable AI skill templates globally.</p>
+        <p className="text-muted-foreground text-xs">Browse curated skill repositories — open one in Skills Manager to install.</p>
         <input
           className="h-7 w-48 rounded-md border border-border bg-background px-2 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           onChange={(e) => setQuery(e.target.value)}
@@ -114,7 +40,6 @@ export default function SkillsCatalog() {
         />
       </div>
 
-      {/* Category tabs */}
       <div className="flex gap-1 overflow-x-auto px-6 pb-2">
         {categories.map((cat) => (
           <button
@@ -130,44 +55,38 @@ export default function SkillsCatalog() {
         ))}
       </div>
 
-      {/* Skill grid */}
       <div className="max-h-[560px] overflow-y-auto px-6 pb-4">
-        {loading ? (
-          <p className="py-4 text-center text-muted-foreground text-sm">Loading skills…</p>
-        ) : loadError ? (
-          <p className="py-4 text-center text-muted-foreground text-sm">Failed to load skills.</p>
-        ) : filtered.length === 0 ? (
-          <p className="py-4 text-center text-muted-foreground text-sm">
-            {query ? 'No skills match your search.' : 'No skills available.'}
-          </p>
+        {filtered.length === 0 ? (
+          <p className="py-4 text-center text-muted-foreground text-sm">No skills match your search.</p>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {filtered.map((s) => (
-              <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4" key={s.meta.id}>
+            {filtered.map((repo) => (
+              <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4" key={repo.url}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium text-foreground text-sm leading-snug">{s.meta.name}</div>
-                    <div className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">{s.meta.description}</div>
+                    <div className="font-medium text-foreground text-sm leading-snug">{repo.name}</div>
+                    <div className="mt-0.5 line-clamp-3 text-muted-foreground text-xs">{repo.summary}</div>
                   </div>
-                  <SkillButton installing={installingId === s.meta.id} onInstall={() => handleInstall(s.meta.id)} status={s.status} />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`rounded-full px-2 py-0.5 font-medium text-xs ${CATEGORY_COLORS[s.meta.category] ?? 'bg-muted text-muted-foreground'}`}
-                  >
-                    {s.meta.category}
-                  </span>
                   <button
-                    className="text-muted-foreground text-xs hover:text-foreground"
-                    onClick={() => handleView(s.meta.id)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs hover:bg-primary/90"
+                    onClick={() => handleOpen(repo)}
                     type="button"
                   >
-                    View
+                    Open
+                    <ArrowUpRight className="h-3 w-3" />
                   </button>
                 </div>
 
-                {errors[s.meta.id] && <p className="text-destructive text-xs">{errors[s.meta.id]}</p>}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {repo.categories.map((category) => (
+                    <span
+                      className={`rounded-full px-2 py-0.5 font-medium text-xs ${getCategoryColorClass(category)}`}
+                      key={category}
+                    >
+                      {category}
+                    </span>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -176,65 +95,12 @@ export default function SkillsCatalog() {
 
       <div className="border-t px-6 py-3">
         <p className="text-muted-foreground text-xs">
-          For full control of your skills, use{' '}
+          Manage all installed skills and add your own repos in{' '}
           <button className="font-medium text-primary underline hover:no-underline" onClick={openSkillsManagerWindow} type="button">
             Skills Manager
           </button>
         </p>
       </div>
-    </div>
-  );
-}
-
-interface SkillButtonProps {
-  status: SkillWithStatus['status'];
-  installing: boolean;
-  onInstall: () => void;
-}
-
-function SkillButton({ status, installing, onInstall }: SkillButtonProps) {
-  if (installing) {
-    return (
-      <button
-        className="shrink-0 cursor-not-allowed rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs opacity-50"
-        disabled
-        type="button"
-      >
-        Installing…
-      </button>
-    );
-  }
-
-  if (!status.installed) {
-    return (
-      <button
-        className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs hover:bg-primary/90"
-        onClick={onInstall}
-        type="button"
-      >
-        Install
-      </button>
-    );
-  }
-
-  if (status.needs_update) {
-    return (
-      <button
-        className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 font-medium text-white text-xs hover:bg-amber-600"
-        onClick={onInstall}
-        type="button"
-      >
-        Re-install
-      </button>
-    );
-  }
-
-  return (
-    <div className="flex flex-col items-end gap-1">
-      <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">Installed</span>
-      <button className="text-muted-foreground text-xs underline hover:text-foreground" onClick={onInstall} type="button">
-        Re-install
-      </button>
     </div>
   );
 }

@@ -98,39 +98,6 @@ pub fn list_packs() -> Vec<PackMeta> {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/// Recursively copy `from` directory to `to` (created if needed).
-/// Uses `.flatten()` to skip unreadable entries rather than hard-failing.
-fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
-    if !from.exists() {
-        return Err(format!("Source does not exist: {:?}", from));
-    }
-
-    fs::create_dir_all(to).map_err(|e| format!("Failed to create directory {:?}: {}", to, e))?;
-
-    let entries = fs::read_dir(from).map_err(|e| format!("Failed to read {:?}: {}", from, e))?;
-    for entry in entries.flatten() {
-        let file_type = entry
-            .file_type()
-            .map_err(|e| format!("Failed to read file type {:?}: {}", entry.path(), e))?;
-
-        let dest_path = to.join(entry.file_name());
-        if file_type.is_dir() {
-            copy_dir_recursive(&entry.path(), &dest_path)?;
-        } else if file_type.is_file() {
-            fs::copy(entry.path(), &dest_path).map_err(|e| {
-                format!(
-                    "Failed to copy file {:?} -> {:?}: {}",
-                    entry.path(),
-                    dest_path,
-                    e
-                )
-            })?;
-        }
-    }
-
-    Ok(())
-}
-
 /// Find the packs/ and pack-docs/ root directories.
 ///
 /// Pack content is copied directly into `src-tauri/resources/` at development
@@ -236,7 +203,7 @@ pub fn install_pack(
         pack_id, source_pack_dir, install_dir
     );
 
-    copy_dir_recursive(&source_pack_dir, &install_dir)?;
+    crate::fs_utils::copy_dir_recursive(&source_pack_dir, &install_dir)?;
 
     // Copy documentation files individually (missing files are warnings, not errors).
     let doc_src = pack_docs_root.join(pack_id);

@@ -1,4 +1,7 @@
-use crate::commands::skills::{compute_dir_checksum, copy_dir_recursive};
+#[cfg(not(unix))]
+use crate::commands::skills::compute_dir_checksum;
+#[cfg(not(unix))]
+use crate::fs_utils::copy_dir_recursive;
 use crate::db::skill_repos::{self, StoredSkillRepo};
 use crate::db::DbState;
 use crate::git_ops;

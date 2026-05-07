@@ -2,6 +2,7 @@
 //! their SKILL.md paths.
 
 use serde::Serialize;
+#[cfg(any(not(unix), test))]
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -104,6 +105,7 @@ pub fn parse_frontmatter(skill_dir: &Path) -> Option<(String, String)> {
 
 /// Compute SHA256 over all files in `dir` (sorted by relative path).
 /// Returns hex digest string.
+#[cfg(any(not(unix), test))]
 pub fn compute_dir_checksum(dir: &Path) -> Result<String, String> {
     let mut paths: Vec<PathBuf> = vec![];
     collect_files(dir, dir, &mut paths)?;
@@ -119,6 +121,7 @@ pub fn compute_dir_checksum(dir: &Path) -> Result<String, String> {
 }
 
 /// Recursively collect all non-hidden files under `root`, appending relative paths to `out`.
+#[cfg(any(not(unix), test))]
 fn collect_files(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
     let entries = fs::read_dir(dir).map_err(|e| format!("Failed to read dir {:?}: {}", dir, e))?;
     for entry in entries.flatten() {
@@ -148,31 +151,6 @@ fn collect_files(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), 
 pub fn opencode_skills_dir() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
     Ok(home.join(".config").join("opencode").join("skills"))
-}
-
-// ── Recursive copy ────────────────────────────────────────────────────────────
-
-pub fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
-    if !from.exists() {
-        return Err(format!("Source does not exist: {:?}", from));
-    }
-    fs::create_dir_all(to).map_err(|e| format!("create_dir_all {:?}: {}", to, e))?;
-    for entry in fs::read_dir(from)
-        .map_err(|e| format!("read_dir {:?}: {}", from, e))?
-        .flatten()
-    {
-        let file_type = entry
-            .file_type()
-            .map_err(|e| format!("file_type {:?}: {}", entry.path(), e))?;
-        let dest = to.join(entry.file_name());
-        if file_type.is_dir() {
-            copy_dir_recursive(&entry.path(), &dest)?;
-        } else {
-            fs::copy(entry.path(), &dest)
-                .map_err(|e| format!("copy {:?} -> {:?}: {}", entry.path(), dest, e))?;
-        }
-    }
-    Ok(())
 }
 
 // ── Core logic ────────────────────────────────────────────────────────────────

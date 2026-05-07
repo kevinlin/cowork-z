@@ -6,6 +6,7 @@ mod automation_dispatch;
 mod automation_scheduler;
 mod commands;
 mod db;
+mod fs_utils;
 mod fs_watcher;
 mod git_ops;
 mod secure_storage;

@@ -1,5 +1,8 @@
 import { ArrowUpRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getCategoryColorClass } from '@/lib/skill-categories';
 import { openSkillsManagerForRepo, openSkillsManagerWindow } from '@/lib/skills-window';
 import { CURATED_SKILL_REPOS, type CuratedSkillRepo } from './curatedSkillRepos';
@@ -29,10 +32,10 @@ export default function SkillsCatalog() {
 
   return (
     <div>
-      <div className="flex items-center justify-between px-6 py-3">
+      <div className="flex items-center justify-between gap-3 px-6 py-3">
         <p className="text-muted-foreground text-xs">Browse curated skill repositories — open one in Skills Manager to install.</p>
-        <input
-          className="h-7 w-48 rounded-md border border-border bg-background px-2 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        <Input
+          className="h-7 w-48 text-xs"
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search skills…"
           type="search"
@@ -57,32 +60,39 @@ export default function SkillsCatalog() {
 
       <div className="max-h-[560px] overflow-y-auto px-6 pb-4">
         {filtered.length === 0 ? (
-          <p className="py-4 text-center text-muted-foreground text-sm">No skills match your search.</p>
+          <EmptyState>No skills match your search.</EmptyState>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map((repo) => (
-              <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4" key={repo.url}>
+              <div
+                className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+                key={repo.url}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-foreground text-sm leading-snug">{repo.name}</div>
-                    <div className="mt-0.5 line-clamp-3 text-muted-foreground text-xs">{repo.summary}</div>
+                    <Tooltip delayDuration={400}>
+                      <TooltipTrigger asChild>
+                        <div className="mt-0.5 line-clamp-3 cursor-default text-muted-foreground text-xs">{repo.summary}</div>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm" side="bottom" sideOffset={6}>
+                        <p className="text-xs leading-relaxed">{repo.summary}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                   <button
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs hover:bg-primary/90"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs transition-colors hover:bg-primary/90"
                     onClick={() => handleOpen(repo)}
                     type="button"
                   >
                     Open
-                    <ArrowUpRight className="h-3 w-3" />
+                    <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5">
                   {repo.categories.map((category) => (
-                    <span
-                      className={`rounded-full px-2 py-0.5 font-medium text-xs ${getCategoryColorClass(category)}`}
-                      key={category}
-                    >
+                    <span className={`rounded-full px-2 py-0.5 font-medium text-xs ${getCategoryColorClass(category)}`} key={category}>
                       {category}
                     </span>
                   ))}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { getCuratedRepoCategories } from '@/components/landing/curatedSkillRepos';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { deriveSkillCategory } from '@/lib/skill-categories';
 import type { RepoSkill } from '@/lib/tauri-api';
@@ -88,15 +89,15 @@ export function RepoSkillsGrid() {
   };
 
   if (repoSkillsLoading) {
-    return <div className="flex items-center justify-center p-8 text-muted-foreground text-sm">Loading skills...</div>;
+    return <EmptyState className="p-8">Loading skills...</EmptyState>;
   }
 
   if (repoSkills.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 p-8 text-muted-foreground text-sm">
+      <EmptyState className="flex flex-col items-center justify-center gap-2 p-8">
         <p>No skills available.</p>
         <p>Add a repository to browse skills from it.</p>
-      </div>
+      </EmptyState>
     );
   }
 
@@ -114,7 +115,7 @@ export function RepoSkillsGrid() {
       <div className="flex gap-1 overflow-x-auto px-4 py-2">
         {categories.map((cat) => (
           <button
-            className={`shrink-0 rounded-full px-3 py-1 text-xs transition-colors ${
+            className={`shrink-0 rounded-full px-3 py-1 font-medium text-xs transition-colors ${
               activeCategory === cat ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'
             }`}
             key={cat}
@@ -128,7 +129,7 @@ export function RepoSkillsGrid() {
 
       <div className="flex-1 overflow-auto px-4 pb-4">
         {filtered.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground text-sm">No skills match your search</div>
+          <EmptyState className="py-8">No skills match your search</EmptyState>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map((skill) => (

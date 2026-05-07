@@ -4,7 +4,10 @@
 
 ## v0.7.9
 
-- 
+- **Polished card hover interactions** — Curated repo cards in **Skills Catalog**, starter pack cards in **Starter Packs**, and skill cards in **Skills Manager** now share a consistent shadow and lift-on-hover effect, with the `Skills Catalog` "Open" arrow nudging on group hover. `SkillCard` also picks up the missing `bg-card` background so its hover shadow reads correctly against the page.
+- **Full-text tooltips on truncated card content** — `line-clamp`-ed descriptions, truncated skill names, and the `font-mono` `skillPath` row are now wrapped in Radix `Tooltip` (400 ms delay) so hovering reveals the complete text in a popover.
+- **`SkillCard` action row hardening** — The "View / Install / Re-install / Update / Delete" button row now wraps every right-side variant in a single `<div className="ml-auto flex items-center gap-1">` container, so future action states inherit right-alignment automatically instead of each branch remembering its own `ml-auto`.
+- **Standardised search inputs** — `SkillsCatalog` and `StarterPacks` now use the shared `<Input>` shadcn primitive so focus rings, disabled states, and dark-mode handling stay in lockstep with the rest of the app.
 
 ## v0.7.8
 

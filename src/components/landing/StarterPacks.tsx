@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { PackMeta } from '@/lib/tauri-api';
 import { pickFolder } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
@@ -80,10 +83,10 @@ export default function StarterPacks({ onPromptSeed }: StarterPacksProps) {
   return (
     <div>
       {/* Header row */}
-      <div className="flex items-center justify-between px-6 py-3">
+      <div className="flex items-center justify-between gap-3 px-6 py-3">
         <p className="text-muted-foreground text-xs">Guided, copyable folders for real-world tasks.</p>
-        <input
-          className="h-7 w-48 rounded-md border border-border bg-background px-2 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        <Input
+          className="h-7 w-48 text-xs"
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search packs…"
           type="search"
@@ -94,20 +97,30 @@ export default function StarterPacks({ onPromptSeed }: StarterPacksProps) {
       {/* Pack grid */}
       <div className="max-h-[560px] overflow-y-auto px-6 pb-4">
         {packsLoading ? (
-          <p className="py-4 text-center text-muted-foreground text-sm">Loading packs…</p>
+          <EmptyState>Loading packs…</EmptyState>
         ) : filteredPacks.length === 0 ? (
-          <p className="py-4 text-center text-muted-foreground text-sm">{query ? 'No packs match your search.' : 'No packs available.'}</p>
+          <EmptyState>{query ? 'No packs match your search.' : 'No packs available.'}</EmptyState>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filteredPacks.map((pack) => (
-              <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4" key={pack.id}>
+              <div
+                className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+                key={pack.id}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-foreground text-sm leading-snug">{pack.title}</div>
-                    <div className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">{pack.description}</div>
+                    <Tooltip delayDuration={400}>
+                      <TooltipTrigger asChild>
+                        <div className="mt-0.5 line-clamp-2 cursor-default text-muted-foreground text-xs">{pack.description}</div>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm" side="bottom" sideOffset={6}>
+                        <p className="text-xs leading-relaxed">{pack.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                   <button
-                    className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={installingId === pack.id}
                     onClick={() => handleInstall(pack.id)}
                     type="button"

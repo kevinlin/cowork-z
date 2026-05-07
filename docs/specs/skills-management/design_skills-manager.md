@@ -184,6 +184,21 @@ This repo uses a non-standard structure (`{category}/skills/{name}/` and `{categ
 
 This adapter is activated when the repo URL matches `github.com/anthropics/knowledge-work-plugins`.
 
+### Skill Category Derivation (Frontend Display)
+
+The backend's `derive_category()` produces a category from the skill's path/manifest (e.g. `data/skills/sql-queries/` → `Data`). For repos that don't follow the `{category}/skills/{name}` convention — most third-party repos — that path-based result is unhelpful (often `General` or a non-taxonomy directory name like `Curated`/`System` from the `openai/skills` adapter).
+
+The Skills Manager grid (`SkillCard.tsx` + `RepoSkillsGrid.tsx`) therefore re-derives a **display category** from the closed taxonomy in `CATEGORY_COLORS` (`src/lib/skill-categories.ts`) using this precedence:
+
+1. **Skill name keyword match** — `deriveCategoryFromName(skill.name)` scans the skill's name for keywords associated with each category in `CATEGORY_KEYWORDS` (case-insensitive substring match, padded with spaces so short tokens like `' pm '` and `' ads'` match whole-word). The first taxonomy key whose keyword set hits wins. Order matters: more specific categories (e.g. `Document`) are listed before more generic ones (e.g. `Productivity`) so an "Investor Report" skill maps to `Document`, not `Productivity`.
+2. **Source repo categories** — If the name yields no match, look up the source repo in the curated catalogue via `getCuratedRepoCategories(skill.repoName)` (`curatedSkillRepos.ts`) and use the **first** assigned category. A repo like `wondelai/skills` (`['Product', 'Marketing', 'Sales']`) thus contributes `Product` as the default for every unrecognised skill it ships.
+3. **Backend-derived category** — Fall back to `skill.category` from the `repo_skills` row (the path/manifest result). This is what previous versions of the UI displayed unconditionally.
+4. **`'General'`** as the absolute default when all three above are empty.
+
+The shared helper `deriveSkillCategory(skillName, repoCategories, fallback)` encapsulates this precedence. Both the `SkillCard` badge color/text and the `RepoSkillsGrid` filter tabs / search use the **same derived value** (computed once via a `useMemo` keyed on `repoId:skillPath` in `RepoSkillsGrid`), so a skill never displays a badge category that isn't selectable in the filter tab strip.
+
+> **User-added (non-curated) repos:** `getCuratedRepoCategories()` returns `[]` for any repo not in `CURATED_SKILL_REPOS`, so user-added skill repos collapse to steps 1, 3, 4 — name keyword match, then backend category, then `General`.
+
 ### Repo-Specific Adapter: `openai/skills`
 
 This repo organizes skills under dotfile-prefixed subdirectories within `skills/`:

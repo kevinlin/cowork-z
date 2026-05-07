@@ -133,3 +133,16 @@ export const CURATED_SKILL_REPOS: CuratedSkillRepo[] = [
     categories: ['Product', 'Marketing', 'Sales'],
   },
 ];
+
+/**
+ * Look up the categories assigned to a curated skill repo by display name
+ * (e.g. `anthropics/knowledge-work-plugins`). Returns an empty array when the
+ * repo is not in the curated list (user-added repos), so callers can fall
+ * through to other category-derivation strategies.
+ */
+export function getCuratedRepoCategories(repoName: string | null | undefined): string[] {
+  if (!repoName) {
+    return [];
+  }
+  return CURATED_SKILL_REPOS.find((r) => r.name === repoName)?.categories ?? [];
+}

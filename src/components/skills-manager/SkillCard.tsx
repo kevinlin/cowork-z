@@ -8,6 +8,7 @@ import { useFilePreviewStore } from '@/stores/filePreviewStore';
 
 interface SkillCardProps {
   skill: RepoSkill;
+  displayCategory: string;
   installing: boolean;
   deleting: boolean;
   error?: string;
@@ -15,10 +16,10 @@ interface SkillCardProps {
   onDelete: () => void;
 }
 
-export function SkillCard({ skill, installing, deleting, error, onInstall, onDelete }: SkillCardProps) {
+export function SkillCard({ skill, displayCategory, installing, deleting, error, onInstall, onDelete }: SkillCardProps) {
   const { openPreviewByPath } = useFilePreviewStore();
   const [viewError, setViewError] = useState<string | null>(null);
-  const colorClass = getCategoryColorClass(skill.category);
+  const colorClass = getCategoryColorClass(displayCategory);
 
   const handleView = async () => {
     setViewError(null);
@@ -46,7 +47,7 @@ export function SkillCard({ skill, installing, deleting, error, onInstall, onDel
       </div>
 
       <div className="flex items-center gap-1">
-        <span className={`rounded-full px-2 py-0.5 font-medium text-[10px] ${colorClass}`}>{skill.category}</span>
+        <span className={`rounded-full px-2 py-0.5 font-medium text-[10px] ${colorClass}`}>{displayCategory}</span>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{skill.repoName}</span>
       </div>
 

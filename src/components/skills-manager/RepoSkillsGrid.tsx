@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { getCuratedRepoCategories } from '@/components/landing/curatedSkillRepos';
 import { Input } from '@/components/ui/input';
+import { deriveSkillCategory } from '@/lib/skill-categories';
 import type { RepoSkill } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { useSkillsManagerStore } from '@/stores/skillsManagerStore';
@@ -12,25 +14,42 @@ export function RepoSkillsGrid() {
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const categories = useMemo(() => {
-    const cats = new Set(repoSkills.map((s) => s.category));
-    return ['All', ...Array.from(cats).sort()];
+  // The display category (skill name → curated repo categories → backend → 'General')
+  // is computed once per skill so the filter tabs, search match, and the SkillCard
+  // badge can never disagree. See docs/specs/skills-management/design_skills-manager.md.
+  const displayCategoryBySkill = useMemo(() => {
+    const map = new WeakMap<RepoSkill, string>();
+    for (const skill of repoSkills) {
+      map.set(skill, deriveSkillCategory(skill.name, getCuratedRepoCategories(skill.repoName), skill.category));
+    }
+    return map;
   }, [repoSkills]);
+
+  const getDisplayCategory = (skill: RepoSkill): string => displayCategoryBySkill.get(skill) ?? skill.category;
+
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    for (const skill of repoSkills) {
+      cats.add(getDisplayCategory(skill));
+    }
+    return ['All', ...Array.from(cats).sort()];
+  }, [repoSkills, displayCategoryBySkill]);
 
   const filtered = useMemo(() => {
     const queryLower = searchQuery.toLowerCase();
     return repoSkills
-      .filter((s) => activeCategory === 'All' || s.category === activeCategory)
       .filter((s) => {
+        const cat = getDisplayCategory(s);
+        if (activeCategory !== 'All' && cat !== activeCategory) return false;
         if (!queryLower) return true;
         return (
           s.name.toLowerCase().includes(queryLower) ||
           s.description.toLowerCase().includes(queryLower) ||
-          s.category.toLowerCase().includes(queryLower)
+          cat.toLowerCase().includes(queryLower)
         );
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [repoSkills, activeCategory, searchQuery]);
+  }, [repoSkills, activeCategory, searchQuery, displayCategoryBySkill]);
 
   const handleInstall = async (skill: RepoSkill) => {
     setInstallingPath(skill.skillPath);
@@ -115,6 +134,7 @@ export function RepoSkillsGrid() {
             {filtered.map((skill) => (
               <SkillCard
                 deleting={deletingPath === skill.skillPath}
+                displayCategory={getDisplayCategory(skill)}
                 error={errors[skill.skillPath]}
                 installing={installingPath === skill.skillPath}
                 key={`${skill.repoId}-${skill.skillPath}`}

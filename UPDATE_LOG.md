@@ -2,10 +2,13 @@
 
 # UPDATE LOG
 
+## v0.7.8
+
+- 
+
 ## v0.7.7
 
 - **Skills Catalog redesign — Curated repo browser** — The Home tab "Skills Catalog" now lists hand-picked Git skill repositories (Anthropic, OpenAI, Vercel, and others) instead of bundled individual skills. Clicking a card opens the Skills Manager and either selects the repo (if already added) or auto-clones it via `git clone --depth 1`, then filters the toolbar dropdown to it. Bundled `skill-templates/` and the `sync-skills.mjs` ritual have been retired — all skill discovery and install now flows through the Skills Manager.
-- 
 
 ## v0.7.6
 

@@ -4,8 +4,16 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getCategoryColorClass } from '@/lib/skill-categories';
-import type { RepoSkill } from '@/lib/tauri-api';
+import { openExternal, type RepoSkill } from '@/lib/tauri-api';
 import { useFilePreviewStore } from '@/stores/filePreviewStore';
+
+function buildSkillsShUrl(repoName: string, skillId: string): string | null {
+  const [org, repo] = repoName.split('/');
+  if (!(org && repo && skillId)) {
+    return null;
+  }
+  return `https://skills.sh/${org.toLowerCase()}/${repo.toLowerCase()}/${skillId}`;
+}
 
 interface SkillCardProps {
   skill: RepoSkill;
@@ -21,6 +29,7 @@ export function SkillCard({ skill, displayCategory, installing, deleting, error,
   const { openPreviewByPath } = useFilePreviewStore();
   const [viewError, setViewError] = useState<string | null>(null);
   const colorClass = getCategoryColorClass(displayCategory);
+  const skillsShUrl = buildSkillsShUrl(skill.repoName, skill.skillId);
 
   const handleView = async () => {
     setViewError(null);
@@ -30,6 +39,18 @@ export function SkillCard({ skill, displayCategory, installing, deleting, error,
       const repoCacheName = skill.repoName.replace(/\//g, '_');
       const skillMdPath = `${dataDirNorm}skill-repo-cache/${repoCacheName}/${skill.skillPath}/SKILL.md`;
       openPreviewByPath(skillMdPath);
+    } catch (e) {
+      setViewError(String(e));
+    }
+  };
+
+  const handleOpenSkillsSh = async () => {
+    if (!skillsShUrl) {
+      return;
+    }
+    setViewError(null);
+    try {
+      await openExternal(skillsShUrl);
     } catch (e) {
       setViewError(String(e));
     }
@@ -80,6 +101,18 @@ export function SkillCard({ skill, displayCategory, installing, deleting, error,
         <button className="text-primary text-xs underline hover:no-underline" onClick={handleView} type="button">
           View
         </button>
+        {skillsShUrl && (
+          <Tooltip delayDuration={400}>
+            <TooltipTrigger asChild>
+              <button className="text-primary text-xs underline hover:no-underline" onClick={handleOpenSkillsSh} type="button">
+                skills.sh
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-md" side="bottom" sideOffset={6}>
+              <p className="break-all text-xs">Open on skills.sh: {skillsShUrl}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         <div className="ml-auto flex items-center gap-1">
           {installing ? (

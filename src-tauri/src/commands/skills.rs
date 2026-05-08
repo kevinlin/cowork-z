@@ -2,8 +2,6 @@
 //! their SKILL.md paths.
 
 use serde::Serialize;
-#[cfg(any(not(unix), test))]
-use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
@@ -101,48 +99,6 @@ pub fn parse_frontmatter(skill_dir: &Path) -> Option<(String, String)> {
         return None;
     }
     Some((name, description))
-}
-
-/// Compute SHA256 over all files in `dir` (sorted by relative path).
-/// Returns hex digest string.
-#[cfg(any(not(unix), test))]
-pub fn compute_dir_checksum(dir: &Path) -> Result<String, String> {
-    let mut paths: Vec<PathBuf> = vec![];
-    collect_files(dir, dir, &mut paths)?;
-    paths.sort();
-
-    let mut hasher = Sha256::new();
-    for path in &paths {
-        let full = dir.join(path);
-        let data = fs::read(&full).map_err(|e| format!("Failed to read {:?}: {}", full, e))?;
-        hasher.update(&data);
-    }
-    Ok(hex::encode(hasher.finalize()))
-}
-
-/// Recursively collect all non-hidden files under `root`, appending relative paths to `out`.
-#[cfg(any(not(unix), test))]
-fn collect_files(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
-    let entries = fs::read_dir(dir).map_err(|e| format!("Failed to read dir {:?}: {}", dir, e))?;
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let name_str = name.to_string_lossy();
-        // Skip checksum file and hidden files
-        if name_str == ".coworkz-checksum" || name_str.starts_with('.') {
-            continue;
-        }
-        let path = entry.path();
-        if path.is_dir() {
-            collect_files(root, &path, out)?;
-        } else {
-            // Store relative path so sort order is stable
-            let rel = path
-                .strip_prefix(root)
-                .map_err(|_| format!("strip_prefix failed: {:?}", path))?;
-            out.push(rel.to_path_buf());
-        }
-    }
-    Ok(())
 }
 
 // ── Path resolution ──────────────────────────────────────────────────────────
@@ -335,36 +291,6 @@ mod tests {
         // No frontmatter delimiters at all
         fs::write(tmp.path().join("SKILL.md"), "no frontmatter here\n").unwrap();
         assert!(parse_frontmatter(tmp.path()).is_none());
-    }
-
-    #[test]
-    fn test_compute_dir_checksum_stable() {
-        let tmp = TempDir::new().unwrap();
-        fs::write(tmp.path().join("SKILL.md"), "content a").unwrap();
-        let h1 = compute_dir_checksum(tmp.path()).unwrap();
-        let h2 = compute_dir_checksum(tmp.path()).unwrap();
-        assert_eq!(h1, h2);
-    }
-
-    #[test]
-    fn test_compute_dir_checksum_changes_on_edit() {
-        let tmp = TempDir::new().unwrap();
-        fs::write(tmp.path().join("SKILL.md"), "content a").unwrap();
-        let h1 = compute_dir_checksum(tmp.path()).unwrap();
-        fs::write(tmp.path().join("SKILL.md"), "content b").unwrap();
-        let h2 = compute_dir_checksum(tmp.path()).unwrap();
-        assert_ne!(h1, h2);
-    }
-
-    #[test]
-    fn test_checksum_ignores_coworkz_checksum_file() {
-        let tmp = TempDir::new().unwrap();
-        fs::write(tmp.path().join("SKILL.md"), "content").unwrap();
-        let h1 = compute_dir_checksum(tmp.path()).unwrap();
-        // Writing the checksum file itself must not change the hash
-        fs::write(tmp.path().join(".coworkz-checksum"), &h1).unwrap();
-        let h2 = compute_dir_checksum(tmp.path()).unwrap();
-        assert_eq!(h1, h2);
     }
 
     fn write_skill_dir(parent: &Path, id: &str, name: &str, desc: &str) {

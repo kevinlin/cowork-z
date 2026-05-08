@@ -5,6 +5,7 @@
 ## v0.7.10
 
 - **`skills.sh` deep link on Skills Manager cards** — Every `SkillCard` in **Skills Manager** now exposes a `skills.sh` text link next to the existing `View` link, opening the matching public listing on [skills.sh](https://skills.sh/) (`https://skills.sh/<org>/<repo>/<skill-id>`, with `<org>` and `<repo>` lowercased) in the user's default browser. The full URL is shown in a tooltip on hover.
+- **Refactor: shared `fs_utils` module** — Extracted `copy_dir_recursive`, `compute_dir_checksum`, and `collect_files` from `commands/packs.rs` and `commands/skills.rs` into a new `src-tauri/src/fs_utils.rs`, eliminating a duplicated `copy_dir_recursive` implementation.
 
 ## v0.7.9
 

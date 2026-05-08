@@ -4,7 +4,8 @@
 
 ## v0.7.12
 
-- 
+- **Open repo site from Skills Manager toolbar** — When a specific repo is selected in the Skills Manager dropdown, a new external-link button appears next to it; clicking opens the repo's GitHub/GitLab page in the default browser. Supports HTTPS and SSH Git URLs; tooltip shows the resolved web URL on hover.
+
 
 ## v0.7.11
 

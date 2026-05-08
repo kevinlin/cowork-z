@@ -459,6 +459,9 @@ Expected: All existing tests pass (including new `git_ops` tests).
   - **Open:** click → `openExternal()` (delegates to `@tauri-apps/plugin-opener`); tooltip shows the full URL on hover — `lib/tauri-api.ts`
   - No backend or type changes; `RepoSkill.repoName` / `skillId` already carry the data.
 
+- **Open repo site button on `RepoToolbar` (2026-05-08):**
+  - **Button:** `ExternalLink` icon button appears next to the repo dropdown when a specific repo is selected; `gitUrlToWebUrl()` converts the Git URL (HTTPS or SSH) to a browsable web URL. Click opens in the default browser via `openExternal()`. Tooltip shows the full URL on hover — `RepoToolbar.tsx`
+
 - **Frontend skill category derivation (2026-05-07):**
   - **Problem:** the backend `derive_category()` (path-convention `{category}/skills/{name}`) returned `General` or off-taxonomy values for many third-party repos (e.g. `openai/skills` → `Curated`/`System`), making badges and filter tabs uninformative.
   - **Resolution:** new `deriveSkillCategory(skillName, repoCategories, fallback)` with precedence `name keyword → first curated repo category → backend skill.category → 'General'`. Keyword map `CATEGORY_KEYWORDS` covers the 11 non-`General` keys from `CATEGORY_COLORS` (case-insensitive whole-word match via space-padded haystack). `getCuratedRepoCategories()` returns `[]` for user-added repos — `lib/skill-categories.ts`, `curatedSkillRepos.ts`

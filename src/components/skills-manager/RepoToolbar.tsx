@@ -1,10 +1,25 @@
-import { Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ExternalLink, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { openExternal } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { useSkillsManagerStore } from '@/stores/skillsManagerStore';
 import { AddRepoDialog } from './AddRepoDialog';
+
+function gitUrlToWebUrl(gitUrl: string): string | null {
+  try {
+    const cleaned = gitUrl.replace(/\.git$/, '');
+    const url = new URL(cleaned);
+    if (url.protocol === 'https:' || url.protocol === 'http:') return cleaned;
+  } catch {
+    // SSH-style: git@github.com:org/repo.git
+    const m = gitUrl.match(/^git@([^:]+):(.+?)(?:\.git)?$/);
+    if (m) return `https://${m[1]}/${m[2]}`;
+  }
+  return null;
+}
 
 export function RepoToolbar() {
   const { repos, selectedRepoId, setSelectedRepoId, removeRepo, refreshAll, addRepoDialogOpen, setAddRepoDialogOpen } =
@@ -58,6 +73,25 @@ export function RepoToolbar() {
             ))}
           </SelectContent>
         </Select>
+
+        {selectedRepoId &&
+          (() => {
+            const repo = repos.find((r) => r.id === selectedRepoId);
+            const webUrl = repo ? gitUrlToWebUrl(repo.url) : null;
+            if (!webUrl) return null;
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button className="h-8 w-8 p-0" onClick={() => openExternal(webUrl)} size="sm" variant="outline">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={6}>
+                  <p className="text-xs">{webUrl}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })()}
 
         <Button className="h-8 text-xs" onClick={() => setAddRepoDialogOpen(true)} size="sm" variant="outline">
           <Plus className="mr-1 h-3 w-3" />

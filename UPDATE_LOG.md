@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.7.11
+
+- 
+
 ## v0.7.10
 
 - **`skills.sh` deep link on Skills Manager cards** — Every `SkillCard` in **Skills Manager** now exposes a `skills.sh` text link next to the existing `View` link, opening the matching public listing on [skills.sh](https://skills.sh/) (`https://skills.sh/<org>/<repo>/<skill-id>`, with `<org>` and `<repo>` lowercased) in the user's default browser. The full URL is shown in a tooltip on hover.

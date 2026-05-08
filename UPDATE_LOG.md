@@ -4,7 +4,7 @@
 
 ## v0.7.11
 
-- 
+- **Fix: Automations fire in bursts after the app is backgrounded (release builds)** — In macOS release builds, leaving the app in the background caused a automation to silently queue ~one pending run per minute and then dispatch all queued runs back-to-back when the app returned to foreground.
 
 ## v0.7.10
 

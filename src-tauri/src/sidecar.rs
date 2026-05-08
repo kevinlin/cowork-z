@@ -516,7 +516,37 @@ impl SidecarManager {
             "task_progress" => "task:progress",
             "permission_request" => "task:permission_request",
             "question_request" => "task:question_request",
-            "task_complete" => "task:complete",
+            "task_complete" => {
+                // Drive completion directly from Rust so that automation lifecycle
+                // (mark_automation_run_complete -> release is_running -> drain pending)
+                // does not depend on the frontend's `task:complete` listener, which
+                // gets throttled by macOS WKWebView when the app is backgrounded
+                // in release builds.
+                if let (Some(task_id), Some(payload)) = (&event.task_id, &event.payload) {
+                    let sidecar_status = payload
+                        .get("status")
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("");
+                    let mapped_status = match sidecar_status {
+                        "success" => "completed",
+                        "interrupted" => "interrupted",
+                        _ => "failed",
+                    };
+                    let session_id = payload.get("sessionId").and_then(|s| s.as_str());
+                    if let Err(e) = crate::commands::tasks::handle_task_completion_internal(
+                        app,
+                        task_id,
+                        mapped_status,
+                        session_id,
+                    ) {
+                        eprintln!(
+                            "[sidecar] handle_task_completion_internal failed for {}: {}",
+                            task_id, e
+                        );
+                    }
+                }
+                "task:complete"
+            }
             "task_error" => "task:error",
             "todo_updated" => "task:todo_updated",
             "mcp_status" => "mcp:status",

@@ -116,20 +116,31 @@ When `toggle_automation_enabled(id, false)` or `update_automation(id, ...)` is c
 3. Registry listener calls `stop_automation(id)` (cancels thread via `AtomicBool` + condvar signal)
 4. If automation is still enabled (for update case), calls `start_automation(id)` with new cron
 
-### Concurrency model (v1)
-
-Each automation thread independently determines when to fire. When firing, the thread checks the global `AutomationSchedulerState.is_running` flag:
-- If idle: starts the run immediately
-- If busy: queues the run as `pending` in the database
-
-When a task completes, `mark_automation_run_complete` releases the lock and calls `process_pending_runs` to start the next queued run (FIFO). **Important:** `mark_automation_run_complete` must drop its DB connection before calling `process_pending_runs`, because `process_pending_runs` also acquires the DB connection. Since `DbState.conn` uses `std::sync::Mutex` (which is not reentrant), holding the lock across both calls causes a self-deadlock on the same thread.
-
 ### Lifecycle events
 
 - Automation created/updated/deleted → command handler calls `registry.on_changed()` (stop + restart thread)
 - Automation deleted → `registry.stop_automation()` (thread cancelled, next_run removed)
-- Task complete → `complete_task` command looks up the associated automation run via `get_running_run_by_task_id`, calls `mark_automation_run_complete` which updates DB status to `completed`, releases the scheduler lock, processes pending runs, and emits `automation:run_completed`
+- Task complete → Rust sidecar event handler calls `mark_automation_run_complete` (transitions `running` → `completed`, releases dispatch slot, drains pending runs, emits `automation:run_completed`). Frontend `complete_task` is idempotent — a no-op if Rust already completed the run.
 - App quit → threads are cancelled; pending run states persist in DB and resume on next launch
+
+### Rust-side completion (release-build robustness)
+
+Automation completion must not depend on the frontend WebView. macOS release builds throttle background WKWebView JS, which would defer the `complete_task` invoke and hold the dispatch slot indefinitely.
+
+1. `SidecarManager::handle_sidecar_event` intercepts `task_complete` and synchronously calls `handle_task_completion_internal(app, task_id, status, session_id)` — shared helper containing full completion logic
+2. The `complete_task` Tauri command delegates to the same helper
+3. `mark_automation_run_complete` is idempotent via `try_complete_run_if_running` (`UPDATE … WHERE status='running'`); only the first caller to affect a row releases `is_running` and drains pending runs
+
+### Concurrency model (v1)
+
+Each automation thread independently determines when to fire. Both the cron thread (`fire_automation_on_thread`) and queue drainer (`process_pending_runs`) claim the dispatch slot via `is_running.compare_exchange(false, true, SeqCst, SeqCst)`:
+
+- CAS succeeds → proceed to `dispatch_automation_run` (create task, link run, send `StartTask` to sidecar)
+- CAS fails → cron thread queues fire as `pending`; queue drainer returns
+
+`dispatch_automation_run` assumes the caller already won the CAS but releases the slot (`store(false)`) on any early-error path.
+
+When a task completes, `mark_automation_run_complete` releases the slot and calls `process_pending_runs` (FIFO). **Important:** the DB connection must be dropped before calling `process_pending_runs` — `DbState.conn` uses `std::sync::Mutex` (not reentrant), so holding it across both calls causes a self-deadlock.
 
 ### Determining `has_findings`
 

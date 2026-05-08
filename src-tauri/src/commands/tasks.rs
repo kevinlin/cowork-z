@@ -1,4 +1,4 @@
-use tauri::State;
+use tauri::{Manager, State};
 
 use crate::db;
 use crate::db::DbState;
@@ -463,44 +463,52 @@ pub async fn save_task_summary(
     db::tasks::update_task_summary(&conn, &task_id, &summary)
 }
 
+/// Shared completion logic, callable from both the Tauri command (frontend invoke)
+/// and the Rust-side sidecar event handler. Idempotent: the automation-run path is
+/// guarded by `get_running_run_by_task_id` (status='running'), so whichever caller
+/// arrives first marks the run complete; subsequent callers no-op on that branch.
+pub fn handle_task_completion_internal(
+    app: &tauri::AppHandle,
+    task_id: &str,
+    status: &str,
+    session_id: Option<&str>,
+) -> Result<(), String> {
+    let db_state = app.state::<DbState>();
+    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+
+    let completed_at = chrono::Utc::now().to_rfc3339();
+
+    db::tasks::update_task_status(&conn, task_id, status, Some(&completed_at))?;
+
+    if let Some(sid) = session_id {
+        db::tasks::update_task_session_id(&conn, task_id, sid)?;
+    }
+
+    if let Some(arena_id) = db::arenas::check_arena_all_tasks_terminal(&conn, task_id) {
+        let _ = db::arenas::update_arena_completed(&conn, &arena_id, &completed_at);
+    }
+
+    if let Some(run) = db::automations::get_running_run_by_task_id(&conn, task_id) {
+        let has_findings = if status == "completed" {
+            db::automations::determine_has_findings(&conn, task_id)
+        } else {
+            false
+        };
+        drop(conn);
+        crate::automation_scheduler::mark_automation_run_complete(app, &run.id, has_findings);
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn complete_task(
     task_id: String,
     status: String,
     session_id: Option<String>,
-    state: State<'_, DbState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-
-    let completed_at = chrono::Utc::now().to_rfc3339();
-
-    // Update status with completion time
-    db::tasks::update_task_status(&conn, &task_id, &status, Some(&completed_at))?;
-
-    // Update session ID if provided
-    if let Some(sid) = session_id {
-        db::tasks::update_task_session_id(&conn, &task_id, &sid)?;
-    }
-
-    // If this task belongs to an arena and all sibling tasks are now terminal,
-    // mark the arena as completed.
-    if let Some(arena_id) = db::arenas::check_arena_all_tasks_terminal(&conn, &task_id) {
-        let _ = db::arenas::update_arena_completed(&conn, &arena_id, &completed_at);
-    }
-
-    // If this task belongs to an automation run, mark the run as complete
-    if let Some(run) = db::automations::get_running_run_by_task_id(&conn, &task_id) {
-        let has_findings = if status == "completed" {
-            db::automations::determine_has_findings(&conn, &task_id)
-        } else {
-            false
-        };
-        drop(conn);
-        crate::automation_scheduler::mark_automation_run_complete(&app, &run.id, has_findings);
-    }
-
-    Ok(())
+    handle_task_completion_internal(&app, &task_id, &status, session_id.as_deref())
 }
 
 #[tauri::command]

@@ -222,6 +222,25 @@ pub fn update_automation_run_status(
     Ok(())
 }
 
+/// Atomically transition a run from 'running' to 'completed'. Returns true iff
+/// this caller is the one that actually performed the transition. Used to make
+/// `mark_automation_run_complete` strictly idempotent across concurrent callers
+/// (Rust sidecar event handler + frontend `complete_task` invoke).
+pub fn try_complete_run_if_running(
+    conn: &Connection,
+    run_id: &str,
+    has_findings: bool,
+    completed_at: &str,
+) -> Result<bool, String> {
+    let updated = conn
+        .execute(
+            "UPDATE automation_runs SET status = 'completed', has_findings = ?1, completed_at = ?2 WHERE id = ?3 AND status = 'running'",
+            params![has_findings, completed_at, run_id],
+        )
+        .map_err(|e| format!("Failed to complete automation run: {}", e))?;
+    Ok(updated > 0)
+}
+
 pub fn set_run_task_id(conn: &Connection, run_id: &str, task_id: &str) -> Result<(), String> {
     conn.execute(
         "UPDATE automation_runs SET task_id = ?1 WHERE id = ?2",
@@ -327,7 +346,7 @@ pub fn get_running_run_by_task_id(conn: &Connection, task_id: &str) -> Option<St
 pub fn get_pending_runs(conn: &Connection) -> Vec<StoredAutomationRun> {
     let mut stmt = match conn.prepare(
         "SELECT id, automation_id, task_id, status, has_findings, is_read, started_at, completed_at
-         FROM automation_runs WHERE status = 'pending' ORDER BY started_at ASC",
+         FROM automation_runs WHERE status = 'pending' ORDER BY started_at ASC LIMIT 1",
     ) {
         Ok(s) => s,
         Err(_) => return vec![],

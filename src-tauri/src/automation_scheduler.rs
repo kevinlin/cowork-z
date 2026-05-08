@@ -308,7 +308,14 @@ impl AutomationSchedulerRegistry {
         let now = Utc::now().to_rfc3339();
         let run_id = Uuid::new_v4().to_string();
 
-        if scheduler_state.is_running.load(Ordering::Relaxed) {
+        // Atomically claim the dispatch slot. If another path (process_pending_runs
+        // or a concurrent fire) already holds it, queue this fire as pending instead.
+        let won_dispatch = scheduler_state
+            .is_running
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok();
+
+        if !won_dispatch {
             let run = db_automations::StoredAutomationRun {
                 id: run_id,
                 automation_id: automation_id.to_string(),
@@ -360,22 +367,31 @@ impl Default for AutomationSchedulerState {
 /// Call this when an automation run completes to release the scheduler lock
 /// and process any pending runs.
 pub fn mark_automation_run_complete(app: &AppHandle, run_id: &str, has_findings: bool) {
-    {
+    let transition_result = {
         let db_state = app.state::<DbState>();
         let conn = db_state.conn.lock().unwrap();
         let now = Utc::now().to_rfc3339();
+        db_automations::try_complete_run_if_running(&conn, run_id, has_findings, &now)
+    };
 
-        let _ = db_automations::update_automation_run_status(
-            &conn,
-            run_id,
-            "completed",
-            has_findings,
-            Some(&now),
-        );
+    let did_transition = match transition_result {
+        Ok(t) => t,
+        Err(e) => {
+            // Row state is unknown; bail without releasing is_running so we don't
+            // dispatch the next run on top of a still-'running' DB row.
+            eprintln!("[AutomationScheduler] {}", e);
+            return;
+        }
+    };
+
+    if !did_transition {
+        // Another caller (Rust sidecar event handler vs. frontend invoke) already
+        // marked this run completed; do not double-release is_running or re-drain.
+        return;
     }
 
     let scheduler_state = app.state::<AutomationSchedulerState>();
-    scheduler_state.is_running.store(false, Ordering::Relaxed);
+    scheduler_state.is_running.store(false, Ordering::SeqCst);
 
     let _ = app.emit(
         "automation:run_completed",
@@ -391,7 +407,14 @@ pub fn mark_automation_run_complete(app: &AppHandle, run_id: &str, has_findings:
 
 fn process_pending_runs(app: &AppHandle) {
     let scheduler_state = app.state::<AutomationSchedulerState>();
-    if scheduler_state.is_running.load(Ordering::Relaxed) {
+
+    // Atomically claim the dispatch slot. Prevents a race with the scheduler
+    // thread also trying to fire at the same instant.
+    if scheduler_state
+        .is_running
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
         return;
     }
 
@@ -400,12 +423,16 @@ fn process_pending_runs(app: &AppHandle) {
     let pending = db_automations::get_pending_runs(&conn);
 
     let Some(run) = pending.first() else {
+        scheduler_state.is_running.store(false, Ordering::SeqCst);
         return;
     };
 
     let automation = match db_automations::get_automation(&conn, &run.automation_id) {
         Ok(Some(a)) => a,
-        _ => return,
+        _ => {
+            scheduler_state.is_running.store(false, Ordering::SeqCst);
+            return;
+        }
     };
 
     dispatch_automation_run(app, &conn, &scheduler_state, &automation, &run.id, false);
@@ -424,6 +451,8 @@ fn dispatch_automation_run(
     let now = Utc::now().to_rfc3339();
     let task_id = format!("task_{}", Uuid::new_v4());
 
+    // Caller has already won the dispatch slot via compare_exchange on `is_running`.
+    // We are responsible for releasing it on any failure path that aborts dispatch.
     if let Err(e) = crate::db::tasks::save_task(
         conn,
         &crate::db::tasks::TaskInput {
@@ -439,6 +468,7 @@ fn dispatch_automation_run(
         },
     ) {
         eprintln!("[AutomationScheduler] Failed to create task: {}", e);
+        scheduler_state.is_running.store(false, Ordering::SeqCst);
         return;
     }
 
@@ -467,13 +497,11 @@ fn dispatch_automation_run(
         let _ = db_automations::set_run_task_id(conn, run_id, &task_id);
     }
 
-    scheduler_state.is_running.store(true, Ordering::Relaxed);
-
     let dispatch = match build_dispatch_context(conn, automation, task_id.clone()) {
         Ok(d) => d,
         Err(e) => {
             eprintln!("[AutomationScheduler] {}", e);
-            scheduler_state.is_running.store(false, Ordering::Relaxed);
+            scheduler_state.is_running.store(false, Ordering::SeqCst);
             return;
         }
     };

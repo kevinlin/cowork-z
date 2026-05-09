@@ -421,7 +421,7 @@ Task ends / next message     → same TaskMessage         → static ReactMarkdo
 
 ## Tool Call Display
 
-> **Plan:** [Chat UI Rewrite](plan_chat_ui_rewrite.md)
+> **Plan:** [Chat UI Rewrite](plan_chat-ui-rewrite.md)
 
 ### Tool Message Lifecycle
 
@@ -584,7 +584,7 @@ Returns `true` on the first match. This drives the display of a "Done, Continue"
 
 ### Question Dialog
 
-> **Plan:** [Chat UI Rewrite](plan_chat_ui_rewrite.md)
+> **Plan:** [Chat UI Rewrite](plan_chat-ui-rewrite.md)
 
 When the agent sends a `task:question_request` event, a modal dialog appears with:
 - Question text
@@ -674,7 +674,7 @@ When a user opens an existing conversation, the chat auto-scrolls to the latest 
 
 ### Todo Panel
 
-> **Plan:** [Todo Panel in Sidebar](../app-ux/plan_todo-panel-in-sidebard.md)
+> **Plan:** [Todo Panel in Sidebar](../app-ux/plan_todo-panel-in-sidebar.md)
 
 Wires OpenCode's todo API (`GET /session/{sessionID}/todo`) and real-time SSE events (`todo.updated`) through all five layers of the stack (OpenCode SSE → Sidecar → Rust → Frontend). Renders the agent's planned and in-progress work items with status icons and a progress bar.
 
@@ -691,7 +691,7 @@ Collects all files the agent creates or modifies during a session and displays t
 
 ## Component Architecture
 
-> **Plan:** [Chat UI Rewrite](plan_chat_ui_rewrite.md)
+> **Plan:** [Chat UI Rewrite](plan_chat-ui-rewrite.md)
 
 | Component | Location | Responsibility |
 |-----------|----------|---------------|

@@ -116,7 +116,7 @@ Textarea inputs in Settings (User Prompt, MCP Servers JSON fallback) use `defaul
 
 ## About Panel
 
-> **Plan:** [About Panel](plan_about_panel.md)
+> **Plan:** [About Panel](plan_about-panel.md)
 
 Accessible via Help > About menu. Displays:
 - Current app version (from package metadata)

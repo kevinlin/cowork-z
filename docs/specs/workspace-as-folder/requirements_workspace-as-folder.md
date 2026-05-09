@@ -1,5 +1,9 @@
 # Workspace as Folder — Requirement Specification
 
+> **Maps to root [`requirements.md`](../requirements.md) § 6 Workspace & File Browser.** Each section below carries the `§ 6.x.y` ID it corresponds to in the root spec. The root spec is the source of truth for numbered acceptance criteria; this document is the longer-form, behaviour-level spec used by the design and plans.
+>
+> **Coverage gaps (intentional):** This module spec covers the file tree (§ 6.2) and file preview panel (§ 6.4). It does **not** cover § 6.1 Workspace Lifecycle or § 6.3 Workspace Permissions — those are documented in [`design_workspace-as-folder.md`](design_workspace-as-folder.md) only.
+
 ## Overview
 
 The application shows a 3-panel workspace for the user:
@@ -11,9 +15,9 @@ The application shows a 3-panel workspace for the user:
 
 ---
 
-## File Tree Browser
+## § 6.2 File Tree Browser
 
-### Tree Display
+### § 6.2.1 Tree Display
 
 - Files and folders are shown in a hierarchical tree with visual indentation per depth level.
 - Each row displays:
@@ -26,7 +30,7 @@ The application shows a 3-panel workspace for the user:
 - The currently selected file is highlighted with a distinct background and text color.
 - Item actions appear on the right side of a row on hover (see Item Actions).
 
-### Navigation
+### § 6.2.1 Navigation
 
 - Clicking a folder toggles it open or closed in-place.
 - Clicking a symbolic link to a directory expands it in-place, showing the contents of the linked target directory as if it were a regular folder.
@@ -34,7 +38,7 @@ The application shows a 3-panel workspace for the user:
 - No breadcrumbs or back/forward navigation — the tree itself is the sole navigation mechanism.
 - Expand state is preserved across filesystem refreshes: when the tree auto-refreshes, previously expanded folders remain expanded.
 
-### Search and Filter
+### § 6.2.2 Search and Filter
 
 - A search bar is pinned at the top of the file browser.
 - Filtering is real-time, case-insensitive, and name-based.
@@ -43,12 +47,12 @@ The application shows a 3-panel workspace for the user:
 - Clearing the query restores the full tree.
 - Only already-loaded (expanded) subtrees are searched.
 
-### Sorting
+### § 6.2.1 Sorting
 
 - Files and folders are displayed in the order returned by the backend directory read.
 - No user-configurable sort options (by name, date, size, etc.) are available.
 
-### File Type Icons
+### § 6.2.1 File Type Icons
 
 | Category | Extensions | Icon |
 |----------|-----------|------|
@@ -59,7 +63,7 @@ The application shows a 3-panel workspace for the user:
 | Data/Config | `json yaml yml toml` | JSON File |
 | Everything else | — | Text File |
 
-### Item Actions
+### Item Actions <!-- module-internal extension; not in root § 6 -->
 
 Two action buttons appear on the right side of each tree row on hover: **Open** and **Delete**.
 
@@ -73,7 +77,7 @@ Two action buttons appear on the right side of each tree row on hover: **Open** 
 
 No confirmation dialog is shown for delete; the operation is reversible via the system trash. After deletion, the file tree refreshes immediately to reflect the change.
 
-### Drag-and-Drop from File Tree
+### § 6.2.4 Drag-and-Drop from File Tree
 
 - Files can be dragged from the file tree into the chat input areas (task launcher and follow-up input).
 - Dropped files are inserted as `@path/to/file` references at the cursor position.
@@ -82,21 +86,21 @@ No confirmation dialog is shown for delete; the operation is reversible via the 
 
 ---
 
-## File Preview
+## § 6.4 File Preview
 
-### Opening and Closing
+### § 6.4.1 Opening and Closing
 
 - Clicking a file in the tree opens its preview in the right panel.
 - Clicking a media thumbnail (image/video) in a chat message opens the preview panel for that file.
 - A close button (X) dismisses the preview panel.
 
-### Resizable Panel
+### § 6.4.2 Resizable Panel
 
 - The preview panel has a drag handle on its left edge for horizontal resizing.
 - The panel width is constrained between a minimum (280px) and maximum (700px), with a default of 400px.
 - The drag handle highlights on hover to indicate interactivity.
 
-### Supported Preview Types
+### § 6.4.3 Supported Preview Types
 
 | Type | Extensions | Rendering |
 |------|-----------|-----------|
@@ -109,21 +113,21 @@ No confirmation dialog is shown for delete; the operation is reversible via the 
 | Text | `txt log csv json yaml yml toml ini cfg conf` | Plain monospace text, scrollable |
 | Binary | Everything else | Generic file icon with file name and size; no content preview |
 
-### Fullscreen / Expand Mode
+### § 6.4.4 Fullscreen / Expand Mode
 
 - A maximize/minimize toggle in the preview header switches between docked and fullscreen mode.
 - In fullscreen, the preview covers the entire viewport as a portal overlay with backdrop blur.
 - Pressing **Escape** exits fullscreen.
 - Switching to a different file automatically resets to docked mode.
 
-### Loading and Error States
+### § 6.4.5 Loading and Error States
 
 - A spinner is shown while file content is being fetched.
 - If loading fails, an error icon and message replace the content area.
 
 ---
 
-## Real-Time Filesystem Watching
+## § 6.2.3 Real-Time Filesystem Watching
 
 The file tree updates automatically from two sources:
 
@@ -134,7 +138,7 @@ On refresh, expanded directories are re-read recursively while preserving the cu
 
 ---
 
-## Chat Integration
+## § 6.4.1 Chat Integration
 
 - An **"Add to Chat"** button in the preview header inserts the previewed file as an `@path` reference into the active chat input (task launcher input on the Home page, follow-up input on the Execution page).
 - The path is inserted at the current cursor position with appropriate whitespace padding.
@@ -143,7 +147,7 @@ On refresh, expanded directories are re-read recursively while preserving the cu
 
 ---
 
-## Empty States
+## Empty States <!-- module-internal extension; cross-cutting -->
 
 | Situation | Display |
 |-----------|---------|
@@ -155,7 +159,7 @@ On refresh, expanded directories are re-read recursively while preserving the cu
 
 ---
 
-## Security
+## Security <!-- module-internal extension; aligns with root § 6.4.3 sandboxed iframe rule -->
 
 - All file reads go through the backend IPC layer — the frontend never accesses the filesystem directly.
 - HTML previews are sandboxed: scripts run but cannot access the host app, local storage, or Tauri APIs.
@@ -163,7 +167,7 @@ On refresh, expanded directories are re-read recursively while preserving the cu
 
 ---
 
-## Not Supported
+## Not Supported <!-- scope boundary; module-internal -->
 
 The following are explicitly **not** part of the current feature set:
 

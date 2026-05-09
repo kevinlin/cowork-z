@@ -298,10 +298,10 @@ Verify:
 ### Task 6 — Docs + UPDATE_LOG
 
 **Files:**
-- Rewrite: [docs/specs/skills-management/design_skills-catalog.md](docs/specs/skills-management/design_skills-catalog.md) — replace contents with the Design section above
-- Rewrite: [docs/specs/skills-management/plan_skills-catalog.md](docs/specs/skills-management/plan_skills-catalog.md) — replace contents with this implementation plan
-- Modify: [UPDATE_LOG.md](UPDATE_LOG.md) — append to the v0.7.7 section
-- Modify: [docs/specs/requirements.md](docs/specs/requirements.md) — re-link the Skills Catalog requirement to point at the new flow (light edit; details TBD on read)
+- Rewrite: [`design_skills-catalog.md`](design_skills-catalog.md) — replace contents with the Design section above
+- Rewrite: this file (`plan_skills-catalog-reimplement.md`) — replaces the now-deleted `plan_skills-catalog.md`
+- Modify: [`UPDATE_LOG.md`](../../../UPDATE_LOG.md) — append to the v0.7.7 section
+- Modify: [`requirements.md`](../requirements.md) — re-link the Skills Catalog requirement to point at the new flow (light edit; details TBD on read)
 
 UPDATE_LOG entry (under v0.7.7):
 
@@ -343,7 +343,7 @@ UPDATE_LOG entry (under v0.7.7):
 | `src/components/landing/SkillsCatalog.tsx` | Full rewrite |
 | `src/components/landing/__tests__/SkillsCatalog.test.tsx` | Full rewrite |
 | `docs/specs/skills-management/design_skills-catalog.md` | Rewrite |
-| `docs/specs/skills-management/plan_skills-catalog.md` | Rewrite |
+| `docs/specs/skills-management/plan_skills-catalog-reimplement.md` | This file (renamed from `plan_skills-catalog.md`) |
 | `UPDATE_LOG.md` | Append v0.7.7 entry |
 
 ---

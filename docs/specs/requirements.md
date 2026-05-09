@@ -16,88 +16,7 @@ Most AI tools force you to choose between capability and privacy — and leave y
 
 ## Design & Implementation Index
 
-Technical design documents and implementation plans organized by module. Design specs provide comprehensive technical solutions for each domain, including resolved issues (bug investigations and fixes). Plans document how specific requirements were built.
-
-### Design Specs
-
-| Module | Design Document | Coverage |
-|--------|----------------|----------|
-| **Overall Architecture** | [`design.md`](design.md) | Technology stack, multi-process overview, database schema, architectural decisions |
-| **OpenCode Integration** | [`design_opencode-integration.md`](opencode-integration/design_opencode-integration.md) | IPC protocol, sidecar architecture, session management, security, provider support |
-| **Chat Experience** | [`design_chat-ux.md`](chat-ux/design_chat-ux.md) | Message rendering, streaming, tool calls, dialogs, input handling, sidebar panels |
-| **App Experience** | [`design_app-ux.md`](app-ux/design_app-ux.md) | Themes, keyboard shortcuts, settings, about panel, feedback, updates, CLI detection |
-| **Workspace-as-Folder** | [`design_workspace-as-folder.md`](workspace-as-folder/design_workspace-as-folder.md) | Workspace lifecycle, file tree, permissions, file preview panel |
-| **Workspace Packs** | [`design_workspace-packs.md`](workspace-packs/design_workspace-packs.md) | Starter pack catalog, installation, workspace creation |
-| **Skills Management** | [`skills-management/design_skills-catalog.md`](skills-management/design_skills-catalog.md), [`design_skills-manager.md`](skills-management/design_skills-manager.md) | Curated skill repo catalog, Skills Manager (clone, sync, install) |
-| **Windows Support** | [`windows-support/design_windows-support.md`](windows-support/design_windows-support.md) | Platform-specific runtime fixes, PATH resolution, build targets |
-
-### cowork-z — Platform & Security
-
-| Plan | Location | Requirements |
-|------|----------|--------------|
-| Windows Support (Phase 1) | [`windows-support/plan_windows-support-phase1.md`](windows-support/plan_windows-support-phase1.md) | 5.1.1–5.1.3 |
-
-### opencode-integration — OpenCode Sidecar Integration
-
-| Plan | Location | Requirements |
-|------|----------|--------------|
-| Sidecar OpenCode Rewrite | [`opencode-integration/plan_sidecar-opencode-rewrite.md`](opencode-integration/plan_sidecar-opencode-rewrite.md) | 1.2.1, 1.2.2 |
-| Folder Permission Model | [`opencode-integration/plan_folder-permission-model.md`](opencode-integration/plan_folder-permission-model.md) | 1.3.1–1.3.4 |
-| Convention-Based Workspace Permissions | [`opencode-integration/plan_convention-based-workspace-permission-model.md`](opencode-integration/plan_convention-based-workspace-permission-model.md) | 1.3.1–1.3.4 |
-| User Prompt Customization | [`opencode-integration/plan_user-prompt-customization.md`](opencode-integration/plan_user-prompt-customization.md) | 2.1 |
-| MCP Server Support | [`opencode-integration/plan_mcp-server-support.md`](opencode-integration/plan_mcp-server-support.md) | 2.3 |
-| OpenCode Server API Skill | [`opencode-integration/plan_opencode-server-skill.md`](opencode-integration/plan_opencode-server-skill.md) | 2.4 |
-| Server Isolation | [`opencode-integration/plan_server-isolation.md`](opencode-integration/plan_server-isolation.md) | 5.2.1 |
-| OpenRouter Provider Support | [`opencode-integration/plan_openrouter-provider-support.md`](opencode-integration/plan_openrouter-provider-support.md) | 1.1.3 |
-| GitHub Copilot Provider Support | [`opencode-integration/plan_github-copilot-provider-support.md`](opencode-integration/plan_github-copilot-provider-support.md) | 1.1.6 |
-
-Resolved issues documented in [`design_opencode-integration.md`](opencode-integration/design_opencode-integration.md#resolved-issues): System Prompt Not Applied, Cross-Task Message Leakage (#22), Question Reply Format Mismatch, Multi-Select Question Dialog.
-
-### chat-ux — Chat Experience
-
-| Plan | Location | Requirements |
-|------|----------|--------------|
-| Chat UI Rewrite | [`chat-ux/plan_chat_ui_rewrite.md`](chat-ux/plan_chat_ui_rewrite.md) | 3.7 |
-| Drag-and-Drop in Chat | [`chat-ux/plan_drag-and-drop-support.md`](chat-ux/plan_drag-and-drop-support.md) | 3.5 |
-| Rich File & URL Display | [`chat-ux/plan_rich-file-url-display-in-chat.md`](chat-ux/plan_rich-file-url-display-in-chat.md) | 3.1, 3.2 |
-| Slash Command Skill Invocation | [`chat-ux/plan_slash-command-skill-invocation.md`](chat-ux/plan_slash-command-skill-invocation.md) | 3.8 |
-| Rename Conversation in Sidebar | [`chat-ux/plan_rename-conversation-in-sidebar.md`](chat-ux/plan_rename-conversation-in-sidebar.md) | 3.9 |
-
-Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#resolved-issues): Stop Button, Long-Running Task False Failure, Streaming Partial Message Duplication, Intermediate Messages Not Persisted, Markdown Table Rendering.
-
-### app-ux — App Experience
-
-| Plan | Location | Requirements |
-|------|----------|--------------|
-| Theme Support | [`app-ux/plan_theme-support.md`](app-ux/plan_theme-support.md) | 4.2 |
-| Keyboard Shortcuts | [`app-ux/plan_keyboard-shortcuts.md`](app-ux/plan_keyboard-shortcuts.md) | 4.3.1, 4.3.2 |
-| Keyboard Shortcuts Help Modal | [`app-ux/plan_keyboard-shortcuts.md`](app-ux/plan_keyboard-shortcuts.md) | 4.3.3 |
-| About Panel | [`app-ux/plan_about_panel.md`](app-ux/plan_about_panel.md) | 4.4 |
-| User Feedback | [`app-ux/plan_user-feedback.md`](app-ux/plan_user-feedback.md) | 4.5 |
-| Todo Panel in Sidebar | [`app-ux/plan_todo-panel-in-sidebard.md`](app-ux/plan_todo-panel-in-sidebard.md) | 3.3 |
-| Artefacts Panel | [`app-ux/plan_artefacts-panel.md`](app-ux/plan_artefacts-panel.md) | 3.4 |
-| Dynamic Model Discovery | [`app-ux/plan_dynamic-model-discovery-for-direct-api-providers.md`](app-ux/plan_dynamic-model-discovery-for-direct-api-providers.md) | 1.1.4 |
-| Missing OpenCode CLI Detection | [`app-ux/plan_missing-opencode-cli-detection.md`](app-ux/plan_missing-opencode-cli-detection.md) | 5.3.3 |
-
-### workspace-as-folder — Workspace-per-Folder Model
-
-| Plan | Location | Requirements |
-|------|----------|--------------|
-| Workspace Phase 1 | [`workspace-as-folder/plan_phase1.md`](workspace-as-folder/plan_phase1.md) | 6.1–6.3 |
-| Workspace Phase 2 | [`workspace-as-folder/plan_phase2.md`](workspace-as-folder/plan_phase2.md) | 6.4 |
-
-### workspace-packs — Workspace Starter Packs
-
-| Plan | Location | Requirements |
-|------|----------|--------------|
-| Workspace Starter Packs | [`workspace-packs/plan.md`](workspace-packs/plan.md) | 7.1–7.3 |
-
-### skills-management — Skills Management
-
-| Plan | Location | Requirements |
-|------|----------|--------------|
-| Skills Catalog (curated repo browser) | [`skills-management/plan_skills-catalog-reimplement.md`](skills-management/plan_skills-catalog-reimplement.md) | 8.1–8.2 |
-| Skills Manager | [`skills-management/plan_skills-manager.md`](skills-management/plan_skills-manager.md) | 8.3 |
+> **Moved to [`index.md`](index.md).** That file is the canonical browser-facing index of all design specs and implementation plans, organized by module. This file (`requirements.md`) now focuses solely on product requirements with numbered acceptance criteria.
 
 ---
 
@@ -127,7 +46,7 @@ Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#re
 
 ##### 1.1.3 OpenRouter Provider Support
 
-> **Plan:** [OpenRouter Provider Support](plan_openrouter-provider-support.md)
+> **Plan:** [OpenRouter Provider Support](opencode-integration/plan_openrouter-provider-support.md)
 1. THE SYSTEM SHALL support OpenRouter as a proxy provider, allowing users to access models from multiple upstream providers (Anthropic, OpenAI, Google, Meta, etc.) through a single API key
 2. WHEN a user connects with an OpenRouter API key (`sk-or-` prefix), THE SYSTEM SHALL fetch the available model catalog from the OpenRouter API (`GET https://openrouter.ai/api/v1/models`)
 3. THE SYSTEM SHALL display fetched models in a selectable list, showing model name, upstream provider, and context length
@@ -137,7 +56,7 @@ Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#re
 
 ##### 1.1.4 Dynamic Model Discovery
 
-> **Plan:** [Dynamic Model Discovery](plan_dynamic-model-discovery-for-direct-api-providers.md)
+> **Plan:** [Dynamic Model Discovery](app-ux/plan_dynamic-model-discovery-for-direct-api-providers.md)
 1. WHEN a user connects to Anthropic, OpenAI, Google AI, xAI, or DeepSeek with a valid API key, THE SYSTEM SHALL fetch the available model catalog from the provider's models API endpoint
 2. THE SYSTEM SHALL persist the fetched model list in the database alongside provider credentials
 3. WHEN the Settings dialog is reopened, THE SYSTEM SHALL restore the persisted model list without requiring a re-fetch
@@ -223,7 +142,7 @@ Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#re
 
 #### 2.1 User Prompt Customization ✅
 
-> **Plan:** [User Prompt Customization](plan_user-prompt-customization.md)
+> **Plan:** [User Prompt Customization](opencode-integration/plan_user-prompt-customization.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL provide a settings panel with an enable toggle and textarea for users to define a custom system prompt
@@ -247,7 +166,7 @@ Skills follow the [OpenCode Skills specification](https://opencode.ai/docs/skill
 
 MCP server configuration follows the [OpenCode MCP specification](https://opencode.ai/docs/mcp-servers/). The app must support configuring MCP servers via the UI and passing the configuration to OpenCode via `PATCH /config`.
 
-> **Plan:** [MCP Server Support](plan_mcp-server-support.md)
+> **Plan:** [MCP Server Support](opencode-integration/plan_mcp-server-support.md)
 
 **Acceptance Criteria:**
 
@@ -271,7 +190,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 2.4 OpenCode Server API Skill ✅
 
-> **Plan:** [OpenCode Server API Skill](plan_opencode-server-skill.md)
+> **Plan:** [OpenCode Server API Skill](opencode-integration/plan_opencode-server-skill.md)
 
 **User Story:** As an agent, I want to understand and invoke the OpenCode server's REST APIs, so that I can introspect my own session state, configuration, and runtime environment to work more effectively.
 
@@ -313,7 +232,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 3.3 Task Todos Panel ✅
 
-> **Plan:** [Todo Panel in Sidebar](plan_todo-panel-in-sidebard.md)
+> **Plan:** [Todo Panel in Sidebar](app-ux/plan_todo-panel-in-sidebar.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL display the active task's todo items in a collapsible sidebar panel (positioned after Folders)
@@ -324,7 +243,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 3.4 Artefacts Panel ✅
 
-> **Plan:** [Artefacts Panel](plan_artefacts-panel.md)
+> **Plan:** [Artefacts Panel](app-ux/plan_artefacts-panel.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL collect all files the agent creates or modifies during a session
@@ -359,7 +278,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 3.7 Chat UI Rewrite ✅
 
-> **Plan:** [Chat UI Rewrite](chat-ux/plan_chat_ui_rewrite.md)
+> **Plan:** [Chat UI Rewrite](chat-ux/plan_chat-ui-rewrite.md)
 
 **User Story:** As a user, I want a polished chat experience with collapsible tool calls, clear permission/question dialogs, and streaming support, so that I can follow the agent's work without visual noise.
 
@@ -476,7 +395,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 4.4 About Panel ✅
 
-> **Plan:** [About Panel](app-ux/plan_about_panel.md)
+> **Plan:** [About Panel](app-ux/plan_about-panel.md)
 
 **Acceptance Criteria:**
 1. THE SYSTEM SHALL provide an info panel accessible via the app menu (Help > About)
@@ -485,7 +404,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 4.5 User Feedback ✅
 
-> **Plan:** [User Feedback](plan_user-feedback.md)
+> **Plan:** [User Feedback](app-ux/plan_user-feedback.md)
 
 **User Story:** As a user, I want to report bugs and suggest features directly from the app, so that I can provide feedback without leaving my workflow.
 
@@ -505,6 +424,63 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 2. THE SYSTEM SHALL read OS name and architecture from the Tauri platform APIs
 3. THE SYSTEM SHALL NOT include any user-specific configuration (API keys, provider settings, session data) in the issue body
 
+#### 4.6 Arena — Side-by-Side Agent Comparison ✅
+
+> **Plan:** [Arena](app-ux/plan_arena.md)
+
+**User Story:** As a user, I want to send the same prompt to three different AI models simultaneously and compare their responses side by side, so that I can evaluate model quality and pick the best one for a given task type.
+
+**Acceptance Criteria:**
+
+##### 4.6.1 Arena Entry Point
+1. THE SYSTEM SHALL display a compact "Arena" button (with `Columns3` icon) in the top-right corner of the Home page
+2. ON HOVER, THE SYSTEM SHALL display a tooltip describing the feature ("Compare 3 models side-by-side")
+3. WHEN the user clicks the Arena button, THE SYSTEM SHALL navigate to `/arena/new` and SHALL render the Arena setup UI (3 model pickers + shared input bar)
+
+##### 4.6.2 Arena Configuration
+1. THE SYSTEM SHALL provide a per-column model picker dialog (`ArenaModelPickerDialog`) that reuses the existing provider grid and provider settings panel from the main Settings dialog
+2. THE SYSTEM SHALL require the user to select exactly three models before allowing prompt submission; the same model MAY be selected in multiple columns
+3. EACH selected model SHALL be stored as a full provider-qualified identifier (e.g., `anthropic/claude-sonnet-4-5`) plus a human-readable display name
+
+##### 4.6.3 Arena Execution
+1. WHEN the user submits a prompt, THE SYSTEM SHALL create exactly one parent `arenas` record and three child `tasks` records, each linked via `arena_id` and `arena_slot` (0, 1, 2)
+2. THE SYSTEM SHALL prepend an instruction to each task's prompt directing the agent to write its output files under a subfolder named after its model's display name (e.g., `Claude Sonnet 4.5/`), so the three agents do not overwrite each other's files
+3. THE SYSTEM SHALL preserve the original (un-prefixed) prompt on the `arenas` record for display and resume
+4. THE SYSTEM SHALL dispatch all three tasks to the existing OpenCode sidecar in parallel using `start_task` with a `skip_config` flag set on tasks 2 and 3 so that `PATCH /config` (and the resulting SSE reconnection) fires only once per arena
+5. THE SYSTEM SHALL pass an `arena_id` field on each `start_task` payload so the sidecar's `session-manager.ts` skips its blanket stale-session cleanup for arena sessions and allows all three to coexist
+6. THE SYSTEM SHALL accept an optional `model_id` override on `TaskConfig`; non-arena tasks omit it and continue to resolve the model from provider settings (backward-compatible)
+
+##### 4.6.4 Arena UI
+1. THE SYSTEM SHALL render the Arena page (`/arena/:arenaId`) with a shared input bar above a tabbed body showing one tab per column
+2. EACH tab SHALL display the model's display name and a status badge (idle / starting / running / completed / failed); only the active tab's chat content is visible at a time
+3. EACH column SHALL reuse the chat `MessageBubble` component so messages render with full markdown, code-block syntax highlighting, clickable URLs and file paths, media galleries, tool-call cards, and the hover copy-to-clipboard button — identical to the standard Execution view
+4. THE SYSTEM SHALL render streaming partial messages with the same streaming animation used in the standard chat view
+5. THE SYSTEM SHALL filter out bash tool messages from arena columns (consistent with the standard Execution view)
+6. WHEN a permission request fires for an arena task, THE SYSTEM SHALL display the permission modal with an indicator identifying which column requested it
+7. WHEN a question request fires for an arena task, THE SYSTEM SHALL display `QuestionDialog` and SHALL forward the user's reply via `reply_to_question` so the agent can resume
+8. THE SYSTEM SHALL display a "Stop All" button that aborts all three sessions when any column is running
+
+##### 4.6.5 Arena Input Bar — File References
+1. THE SYSTEM SHALL accept "Add to Chat" custom DOM events from the file preview panel (Req 6.4.1) and SHALL insert the resulting `@path` reference at the cursor position of the Arena textarea
+2. THE SYSTEM SHALL accept Tauri native drag-and-drop events for both OS-level drops (Finder/Explorer) and intra-app drags from the file tree sidebar, inserting `@path` references for each dropped path
+3. WHILE a drag hover is active, THE SYSTEM SHALL apply visual ring feedback to the textarea
+
+##### 4.6.6 Arena Sidebar Integration
+1. THE SYSTEM SHALL list arena sessions in the sidebar interleaved chronologically with regular task sessions, ordered by `created_at DESC`
+2. THE SYSTEM SHALL exclude tasks where `arena_id IS NOT NULL` from the regular Sessions list (those tasks belong to an arena, not standalone) via a DB-level filter on `get_tasks_by_workspace`
+3. THE SYSTEM SHALL render arena sessions with a `Columns3` icon (distinct from the message icon used by regular conversations) and a status indicator derived from child task statuses (running if any task running, completed if all done, failed if any failed)
+4. THE SYSTEM SHALL render an expandable disclosure triangle on each arena entry; when expanded, the entry SHALL reveal three child rows showing each model's display name, per-task status icon, and a click target that navigates to `/execution/:taskId` (the standard chat UI)
+5. WHEN the user clicks the arena row itself (not the triangle), THE SYSTEM SHALL navigate to `/arena/:arenaId` (the tabbed view)
+6. WHEN an arena starts via `start_arena`, THE SYSTEM SHALL prepend the new arena to the sidebar list immediately without requiring a workspace switch or app restart
+
+##### 4.6.7 Arena Lifecycle & Persistence
+1. THE SYSTEM SHALL persist arenas in an `arenas` table (id, prompt, workspace_id, created_at, completed_at) and SHALL extend the `tasks` table with nullable `arena_id`, `arena_slot`, and `model_id` columns
+2. THE SYSTEM SHALL provide Tauri commands `start_arena`, `resume_arena`, `get_arena`, `list_arenas`, `delete_arena`, and `abort_arena`
+3. WHEN the user sends a follow-up message to an existing arena, THE SYSTEM SHALL persist each user message and each streamed/finalized agent message to SQLite (via `saveTaskMessage`, `saveTaskStatus`, `saveTaskSession`, `completeTask`) so that resuming the arena later restores the full conversation history per column
+4. WHEN `resume_arena` is dispatched, THE SYSTEM SHALL pass each task's stored `model_id` (not None) so the sidecar resumes with the same model that the task was started with
+5. WHEN a workspace is deleted, THE SYSTEM SHALL cascade-delete its arenas and their tasks
+6. THE SYSTEM SHALL provide a delete action on each sidebar arena entry that removes the arena and all three child tasks after user confirmation
+
 ---
 
 ### 5. Platform & Security
@@ -513,7 +489,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 5.1 Cross-Platform Support ✅
 
-> **Plan:** [Cross-Platform Fixes](plan_cross-platform-support.md), [Windows Production Readiness](plan_windows-production-readiness.md)
+> **Plan:** [Windows Support (Phase 1)](windows-support/plan_windows-support-phase1.md) — see also [Windows Support Design](windows-support/design_windows-support.md) for cross-platform fixes
 
 
 **Acceptance Criteria:**
@@ -541,7 +517,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 #### 5.2 Security Hardening
 
-> **Plan:** [Server Isolation](plan_server-isolation.md) (Req 5.2.1)
+> **Plan:** [Server Isolation](opencode-integration/plan_server-isolation.md) (Req 5.2.1)
 
 **Acceptance Criteria:**
 
@@ -576,7 +552,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ##### 5.3.3 Missing OpenCode CLI Detection
 
-> **Plan:** [Missing OpenCode CLI Detection](plan_missing-opencode-cli-detection.md)
+> **Plan:** [Missing OpenCode CLI Detection](app-ux/plan_missing-opencode-cli-detection.md)
 
 1. WHEN the `opencode` CLI cannot be found on the augmented PATH, THE SYSTEM SHALL display an error dialog informing the user that OpenCode is required but not installed
 2. THE SYSTEM SHALL include a brief installation instruction in the dialog
@@ -611,7 +587,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 
 ### 6. Workspace & File Browser
 
-> **Full specification:** [Workspace-as-Folder Requirements](workspace-as-folder/requirements.md)
+> **Full specification:** [Workspace-as-Folder Requirements](workspace-as-folder/requirements_workspace-as-folder.md)
 > **Design:** [Workspace-as-Folder Design](workspace-as-folder/design_workspace-as-folder.md)
 
 **User Story:** As a user, I want each project folder to be its own workspace with a file browser, file preview, and scoped session history, so that I can keep my AI interactions organized by project and browse files the agent creates or modifies.
@@ -719,7 +695,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 ### 7. Workspace Starter Packs ✅
 
 > **Design:** [Workspace Packs Design](workspace-packs/design_workspace-packs.md)
-> **Plan:** [Workspace Packs Plan](workspace-packs/plan.md)
+> **Plan:** [Workspace Packs Plan](workspace-packs/plan_workspace-packs.md)
 
 **User Story:** As a user, I want to browse and install pre-built workspace starter packs from the Home screen, so that I can quickly start guided, real-world tasks without setting up files from scratch.
 
@@ -766,7 +742,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 ### 8. Skills Management
 
 > **Design:** [Skills Catalog Design](skills-management/design_skills-catalog.md)
-> **Plan:** [Skills Catalog Plan](skills-management/plan_skills-catalog.md)
+> **Plan:** [Skills Catalog Plan](skills-management/plan_skills-catalog-reimplement.md)
 
 **User Story:** As a user, I want to discover curated Git skill repositories from the Home screen and manage them in a dedicated Skills Manager, so that I can quickly find, install, sync, and organise reusable AI skills.
 
@@ -883,6 +859,60 @@ The Skills Catalog is a curated discovery surface for Git-backed skill repositor
 1. WHERE the `git` CLI cannot be found on PATH, THE SYSTEM SHALL display an error message in the Skills Manager indicating that Git is required for repo-based skill management
 2. WHERE a repo clone or sync fails, THE SYSTEM SHALL display the error inline on the affected repo entry without blocking other operations
 3. WHERE skill installation or deletion fails, THE SYSTEM SHALL display the error inline on the affected skill card
+
+---
+
+### 9. Automations ✅
+
+> **Design:** [Automations Design](automations/design_automations.md)
+> **Plan:** [Automations Plan](automations/plan_automations.md)
+
+**User Story:** As a user, I want to schedule recurring AI tasks that run unattended in a workspace, so that I can monitor changes, audit code, or process inputs on a cadence and triage findings without re-prompting the agent.
+
+**Acceptance Criteria:**
+
+#### 9.1 Automation Definition ✅
+
+1. THE SYSTEM SHALL allow users to create, edit, and delete automations bound 1:1 to a workspace via Tauri commands `create_automation`, `update_automation`, and `delete_automation`.
+2. EACH automation SHALL store: `id` (UUID), `workspace_id`, `name`, `prompt`, `schedule_cron` (5-field Unix cron), `schedule_display` (human-readable), `provider_id`, `model_id` (full provider-qualified, e.g., `github-copilot/claude-sonnet-4.6`), `enabled` flag, `created_at`, `updated_at`.
+3. THE SYSTEM SHALL provide a structured schedule picker with three dropdowns — Frequency (Hourly, Daily, Weekdays, Weekly, Custom), Weekday (only when Weekly), Time (15-minute increments, 12-hour AM/PM) — and SHALL display the computed cron expression below the pickers in a read-only monospace field.
+4. THE SYSTEM SHALL provide a Custom frequency mode that accepts a free-text 5-field cron expression.
+5. THE SYSTEM SHALL validate cron expressions in real time via the `validate_cron` Tauri command (debounced 400ms for Custom mode, immediate for structured pickers) and SHALL block form submission while the expression is invalid.
+6. THE SYSTEM SHALL require an explicit model selection per automation (no default fallback) and SHALL block save until name, prompt, schedule, and model are all populated.
+7. THE SYSTEM SHALL support skill invocation via `/skill-name` tokens in the prompt text using the same mechanism as regular tasks.
+
+#### 9.2 Scheduler ✅
+
+1. THE SYSTEM SHALL run an `AutomationSchedulerRegistry` on the Rust backend that maintains one OS thread per enabled automation, each sleeping until its next fire time via a `Condvar` with timeout.
+2. THE SYSTEM SHALL evaluate cron expressions against the system's local timezone (`chrono::Local`) and SHALL store the resulting next-fire timestamp in UTC (RFC 3339) in an in-memory `next_runs` map.
+3. THE SYSTEM SHALL automatically prepend the seconds field (`"0 "`) to 5-field cron expressions before parsing with the `cron` crate (which requires 6–7 field expressions).
+4. THE SYSTEM SHALL expose next-fire times to the frontend via the `get_automation_next_runs(automation_ids)` Tauri command; the frontend SHALL NOT compute cron expressions client-side.
+5. WHEN an automation is created, updated, deleted, or its `enabled` flag is toggled, THE SYSTEM SHALL cancel the existing per-automation thread (via `AtomicBool` + condvar signal) and SHALL spawn a new thread if the automation remains enabled.
+6. ON app startup, THE SYSTEM SHALL invoke `reload_all()` to spawn one thread for each enabled automation.
+7. THE SYSTEM SHALL execute automation runs sequentially through the existing `start_task` sidecar pipeline; concurrency is enforced by an atomic `is_running` flag claimed via `compare_exchange(false, true, SeqCst, SeqCst)`.
+8. WHERE the dispatch slot is unavailable (CAS fails), THE SYSTEM SHALL queue the fire as `pending` and SHALL drain pending runs FIFO when the slot is released.
+9. THE SYSTEM SHALL provide a `run_automation_now` Tauri command that creates a task + run and dispatches `StartTask` to the sidecar immediately, bypassing the pending queue.
+
+#### 9.3 Run Triage ✅
+
+1. THE SYSTEM SHALL surface automation runs in a dedicated sidebar "Automations" tab placed between "Sessions" and "Files"; `SidebarTab` SHALL be one of `'sessions' | 'automations' | 'files'`.
+2. THE SYSTEM SHALL exclude tasks where `automation_run_id IS NOT NULL` from the Sessions sidebar tab query so automation runs appear ONLY under the Automations tab.
+3. WHEN a run completes, THE SYSTEM SHALL evaluate `has_findings` by inspecting the last assistant message against a case-insensitive list of "no findings" phrases (e.g., "nothing to report", "no files to", "already up to date"); a match sets `has_findings = false` and auto-archives the run.
+4. WHERE a run failed or was cancelled, THE SYSTEM SHALL set `has_findings = false`.
+5. THE SYSTEM SHALL provide filter chips in the Automations sidebar tab — "Unread" (default when unread items exist) and "All" — and a "Mark all read" action.
+6. THE SYSTEM SHALL display an unread badge (red dot) on the Automations sidebar tab whenever runs with findings are unread, sourced from `get_automation_unread_count` for the active workspace.
+7. WHEN the user clicks a run item in the sidebar, THE SYSTEM SHALL navigate to `/execution/:taskId` and SHALL mark the run read via `mark_run_read`.
+8. THE SYSTEM SHALL refresh the runs list and unread count reactively via `automation:run_started` and `automation:run_completed` Tauri events without requiring user-initiated refresh.
+
+#### 9.4 Lifecycle & Persistence ✅
+
+1. THE SYSTEM SHALL persist automations in an `automations` table and runs in an `automation_runs` table (status ∈ `pending` / `running` / `completed` / `failed` / `cancelled`); the `tasks` table SHALL include a nullable `automation_run_id` FK to correlate automation-triggered tasks.
+2. WHEN a task triggered by an automation completes, THE SYSTEM SHALL invoke `try_complete_run_if_running` (`UPDATE … WHERE status='running'`) so completion is idempotent — only the first caller to affect the row releases the dispatch slot and drains pending runs.
+3. THE SYSTEM SHALL handle `task_complete` synchronously in the Rust sidecar event handler (`SidecarManager::handle_sidecar_event`), independently of the frontend `complete_task` invoke, so automation completion is robust against macOS release-build WebView throttling.
+4. THE SYSTEM SHALL drop the `DbState.conn` mutex before calling `process_pending_runs` (the connection mutex is `std::sync::Mutex` and is not reentrant); failure to do so causes a self-deadlock.
+5. WHEN a workspace is deleted, THE SYSTEM SHALL cascade-delete its automations and runs.
+6. ON app quit, THE SYSTEM SHALL cancel all per-automation threads; pending run state SHALL persist in SQLite and resume on next launch.
+7. THE SYSTEM SHALL emit the following Tauri events: `automation:run_started` (`{automation_id, run_id, task_id}`), `automation:run_completed` (`{run_id, has_findings, status}`), `automation:schedule_fired` (`{automation_id, next_run_at}`).
 
 ---
 

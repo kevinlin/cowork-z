@@ -16,29 +16,6 @@ The current permission model stores folder permissions per-task (`folder_permiss
 
 - Bump `CURRENT_VERSION` from `5` to `6`
 - Add `migrate_v6()`:
-  ```sql
-  -- Create workspace-scoped permissions table
-  CREATE TABLE workspace_permissions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-      folder_path TEXT NOT NULL,
-      access_level TEXT NOT NULL DEFAULT 'read-write',
-      source TEXT NOT NULL DEFAULT 'adhoc',
-      created_at TEXT NOT NULL,
-      UNIQUE(workspace_id, folder_path)
-  );
-  CREATE INDEX idx_workspace_permissions_workspace_id ON workspace_permissions(workspace_id);
-
-  -- Migrate existing folder_permissions data to workspace scope
-  INSERT OR IGNORE INTO workspace_permissions (workspace_id, folder_path, access_level, source, created_at)
-  SELECT DISTINCT t.workspace_id, fp.folder_path, fp.access_level, fp.source, fp.created_at
-  FROM folder_permissions fp
-  JOIN tasks t ON fp.task_id = t.id
-  WHERE t.workspace_id IS NOT NULL;
-
-  -- Drop old table
-  DROP TABLE IF EXISTS folder_permissions;
-  ```
 - Add `if stored_version < 6 { migrate_v6(conn)?; }` after the v5 block (line 348)
 
 ---
@@ -73,12 +50,6 @@ New commands (mirroring the old ones but using workspace_id instead of task_id):
 **File:** `src-tauri/src/commands/mod.rs` — replace `pub mod folder_permissions;` with `pub mod workspace_permissions;`
 
 **File:** `src-tauri/src/lib.rs` (line 268-271) — swap command registrations:
-```rust
-commands::workspace_permissions::save_workspace_permission,
-commands::workspace_permissions::get_workspace_permissions,
-commands::workspace_permissions::remove_workspace_permission,
-commands::workspace_permissions::get_default_folder_permissions,
-```
 
 ---
 
@@ -87,21 +58,6 @@ commands::workspace_permissions::get_default_folder_permissions,
 **File:** `src-tauri/src/commands/tasks.rs` — `respond_to_permission()` (line 468)
 
 Replace the `save_folder_permission` call (lines 492-499) with workspace-scoped save:
-
-```rust
-// Look up task's workspace_id
-let ws_id: Option<String> = conn.query_row(
-    "SELECT workspace_id FROM tasks WHERE id = ?1",
-    [&response.task_id],
-    |row| row.get(0),
-).ok().flatten();
-
-if let Some(ref ws_id) = ws_id {
-    let _ = db::workspace_permissions::save_workspace_permission(
-        &conn, ws_id, &folder_path, "read-write", "adhoc",
-    );
-}
-```
 
 Remove the old `db::folder_permissions::save_folder_permission` call entirely.
 
@@ -112,26 +68,6 @@ Remove the old `db::folder_permissions::save_folder_permission` call entirely.
 Three places load folder permissions — all change from task-scoped to workspace-scoped:
 
 ### 5a: `start_task()` in `src-tauri/src/commands/tasks.rs` (lines 90-103)
-
-Replace:
-```rust
-let folder_permissions = {
-    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-    db::folder_permissions::get_folder_permissions(&conn, &task_id)
-};
-```
-
-With:
-```rust
-let folder_permissions = {
-    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-    if let Some(ref ws_id) = ws_id {
-        db::workspace_permissions::get_workspace_permissions(&conn, ws_id)
-    } else {
-        vec![]
-    }
-};
-```
 
 Then convert `StoredWorkspacePermission` → `FolderPermissionPayload` (same field mapping, `workspace_id` ignored in payload).
 
@@ -149,42 +85,7 @@ Same change — load from `workspace_permissions` using workspace_id (already av
 
 **File:** `src-tauri/sidecar-opencode/src/config-builder.ts` — `buildSessionConfig()` (lines 117-124)
 
-Replace the current workspace block:
-```typescript
-if (fp.source === 'workspace') {
-  externalDirRules[fp.path] = 'allow';
-  readRules[fp.path] = 'allow';
-  editRules[fp.path] = 'allow';
-  continue;
-}
-```
-
-With convention-aware logic:
-```typescript
-if (fp.source === 'workspace') {
-  const wsPath = fp.path;
-  const sep = process.platform === 'win32' ? '\\' : '/';
-  const norm = wsPath.replace(/[\/\\]+$/, '');
-  const inputDir = norm + sep + 'Input';
-  const outputDir = norm + sep + 'Output';
-
-  // External directory: allow workspace access
-  externalDirRules[wsPath] = 'allow';
-
-  // Read: allow everything in workspace (including Input/)
-  readRules[wsPath] = 'allow';
-
-  // Edit: GENERAL rule first, SPECIFIC overrides last
-  // OpenCode uses "last matching pattern wins"
-  editRules[wsPath] = 'allow';                  // general: workspace writable
-  editRules[inputDir] = 'deny';                 // override: Input/ root denied
-  editRules[inputDir + sep + '*'] = 'deny';     // override: Input/ children denied
-  editRules[outputDir] = 'allow';               // override: Output/ explicitly allowed
-  editRules[outputDir + sep + '*'] = 'allow';   // override: Output/ children allowed
-
-  continue;
-}
-```
+Replace the current workspace block with convention-aware logic
 
 ---
 
@@ -192,54 +93,15 @@ if (fp.source === 'workspace') {
 
 **File:** `src-tauri/sidecar-opencode/src/config-builder.ts` — `buildSystemPrompt()` (line 33)
 
-Make `workspaceDir` a **required** parameter (reorder so it comes before the optional `customPrompt`):
-```typescript
-export function buildSystemPrompt(
-  serverPort: number,
-  serverPassword: string,
-  workspaceDir: string,
-  customPrompt?: string
-): string {
-```
+Make `workspaceDir` a **required** parameter (reorder so it comes before the optional `customPrompt`)
 
 Unconditionally emit a `<workspace-conventions>` section after `<capabilities>` (before `<server-access>`). The block embeds the current workspace path, marks `Input/` as read-only, and forces every new file under a **category subfolder** of `${workspaceDir}/Output/` (the agent picks the actual subfolder name based on the file's nature):
-```
-<workspace-conventions>
-The current workspace is: \`${workspaceDir}\`
-
-This workspace uses a convention-based folder structure:
-- **\`Input/\`** — Read-only reference materials. NEVER modify, delete, move, or overwrite any files in \`Input/\`. This applies to ALL tools including bash. Read from \`Input/\` and write results to \`Output/\`.
-- **\`Output/\`** — Your working area. Every new file you create MUST live under a **category subfolder** of \`${workspaceDir}/Output/\` — never directly in \`Output/\`, never at the workspace root, never in \`Input/\`, and never elsewhere unless the user explicitly requests a different location. This applies to ALL file-creating tools including write, edit, and bash commands (e.g., \`touch\`, \`>\`, \`tee\`, \`mkdir\`, \`cp\`, \`mv\`).
-
-**Choosing the category subfolder:**
-1. **Reuse first.** Before creating a new subfolder, list \`${workspaceDir}/Output/\`. If an existing subfolder already fits the file's nature, put the file there.
-2. **Otherwise, pick a short, lowercase, kebab-case name that describes the *nature* of the artifact** (not the task or date). Create nested subfolders inside the category when it helps organization (e.g., \`engineering/adr/\`, \`testing/e2e/\`).
-3. **Common categories** (use these names when they fit; invent new ones only when none of these apply):
-   - \`executable/\` — runnable code and scripts (Python, shell, Node, etc.)
-   - \`product/\` — requirement docs, feature specs, user stories, PRDs
-   - \`ux-prototype/\` — UI/UX mockups, HTML prototypes, wireframes, design assets
-   - \`engineering/\` — technical/solution design, architecture docs, ADRs
-   - \`testing/\` — test cases, test scripts, test data, test reports
-   - \`research/\` — investigation notes, comparisons, summaries of source material
-   - \`data/\` — generated datasets, exports, intermediate data files
-
-**Examples:**
-- A Python utility script → \`${workspaceDir}/Output/executable/<name>.py\`
-- A feature requirements doc → \`${workspaceDir}/Output/product/<name>.md\`
-- A clickable HTML prototype → \`${workspaceDir}/Output/ux-prototype/<name>/index.html\`
-- An ADR → \`${workspaceDir}/Output/engineering/adr/<NNN>-<title>.md\`
-- A pytest suite → \`${workspaceDir}/Output/testing/test_<name>.py\`
-</workspace-conventions>
-```
 
 The category list and examples are soft-enforced via the system prompt only. The hard `edit: allow` rule for `${workspaceDir}/Output/` and its descendants (Step 6) already permits any subfolder layout, so no permission-rule changes are needed to support categorized output.
 
 **File:** `src-tauri/sidecar-opencode/src/session-manager.ts` — lines 365 and 421
 
-Thread `workingDirectory` to `buildSystemPrompt` in the new argument order. Because the payload types mark `workingDirectory?: string` as optional, coalesce to an empty string defensively:
-```typescript
-system: buildSystemPrompt(this.serverPort, this.serverPassword, workingDirectory ?? '', customPrompt),
-```
+Thread `workingDirectory` to `buildSystemPrompt` in the new argument order. Because the payload types mark `workingDirectory?: string` as optional, coalesce to an empty string defensively
 
 **File:** `src-tauri/sidecar-opencode/__tests__/server-isolation.test.ts`
 
@@ -255,19 +117,7 @@ Update all existing `buildSystemPrompt` test calls to pass a workspace path (e.g
 
 **File:** `src/lib/tauri-api.ts` (lines 243-257)
 
-Replace task-scoped functions with workspace-scoped:
-```typescript
-saveFolderPermission(workspaceId, folderPath, accessLevel, source?)
-  → invoke('save_workspace_permission', { workspaceId, folderPath, accessLevel, source })
-
-getFolderPermissions(workspaceId)
-  → invoke('get_workspace_permissions', { workspaceId })
-
-removeFolderPermission(workspaceId, folderPath)
-  → invoke('remove_workspace_permission', { workspaceId, folderPath })
-
-getDefaultFolderPermissions()  // keep as-is
-```
+Replace task-scoped functions with workspace-scoped
 
 Keep the function names (`saveFolderPermission`, etc.) to minimize churn, but change the first parameter from `taskId` to `workspaceId` and the backend invocation targets.
 
@@ -275,18 +125,7 @@ Keep the function names (`saveFolderPermission`, etc.) to minimize churn, but ch
 
 **File:** `src/stores/taskStore.ts`
 
-**`addFolderPermission`** (lines 369-384): Change from `currentTask.id` to workspace ID:
-```typescript
-addFolderPermission: (path, accessLevel) => {
-  // ... same dedup + local state update ...
-  // Persist to workspace (not task)
-  const { useWorkspaceStore } = await import('./workspaceStore');
-  const wsId = useWorkspaceStore.getState().activeWorkspace?.id;
-  if (wsId) {
-    api.saveFolderPermission(wsId, path, accessLevel).catch(...);
-  }
-},
-```
+**`addFolderPermission`** (lines 369-384): Change from `currentTask.id` to workspace ID
 
 Note: `addFolderPermission` can't be async (it's a sync setter). Use the pattern already in the file at line 1123-1124 where workspace ID is fetched inline.
 
@@ -324,10 +163,6 @@ Also update the **Key Source Locations** table to reference `workspace_permissio
 ## Step 10: Update Log
 
 **File:** `UPDATE_LOG.md` — under v0.6.5:
-
-```
-- **Convention-based workspace permissions** — Workspace `Input/` folder is now read-only (agent cannot edit files there); `Output/` folder is explicitly writable. Permission approvals are now remembered at the workspace level and automatically applied to all future tasks in the same workspace.
-```
 
 ---
 

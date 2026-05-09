@@ -4,7 +4,7 @@
 use rusqlite::Connection;
 
 /// Current schema version supported by this app
-const CURRENT_VERSION: i32 = 7;
+const CURRENT_VERSION: i32 = 8;
 
 /// Get the stored schema version from the database
 fn get_stored_version(conn: &Connection) -> i32 {
@@ -380,6 +380,21 @@ fn migrate_v7(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Migration v8: Strip `.git` suffix from skill repo URLs
+fn migrate_v8(conn: &Connection) -> Result<(), String> {
+    println!("[Migrations] Running migration v8 (strip .git from skill repo URLs)");
+
+    conn.execute(
+        "UPDATE skill_repos SET url = SUBSTR(url, 1, LENGTH(url) - 4) WHERE url LIKE '%.git'",
+        [],
+    )
+    .map_err(|e| format!("Migration v8 failed: {}", e))?;
+
+    set_stored_version(conn, 8)?;
+    println!("[Migrations] Migration v8 complete");
+    Ok(())
+}
+
 /// Run all pending migrations
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
@@ -426,6 +441,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
 
     if stored_version < 7 {
         migrate_v7(conn)?;
+    }
+
+    if stored_version < 8 {
+        migrate_v8(conn)?;
     }
 
     println!("[Migrations] All migrations complete");

@@ -121,7 +121,7 @@ The system prompt is injected via the `system` field on each `POST /session/{id}
 
 The system prompt includes:
 - Server port and password (so the agent can call the OpenCode server API directly)
-- **Workspace conventions** (always emitted): the current workspace path plus rules that `input/` is read-only and every new file must be created under a **category subfolder** of `<workspace>/output/` (covers write/edit tools and bash commands like `touch`, `>`, `tee`, `mkdir`, `cp`, `mv`). See [Workspace Conventions in System Prompt](#workspace-conventions-in-system-prompt).
+- **Workspace conventions** (always emitted): the current workspace path plus rules that `Input/` is read-only and every new file must be created under a **category subfolder** of `<workspace>/Output/` (covers write/edit tools and bash commands like `touch`, `>`, `tee`, `mkdir`, `cp`, `mv`). See [Workspace Conventions in System Prompt](#workspace-conventions-in-system-prompt).
 - User custom prompt (when enabled, wrapped in `<user-instructions>` XML block)
 
 ### Workspace Conventions in System Prompt
@@ -130,10 +130,10 @@ The system prompt includes:
 
 The injected `<workspace-conventions>` block:
 1. **Declares the current workspace path** so the agent can resolve relative references.
-2. **Enforces `input/` as read-only** — soft enforcement via prompt, paired with the hard `edit: deny` rules emitted by `buildSessionConfig` (see [Folder Permission Model](#folder-permission-model)).
-3. **Forces new-file creation under a category subfolder of `<workspace>/output/`** — every write/edit tool call and every file-creating bash command (`touch`, `>`, `tee`, `mkdir`, `cp`, `mv`, etc.) must target a path inside a subfolder of `output/`, never directly in `output/` root. The agent picks the subfolder name based on the file's nature, with these common categories suggested in the prompt: `executable/` (scripts), `product/` (PRDs, user stories), `ux-prototype/` (mockups, HTML prototypes), `engineering/` (design docs, ADRs), `testing/` (test cases, scripts), `research/` (notes, summaries), `data/` (datasets, exports). The agent is instructed to **reuse existing subfolders first** before creating new ones, so artefacts stay grouped consistently across follow-up tasks in the same workspace.
+2. **Enforces `Input/` as read-only** — soft enforcement via prompt, paired with the hard `edit: deny` rules emitted by `buildSessionConfig` (see [Folder Permission Model](#folder-permission-model)).
+3. **Forces new-file creation under a category subfolder of `<workspace>/Output/`** — every write/edit tool call and every file-creating bash command (`touch`, `>`, `tee`, `mkdir`, `cp`, `mv`, etc.) must target a path inside a subfolder of `Output/`, never directly in `Output/` root. The agent picks the subfolder name based on the file's nature, with these common categories suggested in the prompt: `executable/` (scripts), `product/` (PRDs, user stories), `ux-prototype/` (mockups, HTML prototypes), `engineering/` (design docs, ADRs), `testing/` (test cases, scripts), `research/` (notes, summaries), `data/` (datasets, exports). The agent is instructed to **reuse existing subfolders first** before creating new ones, so artefacts stay grouped consistently across follow-up tasks in the same workspace.
 
-This is soft-enforced via the prompt only — the hard `edit: allow` rule on `<workspace>/output/` and its descendants in `buildSessionConfig` already permits any subfolder layout, so the categorized convention requires no permission-rule changes.
+This is soft-enforced via the prompt only — the hard `edit: allow` rule on `<workspace>/Output/` and its descendants in `buildSessionConfig` already permits any subfolder layout, so the categorized convention requires no permission-rule changes.
 
 This removes the prior conditional branch that skipped the block when `workspaceDir` was undefined — the section is now always rendered.
 
@@ -177,9 +177,9 @@ Keys are retrieved on-demand during task startup. Only masked prefixes are retur
 > **Plan:** [Folder Permission Model](plan_folder-permission-model.md)
 > **Plan:** [Convention-Based Workspace Permission Model](plan_convention-based-workspace-permission-model.md)
 
-- **Convention-based defaults:** Workspace `input/` folder is read-only (`edit: deny`), `output/` folder is explicitly writable (`edit: allow`), workspace root allows read/list for everything
+- **Convention-based defaults:** Workspace `Input/` folder is read-only (`edit: deny`), `Output/` folder is explicitly writable (`edit: allow`), workspace root allows read/list for everything
 - **Workspace-scoped persistence:** Permissions are stored in the `workspace_permissions` table (replaced task-scoped `folder_permissions`). Adhoc approvals carry across all tasks in the same workspace.
-- **Bash soft enforcement:** System prompt instructs the agent not to modify `input/` via bash commands. Hard enforcement is via `edit: deny` permission rules in the OpenCode config.
+- **Bash soft enforcement:** System prompt instructs the agent not to modify `Input/` via bash commands. Hard enforcement is via `edit: deny` permission rules in the OpenCode config.
 - **Architecture flow:** User approves permission → saved to `workspace_permissions` → loaded for all future tasks in the workspace
 - All paths outside the workspace require explicit user approval via runtime permission dialogs
 - Two access levels: `read` and `read-write`

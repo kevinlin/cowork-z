@@ -83,7 +83,7 @@ describe('Server Isolation', () => {
     it('should include the workspace directory and output-folder convention', () => {
       const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
       expect(prompt).toContain('/tmp/my-ws');
-      expect(prompt).toContain('/tmp/my-ws/output/');
+      expect(prompt).toContain('/tmp/my-ws/Output/');
       expect(prompt).toContain('<workspace-conventions>');
     });
 

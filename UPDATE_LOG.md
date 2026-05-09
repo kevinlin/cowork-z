@@ -6,7 +6,7 @@
 
 - **Open repo site from Skills Manager toolbar** — When a specific repo is selected in the Skills Manager dropdown, a new external-link button appears next to it; clicking opens the repo's GitHub/GitLab page in the default browser. Supports HTTPS and SSH Git URLs; tooltip shows the resolved web URL on hover.
 - **Normalize skill repo URLs** — Removed `.git` suffix from all curated skill repo URLs in the Skills Catalog, and added a DB migration (v8) so previously-registered repos match the updated catalog entries.
-
+- **Camel case workspace default folders** — Renamed workspace convention folders from `input/` → `Input/` and `output/` → `Output/` for visual consistency; updated system prompt, permission rules, and all documentation references
 
 ## v0.7.11
 
@@ -70,7 +70,7 @@
 
 ## v0.6.11
 
-- **Categorized output subfolders** — The system prompt now requires the agent to organize every new file under a category subfolder; the agent reuses existing categories when they fit and picks short, kebab-case names based on the file's nature, so workspace artefacts stay neatly grouped instead of dumped into `output/` root
+- **Categorized output subfolders** — The system prompt now requires the agent to organize every new file under a category subfolder; the agent reuses existing categories when they fit and picks short, kebab-case names based on the file's nature, so workspace artefacts stay neatly grouped instead of dumped into `Output/` root
 - **Fix: Symlink-installed skills not appearing in slash command autocomplete** — Skills installed via the Skills Manager on macOS/Linux (which use symbolic links) were not recognized by the Skills Catalog's install detection, causing them to be excluded from the `/` slash command autocomplete in TaskInputBar and ChatInput; updated `skills_list_with_status` to detect both copy-based and symlink-based installs
 - **Fix: Custom skills in `~/.config/opencode/skills` not appearing in slash command autocomplete** — User-copied skill folders (and skills from custom repos that don't ship as bundled templates) were missing from the `/` autocomplete popover
 
@@ -93,7 +93,7 @@
 
 ## v0.6.7
 
-- **Mandatory workspace context in system prompt** — the agent is always told the current workspace path and instructed to create every new file under `<workspace>/output/` (including bash-created files like `touch`, `>`, `tee`, `mkdir`), never at the workspace root or in `input/`.
+- **Mandatory workspace context in system prompt** — the agent is always told the current workspace path and instructed to create every new file under `<workspace>/Output/` (including bash-created files like `touch`, `>`, `tee`, `mkdir`), never at the workspace root or in `Input/`.
 - **Cursor-aware slash commands** — Slash-command skill picker now triggers whenever `/` is typed after whitespace (or at text start), not only at the start of input; the filter uses just the characters between `/` and the caret. Selecting a skill removes only the `/query` token and preserves the surrounding prose.
 - **Multi-skills support** - Multiple skills can be referenced per message — each appears as its own pill above the textarea and is prefixed in the composed prompt as `/skill-a /skill-b <your text>`.
 
@@ -104,7 +104,7 @@
 
 ## v0.6.5
 
-- **Convention-based workspace permissions** — Workspace `input/` folder is now read-only (agent cannot edit files there); `output/` folder is explicitly writable. Permission approvals are now remembered at the workspace level and automatically applied to all future tasks in the same workspace.
+- **Convention-based workspace permissions** — Workspace `Input/` folder is now read-only (agent cannot edit files there); `Output/` folder is explicitly writable. Permission approvals are now remembered at the workspace level and automatically applied to all future tasks in the same workspace.
 - **Arena completion tracking** — The Rust backend now automatically marks an arena as completed when all 3 child tasks reach a terminal state (completed, failed, or interrupted); `completed_at` timestamp is set on the arena record
 
 ## v0.6.4

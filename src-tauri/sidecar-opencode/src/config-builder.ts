@@ -50,11 +50,11 @@ When users ask about your capabilities, mention:
 The current workspace is: \`${workspaceDir}\`
 
 This workspace uses a convention-based folder structure:
-- **\`input/\`** — Read-only reference materials. NEVER modify, delete, move, or overwrite any files in \`input/\`. This applies to ALL tools including bash. Read from \`input/\` and write results to \`output/\`.
-- **\`output/\`** — Your working area. Every new file you create MUST live under a **category subfolder** of \`${workspaceDir}/output/\` — never directly in \`output/\`, never at the workspace root, never in \`input/\`, and never elsewhere unless the user explicitly requests a different location. This applies to ALL file-creating tools including write, edit, and bash commands (e.g., \`touch\`, \`>\`, \`tee\`, \`mkdir\`, \`cp\`, \`mv\`).
+- **\`Input/\`** — Read-only reference materials. NEVER modify, delete, move, or overwrite any files in \`Input/\`. This applies to ALL tools including bash. Read from \`Input/\` and write results to \`Output/\`.
+- **\`Output/\`** — Your working area. Every new file you create MUST live under a **category subfolder** of \`${workspaceDir}/Output/\` — never directly in \`Output/\`, never at the workspace root, never in \`Input/\`, and never elsewhere unless the user explicitly requests a different location. This applies to ALL file-creating tools including write, edit, and bash commands (e.g., \`touch\`, \`>\`, \`tee\`, \`mkdir\`, \`cp\`, \`mv\`).
 
 **Choosing the category subfolder:**
-1. **Reuse first.** Before creating a new subfolder, list \`${workspaceDir}/output/\`. If an existing subfolder already fits the file's nature, put the file there.
+1. **Reuse first.** Before creating a new subfolder, list \`${workspaceDir}/Output/\`. If an existing subfolder already fits the file's nature, put the file there.
 2. **Otherwise, pick a short, lowercase, kebab-case name that describes the *nature* of the artifact** (not the task or date). Create nested subfolders inside the category when it helps organization (e.g., \`engineering/adr/\`, \`testing/e2e/\`).
 3. **Common categories** (use these names when they fit; invent new ones only when none of these apply):
    - \`executable/\` — runnable code and scripts (Python, shell, Node, etc.)
@@ -66,11 +66,11 @@ This workspace uses a convention-based folder structure:
    - \`data/\` — generated datasets, exports, intermediate data files
 
 **Examples:**
-- A Python utility script → \`${workspaceDir}/output/executable/<name>.py\`
-- A feature requirements doc → \`${workspaceDir}/output/product/<name>.md\`
-- A clickable HTML prototype → \`${workspaceDir}/output/ux-prototype/<name>/index.html\`
-- An ADR → \`${workspaceDir}/output/engineering/adr/<NNN>-<title>.md\`
-- A pytest suite → \`${workspaceDir}/output/testing/test_<name>.py\`
+- A Python utility script → \`${workspaceDir}/Output/executable/<name>.py\`
+- A feature requirements doc → \`${workspaceDir}/Output/product/<name>.md\`
+- A clickable HTML prototype → \`${workspaceDir}/Output/ux-prototype/<name>/index.html\`
+- An ADR → \`${workspaceDir}/Output/engineering/adr/<NNN>-<title>.md\`
+- A pytest suite → \`${workspaceDir}/Output/testing/test_<name>.py\`
 </workspace-conventions>
 
 <server-access>
@@ -146,8 +146,8 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
         const wsPath = fp.path;
         const sep = process.platform === 'win32' ? '\\' : '/';
         const norm = wsPath.replace(/[/\\]+$/, '');
-        const inputDir = norm + sep + 'input';
-        const outputDir = norm + sep + 'output';
+        const inputDir = norm + sep + 'Input';
+        const outputDir = norm + sep + 'Output';
 
         externalDirRules[wsPath] = 'allow';
         readRules[wsPath] = 'allow';

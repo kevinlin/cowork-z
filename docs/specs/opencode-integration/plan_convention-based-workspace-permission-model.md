@@ -2,9 +2,9 @@
 
 ## Context
 
-The current permission model stores folder permissions per-task (`folder_permissions` table with `task_id` FK). This means adhoc approvals don't carry across tasks, and the workspace gets blanket `edit: allow` with no protection for reference data. This plan replaces `folder_permissions` with a single `workspace_permissions` table, introduces convention-based rules (`input/` read-only, `output/` writable), and soft-enforces bash restrictions via system prompt.
+The current permission model stores folder permissions per-task (`folder_permissions` table with `task_id` FK). This means adhoc approvals don't carry across tasks, and the workspace gets blanket `edit: allow` with no protection for reference data. This plan replaces `folder_permissions` with a single `workspace_permissions` table, introduces convention-based rules (`Input/` read-only, `Output/` writable), and soft-enforces bash restrictions via system prompt.
 
-**Key constraint:** OpenCode's `bash` permission matches command strings, not file paths. Edit/read/list permissions match file paths. Bash restriction for `input/` is soft-enforced via system prompt; edit restriction is hard-enforced via permission rules.
+**Key constraint:** OpenCode's `bash` permission matches command strings, not file paths. Edit/read/list permissions match file paths. Bash restriction for `Input/` is soft-enforced via system prompt; edit restriction is hard-enforced via permission rules.
 
 **Rule precedence:** OpenCode uses "last matching pattern wins" — general rules must be inserted FIRST, specific overrides LAST in the object.
 
@@ -165,22 +165,22 @@ if (fp.source === 'workspace') {
   const wsPath = fp.path;
   const sep = process.platform === 'win32' ? '\\' : '/';
   const norm = wsPath.replace(/[\/\\]+$/, '');
-  const inputDir = norm + sep + 'input';
-  const outputDir = norm + sep + 'output';
+  const inputDir = norm + sep + 'Input';
+  const outputDir = norm + sep + 'Output';
 
   // External directory: allow workspace access
   externalDirRules[wsPath] = 'allow';
 
-  // Read: allow everything in workspace (including input/)
+  // Read: allow everything in workspace (including Input/)
   readRules[wsPath] = 'allow';
 
   // Edit: GENERAL rule first, SPECIFIC overrides last
   // OpenCode uses "last matching pattern wins"
   editRules[wsPath] = 'allow';                  // general: workspace writable
-  editRules[inputDir] = 'deny';                 // override: input/ root denied
-  editRules[inputDir + sep + '*'] = 'deny';     // override: input/ children denied
-  editRules[outputDir] = 'allow';               // override: output/ explicitly allowed
-  editRules[outputDir + sep + '*'] = 'allow';   // override: output/ children allowed
+  editRules[inputDir] = 'deny';                 // override: Input/ root denied
+  editRules[inputDir + sep + '*'] = 'deny';     // override: Input/ children denied
+  editRules[outputDir] = 'allow';               // override: Output/ explicitly allowed
+  editRules[outputDir + sep + '*'] = 'allow';   // override: Output/ children allowed
 
   continue;
 }
@@ -202,17 +202,17 @@ export function buildSystemPrompt(
 ): string {
 ```
 
-Unconditionally emit a `<workspace-conventions>` section after `<capabilities>` (before `<server-access>`). The block embeds the current workspace path, marks `input/` as read-only, and forces every new file under a **category subfolder** of `${workspaceDir}/output/` (the agent picks the actual subfolder name based on the file's nature):
+Unconditionally emit a `<workspace-conventions>` section after `<capabilities>` (before `<server-access>`). The block embeds the current workspace path, marks `Input/` as read-only, and forces every new file under a **category subfolder** of `${workspaceDir}/Output/` (the agent picks the actual subfolder name based on the file's nature):
 ```
 <workspace-conventions>
 The current workspace is: \`${workspaceDir}\`
 
 This workspace uses a convention-based folder structure:
-- **\`input/\`** — Read-only reference materials. NEVER modify, delete, move, or overwrite any files in \`input/\`. This applies to ALL tools including bash. Read from \`input/\` and write results to \`output/\`.
-- **\`output/\`** — Your working area. Every new file you create MUST live under a **category subfolder** of \`${workspaceDir}/output/\` — never directly in \`output/\`, never at the workspace root, never in \`input/\`, and never elsewhere unless the user explicitly requests a different location. This applies to ALL file-creating tools including write, edit, and bash commands (e.g., \`touch\`, \`>\`, \`tee\`, \`mkdir\`, \`cp\`, \`mv\`).
+- **\`Input/\`** — Read-only reference materials. NEVER modify, delete, move, or overwrite any files in \`Input/\`. This applies to ALL tools including bash. Read from \`Input/\` and write results to \`Output/\`.
+- **\`Output/\`** — Your working area. Every new file you create MUST live under a **category subfolder** of \`${workspaceDir}/Output/\` — never directly in \`Output/\`, never at the workspace root, never in \`Input/\`, and never elsewhere unless the user explicitly requests a different location. This applies to ALL file-creating tools including write, edit, and bash commands (e.g., \`touch\`, \`>\`, \`tee\`, \`mkdir\`, \`cp\`, \`mv\`).
 
 **Choosing the category subfolder:**
-1. **Reuse first.** Before creating a new subfolder, list \`${workspaceDir}/output/\`. If an existing subfolder already fits the file's nature, put the file there.
+1. **Reuse first.** Before creating a new subfolder, list \`${workspaceDir}/Output/\`. If an existing subfolder already fits the file's nature, put the file there.
 2. **Otherwise, pick a short, lowercase, kebab-case name that describes the *nature* of the artifact** (not the task or date). Create nested subfolders inside the category when it helps organization (e.g., \`engineering/adr/\`, \`testing/e2e/\`).
 3. **Common categories** (use these names when they fit; invent new ones only when none of these apply):
    - \`executable/\` — runnable code and scripts (Python, shell, Node, etc.)
@@ -224,15 +224,15 @@ This workspace uses a convention-based folder structure:
    - \`data/\` — generated datasets, exports, intermediate data files
 
 **Examples:**
-- A Python utility script → \`${workspaceDir}/output/executable/<name>.py\`
-- A feature requirements doc → \`${workspaceDir}/output/product/<name>.md\`
-- A clickable HTML prototype → \`${workspaceDir}/output/ux-prototype/<name>/index.html\`
-- An ADR → \`${workspaceDir}/output/engineering/adr/<NNN>-<title>.md\`
-- A pytest suite → \`${workspaceDir}/output/testing/test_<name>.py\`
+- A Python utility script → \`${workspaceDir}/Output/executable/<name>.py\`
+- A feature requirements doc → \`${workspaceDir}/Output/product/<name>.md\`
+- A clickable HTML prototype → \`${workspaceDir}/Output/ux-prototype/<name>/index.html\`
+- An ADR → \`${workspaceDir}/Output/engineering/adr/<NNN>-<title>.md\`
+- A pytest suite → \`${workspaceDir}/Output/testing/test_<name>.py\`
 </workspace-conventions>
 ```
 
-The category list and examples are soft-enforced via the system prompt only. The hard `edit: allow` rule for `${workspaceDir}/output/` and its descendants (Step 6) already permits any subfolder layout, so no permission-rule changes are needed to support categorized output.
+The category list and examples are soft-enforced via the system prompt only. The hard `edit: allow` rule for `${workspaceDir}/Output/` and its descendants (Step 6) already permits any subfolder layout, so no permission-rule changes are needed to support categorized output.
 
 **File:** `src-tauri/sidecar-opencode/src/session-manager.ts` — lines 365 and 421
 
@@ -244,7 +244,7 @@ system: buildSystemPrompt(this.serverPort, this.serverPassword, workingDirectory
 **File:** `src-tauri/sidecar-opencode/__tests__/server-isolation.test.ts`
 
 Update all existing `buildSystemPrompt` test calls to pass a workspace path (e.g., `'/tmp/workspace'`) and add **two** new tests:
-1. Asserts the prompt contains the workspace path and the `${workspaceDir}/output/` instruction.
+1. Asserts the prompt contains the workspace path and the `${workspaceDir}/Output/` instruction.
 2. Asserts the prompt contains the phrase `category subfolder` and each of the common category names (`executable/`, `product/`, `ux-prototype/`, `engineering/`, `testing/`) so the categorized-output guidance is locked in against accidental deletion.
 
 ---
@@ -312,9 +312,9 @@ No changes needed — `FoldersPanel` reads from `taskStore.folderPermissions` an
 
 In the **Folder Permission Model** section, update to describe:
 
-1. **Convention-based defaults:** `input/` is read-only (edit: deny), `output/` is writable (edit: allow), workspace root allows read/list for everything
+1. **Convention-based defaults:** `Input/` is read-only (edit: deny), `Output/` is writable (edit: allow), workspace root allows read/list for everything
 2. **Workspace-scoped persistence:** Replaced `folder_permissions` (task-scoped) with `workspace_permissions` (workspace-scoped). Adhoc approvals now carry across all tasks in the same workspace.
-3. **Bash soft enforcement:** System prompt instructs agent not to modify `input/` via bash commands. Hard enforcement is via `edit: deny` rules.
+3. **Bash soft enforcement:** System prompt instructs agent not to modify `Input/` via bash commands. Hard enforcement is via `edit: deny` rules.
 4. **Architecture flow:** User approves permission → saved to `workspace_permissions` → loaded for all future tasks in workspace
 
 Also update the **Key Source Locations** table to reference `workspace_permissions.rs` instead of `folder_permissions.rs`.
@@ -326,7 +326,7 @@ Also update the **Key Source Locations** table to reference `workspace_permissio
 **File:** `UPDATE_LOG.md` — under v0.6.5:
 
 ```
-- **Convention-based workspace permissions** — Workspace `input/` folder is now read-only (agent cannot edit files there); `output/` folder is explicitly writable. Permission approvals are now remembered at the workspace level and automatically applied to all future tasks in the same workspace.
+- **Convention-based workspace permissions** — Workspace `Input/` folder is now read-only (agent cannot edit files there); `Output/` folder is explicitly writable. Permission approvals are now remembered at the workspace level and automatically applied to all future tasks in the same workspace.
 ```
 
 ---
@@ -361,14 +361,14 @@ Also update the **Key Source Locations** table to reference `workspace_permissio
 3. `cd src-tauri/sidecar-opencode && pnpm test` — Existing tests pass
 4. `pnpm typecheck` — Frontend compiles
 5. **Manual — Convention enforcement:**
-   - Create workspace with `input/data.txt` and `output/`
-   - Start task: "Edit the file at input/data.txt" → agent denied by OpenCode
-   - Start task: "Create a summary in output/" → succeeds without prompt, file lands under a category subfolder (e.g., `output/research/` or `output/product/`), not directly in `output/`
-   - Start task: "Write a Python script that prints today's date and an ADR explaining the choice of Python" → script lands in `output/executable/`, ADR lands in `output/engineering/` (or `output/engineering/adr/`)
-   - Follow-up task in same workspace: "Add unit tests for the script" → tests land in `output/testing/`; the script remains in `output/executable/` (agent reused the existing category)
+   - Create workspace with `Input/data.txt` and `Output/`
+   - Start task: "Edit the file at Input/data.txt" → agent denied by OpenCode
+   - Start task: "Create a summary in Output/" → succeeds without prompt, file lands under a category subfolder (e.g., `Output/research/` or `Output/product/`), not directly in `Output/`
+   - Start task: "Write a Python script that prints today's date and an ADR explaining the choice of Python" → script lands in `Output/executable/`, ADR lands in `Output/engineering/` (or `Output/engineering/adr/`)
+   - Follow-up task in same workspace: "Add unit tests for the script" → tests land in `Output/testing/`; the script remains in `Output/executable/` (agent reused the existing category)
 6. **Manual — Workspace-scoped persistence:**
    - In task A, approve an external folder permission
    - Start task B in same workspace → external folder auto-allowed (no prompt)
 7. **Manual — Arena:**
-   - Start arena in workspace with input/output → all 3 agents get convention rules
+   - Start arena in workspace with Input/Output → all 3 agents get convention rules
    - Approve permission in arena → persists for workspace

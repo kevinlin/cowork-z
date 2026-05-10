@@ -8,6 +8,26 @@ import { springs } from '@/lib/animations';
 import { cn } from '@/lib/utils';
 import type { QuestionRequest } from '@/shared';
 
+const OTHERS_LABEL = 'Others';
+const OTHERS_DESCRIPTION = 'Type your own response';
+
+const isOthersLabel = (label: string) => ['other', 'others'].includes(label.trim().toLowerCase());
+
+function ResponseInput({ value, onChange, onSubmit }: { value: string; onChange: (v: string) => void; onSubmit: () => void }) {
+  return (
+    <Input
+      autoFocus
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+        if (e.key === 'Enter' && value.trim()) onSubmit();
+      }}
+      placeholder="Type your response..."
+      value={value}
+    />
+  );
+}
+
 interface QuestionDialogProps {
   request: QuestionRequest;
   onSubmit: (answers: Array<{ labels: string[]; customText?: string }>) => void;
@@ -19,6 +39,7 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [customResponse, setCustomResponse] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const [othersSelected, setOthersSelected] = useState(false);
   const [answers, setAnswers] = useState<Array<{ labels: string[]; customText?: string }>>([]);
 
   const questions = request.questions;
@@ -27,19 +48,45 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
 
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
+  const providedOptions = currentQuestion.options ?? [];
+  const hasFreeTextOption = providedOptions.some((o) => isOthersLabel(o.label));
+  const renderedOptions =
+    providedOptions.length === 0 || hasFreeTextOption
+      ? providedOptions
+      : [...providedOptions, { label: OTHERS_LABEL, description: OTHERS_DESCRIPTION }];
+
+  const trimmedCustom = customResponse.trim();
+  const totalSelections = selectedOptions.length + (currentQuestion.multiSelect && othersSelected ? 1 : 0);
+
+  const resetQuestionState = () => {
+    setSelectedOptions([]);
+    setCustomResponse('');
+    setShowCustomInput(false);
+    setOthersSelected(false);
+  };
+
+  const buildCurrentAnswer = (): { labels: string[]; customText?: string } => {
+    if (currentQuestion.multiSelect) {
+      return {
+        labels: selectedOptions,
+        customText: othersSelected && trimmedCustom.length > 0 ? trimmedCustom : undefined,
+      };
+    }
+    if (showCustomInput || renderedOptions.length === 0) {
+      return { labels: [], customText: trimmedCustom };
+    }
+    return { labels: selectedOptions };
+  };
+
   const handleSubmitCurrent = () => {
-    const answer: { labels: string[]; customText?: string } = showCustomInput
-      ? { labels: [], customText: customResponse.trim() }
-      : { labels: selectedOptions };
+    const answer = buildCurrentAnswer();
 
     if (isLastQuestion) {
       onSubmit([...answers, answer]);
     } else {
       setAnswers([...answers, answer]);
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedOptions([]);
-      setCustomResponse('');
-      setShowCustomInput(false);
+      resetQuestionState();
     }
   };
 
@@ -48,13 +95,17 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
       const previousAnswers = answers.slice(0, -1);
       setAnswers(previousAnswers);
       setCurrentQuestionIndex(currentQuestionIndex - 1);
-      setSelectedOptions([]);
-      setCustomResponse('');
-      setShowCustomInput(false);
+      resetQuestionState();
     }
   };
 
-  const canSubmit = showCustomInput ? customResponse.trim().length > 0 : selectedOptions.length > 0;
+  const canSubmit = (() => {
+    if (currentQuestion.multiSelect) {
+      return selectedOptions.length > 0 || (othersSelected && trimmedCustom.length > 0);
+    }
+    if (showCustomInput || renderedOptions.length === 0) return trimmedCustom.length > 0;
+    return selectedOptions.length > 0;
+  })();
 
   return (
     <AnimatePresence>
@@ -94,68 +145,72 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
                 {currentQuestion.multiSelect && <p className="mb-3 text-muted-foreground text-xs">Select one or more options</p>}
 
                 {/* Options list */}
-                {!showCustomInput && currentQuestion.options && currentQuestion.options.length > 0 && (
+                {!showCustomInput && renderedOptions.length > 0 && (
                   <div className="mb-4 space-y-2">
-                    {currentQuestion.options.map((option, idx) => (
-                      <button
-                        className={cn(
-                          'w-full rounded-lg border p-3 text-left transition-colors',
-                          selectedOptions.includes(option.label) ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
-                        )}
-                        key={idx}
-                        onClick={() => {
-                          if (option.label.toLowerCase() === 'other') {
-                            setShowCustomInput(true);
-                            setSelectedOptions([]);
-                            return;
-                          }
-                          if (currentQuestion.multiSelect) {
-                            setSelectedOptions((prev) =>
-                              prev.includes(option.label) ? prev.filter((o) => o !== option.label) : [...prev, option.label]
-                            );
-                          } else {
-                            setSelectedOptions([option.label]);
-                          }
-                        }}
-                      >
-                        <div className="flex items-start gap-2.5">
-                          {currentQuestion.multiSelect && (
-                            <div
-                              className={cn(
-                                'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
-                                selectedOptions.includes(option.label)
-                                  ? 'border-primary bg-primary text-primary-foreground'
-                                  : 'border-muted-foreground/40'
-                              )}
-                            >
-                              {selectedOptions.includes(option.label) && <Check className="h-3 w-3" />}
-                            </div>
+                    {renderedOptions.map((option, idx) => {
+                      const labelIsOthers = isOthersLabel(option.label);
+                      const optionSelected = labelIsOthers
+                        ? currentQuestion.multiSelect && othersSelected
+                        : selectedOptions.includes(option.label);
+                      return (
+                        <button
+                          className={cn(
+                            'w-full rounded-lg border p-3 text-left transition-colors',
+                            optionSelected ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
                           )}
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium text-sm">{option.label}</div>
-                            {option.description && <div className="mt-1 text-muted-foreground text-xs">{option.description}</div>}
+                          key={`${option.label}-${idx}`}
+                          onClick={() => {
+                            if (labelIsOthers) {
+                              if (currentQuestion.multiSelect) {
+                                setOthersSelected((prev) => {
+                                  const next = !prev;
+                                  if (!next) setCustomResponse('');
+                                  return next;
+                                });
+                                return;
+                              }
+                              setShowCustomInput(true);
+                              setSelectedOptions([]);
+                              return;
+                            }
+                            if (currentQuestion.multiSelect) {
+                              setSelectedOptions((prev) =>
+                                prev.includes(option.label) ? prev.filter((o) => o !== option.label) : [...prev, option.label]
+                              );
+                            } else {
+                              setSelectedOptions([option.label]);
+                            }
+                          }}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            {currentQuestion.multiSelect && (
+                              <div
+                                className={cn(
+                                  'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+                                  optionSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'
+                                )}
+                              >
+                                {optionSelected && <Check className="h-3 w-3" />}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-sm">{option.label}</div>
+                              {option.description && <div className="mt-1 text-muted-foreground text-xs">{option.description}</div>}
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
+
+                    {currentQuestion.multiSelect && othersSelected && (
+                      <ResponseInput onChange={setCustomResponse} onSubmit={handleSubmitCurrent} value={customResponse} />
+                    )}
                   </div>
                 )}
 
-                {/* Custom text input */}
                 {showCustomInput && (
                   <div className="mb-4 space-y-2">
-                    <Input
-                      autoFocus
-                      onChange={(e) => setCustomResponse(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                        if (e.key === 'Enter' && customResponse.trim()) {
-                          handleSubmitCurrent();
-                        }
-                      }}
-                      placeholder="Type your response..."
-                      value={customResponse}
-                    />
+                    <ResponseInput onChange={setCustomResponse} onSubmit={handleSubmitCurrent} value={customResponse} />
                     <button
                       className="text-muted-foreground text-xs hover:text-foreground"
                       onClick={() => {
@@ -168,21 +223,9 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
                   </div>
                 )}
 
-                {/* No options - free-text only */}
-                {!(currentQuestion.options?.length || showCustomInput) && (
+                {renderedOptions.length === 0 && !showCustomInput && (
                   <div className="mb-4">
-                    <Input
-                      autoFocus
-                      onChange={(e) => setCustomResponse(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                        if (e.key === 'Enter' && customResponse.trim()) {
-                          handleSubmitCurrent();
-                        }
-                      }}
-                      placeholder="Type your response..."
-                      value={customResponse}
-                    />
+                    <ResponseInput onChange={setCustomResponse} onSubmit={handleSubmitCurrent} value={customResponse} />
                   </div>
                 )}
 
@@ -196,15 +239,11 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
                       Cancel
                     </Button>
                   )}
-                  <Button
-                    className="flex-1"
-                    disabled={!(canSubmit || (!currentQuestion.options?.length && customResponse.trim()))}
-                    onClick={handleSubmitCurrent}
-                  >
+                  <Button className="flex-1" disabled={!canSubmit} onClick={handleSubmitCurrent}>
                     {isLastQuestion ? 'Submit' : 'Next'}
-                    {currentQuestion.multiSelect && selectedOptions.length > 1 && (
+                    {currentQuestion.multiSelect && totalSelections > 1 && (
                       <span className="ml-1.5 rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] leading-none">
-                        {selectedOptions.length}
+                        {totalSelections}
                       </span>
                     )}
                   </Button>

@@ -5,6 +5,7 @@
 ## v0.7.13
 
 - **`Development` skill category** — Added a new green-badged `Development` category for software-engineering skills (code review, debugging, TDD, refactor, lint, spec-driven development, ADRs, changelog, etc.), which now derive a meaningful colored badge in the Skills Manager grid and Home catalog instead of falling back to `General`.
+- **Always-on "Others" answer for agent questions** — `QuestionDialog` now appends a synthetic `Others` free-text option to every agent question (skipped only when the agent already provides a case-insensitive `Other`/`Others` choice, or supplies no options at all). In multi-select questions the input renders inline so it can coexist with checkbox selections.
 - 
 
 ## v0.7.12

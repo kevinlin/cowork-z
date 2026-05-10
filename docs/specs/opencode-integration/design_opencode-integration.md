@@ -215,6 +215,8 @@ Previously, `sendMessage` was awaited with a 10-minute timeout. For complex task
 
 **Multi-select questions:** The OpenCode server sends `multiple: true` on question objects. The sidecar normalizes this to `multiSelect: boolean` for the frontend. The QuestionDialog renders checkbox indicators and count badges when multi-select is enabled.
 
+**Always-on free-text fallback:** The frontend `QuestionDialog` injects a synthetic `Others` option (description "Type your own response") whenever the agent's `options` array contains at least one entry but no case-insensitive `Other`/`Others` variant. Selecting it surfaces a free-text input whose contents become the answer's `customText`; in multi-select mode the input is rendered inline so it can coexist with checkbox selections. The existing `replyToQuestion` flattening (`labels` + `customText` → `string[]`) means OpenCode receives the typed text without any protocol change. When the agent supplies no options at all, the dialog continues to render the free-text-only path instead of injecting the synthetic option.
+
 **Permission replies:** Both `replyToPermission` and `replyToQuestion` extract the session's `directory` and pass it to the OpenCode API to ensure correct routing.
 
 ---

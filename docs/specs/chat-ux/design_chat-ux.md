@@ -589,7 +589,7 @@ Returns `true` on the first match. This drives the display of a "Done, Continue"
 When the agent sends a `task:question_request` event, a modal dialog appears with:
 - Question text
 - Selectable options (single-select by default)
-- Optional free-text input
+- ~~Optional~~ **Always-on** free-text input
 - Submit and cancel buttons
 
 **Multi-select support:** When the OpenCode server sends `multiple: true`, the dialog shows checkbox indicators, "Select one or more options" helper text, and a count badge on the submit button when 2+ options are selected.

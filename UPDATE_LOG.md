@@ -4,6 +4,7 @@
 
 ## v0.7.13
 
+- **`Development` skill category** — Added a new green-badged `Development` category for software-engineering skills (code review, debugging, TDD, refactor, lint, spec-driven development, ADRs, changelog, etc.), which now derive a meaningful colored badge in the Skills Manager grid and Home catalog instead of falling back to `General`.
 - 
 
 ## v0.7.12

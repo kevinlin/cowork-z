@@ -16,6 +16,7 @@ export type SkillCategory =
   | 'Support'
   | 'Data'
   | 'Design'
+  | 'Development'
   | 'Document'
   | 'Productivity'
   | 'General';
@@ -30,6 +31,7 @@ export const CATEGORY_COLORS: Record<SkillCategory, string> = {
   Support: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
   Data: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400',
   Design: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
+  Development: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
   Document: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
   Productivity: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400',
   General: 'bg-muted text-muted-foreground',
@@ -55,10 +57,41 @@ const CATEGORY_KEYWORDS: Record<DerivableCategory, readonly string[]> = {
   Finance: ['finance', 'financial', 'accounting', 'budget', 'forecast', 'invoice', 'dcf', 'p&l', 'general ledger', ' gl ', 'audit', 'tax'],
   Enterprise: ['enterprise', 'sso', 'rbac', 'governance', 'scim'],
   Legal: ['legal', 'contract', 'compliance', 'gdpr', 'privacy', ' tos ', 'license', 'agreement', ' nda', 'terms of'],
-  Product: ['product manage', ' pm ', 'roadmap', 'prd', 'jtbd', 'persona', 'user story', 'feature spec'],
+  Product: ['gap', 'product manage', ' pm ', 'roadmap', 'prd', 'jtbd', 'persona', 'user story', 'feature spec'],
   Support: ['support', 'helpdesk', 'ticket', 'customer service', ' cs '],
   Data: ['data', 'sql', 'query', 'database', 'analytics', ' etl', 'dataset', 'spreadsheet', ' csv'],
-  Design: ['design', ' ui ', ' ux ', 'figma', 'wireframe', 'mockup', 'visual'],
+  Design: ['design', 'experience', ' ui ', ' ux ', 'figma', 'wireframe', 'mockup', 'visual'],
+  // Sourced from `~/.claude/skills/spec-lint/references/convention.md`
+  // (spec-driven development vocabulary) plus the broader software-development
+  // word list (code, review, test, tdd, debug, refactor, lint, ci/cd, …).
+  // Short / ambiguous tokens are space-padded (' code ', ' commit ', …) for
+  // whole-word matching against the space-wrapped haystack — same convention
+  // as ' pm ' / ' ads' above.
+  Development: [
+    'code',
+    'coding',
+    'refactor',
+    'debug',
+    'bugfix',
+    'bug fix',
+    'implement',
+    'lint',
+    ' test ',
+    'testing',
+    ' tdd ',
+    ' review ',
+    ' commit ',
+    ' branch ',
+    ' merge ',
+    'pull request',
+    ' pr ',
+    ' git ',
+    ' adr ',
+    'changelog',
+    'compile',
+    'spec',
+    'spec-driven',
+  ],
   Document: ['document', 'docx', ' pdf', 'pptx', 'xlsx', 'word doc', 'powerpoint', 'excel', 'slide', 'report', 'transcript'],
   Productivity: ['productivity', 'planning', 'todo', 'task', 'note', 'workflow', 'focus', 'calendar', 'meeting', 'agenda'],
 };

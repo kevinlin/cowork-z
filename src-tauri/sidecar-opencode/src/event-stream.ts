@@ -11,6 +11,26 @@ export interface EventStreamOptions {
   password?: string;
 }
 
+/**
+ * GlobalBus event wrapper shape — `/global/event` emits
+ *   { directory?: string, project?: string, payload: OpenCodeEvent }
+ *
+ * Server-only payloads (`server.connected`, `server.heartbeat`, `server.instance.disposed`)
+ * arrive without `directory`; instance-scoped payloads (`session.*`, `message.*`,
+ * `permission.asked`, etc.) always carry the workspace directory the event belongs to.
+ *
+ * We listen on `/global/event` rather than the per-instance `/event` because OpenCode
+ * 1.14.x ties `/event` to per-request Effect/InstanceState lifecycle — the wildcard
+ * PubSub fires `server.instance.disposed` and shuts down the moment the request scope
+ * closes, severing the stream after the very first event. `/global/event` uses
+ * GlobalBus (a plain Node EventEmitter) and is unaffected.
+ */
+interface GlobalEventEnvelope {
+  directory?: string;
+  project?: string;
+  payload: OpenCodeEvent;
+}
+
 export class EventStream extends EventEmitter {
   private eventSource: EventSource | null = null;
   private baseUrl: string;
@@ -37,12 +57,13 @@ export class EventStream extends EventEmitter {
 
     this.shouldReconnect = true;
 
-    const url = new URL('/event', this.baseUrl);
-    if (this.directory) {
-      url.searchParams.set('directory', this.directory);
-    }
+    // Use /global/event — OpenCode 1.14.x's /event endpoint terminates the chunked
+    // response within ~1 ms because its wildcard PubSub is bound to per-request
+    // Effect scope lifecycle (publishes server.instance.disposed and shuts down on
+    // scope finalization). /global/event uses GlobalBus and stays open.
+    const url = new URL('/global/event', this.baseUrl);
 
-    logger.info(`Connecting to SSE stream: ${url.toString()}`);
+    logger.info(`Connecting to SSE stream: ${url.toString()} (filtering to directory=${this.directory ?? '<any>'})`);
 
     this.eventSource = new EventSource(url.toString(), this.authHeader ? { headers: { Authorization: this.authHeader } } : {});
 
@@ -53,13 +74,22 @@ export class EventStream extends EventEmitter {
     };
 
     this.eventSource.onmessage = (event) => {
-      let data: OpenCodeEvent;
+      let envelope: GlobalEventEnvelope;
       try {
-        data = JSON.parse(event.data) as OpenCodeEvent;
+        envelope = JSON.parse(event.data) as GlobalEventEnvelope;
       } catch (error) {
         logger.error('Failed to parse SSE event data', { data: event.data, error });
         return;
       }
+
+      // /global/event emits a stream-level envelope; unwrap to the OpenCode event payload.
+      const data: OpenCodeEvent | undefined = envelope?.payload;
+      if (!data || typeof data.type !== 'string') return;
+
+      // Filter to events for our workspace. Server-only payloads (no `directory` on the
+      // envelope) such as server.connected / server.heartbeat are always passed through;
+      // workspace-scoped payloads are gated on directory match.
+      if (envelope.directory && this.directory && envelope.directory !== this.directory) return;
 
       try {
         logger.serverEvent(data);

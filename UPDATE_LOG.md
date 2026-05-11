@@ -6,7 +6,7 @@
 
 - **`Development` skill category** — Added a new green-badged `Development` category for software-engineering skills (code review, debugging, TDD, refactor, lint, spec-driven development, ADRs, changelog, etc.), which now derive a meaningful colored badge in the Skills Manager grid and Home catalog instead of falling back to `General`.
 - **Always-on "Others" answer for agent questions** — `QuestionDialog` now appends a synthetic `Others` free-text option to every agent question (skipped only when the agent already provides a case-insensitive `Other`/`Others` choice, or supplies no options at all). In multi-select questions the input renders inline so it can coexist with checkbox selections.
-- 
+- **Fix: OpenCode 1.14.x SSE stream closing immediately** — Switched the sidecar's event stream from the per-instance `/event` endpoint to `/global/event` (backed by long-lived `GlobalBus`). OpenCode 1.14.x bound `/event`'s wildcard PubSub to per-request Effect scope lifecycle, so its finalizer published `server.instance.disposed` and shut down the stream after the very first `server.connected` frame — no `session.*` / `message.*` events ever reached the frontend. `EventStream` now unwraps the new `{ directory, project, payload }` envelope and filters by `directory` in-process; all downstream `SessionManager` listeners are unchanged.
 
 ## v0.7.12
 

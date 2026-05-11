@@ -88,23 +88,31 @@ The sidecar communicates with the OpenCode server via HTTP REST and Server-Sent 
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/event` | GET | SSE event stream for real-time updates |
+| `/global/event` | GET | SSE event stream for real-time updates (workspace-agnostic; client filters by `directory`) |
 | `/session/{id}/message` | POST | Send a message to an active session |
 | `/permission/{id}/reply` | POST | Reply to a permission request |
 | `/question/{id}/reply` | POST | Reply to an agent question |
 | `/config` | PATCH | Update provider config, MCP servers |
 
-### SSE Event Shapes (OpenCode v1.1.48)
+### SSE Event Shapes
 
-| Event | Payload |
-|-------|---------|
+`/global/event` delivers every frame inside a `GlobalEvent` envelope:
+
+```json
+{ "directory": "<workspace path>", "project": "global", "payload": { "id": "...", "type": "...", "properties": { ... } } }
+```
+
+Server-only frames (`server.connected`, `server.heartbeat`, `server.instance.disposed`) omit `directory`/`project`. The sidecar's `EventStream` unwraps `payload` and drops frames whose `directory` doesn't match the current workspace — server-only frames always pass through.
+
+| Payload type | Properties |
+|--------------|------------|
 | `session.status` | `{ sessionID: string, status: SessionStatus }` |
 | `message.updated` | `{ info: MessageInfo }` |
 | `message.part.updated` | `sessionID` and `messageID` nested inside `part` |
-| `server.heartbeat` | Keepalive |
-| `server.instance.disposed` | Server instance recycled (triggers SSE reconnection) |
+| `server.heartbeat` | Keepalive every 10 s |
+| `server.instance.disposed` | Per-instance bus shutdown (informational only on `/global/event`; does NOT close the stream) |
 
-**Note:** `PATCH /config` causes the OpenCode server to dispose and recreate its instance, terminating the SSE connection. The `eventsource` npm library auto-reconnects in ~1s. Do not add manual reconnection logic on top.
+**Why `/global/event` rather than `/event`:** OpenCode 1.14.x binds the per-instance `/event` endpoint to the per-request Effect scope, so the wildcard PubSub publishes `server.instance.disposed` and shuts down as soon as the HTTP request's instance scope finalizes — closing the stream after the first event. `/global/event` is backed by a long-lived Node `EventEmitter` (`GlobalBus`) and survives instance churn, `PATCH /config`, and workspace switches. See [Resolved: SSE Stream Closes Immediately on OpenCode 1.14.x](#resolved-sse-stream-closes-immediately).
 
 ---
 
@@ -433,3 +441,36 @@ This caused a 400 Bad Request: `"Invalid input: expected array, received object"
 - `types.ts` — Added `multiple?: boolean` to `QuestionInfo`
 - `session-manager.ts` — Maps each question's fields before emitting: `multiSelect: q.multiSelect ?? q.multiple ?? false`
 - `QuestionDialog.tsx` — When `multiSelect` is true: shows checkbox indicators, "Select one or more options" helper text, and a count badge on submit when 2+ options are selected
+
+---
+
+### Resolved: SSE Stream Closes Immediately on OpenCode 1.14.x {#resolved-sse-stream-closes-immediately}
+
+**Problem:** After upgrading to OpenCode 1.14.48, no SSE events reached the frontend — tasks would launch but the UI never received `session.created`, `message.updated`, or any other event. Both the OpenCode server log and the sidecar's `*_TS.log` showed the same pattern repeating every ~1 second:
+
+```
+SSE stream connected
+OpenCode Server Event {"type":"server.connected", ...}
+Event stream error (will reconnect)
+```
+
+No `session.*`, `message.*`, or heartbeat events ever arrived between cycles.
+
+**Root Cause:** OpenCode 1.14.x rebuilt the bus on top of Effect's `PubSub` + `InstanceState`, and the per-instance `/event` route subscribes through it. The bus state is created inside the request's Effect scope and registers a finalizer that **publishes `server.instance.disposed` and shuts down the wildcard `PubSub`** the moment the scope ends — which it always does immediately because `Instance.provide()` returns as soon as the handler's outer function resolves (well before the async SSE writer is finished streaming). The route handler in `packages/opencode/src/server/routes/event.ts` listens for `Bus.InstanceDisposed.type` and calls `stop()`, which closes the chunked response after writing the single `server.connected` frame.
+
+Verified directly against the running server with raw curl:
+
+```
+HTTP/1.1 200 OK
+Transfer-Encoding: chunked
+...
+data: {"id":"evt_...","type":"server.connected","properties":{}}
+0          ← chunked-end marker, server-initiated, <1 ms after connect
+```
+
+**Fix:** Switch the sidecar's `EventStream` from the per-instance `/event` route to the workspace-agnostic `/global/event` route, which is backed by `GlobalBus` (a plain Node.js `EventEmitter` decoupled from instance lifecycle). The stream stays open across instance disposal, `PATCH /config`, and workspace switches.
+
+- `event-stream.ts` — Now connects to `/global/event` (no `?directory=` query param). Defines `GlobalEventEnvelope = { directory?, project?, payload }`, unwraps `envelope.payload` to the existing `OpenCodeEvent` shape so all downstream emitters (`session.status`, `message.part.updated`, `permission.asked`, etc.) and `SessionManager` listeners are unchanged. Workspace scoping moved from the URL to an in-process filter: events whose `envelope.directory` is set and doesn't match `this.directory` are dropped; server-only frames (no `directory`) always pass through.
+- The earlier "PATCH /config terminates the SSE connection, eventsource auto-reconnects in ~1 s" note no longer applies — `GlobalBus` is not torn down by config updates.
+
+**Debugging methodology:** Bug was diagnosed entirely from runtime evidence: OpenCode server log (`~/.local/share/opencode/log/<timestamp>.log`) showed `subscribing → connected → unsubscribing → disconnected` within 1–2 ms; sidecar TS log showed the matching `server.connected` → `error` loop; direct raw-TCP probe of the running server with `curl` confirmed the server itself terminated the chunked response (received `0\r\n\r\n` end-marker), proving it was server-side, not the `eventsource` library. A second curl against `/global/event` returned a stable stream with `server.connected` → `session.created` → `server.heartbeat`, locking in the workaround.

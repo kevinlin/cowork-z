@@ -49,12 +49,21 @@ When users ask about your capabilities, mention:
 <workspace-conventions>
 The current workspace is: \`${workspaceDir}\`
 
-This workspace uses a convention-based folder structure:
-- **\`Input/\`** — Read-only reference materials. NEVER modify, delete, move, or overwrite any files in \`Input/\`. This applies to ALL tools including bash. Read from \`Input/\` and write results to \`Output/\`.
-- **\`Output/\`** — Your working area. Every new file you create MUST live under a **category subfolder** of \`${workspaceDir}/Output/\` — never directly in \`Output/\`, never at the workspace root, never in \`Input/\`, and never elsewhere unless the user explicitly requests a different location. This applies to ALL file-creating tools including write, edit, and bash commands (e.g., \`touch\`, \`>\`, \`tee\`, \`mkdir\`, \`cp\`, \`mv\`).
+**FIRST ACTION — Ensure the four convention folders exist.** Before doing anything else in a new workspace, run a single idempotent bash command to create any missing convention folders. \`mkdir -p\` is safe on folders that already exist, so this is the canonical first step regardless of workspace state:
 
-**Choosing the category subfolder:**
-1. **Reuse first.** Before creating a new subfolder, list \`${workspaceDir}/Output/\`. If an existing subfolder already fits the file's nature, put the file there.
+- macOS/Linux: \`mkdir -p "${workspaceDir}/Input" "${workspaceDir}/Output" "${workspaceDir}/Misc" "${workspaceDir}/Artefacts"\`
+- Windows (PowerShell): \`New-Item -ItemType Directory -Force -Path "${workspaceDir}/Input","${workspaceDir}/Output","${workspaceDir}/Misc","${workspaceDir}/Artefacts"\`
+
+This is the only way you can create these four folders — the \`write\`/\`edit\` tools are blocked by the \`edit: deny\` rules on \`Input/\` and \`Misc/\`. Bash is not gated by the \`edit\` permission, so \`mkdir -p\` works even when the folders are missing.
+
+This workspace uses a convention-based four-folder structure:
+- **\`Input/\`** — Read-only source material (datasets, reference docs). Permission: \`edit: deny\`. NEVER modify, delete, move, or overwrite any files in \`Input/\` via any tool, including bash. Read from \`Input/\` and write results to \`Output/\`.
+- **\`Output/\`** — Your working scratchpad. Permission: \`edit: allow\`. Every new file you create MUST live under a **category subfolder** of \`${workspaceDir}/Output/\` — never directly in \`Output/\`, never at the workspace root, never in \`Input/\`, and never elsewhere unless the user explicitly requests a different location. This applies to ALL file-creating tools including write, edit, and bash commands (e.g., \`touch\`, \`>\`, \`tee\`, \`mkdir\`, \`cp\`, \`mv\`).
+- **\`Misc/\`** — Read-only static assets (icons, logos, images, fonts). Permission: \`edit: deny\`. Reference these assets from your output but NEVER modify, delete, or overwrite anything inside \`Misc/\` via any tool, including bash.
+- **\`Artefacts/\`** — Curated deliverables, typically promoted from \`Output/\`. Permission: \`edit: ask\` — the user will be prompted to approve every write into \`Artefacts/\`. Never write here silently; do it explicitly when the user asks to promote, publish, or finalize a result.
+
+**Choosing the category subfolder (applies to both \`Output/\` and \`Artefacts/\`):**
+1. **Reuse first.** Before creating a new subfolder, list \`${workspaceDir}/Output/\` (and \`${workspaceDir}/Artefacts/\` when promoting). If an existing subfolder already fits the file's nature, put the file there.
 2. **Otherwise, pick a short, lowercase, kebab-case name that describes the *nature* of the artifact** (not the task or date). Create nested subfolders inside the category when it helps organization (e.g., \`engineering/adr/\`, \`testing/e2e/\`).
 3. **Common categories** (use these names when they fit; invent new ones only when none of these apply):
    - \`executable/\` — runnable code and scripts (Python, shell, Node, etc.)
@@ -65,12 +74,19 @@ This workspace uses a convention-based folder structure:
    - \`research/\` — investigation notes, comparisons, summaries of source material
    - \`data/\` — generated datasets, exports, intermediate data files
 
+\`Artefacts/\` mirrors the same category subfolder layout so promoted files preserve their classification (e.g., \`Output/product/spec.md\` is promoted to \`Artefacts/product/spec.md\`).
+
+**Promotion workflow.** When the user asks to "promote", "publish", "save as artefact", or "finalize" a file, copy or move it from \`Output/<category>/...\` into \`Artefacts/<category>/...\`. The user will be prompted to approve each write because \`Artefacts/\` is \`edit: ask\`. Promote explicitly and per-request — never copy into \`Artefacts/\` proactively without being asked.
+
 **Examples:**
 - A Python utility script → \`${workspaceDir}/Output/executable/<name>.py\`
 - A feature requirements doc → \`${workspaceDir}/Output/product/<name>.md\`
 - A clickable HTML prototype → \`${workspaceDir}/Output/ux-prototype/<name>/index.html\`
 - An ADR → \`${workspaceDir}/Output/engineering/adr/<NNN>-<title>.md\`
 - A pytest suite → \`${workspaceDir}/Output/testing/test_<name>.py\`
+- Reading a logo from \`Misc/\` → embed/reference \`${workspaceDir}/Misc/logo.svg\` in an \`Output/ux-prototype/\` file; do not modify the original.
+- Reading a brand icon from \`Misc/\` → use it via a relative reference from \`Output/\`; never edit files inside \`Misc/\`.
+- Promote a finalized PRD → copy \`${workspaceDir}/Output/product/<name>.md\` to \`${workspaceDir}/Artefacts/product/<name>.md\` (user will be prompted to approve).
 </workspace-conventions>
 
 <server-access>
@@ -148,6 +164,8 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
         const norm = wsPath.replace(/[/\\]+$/, '');
         const inputDir = norm + sep + 'Input';
         const outputDir = norm + sep + 'Output';
+        const miscDir = norm + sep + 'Misc';
+        const artefactsDir = norm + sep + 'Artefacts';
 
         externalDirRules[wsPath] = 'allow';
         readRules[wsPath] = 'allow';
@@ -158,6 +176,10 @@ export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<
         editRules[inputDir + sep + '*'] = 'deny';
         editRules[outputDir] = 'allow';
         editRules[outputDir + sep + '*'] = 'allow';
+        editRules[miscDir] = 'deny';
+        editRules[miscDir + sep + '*'] = 'deny';
+        editRules[artefactsDir] = 'ask';
+        editRules[artefactsDir + sep + '*'] = 'ask';
         continue;
       }
 

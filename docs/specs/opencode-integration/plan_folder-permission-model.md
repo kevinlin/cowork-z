@@ -152,3 +152,28 @@ Updated `startTask()` and `resumeSession()` to destructure and pass `folderPermi
 - [x] Accepting a permission prompt adds the correct target folder to FoldersPanel with shield-check icon and "adhoc" source (directory patterns used directly, file patterns use parent)
 - [ ] On session resume, adhoc-granted folders do not trigger edit permission prompts (OpenCode config uses `edit: 'allow'`)
 - [ ] Removing an adhoc folder from FoldersPanel revokes the grant
+
+## Extension: Four-Folder Workspace Convention (v0.7.15)
+
+Extends the two-folder workspace convention (`Input/` + `Output/`) to four root-level convention folders, with the agent instructed to auto-create any missing folders as its first action in a fresh workspace.
+
+### Convention folders
+
+| Folder | Edit permission (workspace source) | Purpose |
+| --- | --- | --- |
+| `Input/` | `deny` (existing) | Read-only source material — datasets, reference docs |
+| `Output/` | `allow` (existing) | Scratchpad; new files land under a category subfolder here |
+| `Misc/` (new) | `deny` | Read-only static assets — icons, logos, images, fonts |
+| `Artefacts/` (new) | `ask` | Curated deliverables, typically promoted from `Output/`; user is prompted before every write |
+
+### Implementation notes
+
+- **Hard rules:** `buildSessionConfig()` in `src-tauri/sidecar-opencode/src/config-builder.ts` was extended in the `fp.source === 'workspace'` branch to emit four additional edit-rule entries alongside the existing `Input/`/`Output/` pair (`Misc` + `Misc/*` → `deny`, `Artefacts` + `Artefacts/*` → `ask`). Read rules and `external_directory` are unchanged: `readRules[wsPath] = 'allow'` already covers reads under `Misc/` and `Artefacts/`.
+- **Auto-creation is agent-driven, not Rust-driven.** No Rust or filesystem code creates these folders. Instead, the `<workspace-conventions>` block of the system prompt (also in `config-builder.ts`, function `buildSystemPrompt`) opens with an "ensure folders exist" instruction telling the agent to run a single idempotent `mkdir -p "<ws>/Input" "<ws>/Output" "<ws>/Misc" "<ws>/Artefacts"` (PowerShell `New-Item -ItemType Directory -Force ...` on Windows) as its very first action in a new workspace. `mkdir -p` is safe on existing folders, and bash is not gated by the `edit` permission, so the agent can create `Input/` and `Misc/` despite their `edit: deny` rules.
+- **`Artefacts/` is `edit: ask`, not `edit: allow`.** This is intentional. The user must explicitly approve every write into `Artefacts/`, so the agent never silently dumps files into the curated-deliverables area. The system prompt describes the promotion workflow: when the user asks to "promote", "publish", "save as artefact", or "finalize" a file, the agent copies or moves it from `Output/<category>/...` into `Artefacts/<category>/...` (same category-subfolder layout) — OpenCode prompts on each write.
+- **No DB / migration changes.** This extension lives entirely in the sidecar `config-builder.ts` (edit-rule generation + system prompt). The Rust permission model and `workspace_permissions` table are unchanged.
+
+### Tests
+
+- **New** `src-tauri/sidecar-opencode/__tests__/config-builder.test.ts` — asserts edit rules for all four convention folders, the workspace-root general allow, and the read-rule coverage.
+- **Updated** `src-tauri/sidecar-opencode/__tests__/server-isolation.test.ts` — three new `buildSystemPrompt` assertions: prompt mentions all four folder names; prompt contains the `mkdir -p` (or PowerShell `New-Item`) auto-create instruction referencing the four folder paths; prompt describes the `promote` workflow into `Artefacts/`.

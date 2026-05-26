@@ -96,5 +96,31 @@ describe('Server Isolation', () => {
       expect(prompt).toContain('engineering/');
       expect(prompt).toContain('testing/');
     });
+
+    it('should mention all four convention folders (Input, Output, Misc, Artefacts)', () => {
+      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
+      expect(prompt).toContain('`Input/`');
+      expect(prompt).toContain('`Output/`');
+      expect(prompt).toContain('`Misc/`');
+      expect(prompt).toContain('`Artefacts/`');
+    });
+
+    it('should include an idempotent mkdir -p auto-create instruction for the four folders', () => {
+      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
+      // The auto-create instruction must reference mkdir -p (or PowerShell New-Item) and the four folders
+      expect(prompt).toMatch(/mkdir -p|New-Item -ItemType Directory -Force/);
+      expect(prompt).toContain('/tmp/my-ws/Input');
+      expect(prompt).toContain('/tmp/my-ws/Output');
+      expect(prompt).toContain('/tmp/my-ws/Misc');
+      expect(prompt).toContain('/tmp/my-ws/Artefacts');
+    });
+
+    it('should describe the promote-from-Output-to-Artefacts workflow', () => {
+      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
+      expect(prompt.toLowerCase()).toContain('promote');
+      expect(prompt).toContain('Artefacts/');
+      // The workflow describes moving/copying from Output/ to Artefacts/
+      expect(prompt).toMatch(/Output\/[^"]*Artefacts\/|Artefacts\/[^"]*Output\//);
+    });
   });
 });

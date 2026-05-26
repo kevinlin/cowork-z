@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.7.15
+
+- 
+
 ## v0.7.14
 
 - **Four-folder workspace convention** — Workspaces now have four root-level convention folders: `Input/` (read-only source material), `Output/` (scratchpad with category subfolders), `Misc/` (read-only static assets like icons/images, `edit: deny`), and `Artefacts/` (curated deliverables, typically promoted from `Output/`, gated by `edit: ask` so the user approves each save). The agent auto-creates any missing folders via a single idempotent `mkdir -p` on workspace entry (PowerShell `New-Item -ItemType Directory -Force` on Windows). Edit rules in `buildSessionConfig` extended accordingly: `Misc/` is `deny`, `Artefacts/` is `ask`.

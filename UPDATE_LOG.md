@@ -2,11 +2,9 @@
 
 # UPDATE LOG
 
-## v0.7.15
+## v0.7.14
 
 - **Four-folder workspace convention** — Workspaces now have four root-level convention folders: `Input/` (read-only source material), `Output/` (scratchpad with category subfolders), `Misc/` (read-only static assets like icons/images, `edit: deny`), and `Artefacts/` (curated deliverables, typically promoted from `Output/`, gated by `edit: ask` so the user approves each save). The agent auto-creates any missing folders via a single idempotent `mkdir -p` on workspace entry (PowerShell `New-Item -ItemType Directory -Force` on Windows). Edit rules in `buildSessionConfig` extended accordingly: `Misc/` is `deny`, `Artefacts/` is `ask`.
-
-## v0.7.14
 
 - **Fix: Automation runs list pushed pinned sidebar panels off-screen** — `AutomationRunsPanel` used `h-full` on its root, which in a flex column layout grows with content rather than constraining to the parent's remaining space. With many runs, the panel expanded vertically and pushed the pinned `FoldersPanel` and `Todos` sections below the viewport. The panel now uses `min-h-0 flex-1 flex-col overflow-hidden` (matching `SessionPanel`/`FileTreePanel`), so only the runs list scrolls and the pinned sections stay visible regardless of run count.
 

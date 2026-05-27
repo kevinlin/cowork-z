@@ -207,3 +207,53 @@ Also update the **Key Source Locations** table to reference `workspace_permissio
 7. **Manual — Arena:**
    - Start arena in workspace with Input/Output → all 3 agents get convention rules
    - Approve permission in arena → persists for workspace
+
+---
+
+---
+
+## Extension: Four-Folder Workspace Convention (v0.7.15)
+
+Extends the two-folder workspace convention (`Input/` + `Output/`) to four root-level convention folders, with the agent instructed to auto-create any missing folders as its first action in a fresh workspace. **Aligned with the `rfp-daily` folder-governance model** (see `~/dev/ai-sdlc/zapac-agent-skills/rfp-daily/assets/folder_governance.md`).
+
+### Convention folders
+
+| Folder | Edit permission (workspace source) | Purpose |
+| --- | --- | --- |
+| `Input/` | `deny` (existing) | Immutable source-of-truth material — user-provided datasets, reference docs, governance documents, reusable templates |
+| `Output/` | `allow` (existing) | The agent's writable working area; the only folder it may write to freely. New files land under a category subfolder here |
+| `Misc/` (new in v0.7.14, **rule changed in v0.7.15**) | `ask` | Default read-only — static user-provided assets (icons, logos, brand images, fonts) **plus** curated supporting scripts and prompt experiments promoted from `Output/` after human review; user is prompted before every write |
+| `Artefacts/` (new) | `ask` | Governed, versioned deliverables promoted from `Output/` after human review; user is prompted before every write |
+
+### Alignment with `rfp-daily` Folder Governance
+
+This convention is intentionally aligned with the four-tier governance model used in the `rfp-daily` skill (see `~/dev/ai-sdlc/zapac-agent-skills/rfp-daily/assets/folder_governance.md`). Both share the same four root-level folders (`Input/`, `Misc/`, `Artefacts/`, `Output/`), the same access tiers (read-only, default-read-only-with-approval, read/write), and the same promotion model:
+
+```text
+Output/ ──(human review)──┬──▶ Artefacts/<domain sub-folder>/   (governed deliverables)
+                          └──▶ Misc/                            (curated scripts, prompt experiments)
+```
+
+- The agent generates new artefacts and utilities in `Output/`.
+- The user reviews and decides whether to promote each file.
+- Governed deliverables → `Artefacts/<category>/...` (mirrors the `Output/` category-subfolder layout).
+- Curated supporting scripts / prompt experiments → `Misc/<topic>/...` (e.g., `Misc/scripts/`, `Misc/prompt-experiments/`).
+- The agent must not auto-promote — both `Artefacts/` and `Misc/` are `edit: ask`, so OpenCode prompts on each write.
+
+### Implementation notes
+
+- **Hard rules:** `buildSessionConfig()` in `src-tauri/sidecar-opencode/src/config-builder.ts` was extended in the `fp.source === 'workspace'` branch to emit four additional edit-rule entries alongside the existing `Input/`/`Output/` pair (`Misc` + `Misc/*` → `ask` *(was `deny` in v0.7.14, changed to `ask` in v0.7.15 for rfp-daily alignment)*, `Artefacts` + `Artefacts/*` → `ask`). Read rules and `external_directory` are unchanged: `readRules[wsPath] = 'allow'` already covers reads under `Misc/` and `Artefacts/`.
+- **Auto-creation is agent-driven, not Rust-driven.** No Rust or filesystem code creates these folders. Instead, the `<workspace-conventions>` block of the system prompt (also in `config-builder.ts`, function `buildSystemPrompt`) opens with an "ensure folders exist" instruction telling the agent to run a single idempotent `mkdir -p "<ws>/Input" "<ws>/Output" "<ws>/Misc" "<ws>/Artefacts"` (PowerShell `New-Item -ItemType Directory -Force ...` on Windows) as its very first action in a new workspace. `mkdir -p` is safe on existing folders. It is the *only* path the agent has to create `Input/` (blocked by `edit: deny`). For `Misc/` and `Artefacts/` (both `edit: ask`), the bash mkdir also bypasses the per-file permission prompt on workspace bootstrap, since bash isn't gated by the `edit` permission.
+- **`Misc/` is `edit: ask`, not `edit: deny` (v0.7.15 change).** Aligns with `rfp-daily` governance: `Misc/` holds curated supporting scripts and prompt experiments promoted from `Output/`, in addition to static user assets. Hard-denying writes would block the promotion workflow. The `ask` rule preserves the read-only default while letting the user explicitly approve each promotion.
+- **`Artefacts/` is `edit: ask`, not `edit: allow`.** This is intentional. The user must explicitly approve every write into `Artefacts/`, so the agent never silently dumps files into the curated-deliverables area.
+- **Dual promotion workflow.** The system prompt describes two promotion targets:
+  - **Governed deliverables → `Artefacts/<category>/...`** — mirrors the `Output/` category-subfolder layout (e.g., `Output/product/spec.md` → `Artefacts/product/spec.md`).
+  - **Curated utilities → `Misc/<topic>/...`** — e.g., `Output/executable/<name>.py` → `Misc/scripts/<name>.py`, `Output/research/<name>.md` → `Misc/prompt-experiments/<name>.md`.
+
+  Triggers include "promote", "publish", "save as artefact", "save as utility", or "finalize". Promotion is explicit and per-request — the agent never copies into `Artefacts/` or `Misc/` proactively without being asked.
+- **No DB / migration changes.** This extension lives entirely in the sidecar `config-builder.ts` (edit-rule generation + system prompt). The Rust permission model and `workspace_permissions` table are unchanged.
+
+### Tests
+
+- **`src-tauri/sidecar-opencode/__tests__/config-builder.test.ts`** — asserts edit rules for all four convention folders (`Input/` → `deny`, `Output/` → `allow`, `Misc/` → `ask`, `Artefacts/` → `ask`), the workspace-root general allow, and the read-rule coverage.
+- **`src-tauri/sidecar-opencode/__tests__/server-isolation.test.ts`** — `buildSystemPrompt` assertions: prompt mentions all four folder names; prompt contains the `mkdir -p` (or PowerShell `New-Item`) auto-create instruction referencing the four folder paths; prompt describes the promote workflow into `Artefacts/`.

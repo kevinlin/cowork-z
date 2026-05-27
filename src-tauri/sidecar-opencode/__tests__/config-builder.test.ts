@@ -48,10 +48,10 @@ describe('buildSessionConfig — workspace convention folders', () => {
     expect(editRules[`${WS_PATH}${sep}Output${sep}*`]).toBe('allow');
   });
 
-  it('denies edits on Misc/ and Misc/* (read-only static assets)', () => {
+  it('prompts (ask) before edits on Misc/ and Misc/* (default read-only static assets + promoted utilities)', () => {
     const { editRules } = getRules();
-    expect(editRules[`${WS_PATH}${sep}Misc`]).toBe('deny');
-    expect(editRules[`${WS_PATH}${sep}Misc${sep}*`]).toBe('deny');
+    expect(editRules[`${WS_PATH}${sep}Misc`]).toBe('ask');
+    expect(editRules[`${WS_PATH}${sep}Misc${sep}*`]).toBe('ask');
   });
 
   it('prompts (ask) before edits on Artefacts/ and Artefacts/* (curated deliverables)', () => {

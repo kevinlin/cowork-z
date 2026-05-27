@@ -4,11 +4,12 @@
 
 ## v0.7.15
 
-- 
+- **Workspace convention aligned with `rfp-daily` folder governance** — `Misc/` is now `edit: ask` (was `edit: deny`) so the agent can promote curated supporting scripts and prompt experiments from `Output/` to `Misc/` after user approval, matching the four-tier governance model in `~/dev/ai-sdlc/zapac-agent-skills/rfp-daily/assets/folder_governance.md`. The `<workspace-conventions>` system prompt block now documents `Misc/` as holding both static user assets (icons, logos, brand images, fonts) **and** curated utilities promoted from `Output/`, and describes the dual promotion workflow (`Output/` → `Artefacts/<category>/` for governed deliverables, `Output/` → `Misc/<topic>/` like `Misc/scripts/` or `Misc/prompt-experiments/` for curated utilities). `mkdir -p` first-action still seeds all four folders silently because bash is not gated by the `edit` permission. Config-builder test updated; all 93 sidecar tests pass.
+
 
 ## v0.7.14
 
-- **Four-folder workspace convention** — Workspaces now have four root-level convention folders: `Input/` (read-only source material), `Output/` (scratchpad with category subfolders), `Misc/` (read-only static assets like icons/images, `edit: deny`), and `Artefacts/` (curated deliverables, typically promoted from `Output/`, gated by `edit: ask` so the user approves each save). The agent auto-creates any missing folders.
+- **Four-folder workspace convention** — Workspaces now have four root-level convention folders: `Input/` (read-only source material), `Output/` (scratchpad with category subfolders), `Misc/` (read-only static assets like icons/images, `edit: deny`), and `Artefacts/` (curated deliverables, typically promoted from `Output/`, gated by `edit: ask` so the user approves each save). The agent auto-creates any missing folders.`
 
 - **Fix: Automation runs list pushed pinned sidebar panels off-screen** — `AutomationRunsPanel` used `h-full` on its root, which in a flex column layout grows with content rather than constraining to the parent's remaining space. With many runs, the panel expanded vertically and pushed the pinned `FoldersPanel` and `Todos` sections below the viewport. The panel now uses `min-h-0 flex-1 flex-col overflow-hidden` (matching `SessionPanel`/`FileTreePanel`), so only the runs list scrolls and the pinned sections stay visible regardless of run count.
 

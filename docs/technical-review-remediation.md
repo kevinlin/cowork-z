@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #5 HTML preview executes untrusted agent JS with a sandbox escape
 - [ ] #15 Unused shell permissions exposed to webview windows
 - [ ] #8 Git PAT persisted to `.git/config` in plaintext
 - [ ] #3 Unrestricted filesystem Tauri commands (write / read / trash)
@@ -26,9 +25,23 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #5 HTML preview executes untrusted agent JS with sandbox escape
+  - Branch/worktree: `fix/tr-05-html-preview` (`.worktrees/tr-05`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: HTML preview allowed sandboxed agent content to escape via popups (#5)"
+  - Change: `HtmlPreview.tsx` iframe sandbox reduced from
+    `allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms`
+    to `allow-scripts allow-forms` — scripts still run for interactive
+    previews but in an opaque origin with no popup escape route (the
+    existing "open externally" action covers full-fidelity needs); `baseHref`
+    is now HTML-attribute-escaped before interpolation into `<base href>`.
+  - Verification: `tsc --noEmit` — pass; 4 new Vitest tests in
+    `src/components/file-preview/__tests__/HtmlPreview.test.tsx` — pass;
+    biome check — clean.
+
 - [x] #10 MCP secrets, HTTP bodies, and SSE events logged in plaintext
   - Branch/worktree: `fix/tr-10-plaintext-logs` (`.worktrees/tr-10`)
-  - Commit: (this commit)
+  - Commit: `02a2b19`
   - UPDATE_LOG: "Fix: MCP secrets, HTTP bodies, and SSE payloads were logged in plaintext (#10)"
   - Change: `redact.ts` now fully redacts the value maps of
     `environment`/`headers`/`env` containers (MCP server configs carry tokens

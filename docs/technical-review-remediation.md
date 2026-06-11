@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #18 `update_mcp_config` never sends `workingDirectory`
 - [ ] #17 Azure Foundry key dropped by sidecar; inconsistent provider id
 - [ ] #13 SSE reconnect timer resurrects after disconnect; no backoff
 - [ ] #14 `apiKeys` silently ignored after first initialization
@@ -32,9 +31,21 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #18 `update_mcp_config` never sends `workingDirectory`
+  - Branch/worktree: `fix/tr-18-mcp-workdir` (`.worktrees/tr-18`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: MCP config updates were not routed to the active workspace (#18)"
+  - Change: `src-tauri/src/sidecar.rs` — added
+    `working_directory: Option<String>` to `UpdateMcpConfigPayload`;
+    `src-tauri/src/commands/settings.rs` resolves the active workspace
+    (`last_workspace_id` → workspace `folder_path`) and sends it with the
+    payload. The sidecar already forwarded `payload.workingDirectory` to
+    `client.updateConfig(...)` — no sidecar change needed.
+  - Verification: `cd src-tauri && cargo check` — pass.
+
 - [x] #20 Duplicate `onTaskUpdate` listeners double-process completion
   - Branch/worktree: `fix/tr-20-dup-listeners` (`.worktrees/tr-20`)
-  - Commit: (this commit)
+  - Commit: `fcdd060`
   - UPDATE_LOG: "Fix: Task completion was double-processed by duplicate listeners (#20)"
   - Change: `addTaskUpdate` is now driven by a single global `onTaskUpdate`
     subscription in `src/stores/taskStore.ts` (merged with the existing

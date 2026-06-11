@@ -6,6 +6,8 @@
 
 - **Fix: Orphaned `opencode serve` process on app shutdown** — Quitting the app could leave `opencode serve` running with API keys in its environment and a live listening port.
 
+- **Fix: MCP config updates were not routed to the active workspace (#18)** — The Rust `update_mcp_config` payload omitted `workingDirectory`, so the sidecar's `PATCH /config` carried no `?directory=<workspace>` parameter and MCP config updates could miss the active workspace's OpenCode server instance. The payload now includes the active workspace directory resolved from settings. (Technical review finding #18.)
+
 - **Fix: Task completion was double-processed by duplicate listeners (#20)** — The always-mounted Sidebar, the Home page, and the Execution page each registered their own `onTaskUpdate` listener calling `addTaskUpdate`; because the dedup cache entry is deleted right after the first `complete`/`error` invocation, the second listener fully re-processed the event (double `completeTask` DB write, double state set). Task updates are now handled by a single global subscription in `taskStore`; Execution keeps a lightweight listener for tool-activity display only. (Technical review finding #20.)
 
 - **Fix: Debug-log listener ran always-on and re-rendered the whole chat (#24)** — The Execution page registered the `sidecar:log` listener regardless of debug mode, appended every log line to an unbounded array, and re-rendered the entire page (including the full message list) per log line. The debug panel is now an isolated `DebugLogPanel` component mounted only when debug mode is enabled; it caps retained logs at the most recent 500 entries and uses stable keys for log rows. (Technical review finding #24.)

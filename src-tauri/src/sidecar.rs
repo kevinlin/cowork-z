@@ -184,6 +184,11 @@ pub struct ResumeSessionPayload {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateMcpConfigPayload {
     pub mcp_servers: serde_json::Value,
+    /// Active workspace directory — the sidecar forwards this as
+    /// `?directory=<path>` so the PATCH /config reaches the correct
+    /// per-workspace OpenCode server instance.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

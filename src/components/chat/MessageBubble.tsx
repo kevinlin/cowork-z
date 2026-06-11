@@ -3,7 +3,7 @@ import { Check, Copy, Play, Terminal } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { createMarkdownComponents } from '@/components/markdown/EnhancedLink';
+import { createMarkdownComponents, fileAwareUrlTransform } from '@/components/markdown/EnhancedLink';
 import { MediaGallery } from '@/components/media/MediaGallery';
 import { Button } from '@/components/ui/button';
 import { StreamingText } from '@/components/ui/streaming-text';
@@ -159,7 +159,7 @@ export const MessageBubble = memo(
             <StreamingText isComplete={false} isRealStreaming={true} speed={120} text={enrichedContent}>
               {(displayedText) => (
                 <div className={proseClasses}>
-                  <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]} urlTransform={fileAwareUrlTransform}>
                     {displayedText}
                   </ReactMarkdown>
                 </div>
@@ -169,7 +169,7 @@ export const MessageBubble = memo(
             <StreamingText isComplete={streamComplete} onComplete={() => setStreamComplete(true)} speed={120} text={enrichedContent}>
               {(streamedText) => (
                 <div className={proseClasses}>
-                  <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]} urlTransform={fileAwareUrlTransform}>
                     {streamedText}
                   </ReactMarkdown>
                 </div>
@@ -177,7 +177,7 @@ export const MessageBubble = memo(
             </StreamingText>
           ) : (
             <div className={proseClasses}>
-              <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]} urlTransform={fileAwareUrlTransform}>
                 {enrichedContent}
               </ReactMarkdown>
             </div>

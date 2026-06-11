@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #22 `file://` enrichment links silently stripped (react-markdown default urlTransform)
 - [ ] #24 Always-on debug-log listener: unbounded growth + page re-render
 - [ ] #20 Duplicate `onTaskUpdate` listeners double-process completion
 - [ ] #18 `update_mcp_config` never sends `workingDirectory`
@@ -35,9 +34,22 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #22 `file://` enrichment links silently stripped
+  - Branch/worktree: `fix/tr-22-file-links` (`.worktrees/tr-22`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: file:// links in chat messages were dead (#22)"
+  - Change: `src/components/markdown/EnhancedLink.tsx` — new exported
+    `fileAwareUrlTransform` that whitelists `file:` on top of react-markdown's
+    `defaultUrlTransform`; `src/components/chat/MessageBubble.tsx` passes it to
+    all three `ReactMarkdown` instances. Click-time path safety remains
+    enforced by `isPathSafe` in `EnhancedLink`.
+  - Verification: `pnpm typecheck` — pass;
+    `pnpm test --run src/components/markdown/__tests__/EnhancedLink.test.tsx` —
+    pass, including a new end-to-end ReactMarkdown regression test.
+
 - [x] #19 `respondToPermission` stale-read loop drops folder grants
   - Branch/worktree: `fix/tr-19-folder-grants` (`.worktrees/tr-19`)
-  - Commit: (this commit)
+  - Commit: `134c67b`
   - UPDATE_LOG: "Fix: Multi-pattern permission approvals dropped folder grants (#19)"
   - Change: `src/stores/taskStore.ts` — `respondToPermission` now accumulates
     all target folders from the request's patterns and applies them in a single

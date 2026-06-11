@@ -6,6 +6,8 @@
 
 - **Fix: Orphaned `opencode serve` process on app shutdown** — Quitting the app could leave `opencode serve` running with API keys in its environment and a live listening port.
 
+- **Fix: `file://` links in chat messages were dead (#22)** — Content enrichment rewrites bare paths into `[path](file://path)` markdown links, but react-markdown 9.x's default URL sanitizer only allows http(s)/irc(s)/mailto/xmpp and stripped every `file:` href to `""`, so the links rendered as inert anchors. Chat markdown now uses a custom `urlTransform` that additionally whitelists `file:`, with `isPathSafe` in `EnhancedLink` still enforcing path safety at click time. (Technical review finding #22.)
+
 - **Fix: Multi-pattern permission approvals dropped folder grants (#19)** — When the user allowed a permission request covering multiple path patterns, `respondToPermission` re-spread a stale `folderPermissions` snapshot on each loop iteration, so only the last pattern's adhoc folder grant survived. Grants are now accumulated and applied in one functional Zustand update, which also protects against concurrent grant updates. (Technical review finding #19.)
 
 - **Fix: StreamingText violated the Rules of Hooks (#21)** — `StreamingText` returned early for the real-streaming branch before three `useEffect` hooks; if `isRealStreaming` flipped on a mounted instance React would throw "Rendered fewer/more hooks than during the previous render" and crash the chat view. Hooks are now hoisted above the conditional return and no-op in real-streaming mode. (Technical review finding #21.)

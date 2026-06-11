@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #17 Azure Foundry key dropped by sidecar; inconsistent provider id
 - [ ] #13 SSE reconnect timer resurrects after disconnect; no backoff
 - [ ] #14 `apiKeys` silently ignored after first initialization
 - [ ] #4 OpenCode server password leaked to log file and IPC stdout
@@ -31,9 +30,23 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #17 Azure Foundry key dropped by sidecar; inconsistent provider id
+  - Branch/worktree: `fix/tr-17-azure-foundry` (`.worktrees/tr-17`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Azure Foundry API key was dropped and misreported (#17)"
+  - Change: standardized the keychain id on `azure-foundry` (matches the
+    frontend provider id and `secure_storage::PROVIDERS`, so
+    `get_all_api_key_status` now reports it correctly);
+    `save_azure_foundry_config` stores under the new id and
+    `get_all_api_keys` falls back to the legacy `azureFoundry` entry; sidecar
+    `ApiKeys` gained `azureFoundry` mapped to `AZURE_API_KEY` in the server
+    environment.
+  - Verification: `cd src-tauri && cargo check` — pass; sidecar `pnpm build`
+    (tsc) — pass; sidecar `pnpm test` — pass.
+
 - [x] #18 `update_mcp_config` never sends `workingDirectory`
   - Branch/worktree: `fix/tr-18-mcp-workdir` (`.worktrees/tr-18`)
-  - Commit: (this commit)
+  - Commit: `943509f`
   - UPDATE_LOG: "Fix: MCP config updates were not routed to the active workspace (#18)"
   - Change: `src-tauri/src/sidecar.rs` — added
     `working_directory: Option<String>` to `UpdateMcpConfigPayload`;

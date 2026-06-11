@@ -235,6 +235,7 @@ export interface ApiKeys {
   openrouter?: string;
   litellm?: string;
   ollama?: string;
+  azureFoundry?: string;
   bedrock?: BedrockCredentials;
 }
 

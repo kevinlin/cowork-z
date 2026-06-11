@@ -491,6 +491,7 @@ export class ProcessManager {
     if (apiKeys?.deepseek) env.DEEPSEEK_API_KEY = apiKeys.deepseek;
     if (apiKeys?.openrouter) env.OPENROUTER_API_KEY = apiKeys.openrouter;
     if (apiKeys?.litellm) env.LITELLM_API_KEY = apiKeys.litellm;
+    if (apiKeys?.azureFoundry) env.AZURE_API_KEY = apiKeys.azureFoundry;
 
     // AWS Bedrock credentials
     if (apiKeys?.bedrock) {

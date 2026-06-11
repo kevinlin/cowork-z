@@ -408,6 +408,19 @@ pub fn run() {
             commands::skill_repos::skills_list_installed,
             commands::skill_repos::skills_delete_installed,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            // Gracefully stop the sidecar on ExitRequested. This must happen
+            // before RunEvent::Exit: tauri-plugin-shell hard-kills its tracked
+            // children on Exit (and plugins see events before this callback),
+            // which would SIGKILL the sidecar and orphan `opencode serve`.
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                let state = app_handle.state::<SidecarState>();
+                let manager = std::sync::Arc::clone(&state.manager);
+                tauri::async_runtime::block_on(async move {
+                    let _ = manager.lock().await.stop().await;
+                });
+            }
+        });
 }

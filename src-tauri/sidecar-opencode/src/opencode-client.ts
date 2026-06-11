@@ -84,8 +84,8 @@ export class OpenCodeClient {
     }
   }
 
-  async disposeGlobal(): Promise<boolean> {
-    return this.request<boolean>('POST', '/global/dispose');
+  async disposeGlobal(options?: { timeout?: number }): Promise<boolean> {
+    return this.request<boolean>('POST', '/global/dispose', undefined, undefined, options);
   }
 
   async disposeInstance(directory?: string): Promise<boolean> {

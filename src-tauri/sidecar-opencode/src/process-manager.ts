@@ -594,23 +594,75 @@ export class ProcessManager {
   }
 
   async stopServer(): Promise<void> {
-    if (this.process) {
-      logger.info('Stopping OpenCode server...');
-
-      try {
-        await this.client.disposeGlobal();
-      } catch (error) {
-        logger.warn('Failed to dispose server gracefully', error);
-      }
-
-      // Force kill if still running after 5 seconds
-      setTimeout(() => {
-        if (this.process) {
-          logger.warn('Force killing OpenCode process');
-          this.process.kill('SIGKILL');
-        }
-      }, 5000);
+    const child = this.process;
+    if (!child) {
+      return;
     }
+
+    logger.info('Stopping OpenCode server...');
+
+    try {
+      // Short timeout: this runs during shutdown — a hung server must not stall it.
+      await this.client.disposeGlobal({ timeout: 3000 });
+    } catch (error) {
+      logger.warn('Failed to dispose server gracefully', error);
+    }
+
+    if (this.process === null) {
+      // The 'exit' handler already fired — the server is down.
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
+      };
+
+      const forceKillTimer = setTimeout(() => {
+        logger.warn('Force killing OpenCode process');
+        this.forceKill(child);
+        // Last resort: never let shutdown hang on an unkillable process.
+        setTimeout(finish, 2000);
+      }, 5000);
+
+      child.once('exit', () => {
+        clearTimeout(forceKillTimer);
+        finish();
+      });
+
+      this.terminate(child);
+    });
+
+    logger.info('OpenCode server stopped');
+  }
+
+  /**
+   * Ask the process to terminate. On Windows the child is a cmd.exe shim
+   * (spawned with `shell: true`), so signalling it would orphan the real
+   * opencode process — kill the whole tree instead.
+   */
+  private terminate(child: ChildProcess): void {
+    if (process.platform === 'win32') {
+      this.forceKill(child);
+      return;
+    }
+    child.kill('SIGTERM');
+  }
+
+  private forceKill(child: ChildProcess): void {
+    if (process.platform === 'win32' && child.pid) {
+      try {
+        execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+        return;
+      } catch {
+        // taskkill unavailable or already exited — fall through to plain kill.
+      }
+    }
+    child.kill('SIGKILL');
   }
 
   isRunning(): boolean {

@@ -6,6 +6,7 @@ use chrono::Local;
 use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::async_runtime::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
@@ -295,6 +296,8 @@ pub struct SidecarManager {
     child: Option<CommandChild>,
     is_ready: bool,
     log_file: Option<Arc<std::sync::Mutex<File>>>,
+    /// Set by the stdout reader task when the sidecar process terminates.
+    exited: Arc<AtomicBool>,
 }
 
 impl SidecarManager {
@@ -303,6 +306,7 @@ impl SidecarManager {
             child: None,
             is_ready: false,
             log_file: None,
+            exited: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -396,6 +400,8 @@ impl SidecarManager {
         // Clone app handle and log file for event forwarding
         let app_handle = app.clone();
         let log_file_clone = Arc::clone(&log_file);
+        self.exited.store(false, Ordering::SeqCst);
+        let exited = Arc::clone(&self.exited);
 
         // Spawn stdout reader task
         tauri::async_runtime::spawn(async move {
@@ -445,6 +451,7 @@ impl SidecarManager {
                         let _ = app_handle.emit("sidecar:error", &err);
                     }
                     CommandEvent::Terminated(payload) => {
+                        exited.store(true, Ordering::SeqCst);
                         println!("[sidecar] terminated with code: {:?}", payload.code);
                         // Write to log file
                         if let Ok(mut file) = log_file_clone.lock() {
@@ -577,8 +584,13 @@ impl SidecarManager {
         }
     }
 
-    /// Stop the sidecar process
-    #[allow(dead_code)]
+    /// Stop the sidecar process gracefully.
+    ///
+    /// Sends the `shutdown` command over stdin so the sidecar can terminate its
+    /// `opencode serve` child, then waits for the sidecar to exit on its own
+    /// before falling back to a hard kill. The sidecar's own shutdown sequence
+    /// (HTTP dispose → SIGTERM → SIGKILL fallback) can take up to ~10s in the
+    /// worst case; the normal path completes in well under a second.
     pub async fn stop(&mut self) -> Result<(), String> {
         if let Some(mut child) = self.child.take() {
             // Send shutdown command via stdin so sidecar can clean up child processes
@@ -586,9 +598,20 @@ impl SidecarManager {
             let json = serde_json::to_string(&shutdown_cmd).unwrap_or_default();
             let _ = child.write((json + "\n").as_bytes());
 
-            // Give sidecar a moment to shut down gracefully, then force kill
-            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-            let _ = child.kill();
+            const MAX_WAIT_MS: u64 = 12_000;
+            const POLL_MS: u64 = 100;
+            let mut waited: u64 = 0;
+            while !self.exited.load(Ordering::SeqCst) && waited < MAX_WAIT_MS {
+                tokio::time::sleep(std::time::Duration::from_millis(POLL_MS)).await;
+                waited += POLL_MS;
+            }
+
+            if self.exited.load(Ordering::SeqCst) {
+                println!("[sidecar] shut down gracefully after {}ms", waited);
+            } else {
+                eprintln!("[sidecar] graceful shutdown timed out, force killing");
+                let _ = child.kill();
+            }
         }
         self.is_ready = false;
         Ok(())

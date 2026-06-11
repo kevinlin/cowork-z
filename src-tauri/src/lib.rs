@@ -9,6 +9,7 @@ mod db;
 mod fs_utils;
 mod fs_watcher;
 mod git_ops;
+mod path_guard;
 mod secure_storage;
 mod sidecar;
 mod skill_discovery;
@@ -360,7 +361,7 @@ pub fn run() {
             commands::copilot::copilot_disconnect,
             // Logging
             commands::logging::log_event,
-            commands::logging::write_text_file,
+            commands::logging::export_text_file,
             // App Updates
             commands::updates::check_for_update,
             commands::updates::install_update,

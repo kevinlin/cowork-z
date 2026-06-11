@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #3 Unrestricted filesystem Tauri commands (write / read / trash)
 - [ ] #2 Asset protocol scoped to the entire filesystem
 - [ ] #1 Content-Security-Policy is fully disabled
 
@@ -23,9 +22,29 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #3 Unrestricted filesystem Tauri commands (write / read / trash)
+  - Branch/worktree: `fix/tr-03-file-scoping` (`.worktrees/tr-03`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Renderer-reachable file commands operated on arbitrary paths (#3)"
+  - Change: new `src-tauri/src/path_guard.rs` canonicalizes every target
+    path (defeating `..` traversal and symlink escapes) and validates it
+    against the allowed roots — registered workspace folders plus granted
+    permission folders from `workspace_permissions`. Applied to
+    `read_file_content`, `read_binary_file`, and `trash_file`. The unscoped
+    `write_text_file` command is removed entirely; exports now go through a
+    new `export_text_file` command that opens the native save dialog
+    Rust-side, so the renderer never controls a write path. The now-unused
+    `dialog:allow-save` webview grant was dropped.
+  - Note: previewing files outside workspace/granted roots (e.g. ad-hoc
+    session grants not yet persisted) will show an "Access denied" error in
+    the preview panel — by design.
+  - Verification: `cd src-tauri && cargo check` — pass;
+    `cargo test --lib path_guard` — 6/6 pass (traversal, symlink-escape,
+    outside-root, no-roots cases); `tsc --noEmit` — pass; biome — clean.
+
 - [x] #8 Git PAT persisted to `.git/config` in plaintext
   - Branch/worktree: `fix/tr-08-git-pat` (`.worktrees/tr-08`)
-  - Commit: (this commit)
+  - Commit: `6b5119f`
   - UPDATE_LOG: "Fix: Git personal access tokens were persisted in plaintext to skill-repo .git/config (#8)"
   - Change: `pull_repo` in `src-tauri/src/git_ops.rs` no longer rewrites the
     remote URL with the token. It now (1) scrubs any credentials previously

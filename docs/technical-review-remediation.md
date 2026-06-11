@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #8 Git PAT persisted to `.git/config` in plaintext
 - [ ] #3 Unrestricted filesystem Tauri commands (write / read / trash)
 - [ ] #2 Asset protocol scoped to the entire filesystem
 - [ ] #1 Content-Security-Policy is fully disabled
@@ -24,9 +23,24 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #8 Git PAT persisted to `.git/config` in plaintext
+  - Branch/worktree: `fix/tr-08-git-pat` (`.worktrees/tr-08`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Git personal access tokens were persisted in plaintext to skill-repo .git/config (#8)"
+  - Change: `pull_repo` in `src-tauri/src/git_ops.rs` no longer rewrites the
+    remote URL with the token. It now (1) scrubs any credentials previously
+    persisted into the remote URL by older versions
+    (new `strip_credentials`), and (2) when a token is needed, pulls from an
+    explicit token-injected URL passed transiently in argv
+    (`git pull --ff-only <url> <branch>`), mirroring the clone path. New
+    helper `get_current_branch` resolves the branch for the explicit pull.
+  - Verification: `cd src-tauri && cargo check` — pass;
+    `cargo test git_ops` — 16/16 pass (6 new `strip_credentials` tests
+    including the inject/strip round-trip and `@`-in-path edge case).
+
 - [x] #15 Unused shell permissions exposed to webview windows
   - Branch/worktree: `fix/tr-15-capabilities` (`.worktrees/tr-15`)
-  - Commit: (this commit)
+  - Commit: `edde65e`
   - UPDATE_LOG: "Fix: Webview windows held unused shell permissions and a filesystem-wide opener grant (#15)"
   - Change: removed `shell:allow-spawn` / `shell:allow-stdin-write` /
     `shell:allow-kill` / `shell:allow-open` from `capabilities/default.json`

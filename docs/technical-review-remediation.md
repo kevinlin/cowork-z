@@ -11,6 +11,19 @@ Workflow: one git worktree + one commit per issue, integrated sequentially into
 Each fixed entry records: worktree branch, commit hash, `UPDATE_LOG.md` entry
 label (under `v0.7.15`), and verification commands with outcomes.
 
+## Final Verification (post-remediation, full suite)
+
+Run on `fix/technical-review-remediation` @ `33e16f9` after all 19 fixes:
+
+- `pnpm typecheck` — pass
+- `pnpm test --run` — 332/332 tests pass (26 files)
+- `cd src-tauri && cargo check` — pass
+- `cd src-tauri && cargo test` — 44/44 tests pass
+- `cd src-tauri/sidecar-opencode && pnpm test` — 116/116 tests pass (10 suites)
+- Commit audit — 19 issue commits (one per finding) + 3 infra/follow-up
+  commits (tracker setup `0efa141`, jsdom stub `63d677b`, symlink cleanup
+  `3df3344`)
+
 ## Queued
 
 (none — all queued fixes complete)
@@ -23,7 +36,7 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 - [x] #1 Content Security Policy disabled
   - Branch/worktree: `fix/tr-01-csp` (`.worktrees/tr-01`)
-  - Commit: (this commit)
+  - Commit: `33e16f9`
   - UPDATE_LOG: "Fix: Content Security Policy was disabled (#1)"
   - Change: `tauri.conf.json` `security.csp` changed from `null` to a
     restrictive policy: `default-src 'self'`, `script-src 'self'` (Tauri

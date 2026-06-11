@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #23 Chat auto-scroll selector never matches (`[data-messages-end]` sentinel missing)
 - [ ] #21 `StreamingText` conditional return before hooks (Rules of Hooks violation)
 - [ ] #19 `respondToPermission` stale-read loop drops folder grants
 - [ ] #22 `file://` enrichment links silently stripped (react-markdown default urlTransform)
@@ -38,9 +37,19 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #23 Chat auto-scroll selector never matches
+  - Branch/worktree: `fix/tr-23-autoscroll` (`.worktrees/tr-23`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Chat auto-scroll never fired on new/streaming messages (#23)"
+  - Change: `src/components/chat/MessageList.tsx` — added the `data-messages-end`
+    attribute to the existing sentinel div so the auto-scroll effect in
+    `src/pages/Execution.tsx` (`querySelector('[data-testid="messages-scroll-container"] [data-messages-end]')`)
+    actually finds its target.
+  - Verification: `pnpm typecheck` — pass.
+
 - [x] #16 CI silently discards lint failures
   - Branch/worktree: `fix/tr-16-ci-lint` (`.worktrees/tr-16`)
-  - Commit: (this commit)
+  - Commit: `5854d3f`
   - UPDATE_LOG: "Fix: CI silently discarded lint failures (#16)"
   - Change: `.github/workflows/test.yml` — `pnpm ultracite:check & pnpm test --run`
     → `pnpm ultracite:check && pnpm test --run`, so a lint/format violation now

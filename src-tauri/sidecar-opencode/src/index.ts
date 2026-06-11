@@ -1,4 +1,5 @@
 import readline from 'node:readline';
+import { fingerprintApiKeys } from './api-key-fingerprint';
 import { EventStream } from './event-stream';
 import { logger } from './logger';
 import { ProcessManager } from './process-manager';
@@ -42,6 +43,7 @@ let eventStream: EventStream | null = null;
 let sessionManager: SessionManager | null = null;
 let currentDirectory: string | undefined;
 let initializePromise: Promise<void> | null = null;
+let appliedApiKeysFingerprint: string | undefined;
 
 // ============================================================================
 // Initialization
@@ -54,6 +56,32 @@ async function initialize(
   workingDirectory?: string
 ): Promise<void> {
   if (sessionManager) {
+    // API keys are applied as env vars when the server process spawns, so a
+    // key added or rotated after initialization needs a deliberate server
+    // restart to take effect (technical review finding #14). Callers that
+    // pass no keys (e.g. Copilot OAuth) express no opinion and skip the check.
+    const keysChanged = apiKeys !== undefined && fingerprintApiKeys(apiKeys) !== appliedApiKeysFingerprint;
+
+    if (keysChanged && sessionManager.activeSessionCount() === 0) {
+      logger.info('API keys changed since initialization — restarting OpenCode server to apply them');
+      initializePromise = (async () => {
+        await teardown();
+        await doInitialize(apiKeys, mcpServers, modelId, workingDirectory);
+      })();
+      try {
+        await initializePromise;
+      } finally {
+        initializePromise = null;
+      }
+      return;
+    }
+
+    if (keysChanged) {
+      logger.warn(
+        'API keys changed but sessions are still active; restart deferred — the new keys will be applied when the next task starts while idle'
+      );
+    }
+
     // Fully initialized — but reconnect SSE if directory changed
     if (eventStream && workingDirectory && workingDirectory !== currentDirectory) {
       logger.info('Workspace directory changed, reconnecting SSE stream', { from: currentDirectory, to: workingDirectory });
@@ -84,6 +112,7 @@ async function doInitialize(
   workingDirectory?: string
 ): Promise<void> {
   currentDirectory = workingDirectory;
+  appliedApiKeysFingerprint = fingerprintApiKeys(apiKeys);
 
   // Start process manager — picks a random available port and generates a password
   processManager = new ProcessManager();
@@ -713,9 +742,8 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
 // Cleanup
 // ============================================================================
 
-async function cleanup(): Promise<void> {
-  logger.info('Cleaning up...');
-
+/** Tear down the session manager, event stream, and OpenCode server process. */
+async function teardown(): Promise<void> {
   if (sessionManager) {
     sessionManager.dispose();
     sessionManager = null;
@@ -730,7 +758,11 @@ async function cleanup(): Promise<void> {
     await processManager.stopServer();
     processManager = null;
   }
+}
 
+async function cleanup(): Promise<void> {
+  logger.info('Cleaning up...');
+  await teardown();
   logger.close();
 }
 

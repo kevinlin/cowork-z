@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #14 `apiKeys` silently ignored after first initialization
 - [ ] #4 OpenCode server password leaked to log file and IPC stdout
 - [ ] #10 MCP secrets, HTTP bodies, and SSE events logged in plaintext
 - [ ] #5 HTML preview executes untrusted agent JS with a sandbox escape
@@ -28,6 +27,21 @@ label (under `v0.7.15`), and verification commands with outcomes.
 (none)
 
 ## Fixed
+
+- [x] #14 `apiKeys` silently ignored after first sidecar initialization
+  - Branch/worktree: `fix/tr-14-api-key-lifecycle` (`.worktrees/tr-14`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: API keys added or rotated mid-session were silently ignored (#14)"
+  - Change: `initialize()` in `src-tauri/sidecar-opencode/src/index.ts` now
+    fingerprints the incoming `apiKeys` (new `api-key-fingerprint.ts`,
+    order-insensitive, never logged) and compares against the keys applied at
+    server spawn. On change with no active sessions it deliberately restarts
+    the OpenCode server (teardown + re-init) so the new env vars apply; with
+    active sessions it logs a warning and defers until the next idle task
+    start. `SessionManager` gained `activeSessionCount()`.
+  - Verification: sidecar `pnpm build` (tsc) — pass; sidecar `pnpm test` —
+    104/104 pass, including 6 new tests in
+    `__tests__/api-key-fingerprint.test.ts`; biome check — clean.
 
 - [x] #13 SSE reconnect timer resurrects after disconnect; no backoff
   - Branch/worktree: `fix/tr-13-sse-backoff` (`.worktrees/tr-13`)

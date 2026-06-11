@@ -472,6 +472,11 @@ export class SessionManager extends EventEmitter {
     await this.client.replyToQuestion(requestId, flatAnswers, directory);
   }
 
+  /** Number of sessions currently tracked (started and not yet completed/cleaned up). */
+  activeSessionCount(): number {
+    return this.sessions.size;
+  }
+
   private cleanup(taskId: string): void {
     const managed = this.sessions.get(taskId);
     if (managed) {

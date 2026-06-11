@@ -6,6 +6,8 @@
 
 - **Fix: Orphaned `opencode serve` process on app shutdown** — Quitting the app could leave `opencode serve` running with API keys in its environment and a live listening port.
 
+- **Fix: SSE reconnect could resurrect a disconnected stream and retried with no backoff (#13)** — The sidecar's SSE reconnect `setTimeout` handle was discarded, so a timer pending at `disconnect()` time still fired and re-enabled reconnection; against a permanently dead server the stream also retried every 5s forever. The timer is now stored and cleared on disconnect, the callback re-checks reconnect intent, and retries use exponential backoff capped at 60s (reset on successful connect). (Technical review finding #13.)
+
 - **Fix: Azure Foundry API key was dropped and misreported (#17)** — The Azure Foundry key was stored in the keychain under `azureFoundry` while the status list enumerated `azure-foundry` (so Settings reported it as absent even when configured), and the sidecar's `ApiKeys` type had no Azure field at all (so the key never reached the OpenCode server environment). The keychain id is now standardized on `azure-foundry` (with a legacy-id read fallback), and the sidecar maps `azureFoundry` to `AZURE_API_KEY`. (Technical review finding #17.)
 
 - **Fix: MCP config updates were not routed to the active workspace (#18)** — The Rust `update_mcp_config` payload omitted `workingDirectory`, so the sidecar's `PATCH /config` carried no `?directory=<workspace>` parameter and MCP config updates could miss the active workspace's OpenCode server instance. The payload now includes the active workspace directory resolved from settings. (Technical review finding #18.)

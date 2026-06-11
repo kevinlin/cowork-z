@@ -31,6 +31,9 @@ interface GlobalEventEnvelope {
   payload: OpenCodeEvent;
 }
 
+/** Upper bound for the exponential reconnect backoff. */
+const MAX_RECONNECT_INTERVAL_MS = 60_000;
+
 export class EventStream extends EventEmitter {
   private eventSource: EventSource | null = null;
   private baseUrl: string;
@@ -39,6 +42,8 @@ export class EventStream extends EventEmitter {
   private isConnected = false;
   private shouldReconnect = true;
   private authHeader?: string;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private reconnectAttempts = 0;
 
   constructor(options: EventStreamOptions) {
     super();
@@ -70,6 +75,7 @@ export class EventStream extends EventEmitter {
     this.eventSource.onopen = () => {
       logger.info('SSE stream connected');
       this.isConnected = true;
+      this.reconnectAttempts = 0;
       this.emit('connected');
     };
 
@@ -110,16 +116,44 @@ export class EventStream extends EventEmitter {
       // When readyState is CONNECTING, EventSource auto-reconnects on its own
       // and we should not create a competing second connection.
       if (this.eventSource?.readyState === EventSource.CLOSED && this.shouldReconnect) {
-        logger.warn('SSE connection closed permanently, reconnecting manually...', error);
-        setTimeout(() => this.connect(), this.reconnectInterval);
+        this.scheduleReconnect(error);
       } else {
         logger.debug('SSE stream error (EventSource will auto-reconnect)', error);
       }
     };
   }
 
+  /**
+   * Schedule a manual reconnect with bounded exponential backoff. The timer
+   * handle is stored so disconnect() can cancel it, and the callback re-checks
+   * shouldReconnect so a timer that was pending when disconnect() ran can
+   * never resurrect the stream.
+   */
+  private scheduleReconnect(error: unknown): void {
+    this.clearReconnectTimer();
+
+    const delay = Math.min(this.reconnectInterval * 2 ** this.reconnectAttempts, MAX_RECONNECT_INTERVAL_MS);
+    this.reconnectAttempts += 1;
+    logger.warn(`SSE connection closed permanently, reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})...`, error);
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.shouldReconnect) {
+        this.connect();
+      }
+    }, delay);
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
   disconnect(): void {
     this.shouldReconnect = false;
+    this.clearReconnectTimer();
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;

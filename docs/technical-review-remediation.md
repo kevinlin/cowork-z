@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #13 SSE reconnect timer resurrects after disconnect; no backoff
 - [ ] #14 `apiKeys` silently ignored after first initialization
 - [ ] #4 OpenCode server password leaked to log file and IPC stdout
 - [ ] #10 MCP secrets, HTTP bodies, and SSE events logged in plaintext
@@ -30,9 +29,20 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #13 SSE reconnect timer resurrects after disconnect; no backoff
+  - Branch/worktree: `fix/tr-13-sse-backoff` (`.worktrees/tr-13`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: SSE reconnect could resurrect a disconnected stream and retried with no backoff (#13)"
+  - Change: `src-tauri/sidecar-opencode/src/event-stream.ts` — the reconnect
+    timer handle is now stored and cleared in `disconnect()`, the callback
+    re-checks `shouldReconnect`, and reconnects use bounded exponential
+    backoff (base × 2^attempts, capped at 60s, reset on successful open).
+  - Verification: sidecar `pnpm build` (tsc) — pass; sidecar `pnpm test` —
+    98/98 pass, including 5 new tests in `__tests__/event-stream.test.ts`.
+
 - [x] #17 Azure Foundry key dropped by sidecar; inconsistent provider id
   - Branch/worktree: `fix/tr-17-azure-foundry` (`.worktrees/tr-17`)
-  - Commit: (this commit)
+  - Commit: `8f5af32`
   - UPDATE_LOG: "Fix: Azure Foundry API key was dropped and misreported (#17)"
   - Change: standardized the keychain id on `azure-foundry` (matches the
     frontend provider id and `secure_storage::PROVIDERS`, so

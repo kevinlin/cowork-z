@@ -36,6 +36,22 @@ describe('redactSecrets', () => {
     expect(input.mcp.servers[0].headers['X-Api-Key']).toBe('k');
   });
 
+  it('redacts every value inside environment and headers containers regardless of key name', () => {
+    const input = {
+      mcp: {
+        myServer: {
+          command: 'npx server',
+          environment: { SOME_VAR: 'value', OTHER: 'x' },
+          headers: { 'X-Custom': 'abc' },
+        },
+      },
+    };
+    const result = redactSecrets(input) as typeof input;
+    expect(result.mcp.myServer.environment).toEqual({ SOME_VAR: REDACTED, OTHER: REDACTED });
+    expect(result.mcp.myServer.headers).toEqual({ 'X-Custom': REDACTED });
+    expect(result.mcp.myServer.command).toBe('npx server');
+  });
+
   it('leaves non-secret values and primitives untouched', () => {
     expect(redactSecrets({ port: 4096, ok: true })).toEqual({ port: 4096, ok: true });
     expect(redactSecrets('plain string')).toBe('plain string');

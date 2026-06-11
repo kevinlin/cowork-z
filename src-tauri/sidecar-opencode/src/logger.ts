@@ -11,10 +11,23 @@ export class Logger {
   private sessionId?: string;
   private taskId?: string;
   private ipcEmitter: IpcLogEmitter | null = null;
+  /**
+   * Full HTTP response bodies and SSE event payloads contain conversation
+   * content (including user file contents), so they are only logged when
+   * explicitly enabled via SIDECAR_DEBUG_PAYLOADS=1 (technical review
+   * finding #10). Metadata (event type, method/path/status) is always logged.
+   */
+  private payloadLogging: boolean;
 
   constructor() {
     this.logDir = getOpenCodeLogDir();
     this.ensureLogDir();
+    this.payloadLogging = process.env.SIDECAR_DEBUG_PAYLOADS === '1' || process.env.SIDECAR_DEBUG_PAYLOADS === 'true';
+  }
+
+  /** Enable/disable full payload logging (exposed for tests). */
+  setPayloadLogging(enabled: boolean): void {
+    this.payloadLogging = enabled;
   }
 
   /** Wire up an IPC emitter so log messages are also sent to the frontend debug panel. */
@@ -91,14 +104,19 @@ export class Logger {
     this.write('ERROR', message, data);
   }
 
-  // Log raw OpenCode server event
+  // Log OpenCode server event — full payload only when payload logging is enabled
   serverEvent(event: unknown): void {
-    this.write('EVENT', 'OpenCode Server Event', event);
+    if (this.payloadLogging) {
+      this.write('EVENT', 'OpenCode Server Event', event);
+      return;
+    }
+    const eventType = typeof event === 'object' && event !== null ? (event as { type?: string }).type : undefined;
+    this.write('EVENT', `OpenCode Server Event: ${eventType ?? 'unknown'}`);
   }
 
-  // Log raw HTTP response
+  // Log HTTP response — body only when payload logging is enabled
   httpResponse(method: string, path: string, status: number, body?: unknown): void {
-    this.write('HTTP', `${method} ${path} -> ${status}`, body);
+    this.write('HTTP', `${method} ${path} -> ${status}`, this.payloadLogging ? body : undefined);
   }
 
   close(): void {

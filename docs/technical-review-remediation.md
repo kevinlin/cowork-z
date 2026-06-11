@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #10 MCP secrets, HTTP bodies, and SSE events logged in plaintext
 - [ ] #5 HTML preview executes untrusted agent JS with a sandbox escape
 - [ ] #15 Unused shell permissions exposed to webview windows
 - [ ] #8 Git PAT persisted to `.git/config` in plaintext
@@ -27,9 +26,26 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #10 MCP secrets, HTTP bodies, and SSE events logged in plaintext
+  - Branch/worktree: `fix/tr-10-plaintext-logs` (`.worktrees/tr-10`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: MCP secrets, HTTP bodies, and SSE payloads were logged in plaintext (#10)"
+  - Change: `redact.ts` now fully redacts the value maps of
+    `environment`/`headers`/`env` containers (MCP server configs carry tokens
+    under arbitrary key names), which covers the
+    `logger.info('Config updated for session', config)` path; full HTTP
+    response bodies and SSE event payloads are now logged only when
+    `SIDECAR_DEBUG_PAYLOADS=1` is set — by default only metadata (event type,
+    method/path/status) is written. Redaction still applies when payload
+    logging is enabled.
+  - Verification: sidecar `pnpm build` (tsc) — pass; sidecar `pnpm test` —
+    116/116 pass, including 6 new tests
+    (`__tests__/logger-payload-gating.test.ts` + container redaction case);
+    biome check — clean.
+
 - [x] #4 OpenCode server password leaked to log file and IPC stdout
   - Branch/worktree: `fix/tr-04-password-log` (`.worktrees/tr-04`)
-  - Commit: (this commit)
+  - Commit: `8d5ee76`
   - UPDATE_LOG: "Fix: OpenCode server password was written to plaintext logs and the debug panel (#4)"
   - Change: removed the verbatim `OPENCODE_SERVER_PASSWORD=<value>` debug log
     in `process-manager.ts` (now logs only the length); added a redaction

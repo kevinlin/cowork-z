@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #15 Unused shell permissions exposed to webview windows
 - [ ] #8 Git PAT persisted to `.git/config` in plaintext
 - [ ] #3 Unrestricted filesystem Tauri commands (write / read / trash)
 - [ ] #2 Asset protocol scoped to the entire filesystem
@@ -25,9 +24,30 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #15 Unused shell permissions exposed to webview windows
+  - Branch/worktree: `fix/tr-15-capabilities` (`.worktrees/tr-15`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Webview windows held unused shell permissions and a filesystem-wide opener grant (#15)"
+  - Change: removed `shell:allow-spawn` / `shell:allow-stdin-write` /
+    `shell:allow-kill` / `shell:allow-open` from `capabilities/default.json`
+    and `shell:allow-execute` / `shell:allow-open` from
+    `capabilities/skills.json` — the frontend has zero
+    `@tauri-apps/plugin-shell` usage (the sidecar is spawned Rust-side and
+    skill-repo git ops run in Rust `git_ops.rs`); narrowed
+    `opener:allow-open-path` from `**` to `$HOME/**`, `/Volumes/**`,
+    `/media/**`, `/mnt/**`, matching the directories where workspaces are
+    permitted by `workspace_validator.rs`. The shell plugin remains
+    registered in `lib.rs` for Rust-side use. Note: Windows secondary drive
+    letters (e.g. `D:\`) may need an additional scope entry when Windows
+    support lands.
+  - Verification: `cd src-tauri && cargo check` — pass (tauri-build
+    validates capability files at compile time); frontend grep confirms no
+    `plugin-shell` imports and opener usage limited to
+    `openUrl`/`revealItemInDir`/`openPath`.
+
 - [x] #5 HTML preview executes untrusted agent JS with sandbox escape
   - Branch/worktree: `fix/tr-05-html-preview` (`.worktrees/tr-05`)
-  - Commit: (this commit)
+  - Commit: `4d52c16`
   - UPDATE_LOG: "Fix: HTML preview allowed sandboxed agent content to escape via popups (#5)"
   - Change: `HtmlPreview.tsx` iframe sandbox reduced from
     `allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms`

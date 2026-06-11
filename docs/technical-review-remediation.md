@@ -13,7 +13,7 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #1 Content-Security-Policy is fully disabled
+(none — all queued fixes complete)
 
 ## In Progress
 
@@ -21,9 +21,33 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #1 Content Security Policy disabled
+  - Branch/worktree: `fix/tr-01-csp` (`.worktrees/tr-01`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Content Security Policy was disabled (#1)"
+  - Change: `tauri.conf.json` `security.csp` changed from `null` to a
+    restrictive policy: `default-src 'self'`, `script-src 'self'` (Tauri
+    auto-appends nonces for its injected scripts), `style-src 'self'
+    'unsafe-inline'` (inline style attrs / injected styles), `img-src` /
+    `media-src` extended with `asset:` + `http://asset.localhost` for
+    media previews via `convertFileSrc`, `connect-src ipc:
+    http://ipc.localhost` for Tauri IPC, and `object-src 'self' data:` for
+    the PDF preview's base64 `<embed>`. Added `devCsp` that additionally
+    allows `'unsafe-inline'` scripts (Vite react-refresh preamble) and
+    `ws://localhost:1420` (HMR).
+  - Known trade-off: the HTML preview iframe uses `srcDoc`, which inherits
+    the parent document's CSP — inline/CDN scripts inside agent-generated
+    HTML previews no longer execute in production builds (static HTML still
+    renders; interactive previews can be opened externally). This aligns
+    with the review's #5 recommendation to consider disabling preview
+    scripts.
+  - Verification: `cd src-tauri && cargo check` — pass (validates config
+    schema at build time). Manual dev-run validation recommended (previews,
+    IPC, HMR).
+
 - [x] #2 Asset protocol scoped to the entire filesystem
   - Branch/worktree: `fix/tr-02-asset-scope` (`.worktrees/tr-02`)
-  - Commit: (this commit)
+  - Commit: `22821dc`
   - UPDATE_LOG: "Fix: asset: protocol granted the webview read access to the entire filesystem (#2)"
   - Change: `assetProtocol.scope` in `tauri.conf.json` reduced from `["**"]`
     to `[]`; the scope is now extended at runtime

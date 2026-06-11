@@ -22,3 +22,8 @@ if (!window.ResizeObserver) {
   }
   window.ResizeObserver = ResizeObserver;
 }
+
+// jsdom does not implement scrollIntoView (used by chat auto-scroll)
+if (!window.HTMLElement.prototype.scrollIntoView) {
+  window.HTMLElement.prototype.scrollIntoView = () => {};
+}

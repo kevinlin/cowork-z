@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #24 Always-on debug-log listener: unbounded growth + page re-render
 - [ ] #20 Duplicate `onTaskUpdate` listeners double-process completion
 - [ ] #18 `update_mcp_config` never sends `workingDirectory`
 - [ ] #17 Azure Foundry key dropped by sidecar; inconsistent provider id
@@ -34,9 +33,20 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #24 Always-on debug-log listener: unbounded growth + page re-render
+  - Branch/worktree: `fix/tr-24-debug-listener` (`.worktrees/tr-24`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Debug-log listener ran always-on and re-rendered the whole chat (#24)"
+  - Change: extracted the debug panel into
+    `src/components/chat/DebugLogPanel.tsx`, mounted from `Execution.tsx` only
+    when debug mode is enabled — so the `sidecar:log` listener exists only in
+    debug mode, log events re-render just the panel, retained logs are capped
+    at 500, and list rows use stable `uid` keys instead of `key={index}`.
+  - Verification: `pnpm typecheck` — pass; lints clean on both files.
+
 - [x] #22 `file://` enrichment links silently stripped
   - Branch/worktree: `fix/tr-22-file-links` (`.worktrees/tr-22`)
-  - Commit: (this commit)
+  - Commit: `0531662`
   - UPDATE_LOG: "Fix: file:// links in chat messages were dead (#22)"
   - Change: `src/components/markdown/EnhancedLink.tsx` — new exported
     `fileAwareUrlTransform` that whitelists `file:` on top of react-markdown's

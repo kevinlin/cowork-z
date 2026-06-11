@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { getOpenCodeLogDir } from './paths';
+import { redactMessage, redactSecrets } from './redact';
 
 export type IpcLogEmitter = (level: 'debug' | 'info' | 'warn' | 'error', message: string) => void;
 
@@ -50,7 +51,12 @@ export class Logger {
     return now.toISOString().slice(11, 23); // HH:MM:SS.mmm
   }
 
-  private write(level: string, message: string, data?: unknown): void {
+  private write(level: string, rawMessage: string, rawData?: unknown): void {
+    // Redact known secret keys/patterns before anything reaches the log file
+    // or the IPC stream (technical review finding #4)
+    const message = redactMessage(rawMessage);
+    const data = rawData === undefined ? undefined : redactSecrets(rawData);
+
     const timestamp = this.formatTimestamp();
     const line = data ? `[${timestamp}] [${level}] ${message} ${JSON.stringify(data)}` : `[${timestamp}] [${level}] ${message}`;
 

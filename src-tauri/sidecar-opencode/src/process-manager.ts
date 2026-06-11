@@ -479,9 +479,11 @@ export class ProcessManager {
     // from Finder/Dock (which provides a minimal PATH).
     env.PATH = getAugmentedPath();
 
-    // Enable HTTP basic auth on the OpenCode server
+    // Enable HTTP basic auth on the OpenCode server.
+    // Never log the password itself — it authenticates an API that can run
+    // shell commands as the user (technical review finding #4).
     env.OPENCODE_SERVER_PASSWORD = this.password;
-    logger.debug(`OPENCODE_SERVER_PASSWORD=${this.password}`);
+    logger.debug(`OPENCODE_SERVER_PASSWORD set (length ${this.password.length})`);
 
     // Set API keys as environment variables
     if (apiKeys?.anthropic) env.ANTHROPIC_API_KEY = apiKeys.anthropic;

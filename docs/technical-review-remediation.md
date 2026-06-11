@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #4 OpenCode server password leaked to log file and IPC stdout
 - [ ] #10 MCP secrets, HTTP bodies, and SSE events logged in plaintext
 - [ ] #5 HTML preview executes untrusted agent JS with a sandbox escape
 - [ ] #15 Unused shell permissions exposed to webview windows
@@ -28,9 +27,23 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #4 OpenCode server password leaked to log file and IPC stdout
+  - Branch/worktree: `fix/tr-04-password-log` (`.worktrees/tr-04`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: OpenCode server password was written to plaintext logs and the debug panel (#4)"
+  - Change: removed the verbatim `OPENCODE_SERVER_PASSWORD=<value>` debug log
+    in `process-manager.ts` (now logs only the length); added a redaction
+    layer (`src/redact.ts`) that the Logger applies to every message and data
+    payload before writing to file or IPC — values of secret-looking keys
+    (password/secret/token/api-key/authorization/credential/access-key) and
+    inline `KEY=value` assignments are replaced with `[REDACTED]`.
+  - Verification: sidecar `pnpm build` (tsc) — pass; sidecar `pnpm test` —
+    110/110 pass, including 6 new tests in `__tests__/redact.test.ts`; biome
+    check — clean.
+
 - [x] #14 `apiKeys` silently ignored after first sidecar initialization
   - Branch/worktree: `fix/tr-14-api-key-lifecycle` (`.worktrees/tr-14`)
-  - Commit: (this commit)
+  - Commit: `277bd7d`
   - UPDATE_LOG: "Fix: API keys added or rotated mid-session were silently ignored (#14)"
   - Change: `initialize()` in `src-tauri/sidecar-opencode/src/index.ts` now
     fingerprints the incoming `apiKeys` (new `api-key-fingerprint.ts`,

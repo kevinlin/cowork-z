@@ -33,8 +33,8 @@ coverage/
 # Claude Code
 .claude/
 
-# Build binaries
-src-tauri/binaries/
+# Build binaries (no trailing slash: also matches a symlinked path)
+src-tauri/binaries
 
 # Sidecar build artifacts
 src-tauri/sidecar-opencode/dist/

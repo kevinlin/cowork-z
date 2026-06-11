@@ -6,6 +6,8 @@
 
 - **Fix: Orphaned `opencode serve` process on app shutdown** — Quitting the app could leave `opencode serve` running with API keys in its environment and a live listening port.
 
+- **Fix: StreamingText violated the Rules of Hooks (#21)** — `StreamingText` returned early for the real-streaming branch before three `useEffect` hooks; if `isRealStreaming` flipped on a mounted instance React would throw "Rendered fewer/more hooks than during the previous render" and crash the chat view. Hooks are now hoisted above the conditional return and no-op in real-streaming mode. (Technical review finding #21.)
+
 - **Fix: Chat auto-scroll never fired on new/streaming messages (#23)** — The Execution page's auto-scroll effect queried `[data-messages-end]`, but the sentinel div in `MessageList` never carried that attribute, so `querySelector` always returned `null` and only the one-time on-load jump and the manual scroll-to-bottom button worked. The sentinel now has `data-messages-end`. (Technical review finding #23.)
 
 - **Fix: CI silently discarded lint failures (#16)** — The CI "Run frontend lint and tests" step backgrounded `pnpm ultracite:check` with a single `&`, so only the test exit code gated the build and lint/format violations could never fail CI. Changed to `&&` so both checks are blocking. (Technical review finding #16.)

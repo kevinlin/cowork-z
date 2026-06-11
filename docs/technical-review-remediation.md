@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #21 `StreamingText` conditional return before hooks (Rules of Hooks violation)
 - [ ] #19 `respondToPermission` stale-read loop drops folder grants
 - [ ] #22 `file://` enrichment links silently stripped (react-markdown default urlTransform)
 - [ ] #24 Always-on debug-log listener: unbounded growth + page re-render
@@ -37,9 +36,21 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #21 `StreamingText` conditional return before hooks
+  - Branch/worktree: `fix/tr-21-streaming-hooks` (`.worktrees/tr-21`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: StreamingText violated the Rules of Hooks (#21)"
+  - Change: `src/components/ui/streaming-text.tsx` — the real-streaming early
+    return now sits below the three `useEffect` hooks; each effect no-ops when
+    `isRealStreaming` is true, so the hook count is stable if the flag flips on
+    a mounted instance.
+  - Verification: `pnpm typecheck` — pass;
+    `pnpm test --run src/components/ui/__tests__/streaming-text.test.tsx` —
+    10/10 pass.
+
 - [x] #23 Chat auto-scroll selector never matches
   - Branch/worktree: `fix/tr-23-autoscroll` (`.worktrees/tr-23`)
-  - Commit: (this commit)
+  - Commit: `7703d21`
   - UPDATE_LOG: "Fix: Chat auto-scroll never fired on new/streaming messages (#23)"
   - Change: `src/components/chat/MessageList.tsx` — added the `data-messages-end`
     attribute to the existing sentinel div so the auto-scroll effect in

@@ -41,3 +41,6 @@ src-tauri/sidecar-opencode/dist/
 
 # Superpowers brainstorming
 .superpowers/brainstorm/
+
+# Local git worktrees
+.worktrees/

@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #2 Asset protocol scoped to the entire filesystem
 - [ ] #1 Content-Security-Policy is fully disabled
 
 ## In Progress
@@ -22,9 +21,24 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #2 Asset protocol scoped to the entire filesystem
+  - Branch/worktree: `fix/tr-02-asset-scope` (`.worktrees/tr-02`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: asset: protocol granted the webview read access to the entire filesystem (#2)"
+  - Change: `assetProtocol.scope` in `tauri.conf.json` reduced from `["**"]`
+    to `[]`; the scope is now extended at runtime
+    (`path_guard::sync_asset_scope`) to registered workspaces, granted
+    permission folders, and app-managed dirs (app data dir + skill install
+    folders). Synced on app setup, `add_workspace`, `switch_workspace`,
+    `initialize_workspace`, and `save_workspace_permission`. Also extended
+    the #3 file-command path guard with the same app-managed roots so
+    Skills Manager previews (repo cache under app data dir) keep working.
+  - Verification: `cd src-tauri && cargo check` — pass;
+    `cargo test --lib path_guard` — 6/6 pass.
+
 - [x] #3 Unrestricted filesystem Tauri commands (write / read / trash)
   - Branch/worktree: `fix/tr-03-file-scoping` (`.worktrees/tr-03`)
-  - Commit: (this commit)
+  - Commit: `328d4f8`
   - UPDATE_LOG: "Fix: Renderer-reachable file commands operated on arbitrary paths (#3)"
   - Change: new `src-tauri/src/path_guard.rs` canonicalizes every target
     path (defeating `..` traversal and symlink escapes) and validates it

@@ -6,12 +6,18 @@ use crate::db::DbState;
 use crate::path_guard;
 
 /// Resolve and validate `path` against the allowed roots (registered
-/// workspaces + granted permission folders). See technical review finding #3.
-fn validate_path(path: &str, state: &State<'_, DbState>) -> Result<PathBuf, String> {
-    let roots = {
+/// workspaces + granted permission folders + app-managed dirs).
+/// See technical review findings #3 and #2.
+fn validate_path(
+    path: &str,
+    state: &State<'_, DbState>,
+    app: &tauri::AppHandle,
+) -> Result<PathBuf, String> {
+    let mut roots = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         path_guard::allowed_roots(&conn)
     };
+    roots.extend(path_guard::app_managed_roots(app));
     path_guard::validate_path_in_roots(path, &roots)
 }
 
@@ -25,8 +31,9 @@ pub async fn read_file_content(
     path: String,
     max_size: Option<u64>,
     state: State<'_, DbState>,
+    app: tauri::AppHandle,
 ) -> Result<String, String> {
-    let file_path = validate_path(&path, &state)?;
+    let file_path = validate_path(&path, &state, &app)?;
 
     if !file_path.is_file() {
         return Err(format!("Path is not a file: {}", path));
@@ -57,8 +64,9 @@ pub fn read_binary_file(
     path: String,
     max_size: Option<u64>,
     state: State<'_, DbState>,
+    app: tauri::AppHandle,
 ) -> Result<String, String> {
-    let file_path = validate_path(&path, &state)?;
+    let file_path = validate_path(&path, &state, &app)?;
 
     if !file_path.is_file() {
         return Err(format!("Path is not a file: {}", path));
@@ -83,7 +91,11 @@ pub fn read_binary_file(
 /// Move a file to the system trash (macOS Trash / Windows Recycle Bin / Linux freedesktop trash).
 /// Restricted to the workspace/granted folders.
 #[tauri::command]
-pub async fn trash_file(path: String, state: State<'_, DbState>) -> Result<(), String> {
-    let file_path = validate_path(&path, &state)?;
+pub async fn trash_file(
+    path: String,
+    state: State<'_, DbState>,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    let file_path = validate_path(&path, &state, &app)?;
     trash::delete(&file_path).map_err(|e| format!("Failed to move to trash: {}", e))
 }

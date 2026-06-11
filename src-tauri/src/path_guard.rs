@@ -8,6 +8,7 @@
 
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
+use tauri::Manager;
 
 /// Collect the allowed root directories: every registered workspace folder
 /// plus every granted permission folder (across all workspaces).
@@ -24,6 +25,41 @@ pub fn allowed_roots(conn: &Connection) -> Vec<PathBuf> {
     }
 
     roots
+}
+
+/// App-managed directories that previews may legitimately read from:
+/// the app data dir (skill repo caches, packs) and the skill install
+/// target folders browsed by the Skills Manager.
+pub fn app_managed_roots(app: &tauri::AppHandle) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    if let Ok(data_dir) = app.path().app_data_dir() {
+        roots.push(data_dir);
+    }
+    if let Some(home) = dirs::home_dir() {
+        roots.push(home.join(".config/opencode/skills"));
+        roots.push(home.join(".claude/skills"));
+        roots.push(home.join(".agents/skills"));
+    }
+    roots
+}
+
+/// Extend the `asset:` protocol scope to the allowed roots (registered
+/// workspaces, granted folders, app-managed dirs). The static scope in
+/// `tauri.conf.json` is empty (technical review finding #2), so media
+/// previews only work for directories explicitly allowed here.
+pub fn sync_asset_scope(app: &tauri::AppHandle, conn: &Connection) {
+    let scope = app.asset_protocol_scope();
+    let mut roots = allowed_roots(conn);
+    roots.extend(app_managed_roots(app));
+    for root in roots {
+        if let Err(e) = scope.allow_directory(&root, true) {
+            eprintln!(
+                "[warn] Failed to add {} to asset protocol scope: {}",
+                root.display(),
+                e
+            );
+        }
+    }
 }
 
 /// Canonicalize `path` and ensure it lives inside one of `roots`.

@@ -34,6 +34,14 @@ pub fn run() {
         .setup(|app| {
             // Initialize database
             let db_state = db::init_database(app.handle()).expect("Failed to initialize database");
+
+            // Allow registered workspaces / granted folders / app-managed dirs
+            // through the asset: protocol (static scope is empty — technical
+            // review finding #2)
+            if let Ok(conn) = db_state.conn.lock() {
+                path_guard::sync_asset_scope(app.handle(), &conn);
+            }
+
             app.manage(db_state);
 
             // Initialize sidecar state

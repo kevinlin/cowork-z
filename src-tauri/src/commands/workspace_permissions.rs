@@ -11,6 +11,7 @@ pub async fn save_workspace_permission(
     access_level: String,
     source: Option<String>,
     state: State<'_, DbState>,
+    app: tauri::AppHandle,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let source = source.as_deref().unwrap_or("user");
@@ -20,7 +21,11 @@ pub async fn save_workspace_permission(
         &folder_path,
         &access_level,
         source,
-    )
+    )?;
+
+    // Newly granted folders become loadable via the asset: protocol
+    crate::path_guard::sync_asset_scope(&app, &conn);
+    Ok(())
 }
 
 #[tauri::command]

@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #16 CI silently discards lint failures (`&` backgrounds lint in `.github/workflows/test.yml`)
 - [ ] #23 Chat auto-scroll selector never matches (`[data-messages-end]` sentinel missing)
 - [ ] #21 `StreamingText` conditional return before hooks (Rules of Hooks violation)
 - [ ] #19 `respondToPermission` stale-read loop drops folder grants
@@ -39,7 +38,15 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
-(none yet)
+- [x] #16 CI silently discards lint failures
+  - Branch/worktree: `fix/tr-16-ci-lint` (`.worktrees/tr-16`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: CI silently discarded lint failures (#16)"
+  - Change: `.github/workflows/test.yml` — `pnpm ultracite:check & pnpm test --run`
+    → `pnpm ultracite:check && pnpm test --run`, so a lint/format violation now
+    fails the step instead of being backgrounded.
+  - Verification: config-only change, validated by inspection of the workflow
+    diff (no code paths affected).
 
 ## Ignored
 

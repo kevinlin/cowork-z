@@ -1211,12 +1211,17 @@ if (typeof window !== 'undefined' && api.isRunningInTauri()) {
     }
   });
 
-  // Clear startup stage when task completes or errors
+  // Single global task-update subscription. Store updates and persistence
+  // (saveTaskMessage / completeTask / saveTaskSession) happen exactly once
+  // here — components must NOT register their own addTaskUpdate listeners,
+  // otherwise complete/error events get double-processed (the dedup cache is
+  // cleared after the first invocation). See technical review finding #20.
   void api.onTaskUpdate((event) => {
     const updateEvent = event as TaskUpdateEvent;
     if (updateEvent.type === 'complete' || updateEvent.type === 'error') {
       useTaskStore.getState().clearStartupStage(updateEvent.taskId);
     }
+    useTaskStore.getState().addTaskUpdate(updateEvent);
   });
 
   // Subscribe to task summary updates

@@ -49,7 +49,6 @@ export default function ExecutionPage() {
     loadTaskById,
     isLoading,
     error,
-    addTaskUpdate,
     addTaskUpdateBatch,
     updateTaskStatus,
     enqueuePermissionRequest,
@@ -134,9 +133,12 @@ export default function ExecutionPage() {
       }
     };
 
+    // Tool-activity tracking only. Store updates and persistence are handled
+    // by the single global onTaskUpdate subscription in taskStore — calling
+    // addTaskUpdate here would double-process complete/error events
+    // (technical review #20).
     api
       .onTaskUpdate((event) => {
-        addTaskUpdate(event);
         if (event.type === 'message' && event.message?.type === 'tool') {
           const toolName = event.message.toolName || event.message.content?.match(/Using tool: (\w+)/)?.[1];
           if (toolName) {
@@ -193,7 +195,7 @@ export default function ExecutionPage() {
       unlisteners.forEach((unsub) => unsub());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, loadTaskById, addTaskUpdate, addTaskUpdateBatch, updateTaskStatus, enqueuePermissionRequest]);
+  }, [id, loadTaskById, addTaskUpdateBatch, updateTaskStatus, enqueuePermissionRequest]);
 
   // On session resume/load, jump to the latest conversation once.
   useEffect(() => {

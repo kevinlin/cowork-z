@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #20 Duplicate `onTaskUpdate` listeners double-process completion
 - [ ] #18 `update_mcp_config` never sends `workingDirectory`
 - [ ] #17 Azure Foundry key dropped by sidecar; inconsistent provider id
 - [ ] #13 SSE reconnect timer resurrects after disconnect; no backoff
@@ -33,9 +32,21 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #20 Duplicate `onTaskUpdate` listeners double-process completion
+  - Branch/worktree: `fix/tr-20-dup-listeners` (`.worktrees/tr-20`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Task completion was double-processed by duplicate listeners (#20)"
+  - Change: `addTaskUpdate` is now driven by a single global `onTaskUpdate`
+    subscription in `src/stores/taskStore.ts` (merged with the existing
+    startup-stage listener). Removed the per-component registrations in
+    `Sidebar.tsx` and `Home.tsx`; `Execution.tsx` keeps a lightweight listener
+    for tool-activity UI state only (no store/persistence path).
+  - Verification: `pnpm typecheck` — pass;
+    `pnpm test --run src/stores/__tests__/taskStore.test.ts src/pages/__tests__/Execution.test.tsx` — pass.
+
 - [x] #24 Always-on debug-log listener: unbounded growth + page re-render
   - Branch/worktree: `fix/tr-24-debug-listener` (`.worktrees/tr-24`)
-  - Commit: (this commit)
+  - Commit: `3cd153d`
   - UPDATE_LOG: "Fix: Debug-log listener ran always-on and re-rendered the whole chat (#24)"
   - Change: extracted the debug panel into
     `src/components/chat/DebugLogPanel.tsx`, mounted from `Execution.tsx` only

@@ -683,7 +683,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   respondToPermission: async (response: PermissionResponse) => {
-    const { permissionRequests, approvedPatterns, folderPermissions, repliedPermissionIds } = get();
+    const { permissionRequests, approvedPatterns, repliedPermissionIds } = get();
     const current = permissionRequests[0];
     if (!current) return;
 
@@ -725,6 +725,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     // For edit/file permissions, patterns are file paths — use the parent directory.
     if (response.decision === 'allow' && current.patterns) {
       const isDirectoryPermission = current.toolName === 'external_directory';
+      const targetFolders: string[] = [];
       for (const pattern of current.patterns) {
         let targetFolder: string;
         if (isDirectoryPermission) {
@@ -734,14 +735,19 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           if (lastSlash <= 0) continue;
           targetFolder = pattern.substring(0, lastSlash);
         }
-        // Only add if not already in the list
-        if (!folderPermissions.some((fp) => fp.folderPath === targetFolder)) {
-          const newPerms: FolderPermission[] = [
-            ...folderPermissions,
-            { folderPath: targetFolder, accessLevel: 'read-write', source: 'adhoc' },
-          ];
-          set({ folderPermissions: newPerms });
-        }
+        targetFolders.push(targetFolder);
+      }
+      if (targetFolders.length > 0) {
+        // Functional update so concurrent grant updates are never clobbered by a stale snapshot
+        set((state) => {
+          const newPerms = [...state.folderPermissions];
+          for (const targetFolder of targetFolders) {
+            if (!newPerms.some((fp) => fp.folderPath === targetFolder)) {
+              newPerms.push({ folderPath: targetFolder, accessLevel: 'read-write', source: 'adhoc' });
+            }
+          }
+          return { folderPermissions: newPerms };
+        });
       }
     }
 

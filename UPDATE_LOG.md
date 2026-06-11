@@ -6,6 +6,8 @@
 
 - **Fix: Orphaned `opencode serve` process on app shutdown** — Quitting the app could leave `opencode serve` running with API keys in its environment and a live listening port.
 
+- **Fix: Multi-pattern permission approvals dropped folder grants (#19)** — When the user allowed a permission request covering multiple path patterns, `respondToPermission` re-spread a stale `folderPermissions` snapshot on each loop iteration, so only the last pattern's adhoc folder grant survived. Grants are now accumulated and applied in one functional Zustand update, which also protects against concurrent grant updates. (Technical review finding #19.)
+
 - **Fix: StreamingText violated the Rules of Hooks (#21)** — `StreamingText` returned early for the real-streaming branch before three `useEffect` hooks; if `isRealStreaming` flipped on a mounted instance React would throw "Rendered fewer/more hooks than during the previous render" and crash the chat view. Hooks are now hoisted above the conditional return and no-op in real-streaming mode. (Technical review finding #21.)
 
 - **Fix: Chat auto-scroll never fired on new/streaming messages (#23)** — The Execution page's auto-scroll effect queried `[data-messages-end]`, but the sentinel div in `MessageList` never carried that attribute, so `querySelector` always returned `null` and only the one-time on-load jump and the manual scroll-to-bottom button worked. The sentinel now has `data-messages-end`. (Technical review finding #23.)

@@ -13,7 +13,6 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Queued
 
-- [ ] #19 `respondToPermission` stale-read loop drops folder grants
 - [ ] #22 `file://` enrichment links silently stripped (react-markdown default urlTransform)
 - [ ] #24 Always-on debug-log listener: unbounded growth + page re-render
 - [ ] #20 Duplicate `onTaskUpdate` listeners double-process completion
@@ -36,9 +35,21 @@ label (under `v0.7.15`), and verification commands with outcomes.
 
 ## Fixed
 
+- [x] #19 `respondToPermission` stale-read loop drops folder grants
+  - Branch/worktree: `fix/tr-19-folder-grants` (`.worktrees/tr-19`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Multi-pattern permission approvals dropped folder grants (#19)"
+  - Change: `src/stores/taskStore.ts` — `respondToPermission` now accumulates
+    all target folders from the request's patterns and applies them in a single
+    functional `set((state) => …)` update, instead of spreading a stale
+    `folderPermissions` snapshot once per loop iteration (which kept only the
+    last pattern's grant and raced concurrent `addFolderPermission` calls).
+  - Verification: `pnpm typecheck` — pass;
+    `pnpm test --run src/stores/__tests__/taskStore.test.ts` — pass.
+
 - [x] #21 `StreamingText` conditional return before hooks
   - Branch/worktree: `fix/tr-21-streaming-hooks` (`.worktrees/tr-21`)
-  - Commit: (this commit)
+  - Commit: `d463d92`
   - UPDATE_LOG: "Fix: StreamingText violated the Rules of Hooks (#21)"
   - Change: `src/components/ui/streaming-text.tsx` — the real-streaming early
     return now sits below the three `useEffect` hooks; each effect no-ops when

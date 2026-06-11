@@ -534,9 +534,12 @@ impl SidecarManager {
                         .get("status")
                         .and_then(|s| s.as_str())
                         .unwrap_or("");
+                    // Keep in sync with the sidecar's TaskCompletePayload status union
+                    // ('success' | 'error' | 'cancelled' | 'aborted') and the frontend
+                    // mapping in src/lib/tauri-api.ts (aborted/cancelled => interrupted).
                     let mapped_status = match sidecar_status {
                         "success" => "completed",
-                        "interrupted" => "interrupted",
+                        "aborted" | "cancelled" | "interrupted" => "interrupted",
                         _ => "failed",
                     };
                     let session_id = payload.get("sessionId").and_then(|s| s.as_str());

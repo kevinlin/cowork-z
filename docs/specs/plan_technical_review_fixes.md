@@ -4,28 +4,28 @@ overview: Remediate the confirmed high/medium technical-review findings that wer
 todos:
   - id: setup-tracker
     content: Create June-12 remediation tracker and worktree infrastructure on integration branch fix/tech-review-remediation
-    status: pending
+    status: completed
   - id: fix-ci-hygiene
     content: "Implement CI/repo hygiene fixes #7, #31, #33, #32, #34 one worktree and commit at a time"
-    status: pending
+    status: completed
   - id: fix-fs-sandbox
     content: "Implement filesystem sandbox fixes #2, #3, #4, #15, #10, #30 one worktree and commit at a time"
-    status: pending
+    status: completed
   - id: fix-secrets
     content: "Implement secret-handling fixes #6, #13, #28, #5, #1 one worktree and commit at a time"
-    status: pending
+    status: completed
   - id: fix-sidecar-lifecycle
     content: "Implement sidecar lifecycle fixes #8, #18, #9, #24, #21, #23, #22, #25 one worktree and commit at a time"
-    status: pending
+    status: completed
   - id: fix-frontend
     content: "Implement frontend store/perf fixes #11, #26, #27, #19, #12, #35 one worktree and commit at a time"
-    status: pending
+    status: completed
   - id: fix-rust-robustness
     content: "Implement Rust robustness fixes #16, #17, #14, #29 one worktree and commit at a time"
-    status: pending
+    status: completed
   - id: final-verify
     content: Run final verification and summarize commits, tracker status, and remaining review-later items
-    status: pending
+    status: completed
 isProject: false
 ---
 

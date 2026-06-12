@@ -4,7 +4,7 @@ Canonical tracker for remediation of the findings in
 [`technical-review_20260612.html`](./technical-review_20260612.html)
 (review of `main` @ `f55c5f0`, generated June 12, 2026). This is the second
 remediation round; the June 11 round is recorded in
-[`technical-review-remediation.md`](./technical-review-remediation.md).
+[`technical-review-remediation_20260611.md`](./technical-review-remediation_20260611.md).
 
 Workflow: one git worktree + one commit per issue, integrated sequentially into
 `fix/tech-review-remediation`. See

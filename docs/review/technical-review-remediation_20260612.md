@@ -15,10 +15,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 ## Queued
 
-CI / repo hygiene:
-
-- [ ] #34 Floating versions on security-sensitive build dependencies
-
 Filesystem sandbox:
 
 - [ ] #2 Unscoped `read_directory` allows arbitrary filesystem enumeration
@@ -69,9 +65,26 @@ Rust robustness:
 
 ## Fixed
 
+- [x] #34 Floating versions on security-sensitive build dependencies
+  - Branch/worktree: `fix/tr2-34-pin-versions` (`.worktrees/tr2-34`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Tauri packages pinned to minor lines; sidecar binary compiler pinned exactly (2026-06-12 review #34)"
+  - Change: all `@tauri-apps/*` JS packages now use tilde ranges (same minor
+    line: api/updater `~2.10.1`, dialog `~2.7.1`, opener `~2.5.4`, process
+    `~2.3.1`, shell `~2.3.5`, cli `~2.11.2`); the Cargo side mirrors this
+    (`tauri ~2.10`, `tauri-build ~2.5`, plugins tilde-pinned to their
+    resolved minors) so JS/Rust pairs must be bumped together;
+    `@yao-pkg/pkg` pinned exactly to `5.16.1` so sidecar binary bundling
+    behavior cannot change without a manifest diff. Dependabot's grouped
+    `tauri-js`/`tauri-rust` rules (added in #32) bump each side as a unit.
+  - Verification: `pnpm install --lockfile-only` (root + sidecar) — lockfiles
+    consistent, resolutions unchanged; `cd src-tauri && cargo check` — pass
+    with existing `Cargo.lock` (tilde requirements satisfied by locked
+    versions, no resolution change).
+
 - [x] #32 No dependency-audit automation; `.gitignore` lacks `.env`
   - Branch/worktree: `fix/tr2-32-dep-audit` (`.worktrees/tr2-32`)
-  - Commit: (this commit)
+  - Commit: `04005ac`
   - UPDATE_LOG: "Fix: dependency-audit automation added; known vulnerable dependencies updated (2026-06-12 review #32)"
   - Change: added `.github/dependabot.yml` (weekly npm root + sidecar, cargo,
     github-actions; Tauri JS/Rust packages grouped); new `audit` CI job runs

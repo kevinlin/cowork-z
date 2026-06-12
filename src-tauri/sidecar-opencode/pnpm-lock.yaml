@@ -25,7 +25,7 @@ importers:
         specifier: ^20.19.43
         version: 20.19.43
       '@yao-pkg/pkg':
-        specifier: ^5.16.1
+        specifier: 5.16.1
         version: 5.16.1
       jest:
         specifier: ^29.7.0

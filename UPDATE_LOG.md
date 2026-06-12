@@ -4,6 +4,7 @@
 
 ## v0.8.1
 
+- **Fix: Tauri packages pinned to minor lines; sidecar binary compiler pinned exactly** — `@tauri-apps/*` JS packages and the matching Rust crates now use tilde version ranges so the two sides of the IPC/permission contract bump together, and `@yao-pkg/pkg` is pinned exactly so sidecar bundling behavior can't drift without a code diff (2026-06-12 review #34).
 - **Fix: dependency-audit automation added; known vulnerable dependencies updated** — Dependabot now watches npm (root + sidecar), Cargo, and GitHub Actions weekly; CI gained an `audit` job (`pnpm audit --audit-level=high` + `cargo audit`). JS dependencies were updated within existing semver ranges and vulnerable Rust crates patched in `Cargo.lock`, clearing 46 npm advisories and 8 RustSec advisories; `.gitignore` now excludes `.env` files (2026-06-12 review #32).
 - **Fix: pre-commit formatting now covers `.tsx` files** — The husky hook's staged-file filter only matched `.ts`, so React components bypassed pre-commit lint/format entirely (2026-06-12 review #33).
 - **Fix: CI now typechecks, builds, and runs on macOS** — The Build workflow gained `pnpm typecheck` and production `pnpm build` steps, and the test job runs on both Linux ARM64 and macOS ARM64 so platform-specific breakage is caught before release (2026-06-12 review #31).

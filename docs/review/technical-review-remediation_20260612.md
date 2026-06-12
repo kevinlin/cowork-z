@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Filesystem sandbox:
 
-- [ ] #4 Path traversal in `skills_delete_installed` via unsanitized `skill_id`
 - [ ] #15 Workspace validator allows any non-home path without canonicalization
 - [ ] #10 Agent-triggered file previews bypass `isPathSafe`
 - [ ] #30 Opener capability still grants `$HOME/**`
@@ -62,6 +61,23 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #4 Path traversal in `skills_delete_installed` via unsanitized `skill_id`
+  - Branch/worktree: `fix/tr2-04-skill-delete` (`.worktrees/tr2-04`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: skill ids are validated against path traversal before install/delete/resolve (2026-06-12 review #4)"
+  - Change: new `validate_skill_id` rejects any id that is not a single plain
+    path component (empty, `.`, `..`, `/`, `\`, NUL). Applied in
+    `skills_delete_installed` (which additionally canonicalizes and verifies
+    the target is a direct child of the install dir before `remove_dir_all`),
+    in `skills_install_from_repo` (skill ids originate from repo
+    scans/manifests, so a malicious repo cannot point the symlink/copy
+    destination outside the install dir), and in `skills_get_skill_file_path`
+    (no probing arbitrary directories for SKILL.md). `resolve_target_folder`
+    was already safe (exact-match whitelist of three folder names).
+  - Verification: `cd src-tauri && cargo check` — pass;
+    `cargo test --lib skill_repos` — 2/2 pass (accept/reject id matrices
+    including `../../.ssh`, backslash and absolute-path forms).
 
 - [x] #3 Workspace permission grants persisted without path validation widen the sandbox
   - Branch/worktree: `fix/tr2-03-grant-validation` (`.worktrees/tr2-03`)

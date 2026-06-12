@@ -682,10 +682,9 @@ pub fn get_all_api_keys() -> Result<ApiKeys, String> {
     if let Ok(Some(key)) = secure_storage::get_api_key("ollama") {
         keys.ollama = Some(key);
     }
+    // Legacy `azureFoundry` entries are migrated to this id at app startup
+    // (secure_storage::migrate_legacy_azure_foundry_key), so no fallback here.
     if let Ok(Some(key)) = secure_storage::get_api_key("azure-foundry") {
-        keys.azure_foundry = Some(key);
-    } else if let Ok(Some(key)) = secure_storage::get_api_key("azureFoundry") {
-        // Legacy keychain id used before the provider id was standardized
         keys.azure_foundry = Some(key);
     }
 

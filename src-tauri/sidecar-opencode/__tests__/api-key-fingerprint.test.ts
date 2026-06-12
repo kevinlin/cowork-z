@@ -26,4 +26,15 @@ describe('fingerprintApiKeys', () => {
     const base = { accessKeyId: 'id', secretAccessKey: 'secret', region: 'us-east-1' };
     expect(fingerprintApiKeys({ bedrock: base })).not.toBe(fingerprintApiKeys({ bedrock: { ...base, secretAccessKey: 'rotated' } }));
   });
+
+  it('never contains raw key material', () => {
+    const fingerprint = fingerprintApiKeys({
+      anthropic: 'sk-ant-super-secret',
+      bedrock: { accessKeyId: 'AKIA-id', secretAccessKey: 'aws-secret', region: 'us-east-1' },
+    });
+    expect(fingerprint).not.toContain('sk-ant-super-secret');
+    expect(fingerprint).not.toContain('aws-secret');
+    expect(fingerprint).not.toContain('AKIA-id');
+    expect(fingerprint).toMatch(/^[0-9a-f]{64}$/);
+  });
 });

@@ -32,6 +32,10 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            // Migrate the Azure Foundry key from the legacy `azureFoundry`
+            // keychain id before anything reads API keys
+            secure_storage::migrate_legacy_azure_foundry_key();
+
             // Initialize database
             let db_state = db::init_database(app.handle()).expect("Failed to initialize database");
 

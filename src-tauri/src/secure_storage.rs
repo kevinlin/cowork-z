@@ -32,6 +32,31 @@ pub const PROVIDERS: &[&str] = &[
     "custom",
 ];
 
+/// One-time migration: move an Azure Foundry key stored under the legacy
+/// `azureFoundry` keychain id (used before the provider id was standardized
+/// to `azure-foundry`) to the canonical id, then delete the legacy entry.
+///
+/// Without this, deleting the key via the UI (which only knows the canonical
+/// id) would leave the legacy entry behind, and any read-time fallback would
+/// silently resurrect a key the user believes is removed.
+pub fn migrate_legacy_azure_foundry_key() {
+    let legacy_key = match get_api_key("azureFoundry") {
+        Ok(Some(key)) => key,
+        _ => return,
+    };
+
+    // A key already stored under the canonical id wins; never overwrite it.
+    let canonical_exists = matches!(has_api_key("azure-foundry"), Ok(true));
+    if !canonical_exists && store_api_key("azure-foundry", &legacy_key).is_err() {
+        // Copy failed — keep the legacy entry so the key is not lost.
+        return;
+    }
+
+    if let Err(e) = delete_api_key("azureFoundry") {
+        eprintln!("[warn] Failed to delete legacy azureFoundry keychain entry: {}", e);
+    }
+}
+
 /// Store an API key in the OS keychain
 pub fn store_api_key(provider: &str, api_key: &str) -> Result<(), String> {
     let entry =

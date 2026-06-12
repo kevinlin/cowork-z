@@ -15,10 +15,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 ## Queued
 
-Filesystem sandbox:
-
-- [ ] #30 Opener capability still grants `$HOME/**`
-
 Secret handling:
 
 - [ ] #6 API keys escape redaction into plaintext logs
@@ -59,6 +55,24 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #30 Opener capability still grants `$HOME/**`
+  - Branch/worktree: `fix/tr2-30-opener-scope` (`.worktrees/tr2-30`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: open/reveal file actions are now path-guard validated Rust commands; the $HOME-wide opener grant is removed (2026-06-12 review #30)"
+  - Change: new Tauri commands `open_path_in_default_app` and
+    `reveal_path_in_file_manager` validate against
+    `path_guard::validate_path_allowed` (workspaces + grants + app-managed
+    dirs) before delegating to the opener plugin's Rust API;
+    `tauri-api.ts`'s `openFilePath`/`revealInFinder` now invoke them instead
+    of the plugin's JS bindings. The `opener:allow-open-path` grant
+    (`$HOME/**`, `/Volumes/**`, `/media/**`, `/mnt/**`) is removed from both
+    `default.json` and `skills.json`; `opener:default` remains for
+    `openExternal` URL opens (http/https/mailto/tel only). All existing
+    consumers stay inside the allowed roots: file tree + preview panel
+    (workspace), Settings' skills folder reveal (app-managed root).
+  - Verification: `cd src-tauri && cargo check` — pass; `pnpm typecheck` —
+    pass; `pnpm test --run` — 337/337 pass.
 
 - [x] #10 Agent-triggered file previews bypass `isPathSafe`
   - Branch/worktree: `fix/tr2-10-preview-pathsafe` (`.worktrees/tr2-10`)

@@ -381,6 +381,8 @@ pub fn run() {
             commands::files::read_file_content,
             commands::files::read_binary_file,
             commands::files::trash_file,
+            commands::files::open_path_in_default_app,
+            commands::files::reveal_path_in_file_manager,
             // Workspaces
             commands::workspaces::list_workspaces,
             commands::workspaces::get_active_workspace,

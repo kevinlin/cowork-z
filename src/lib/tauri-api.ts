@@ -9,7 +9,7 @@ import { invoke, convertFileSrc as tauriConvertFileSrc } from '@tauri-apps/api/c
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { homeDir } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
-import { openPath, openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 import type {
   ApiKeyConfig,
@@ -63,13 +63,18 @@ export async function openExternal(url: string): Promise<void> {
   await openUrl(url);
 }
 
+/**
+ * Reveal a path in Finder/Explorer. Routed through a Rust command that
+ * validates against the workspace/granted/app-managed roots instead of
+ * granting the webview opener access to all of $HOME (2026-06-12 review #30).
+ */
 export async function revealInFinder(path: string): Promise<void> {
-  await revealItemInDir(path);
+  await invoke('reveal_path_in_file_manager', { path });
 }
 
-/** Open a local file with the OS default application. */
+/** Open a local file with the OS default application (path-guard validated). */
 export async function openFilePath(path: string): Promise<void> {
-  await openPath(path);
+  await invoke('open_path_in_default_app', { path });
 }
 
 // ============================================================================

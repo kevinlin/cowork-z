@@ -95,3 +95,36 @@ pub async fn trash_file(
     let file_path = validate_path(&path, &state, &app)?;
     trash::delete(&file_path).map_err(|e| format!("Failed to move to trash: {}", e))
 }
+
+/// Open a path with the OS default application, restricted to the
+/// workspace/granted/app-managed folders. Replaces the renderer's direct
+/// opener-plugin access, whose capability grant covered all of `$HOME`
+/// (technical review 2026-06-12 finding #30).
+#[tauri::command]
+pub async fn open_path_in_default_app(
+    path: String,
+    state: State<'_, DbState>,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let file_path = validate_path(&path, &state, &app)?;
+    app.opener()
+        .open_path(file_path.to_string_lossy(), None::<&str>)
+        .map_err(|e| format!("Failed to open path: {}", e))
+}
+
+/// Reveal a path in the OS file manager (Finder / Explorer), restricted to
+/// the workspace/granted/app-managed folders (technical review 2026-06-12
+/// finding #30).
+#[tauri::command]
+pub async fn reveal_path_in_file_manager(
+    path: String,
+    state: State<'_, DbState>,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let file_path = validate_path(&path, &state, &app)?;
+    app.opener()
+        .reveal_item_in_dir(&file_path)
+        .map_err(|e| format!("Failed to reveal path: {}", e))
+}

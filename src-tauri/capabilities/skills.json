@@ -4,10 +4,6 @@
   "permissions": [
     "core:default",
     "opener:default",
-    {
-      "identifier": "opener:allow-open-path",
-      "allow": [{ "path": "$HOME/**" }, { "path": "/Volumes/**" }, { "path": "/media/**" }, { "path": "/mnt/**" }]
-    },
     "dialog:default",
     "dialog:allow-open"
   ]

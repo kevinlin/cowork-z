@@ -59,10 +59,10 @@ pub async fn add_workspace(
     state: State<'_, DbState>,
     app: tauri::AppHandle,
 ) -> Result<Workspace, String> {
-    // Validate the path
-    workspace_validator::validate_workspace_path(&folder_path)?;
+    // Validate and canonicalize (resolves symlinks/.. so the persisted root
+    // is the tree that was actually validated — 2026-06-12 review #15)
+    let folder_path = workspace_validator::validate_and_canonicalize_workspace_path(&folder_path)?;
 
-    // Check if folder exists
     if !Path::new(&folder_path).is_dir() {
         return Err(format!(
             "'{}' does not exist or is not a directory",

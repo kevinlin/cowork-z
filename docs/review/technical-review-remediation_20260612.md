@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Filesystem sandbox:
 
-- [ ] #15 Workspace validator allows any non-home path without canonicalization
 - [ ] #10 Agent-triggered file previews bypass `isPathSafe`
 - [ ] #30 Opener capability still grants `$HOME/**`
 
@@ -61,6 +60,29 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #15 Workspace validator allows any non-home path without canonicalization
+  - Branch/worktree: `fix/tr2-15-workspace-canonicalize` (`.worktrees/tr2-15`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: workspace paths are canonicalized and restricted to home/mounted volumes (2026-06-12 review #15)"
+  - Change: new `validate_and_canonicalize_workspace_path` resolves
+    symlinks/`..` before validation and returns the canonical path, which
+    `add_workspace` now persists — a symlink can no longer alias a workspace
+    root to a tree that was never validated (on macOS this also closes the
+    `/tmp` → `/private/tmp` dodge). The unix rule check's `Ok(())`
+    fall-through is replaced with an allowlist: home subtrees,
+    `/Volumes/<vol>/<sub>` (macOS), `/Users/Shared`, and Linux mount trees
+    (`/media/`, `/run/media/`, `/mnt/`); `/tmp`, `/opt`, other users' homes
+    etc. are now rejected. Grants inherit the same allowlist via
+    `validate_grant_path` (#3). Chose the review's "restrict" option over
+    "explicit confirmation" — no UI needed, and external-drive workflows
+    keep working. Existing persisted workspaces are not re-validated at load
+    (registration is the gate); noted as a judgement call.
+  - Verification: `cd src-tauri && cargo check` — pass;
+    `cargo test --lib workspace_validator` — 14/14 pass (new: non-home
+    rejection, mount allowlist, symlink-to-home resolves to canonical
+    target, symlink-to-/etc denied, missing path denied);
+    `cargo test --lib path_guard` — 14/14 still pass.
 
 - [x] #4 Path traversal in `skills_delete_installed` via unsanitized `skill_id`
   - Branch/worktree: `fix/tr2-04-skill-delete` (`.worktrees/tr2-04`)

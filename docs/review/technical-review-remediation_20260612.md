@@ -19,7 +19,6 @@ Frontend store / performance:
 
 - [ ] #11 Arena mode double-persists and never dedupes task events
 - [ ] #26 Async `listen()` unsubscribe races leak Tauri event listeners
-- [ ] #19 Filesystem watcher is non-recursive — stale file tree for nested changes
 - [ ] #12 Streaming pipeline re-parses full markdown and re-renders the whole page per delta
 - [ ] #35 O(n²) per-render scans in `MessageList`
 
@@ -35,6 +34,22 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #19 Filesystem watcher is non-recursive — stale file tree for nested changes
+  - Branch/worktree: `fix/tr2-19-recursive-watcher` (`.worktrees/tr2-19`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: the file tree now refreshes for changes in nested folders (2026-06-12 review #19)"
+  - Change: `watch_folder` switches to `RecursiveMode::Recursive`. Three
+    noise bounds keep this cheap: the existing 300ms debounce; a new
+    single-emit-per-batch rule (the frontend's `FileTreePanel` refreshes
+    the whole tree root regardless of path, with its own 200ms debounce, so
+    per-path emits only multiplied work); and changes inside always-hidden
+    directories (`.git`, `node_modules`, `.DS_Store`) are skipped via exact
+    path-component matching — these flood during agent git/npm operations
+    and never appear in the sidebar (`isHiddenEntry` hides dotfiles).
+  - Verification: `cd src-tauri && cargo check` — pass;
+    `cargo test --lib fs_watcher` — 2/2 pass (noisy-component matrix,
+    near-miss names not skipped).
 
 - [x] #27 `deleteTask` leaks `todos`/`artifacts` map entries
   - Branch/worktree: `fix/tr2-27-deletetask-leaks` (`.worktrees/tr2-27`)

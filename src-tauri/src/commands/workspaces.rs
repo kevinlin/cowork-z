@@ -172,17 +172,26 @@ pub async fn switch_workspace(
     Ok(result)
 }
 
-/// Read directory contents for the file tree
+/// Read directory contents for the file tree.
+/// Restricted to registered workspaces, granted permission folders, and
+/// app-managed directories (technical review 2026-06-12 finding #2).
 #[tauri::command]
-pub async fn read_directory(path: String) -> Result<Vec<DirectoryEntry>, String> {
-    let dir_path = Path::new(&path);
+pub async fn read_directory(
+    path: String,
+    state: State<'_, DbState>,
+    app: tauri::AppHandle,
+) -> Result<Vec<DirectoryEntry>, String> {
+    let dir_path = {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        crate::path_guard::validate_path_allowed(&path, &conn, &app)?
+    };
     if !dir_path.is_dir() {
         return Err(format!("'{}' is not a directory", path));
     }
 
     let mut entries = Vec::new();
     let read_dir =
-        std::fs::read_dir(dir_path).map_err(|e| format!("Failed to read directory: {}", e))?;
+        std::fs::read_dir(&dir_path).map_err(|e| format!("Failed to read directory: {}", e))?;
 
     for entry in read_dir {
         let entry = match entry {

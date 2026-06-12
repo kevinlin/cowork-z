@@ -13,12 +13,8 @@ fn validate_path(
     state: &State<'_, DbState>,
     app: &tauri::AppHandle,
 ) -> Result<PathBuf, String> {
-    let mut roots = {
-        let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        path_guard::allowed_roots(&conn)
-    };
-    roots.extend(path_guard::app_managed_roots(app));
-    path_guard::validate_path_in_roots(path, &roots)
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    path_guard::validate_path_allowed(path, &conn, app)
 }
 
 /// Read UTF-8 text content from a file.

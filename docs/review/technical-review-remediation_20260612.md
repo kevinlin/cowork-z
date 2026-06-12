@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Filesystem sandbox:
 
-- [ ] #2 Unscoped `read_directory` allows arbitrary filesystem enumeration
 - [ ] #3 Workspace permission grants persisted without path validation
 - [ ] #4 Path traversal in `skills_delete_installed` via unsanitized `skill_id`
 - [ ] #15 Workspace validator allows any non-home path without canonicalization
@@ -65,9 +64,25 @@ Rust robustness:
 
 ## Fixed
 
+- [x] #2 Unscoped `read_directory` allows arbitrary filesystem enumeration
+  - Branch/worktree: `fix/tr2-02-read-directory` (`.worktrees/tr2-02`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: directory listing is now scoped to workspace and granted folders (2026-06-12 review #2)"
+  - Change: `read_directory` now canonicalizes its path and validates it via
+    a new shared `path_guard::validate_path_allowed` (registered workspaces +
+    granted permission folders + app-managed dirs) before listing — the same
+    gate `read_file_content`/`read_binary_file`/`trash_file` use, now
+    factored into `path_guard` so all four commands share one implementation.
+    Both legitimate frontend consumers keep working: the workspace file tree
+    (workspace roots) and the Skills Manager sidebar
+    (`~/.config/opencode/skills`, `~/.claude/skills`, `~/.agents/skills` are
+    app-managed roots).
+  - Verification: `cd src-tauri && cargo check` — pass;
+    `cargo test --lib path_guard` — 6/6 pass.
+
 - [x] #34 Floating versions on security-sensitive build dependencies
   - Branch/worktree: `fix/tr2-34-pin-versions` (`.worktrees/tr2-34`)
-  - Commit: (this commit)
+  - Commit: `a6a0f6e`
   - UPDATE_LOG: "Fix: Tauri packages pinned to minor lines; sidecar binary compiler pinned exactly (2026-06-12 review #34)"
   - Change: all `@tauri-apps/*` JS packages now use tilde ranges (same minor
     line: api/updater `~2.10.1`, dialog `~2.7.1`, opener `~2.5.4`, process

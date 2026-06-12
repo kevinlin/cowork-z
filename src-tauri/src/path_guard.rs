@@ -62,6 +62,19 @@ pub fn sync_asset_scope(app: &tauri::AppHandle, conn: &Connection) {
     }
 }
 
+/// Validate `path` against every allowed root: registered workspaces,
+/// granted permission folders, and app-managed directories. This is the
+/// single gate used by all renderer-reachable filesystem commands.
+pub fn validate_path_allowed(
+    path: &str,
+    conn: &Connection,
+    app: &tauri::AppHandle,
+) -> Result<PathBuf, String> {
+    let mut roots = allowed_roots(conn);
+    roots.extend(app_managed_roots(app));
+    validate_path_in_roots(path, &roots)
+}
+
 /// Canonicalize `path` and ensure it lives inside one of `roots`.
 /// Returns the canonical path on success. The target must exist (read and
 /// trash both operate on existing files).

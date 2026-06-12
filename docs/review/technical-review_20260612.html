@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Technical Review — cowork-z</title>
+<style>
+/* ----------  Root palette & typography  ---------- */
+:root {
+  --font-body: "Arial", sans-serif;
+
+  /* Light‑mode colours */
+  --clr-bg:           #ffffff;
+  --clr-text:         #333333;
+  --clr-heading:      #2c3e50;
+  --clr-border-light: #dddddd;
+  --clr-border-accent:#3498db;
+
+  /* Severity palette (light) */
+  --clr-critical: #e74c3c;
+  --clr-high:     #e67e22;
+  --clr-medium:   #d39e00;   /* WCAG‑compliant contrast */
+  --clr-low:      #2980b9;
+
+  /* Utility surfaces */
+  --clr-card:     #f9f9f9;
+  --clr-code:     #f4f4f4;
+  --clr-rec:      #e8f4fc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --clr-bg:       #1e1e1e;
+    --clr-text:     #e0e0e0;
+    --clr-heading:  #ecf0f1;
+    --clr-border-light:#3a3a3a;
+    --clr-card:     #272727;
+    --clr-code:     #2d2d2d;
+    --clr-rec:      #213b4d;
+  }
+}
+
+/* ----------  Base elements  ---------- */
+body {
+  font-family: var(--font-body);
+  line-height: 1.6;
+  margin: 0;
+  padding: 20px;
+  background: var(--clr-bg);
+  color: var(--clr-text);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h1, h2, h3 {
+  color: var(--clr-heading);
+  margin: 0 0 0.5em;
+}
+
+h1 {
+  border-bottom: 2px solid var(--clr-border-accent);
+  padding-bottom: 10px;
+}
+
+h2 {
+  border-bottom: 1px solid var(--clr-border-light);
+  padding-bottom: 5px;
+  margin-top: 30px;
+}
+
+/* ----------  Findings & severity ribbons  ---------- */
+.finding {
+  margin-bottom: 30px;
+  padding: 15px;
+  border-radius: 5px;
+  background-color: var(--clr-card);
+  border-left: 5px solid transparent;
+}
+
+.critical { border-left-color: var(--clr-critical); }
+.high     { border-left-color: var(--clr-high); }
+.medium   { border-left-color: var(--clr-medium); }
+.low      { border-left-color: var(--clr-low); }
+
+.severity {
+  font-weight: bold;
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 3px;
+  color: #ffffff;
+  margin-bottom: 10px;
+}
+.severity.critical { background: var(--clr-critical); }
+.severity.high     { background: var(--clr-high); }
+.severity.medium   { background: var(--clr-medium); color: #1e1e1e; } /* dark text for contrast */
+.severity.low      { background: var(--clr-low); }
+
+/* ----------  Code blocks  ---------- */
+.code {
+  background: var(--clr-code);
+  padding: 10px;
+  border-radius: 3px;
+  font-family: ui-monospace, "SFMono-Regular", "Consolas", monospace;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--clr-border-light);
+}
+
+/* ----------  Table of contents  ---------- */
+nav.toc {
+  background: var(--clr-card);
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+}
+nav.toc ul {
+  list-style: none;
+  padding-left: 20px;
+}
+nav.toc li {
+  margin-bottom: 5px;
+}
+nav.toc a {
+  color: var(--clr-border-accent);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+nav.toc a:hover,
+nav.toc a:focus {
+  text-decoration: underline;
+  outline: 2px solid var(--clr-border-accent);
+  outline-offset: 2px;
+}
+nav.toc .severity {
+  font-size: 0.8em;
+  padding: 2px 5px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+/* ----------  Recommendations  ---------- */
+.recommendation {
+  background: var(--clr-rec);
+  padding: 10px;
+  border-radius: 3px;
+  margin-top: 10px;
+  border-left: 3px solid var(--clr-border-accent);
+}
+
+/* ----------  Utilities  ---------- */
+.branch {
+  color: #7f8c8d;
+  margin-bottom: 20px;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--clr-border-accent);
+  outline-offset: 2px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Technical Review — cowork-z</h1>
+<h3 class="branch">Branch: main (HEAD f55c5f0) &nbsp;|&nbsp; Generated: June 12, 2026</h3>
+
+<nav class="toc">
+<h2 id="toc">Table of Contents</h2>
+<ul>
+  <li><a href="#executive-summary">Executive Summary</a></li>
+  <li><strong>Findings (sorted by severity)</strong>
+    <ul>
+      <li><a href="#finding-1"><span class="severity critical">CRITICAL</span> 1. OpenCode server password embedded in every LLM system prompt</a></li>
+      <li><a href="#finding-2"><span class="severity high">HIGH</span> 2. Unscoped <code>read_directory</code> allows arbitrary filesystem enumeration</a></li>
+      <li><a href="#finding-3"><span class="severity high">HIGH</span> 3. Workspace permission grants persisted without path validation widen the sandbox</a></li>
+      <li><a href="#finding-4"><span class="severity high">HIGH</span> 4. Path traversal in <code>skills_delete_installed</code> via unsanitized <code>skill_id</code></a></li>
+      <li><a href="#finding-5"><span class="severity high">HIGH</span> 5. All provider API keys sent in bulk over sidecar IPC on every task start</a></li>
+      <li><a href="#finding-6"><span class="severity high">HIGH</span> 6. API keys escape redaction into plaintext logs</a></li>
+      <li><a href="#finding-7"><span class="severity high">HIGH</span> 7. CI lint failures still silently discarded (remediation regression)</a></li>
+      <li><a href="#finding-8"><span class="severity high">HIGH</span> 8. Unserialized concurrent stdin command handling in the sidecar</a></li>
+      <li><a href="#finding-9"><span class="severity high">HIGH</span> 9. <code>sendMessage</code> failures swallowed — tasks hang with no error surfaced</a></li>
+      <li><a href="#finding-10"><span class="severity high">HIGH</span> 10. Agent-triggered file previews bypass <code>isPathSafe</code></a></li>
+      <li><a href="#finding-11"><span class="severity high">HIGH</span> 11. Arena mode double-persists and never dedupes task events</a></li>
+      <li><a href="#finding-12"><span class="severity high">HIGH</span> 12. Streaming pipeline re-parses full markdown and re-renders the whole page per delta</a></li>
+      <li><a href="#finding-13"><span class="severity medium">MEDIUM</span> 13. <code>get_api_key</code> command returns the full keychain secret to the webview</a></li>
+      <li><a href="#finding-14"><span class="severity medium">MEDIUM</span> 14. Task persistence commands accept arbitrary <code>task_id</code> without validation</a></li>
+      <li><a href="#finding-15"><span class="severity medium">MEDIUM</span> 15. Workspace validator allows any non-home path without canonicalization</a></li>
+      <li><a href="#finding-16"><span class="severity medium">MEDIUM</span> 16. Database migrations are not transactional</a></li>
+      <li><a href="#finding-17"><span class="severity medium">MEDIUM</span> 17. DB layer panics: <code>.expect()</code> on queries and residual <code>.lock().unwrap()</code></a></li>
+      <li><a href="#finding-18"><span class="severity medium">MEDIUM</span> 18. Sidecar marked ready immediately after spawn (no handshake)</a></li>
+      <li><a href="#finding-19"><span class="severity medium">MEDIUM</span> 19. Filesystem watcher is non-recursive — stale file tree for nested changes</a></li>
+      <li><a href="#finding-20"><span class="severity medium">MEDIUM</span> 20. TOCTOU race in ephemeral port selection</a></li>
+      <li><a href="#finding-21"><span class="severity medium">MEDIUM</span> 21. Stale sessions cleaned up locally but never aborted on the server</a></li>
+      <li><a href="#finding-22"><span class="severity medium">MEDIUM</span> 22. <code>ApiKeys.ollama</code> defined but never applied at server spawn</a></li>
+      <li><a href="#finding-23"><span class="severity medium">MEDIUM</span> 23. SSE workspace filter disabled when <code>workingDirectory</code> is unset</a></li>
+      <li><a href="#finding-24"><span class="severity medium">MEDIUM</span> 24. Permission-reply failures silently dropped</a></li>
+      <li><a href="#finding-25"><span class="severity medium">MEDIUM</span> 25. OpenCode config merge can clobber user settings on disk</a></li>
+      <li><a href="#finding-26"><span class="severity medium">MEDIUM</span> 26. Async <code>listen()</code> unsubscribe races leak Tauri event listeners</a></li>
+      <li><a href="#finding-27"><span class="severity medium">MEDIUM</span> 27. <code>deleteTask</code> leaks <code>todos</code>/<code>artifacts</code> map entries</a></li>
+      <li><a href="#finding-28"><span class="severity medium">MEDIUM</span> 28. Streaming debug logs write full message text in production</a></li>
+      <li><a href="#finding-29"><span class="severity medium">MEDIUM</span> 29. CSP residual weaknesses (<code>object-src data:</code>, missing <code>base-uri</code>/<code>frame-ancestors</code>)</a></li>
+      <li><a href="#finding-30"><span class="severity medium">MEDIUM</span> 30. Opener capability still grants <code>$HOME/**</code></a></li>
+      <li><a href="#finding-31"><span class="severity medium">MEDIUM</span> 31. CI gaps: no typecheck, no production build, single Linux-ARM64 platform</a></li>
+      <li><a href="#finding-32"><span class="severity medium">MEDIUM</span> 32. No dependency-audit automation; <code>.gitignore</code> lacks <code>.env</code></a></li>
+      <li><a href="#finding-33"><span class="severity medium">MEDIUM</span> 33. Husky pre-commit hook skips all <code>.tsx</code> files</a></li>
+      <li><a href="#finding-34"><span class="severity medium">MEDIUM</span> 34. Floating versions on security-sensitive build dependencies</a></li>
+      <li><a href="#finding-35"><span class="severity medium">MEDIUM</span> 35. O(n²) per-render scans and unvirtualized chat list</a></li>
+      <li><a href="#finding-36"><span class="severity medium">MEDIUM</span> 36. Rust backend largely untested (5 of 46 files)</a></li>
+      <li><a href="#finding-37"><span class="severity low">LOW</span> 37. <code>get_key_prefix</code> byte-slice panic on non-ASCII keys</a></li>
+      <li><a href="#finding-38"><span class="severity low">LOW</span> 38. Dead and unwired code across the IPC layer</a></li>
+      <li><a href="#finding-39"><span class="severity low">LOW</span> 39. IPC type contract bypassed with double casts</a></li>
+      <li><a href="#finding-40"><span class="severity low">LOW</span> 40. Oversized god-files concentrate unrelated concerns</a></li>
+      <li><a href="#finding-41"><span class="severity low">LOW</span> 41. Inconsistent send shortcuts across chat inputs</a></li>
+      <li><a href="#finding-42"><span class="severity low">LOW</span> 42. <code>ChatInput</code> add-to-chat handler uses stale cursor position</a></li>
+      <li><a href="#finding-43"><span class="severity low">LOW</span> 43. <code>MarkdownPreview</code> renders agent files without hardened link handling</a></li>
+    </ul>
+  </li>
+</ul>
+</nav>
+
+<h2 id="executive-summary">Executive Summary</h2>
+
+<p>This is a full-repository technical review of <strong>cowork-z</strong>, a Tauri 2.x desktop application that
+sandboxes autonomous AI agents via an OpenCode sidecar. It is a follow-up to the
+<a href="technical-review_20260611.html">June 11, 2026 review</a>, after which 19 of 35 findings were remediated
+and merged to <code>main</code> (see <a href="technical-review-remediation.md">remediation tracker</a>). This pass
+re-verified all deferred/unassessed items against the current code and hunted for new issues across the four layers:
+Rust backend (<code>src-tauri/src/</code>), Node.js sidecar (<code>src-tauri/sidecar-opencode/</code>), React frontend
+(<code>src/</code>), and build/CI/configuration.</p>
+
+<h3>Repository statistics</h3>
+<ul>
+  <li><strong>Total source files:</strong> 261 (TypeScript/TSX, Rust, CSS, HTML — excluding the legacy <code>apps/desktop/</code> reference app, built binaries, generated <code>.d.ts</code>, and docs)</li>
+  <li><strong>Total lines of code:</strong> 45,440</li>
+  <li><strong>Layers:</strong> 46 Rust files (<code>src-tauri/src/</code>), Node sidecar (<code>src-tauri/sidecar-opencode/src/</code>), React 19 frontend (<code>src/</code>)</li>
+</ul>
+
+<h3>Findings by severity</h3>
+<ul>
+  <li><span class="severity critical">CRITICAL</span> 1 finding — the OpenCode server password is still shipped to model providers inside every system prompt (deferred from the prior review, unchanged).</li>
+  <li><span class="severity high">HIGH</span> 11 findings — several <strong>re-open the filesystem sandbox</strong> that the June remediation built (<code>read_directory</code> unscoped, unvalidated permission grants, skill-delete path traversal), plus a <strong>regression</strong>: the CI lint fix (#16 in the prior review) is documented as fixed but the workflow on <code>main</code> still backgrounds the lint with <code>&amp;</code>.</li>
+  <li><span class="severity medium">MEDIUM</span> 24 findings — correctness, robustness, and hardening gaps across all layers.</li>
+  <li><span class="severity low">LOW</span> 7 findings — maintainability and minor UX/consistency issues.</li>
+</ul>
+
+<p><strong>Carry-over status from the June 11 review:</strong> the deferred items #11 (password in system prompt),
+#12 (port TOCTOU), #25 (streaming markdown re-parse), #26 (Rust test coverage), #27 (<code>get_key_prefix</code> panic),
+#28 (unserialized stdin), #29 (IPC double casts), #30 (O(n²) chat scans), #31 (listener unsubscribe race),
+#33 (god-files), #34 (dead IPC code), and #35 (no dependency audit / <code>.gitignore</code>) all <strong>still exist</strong>
+and are re-reported below with current line numbers. The DB mutex poisoning fix (#9) is <strong>partial</strong> —
+~20 <code>.unwrap()</code> sites remain in automation and startup paths.</p>
+
+<!-- ============================================================ -->
+
+<div class="finding critical" id="finding-1">
+<h2>1. OpenCode server password embedded in every LLM system prompt</h2>
+<span class="severity critical">CRITICAL</span>
+<p><strong>Summary:</strong> The sidecar injects the live HTTP basic-auth password for the local OpenCode server into the system prompt sent to the model provider on every turn. <em>(Carry-over: deferred #11 from the June 11 review — unchanged.)</em></p>
+<p><strong>Details:</strong> <code>buildSystemPrompt()</code> interpolates <code>serverPassword</code> into agent-facing instructions, and <code>session-manager.ts</code> attaches that prompt to each <code>sendMessage</code> call. The bundled skill deployed on every app launch (<code>resources/skills/opencode-server-api/SKILL.md</code>) explicitly teaches the agent to extract the password from the prompt. Any provider-side logging, prompt retention, tool-output echo, or prompt-injection attack exposes a credential that grants full control of a localhost server able to run shell commands as the user.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/config-builder.ts</code> — lines 97–102</li>
+  <li><code>src-tauri/sidecar-opencode/src/session-manager.ts</code> — lines 365, 421</li>
+  <li><code>src-tauri/resources/skills/opencode-server-api/SKILL.md</code> — lines 5–13 (instructs the agent to read the password)</li>
+</ul>
+<div class="code">// config-builder.ts (97–102)
+Authenticate with: -u opencode:${serverPassword}
+Before calling any API endpoint, ALWAYS fetch the OpenAPI spec first:
+curl -s -u opencode:${serverPassword} http://localhost:${serverPort}/doc
+
+// session-manager.ts (365)
+system: buildSystemPrompt(this.serverPort, this.serverPassword, workingDirectory ?? '.', customPrompt),</div>
+<div class="recommendation"><strong>Remediation:</strong> Remove the password from model context. Either proxy authenticated server calls through the sidecar (agent gets port-only instructions), or mint short-lived, scope-limited tokens per session instead of embedding the master server password. Agent self-access is a feature, but it must not ride on the root credential.</div>
+</div>
+
+<!-- ============================================================ -->
+
+<div class="finding high" id="finding-2">
+<h2>2. Unscoped <code>read_directory</code> allows arbitrary filesystem enumeration</h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> The June remediation guarded <code>read_file_content</code>, <code>read_binary_file</code>, and <code>trash_file</code> with <code>path_guard</code>, but <code>read_directory</code> accepts any absolute path with no workspace or permission check.</p>
+<p><strong>Details:</strong> A compromised webview (or any renderer bug) can enumerate <code>/</code>, <code>$HOME</code>, <code>~/.ssh</code>, browser profiles, etc. Directory listings reveal filenames and structure that aid further attacks, undermining the sandbox model the rest of the file commands now enforce.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/commands/workspaces.rs</code> — lines 176–185</li>
+</ul>
+<div class="code">#[tauri::command]
+pub async fn read_directory(path: String) -&gt; Result&lt;Vec&lt;DirectoryEntry&gt;, String&gt; {
+    let dir_path = Path::new(&amp;path);
+    if !dir_path.is_dir() {
+        return Err(format!("'{}' is not a directory", path));
+    }
+    let mut entries = Vec::new();
+    let read_dir =
+        std::fs::read_dir(dir_path).map_err(|e| format!("Failed to read directory: {}", e))?;</div>
+<div class="recommendation"><strong>Remediation:</strong> Apply the same <code>path_guard::validate_path_in_roots</code> pattern used in <code>commands/files.rs</code> — validate the canonicalized path against registered workspaces, granted permission folders, and app-managed roots before listing.</div>
+</div>
+
+<div class="finding high" id="finding-3">
+<h2>3. Workspace permission grants persisted without path validation widen the sandbox</h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> <code>save_workspace_permission</code> and <code>respond_to_permission</code> persist arbitrary <code>folder_path</code> strings and immediately call <code>sync_asset_scope</code>, adding them to the <code>path_guard</code> allowed roots and the <code>asset:</code> protocol scope.</p>
+<p><strong>Details:</strong> A malicious renderer call — or an agent-supplied permission pattern that a user clicks "Allow" on — can grant read/trash access to <code>/</code>, <code>$HOME/.ssh</code>, or any other directory. Because granted folders feed directly into the runtime asset scope (the mechanism introduced by remediation #2), this is the single easiest way to re-open the entire filesystem sandbox.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/commands/workspace_permissions.rs</code> — lines 16–27</li>
+  <li><code>src-tauri/src/commands/tasks.rs</code> — lines 548–558 (<code>respond_to_permission</code> persistence path)</li>
+</ul>
+<div class="code">let conn = state.conn.lock().map_err(|e| e.to_string())?;
+let source = source.as_deref().unwrap_or("user");
+db::workspace_permissions::save_workspace_permission(
+    &amp;conn, &amp;workspace_id, &amp;folder_path, &amp;access_level, source,
+)?;
+// Newly granted folders become loadable via the asset: protocol
+crate::path_guard::sync_asset_scope(&amp;app, &amp;conn);</div>
+<div class="recommendation"><strong>Remediation:</strong> Canonicalize and validate every permission path before persisting or syncing the asset scope — at minimum apply <code>workspace_validator</code> rules (block system paths and the home root) and consider requiring grants to live under the workspace tree or an explicit, Rust-side user confirmation dialog.</div>
+</div>
+
+<div class="finding high" id="finding-4">
+<h2>4. Path traversal in <code>skills_delete_installed</code> via unsanitized <code>skill_id</code></h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> <code>skill_id</code> is joined directly into the install path with no sanitization or canonicalization, then recursively deleted.</p>
+<p><strong>Details:</strong> A value like <code>../../.ssh</code> or <code>../../../Documents</code> resolves outside <code>~/.config/opencode/skills</code> and is passed to <code>remove_path</code>, which deletes files or whole directory trees. The command is invokable from the webview (Skills Manager window), so a renderer compromise becomes arbitrary deletion under the user account.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/commands/skill_repos.rs</code> — lines 515–532</li>
+</ul>
+<div class="code">let target = target_folder.as_deref().unwrap_or("opencode");
+let install_dir = resolve_target_folder(target)?;
+let skill_dir = install_dir.join(&amp;skill_id);
+
+if !is_symlink(&amp;skill_dir) &amp;&amp; !skill_dir.exists() {
+    return Err(format!("Skill directory not found: {}", skill_dir.display()));
+}
+remove_path(&amp;skill_dir)?;</div>
+<div class="recommendation"><strong>Remediation:</strong> Reject any <code>skill_id</code> containing <code>/</code>, <code>\</code>, or <code>..</code>; canonicalize the resolved path and verify it is still a direct child of <code>install_dir</code> before deletion. Audit <code>target_folder</code> handling in <code>resolve_target_folder</code> the same way.</div>
+</div>
+
+<div class="finding high" id="finding-5">
+<h2>5. All provider API keys sent in bulk over sidecar IPC on every task start</h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> Every <code>start_task</code>, <code>resume_session</code>, and automation dispatch loads <em>all</em> provider secrets from the OS keychain and serializes them as JSON onto the sidecar's stdin.</p>
+<p><strong>Details:</strong> The full credential set (Anthropic, OpenAI, Google, Bedrock, Azure, OpenRouter, LiteLLM, Copilot…) crosses the process boundary on each task, regardless of which provider the task actually uses. Any compromise of the sidecar process, its environment, crash dumps, or logs (see finding 6) exposes every stored credential at once, defeating the point of keychain storage.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/commands/tasks.rs</code> — lines 134–166 (bulk load + send)</li>
+  <li><code>src-tauri/src/sidecar.rs</code> — lines 508–513, 654–700 (serialization to stdin)</li>
+</ul>
+<div class="code">manager.send_command(sidecar::SidecarCommand::StartTask {
+    task_id: task_id.clone(),
+    payload: sidecar::StartTaskPayload {
+        task_id: task_id.clone(),
+        prompt: config.prompt.clone(),
+        api_keys: Some(api_keys),   // ← all providers' keys, every task
+        ...</div>
+<div class="recommendation"><strong>Remediation:</strong> Send only the active provider's credential per task, or remove keys from IPC entirely — have the sidecar request the specific secret it needs through a narrow, audited Rust bridge at server-spawn time.</div>
+</div>
+
+<div class="finding high" id="finding-6">
+<h2>6. API keys escape redaction into plaintext logs</h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> The redaction layer added in the June remediation (#4/#10) has a gap: full IPC commands are still logged, and the redactor's key-pattern misses provider field names — while Rust separately appends all sidecar stdout to a plaintext log file.</p>
+<p><strong>Details:</strong> <code>logger.debug('Received command', msg)</code> logs the entire <code>start_task</code>/<code>resume_session</code> payload. <code>redactSecrets()</code> only masks values whose key matches <code>password|secret|token|apiKey|…</code> — nested provider fields like <code>anthropic</code>, <code>openai</code>, or <code>accessKeyId</code> inside the <code>apiKeys</code> object do not match, so real keys reach disk logs and the frontend debug panel. Compounding this, the Rust side writes all sidecar stdout verbatim to <code>~/.local/share/opencode/log/*.log</code> with no redaction and default file permissions. Combined with finding 5, every stored credential has a durable plaintext exposure path.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/index.ts</code> — line 645 (<code>logger.debug('Received command', msg)</code>)</li>
+  <li><code>src-tauri/sidecar-opencode/src/redact.ts</code> — lines 8, 40–42 (key pattern misses provider names)</li>
+  <li><code>src-tauri/src/sidecar.rs</code> — lines 382–384, 415–425 (verbatim stdout capture to log file)</li>
+</ul>
+<div class="code">// index.ts
+logger.debug('Received command', msg);            // full payload incl. apiKeys
+
+// redact.ts — only matches secret-looking key names
+if (SECRET_KEY_PATTERN.test(key) &amp;&amp; (typeof val === 'string' || typeof val === 'number')) {
+  result[key] = REDACTED;                          // 'anthropic', 'openai' don't match
+}</div>
+<div class="recommendation"><strong>Remediation:</strong> Log only <code>{ type, taskId }</code> for incoming commands, or redact the entire <code>apiKeys</code> container by name (as already done for <code>environment</code>/<code>headers</code>/<code>env</code>). Add a regression test for <code>{ apiKeys: { anthropic: 'sk-…' } }</code>. On the Rust side, restrict log file permissions to 0600 and avoid persisting full stdout payloads by default.</div>
+</div>
+
+<div class="finding high" id="finding-7">
+<h2>7. CI lint failures still silently discarded (remediation regression)</h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> The remediation tracker records finding #16 as fixed (<code>&amp;</code> → <code>&amp;&amp;</code>, commit <code>5854d3f</code>), but the workflow on <code>main</code> still uses a single <code>&amp;</code> — the fix either regressed or never landed.</p>
+<p><strong>Details:</strong> <code>pnpm ultracite:check &amp; pnpm test --run</code> backgrounds the lint; the step's exit code comes from Vitest alone. Lint and format violations merge to <code>main</code> unnoticed, and the team believes this gate is active because the tracker marks it fixed — a worse state than before the remediation.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>.github/workflows/test.yml</code> — lines 49–50</li>
+</ul>
+<div class="code">- name: Run frontend lint and tests
+  run: pnpm ultracite:check &amp; pnpm test --run</div>
+<div class="recommendation"><strong>Remediation:</strong> Change to <code>&amp;&amp;</code>, or better, split lint and tests into two named steps so failures are attributable. Investigate why commit <code>5854d3f</code> is not reflected on <code>main</code> (lost in merge?) and update the remediation tracker.</div>
+</div>
+
+<div class="finding high" id="finding-8">
+<h2>8. Unserialized concurrent stdin command handling in the sidecar</h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> Each JSON line on stdin spawns an async <code>handleMessage()</code> with no queue or mutex, so overlapping commands race on shared state. <em>(Carry-over: #28 from the June 11 review — unchanged.)</em></p>
+<p><strong>Details:</strong> Overlapping <code>start_task</code> + <code>shutdown</code>, two simultaneous task starts, or OAuth + task start can race on <code>processManager</code>, <code>sessionManager</code>, <code>initializePromise</code>, and SSE reconnection — producing duplicate server spawns, lost shutdown ordering, or interleaved IPC events. The readline <code>line</code> handler does not await the previous handler before dispatching the next.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/index.ts</code> — lines 644–738 (handler), 784–787 (dispatch)</li>
+</ul>
+<div class="code">rl.on('line', async (line: string) =&gt; {
+  const msg = JSON.parse(line) as SidecarCommand;
+  await handleMessage(msg);   // each line runs concurrently — rl doesn't await
+});</div>
+<div class="recommendation"><strong>Remediation:</strong> Serialize handling with a promise chain (<code>queue = queue.then(() =&gt; handleMessage(msg))</code>) or an explicit FIFO command queue; reject or buffer commands once <code>shutdown</code> begins.</div>
+</div>
+
+<div class="finding high" id="finding-9">
+<h2>9. <code>sendMessage</code> failures swallowed — tasks hang with no error surfaced</h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> Initial and follow-up messages to the OpenCode server are fire-and-forget; a rejected <code>sendMessage</code> only produces a <code>logger.warn</code>, never a <code>task_error</code> IPC event.</p>
+<p><strong>Details:</strong> If session creation succeeds but the message call fails (network blip, auth error, model error), the UI shows an active task that never progresses and never errors. The user has no signal to retry, and the orphaned session is left in place.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/session-manager.ts</code> — lines 361–375 (initial), 417–431 (follow-up)</li>
+</ul>
+<div class="code">this.client.sendMessage(session.id, { /* ... */ })
+  .catch((err) =&gt; {
+    logger.warn('sendMessage request failed (session may still be active via SSE)', {
+      taskId, sessionId: session.id, error: msg,
+    });   // ← no task_error emitted; UI keeps spinning
+  });</div>
+<div class="recommendation"><strong>Remediation:</strong> On rejection, emit a <code>task_error</code> IPC event (unless SSE has already confirmed the turn started) and abort the orphaned session so the UI can present a retry.</div>
+</div>
+
+<div class="finding high" id="finding-10">
+<h2>10. Agent-triggered file previews bypass <code>isPathSafe</code></h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> Chat links go through <code>EnhancedLink</code>'s <code>isPathSafe</code> validation, but media thumbnails and <code>filePreviewStore.openPreviewByPath()</code> accept any absolute path the agent emits in markdown.</p>
+<p><strong>Details:</strong> <code>extractMediaPaths()</code> accepts any regex-matching absolute path — including ones with <code>..</code> segments or pointing at sensitive locations — and renders thumbnails via <code>convertFileSrc</code>; clicking loads content through <code>readFileContent</code>/<code>readBinaryFile</code>. The Rust-side <code>path_guard</code> is the final backstop, but the frontend trust boundary is inconsistent, and anything inside granted roots (which finding 3 shows can be over-broad) is exposed to agent-controlled rendering.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/lib/content-enrichment.ts</code> — lines 214–221 (<code>extractMediaPaths</code>, no safety check)</li>
+  <li><code>src/stores/filePreviewStore.ts</code> — lines 29–44 (<code>openPreviewByPath</code>, no safety check)</li>
+  <li><code>src/components/media/MediaGallery.tsx</code> — lines 19–31</li>
+  <li><code>src/components/file-preview/FilePreviewPanel.tsx</code> — lines 86–90</li>
+</ul>
+<div class="code">// filePreviewStore.ts — openPreviewByPath
+openPreviewByPath: (path) =&gt; {
+  const segments = path.replace(/\\/g, '/').split('/');
+  const name = segments[segments.length - 1] || path;
+  // ... no isPathSafe check ...
+  set({ selectedFile: { name, path, ... }, isPreviewOpen: true });
+},</div>
+<div class="recommendation"><strong>Remediation:</strong> Call <code>isPathSafe()</code> in <code>openPreviewByPath</code> and <code>extractMediaPaths</code> so all agent-supplied paths pass the same gate as chat links, rejecting traversal segments before any Tauri file read.</div>
+</div>
+
+<div class="finding high" id="finding-11">
+<h2>11. Arena mode double-persists and never dedupes task events</h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> While Arena is open, every task event is persisted to SQLite twice — once by the global <code>taskStore</code> listener and once by <code>arenaStore.handleTaskUpdate</code> — and the arena handler appends messages without the ID-dedup logic the task store uses.</p>
+<p><strong>Details:</strong> The June remediation (#20) consolidated persistence into a single module-level <code>onTaskUpdate</code> subscription in <code>taskStore.ts</code>, which unconditionally saves messages/completions for <em>all</em> task IDs. <code>Arena.tsx</code> registers parallel listeners whose handler also calls <code>saveTaskMessage</code>/<code>completeTask</code> for arena tasks — duplicate rows in SQLite and duplicate lifecycle side effects. Separately, <code>arenaStore</code> appends <code>[...task.messages, event.message]</code> with no dedup, so a re-delivered event produces duplicate UI rows.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/stores/taskStore.ts</code> — lines 822–848 (global persistence), 1219–1225 (subscription)</li>
+  <li><code>src/stores/arenaStore.ts</code> — lines 412–438 (second persistence path), 445–451 (append without dedup)</li>
+  <li><code>src/pages/Arena.tsx</code> — lines 59–64 (parallel listener registration)</li>
+</ul>
+<div class="code">// taskStore.ts (global, all task IDs)
+api.saveTaskMessage(event.taskId, event.message).catch(...)
+
+// arenaStore.ts (arena tasks, same event)
+api.saveTaskMessage(event.taskId, event.message).catch(...)
+...
+col.task = { ...task, messages: [...task.messages, event.message] };  // no dedup</div>
+<div class="recommendation"><strong>Remediation:</strong> Make persistence single-owner: skip arena task IDs in the global handler (or vice versa), and mirror <code>taskStore</code>'s index-by-message-ID merge in the arena handler.</div>
+</div>
+
+<div class="finding high" id="finding-12">
+<h2>12. Streaming pipeline re-parses full markdown and re-renders the whole page per delta</h2>
+<span class="severity high">HIGH</span>
+<p><strong>Summary:</strong> Every streaming delta triggers a full remark/GFM parse of the growing message <em>and</em> a re-render of the entire Execution page. <em>(Markdown re-parse is carry-over #25 from the June 11 review — unchanged; the page-wide re-render is new.)</em></p>
+<p><strong>Details:</strong> Each partial update flows through <code>displayContent → normalizedContent → enrichedContent</code> into <code>ReactMarkdown</code> inside <code>StreamingText</code>'s render prop, re-parsing the whole string per delta. Worse, <code>Execution.tsx</code> destructures the entire <code>useTaskStore()</code> without selectors — including <code>partialMessages</code>, a <code>Map</code> replaced on every delta — so the full page (header, every <code>MessageBubble</code>, modals, input) re-renders at streaming frequency. Long answers degrade typing latency and burn CPU.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/components/chat/MessageBubble.tsx</code> — lines 57–63, 158–165</li>
+  <li><code>src/components/ui/streaming-text.tsx</code> — lines 104–107</li>
+  <li><code>src/pages/Execution.tsx</code> — lines 47–62 (whole-store subscription)</li>
+</ul>
+<div class="code">// Execution.tsx — subscribes to the entire store, incl. partialMessages
+const { currentTask, loadTaskById, isLoading, error, ..., partialMessages } = useTaskStore();
+
+// MessageBubble.tsx — full ReactMarkdown parse per streaming delta
+&lt;StreamingText isComplete={false} isRealStreaming={true} speed={120} text={enrichedContent}&gt;
+  {(displayedText) =&gt; (
+    &lt;ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]} ...&gt;
+      {displayedText}
+    &lt;/ReactMarkdown&gt;</div>
+<div class="recommendation"><strong>Remediation:</strong> Use granular Zustand selectors (<code>useTaskStore(s =&gt; s.currentTask)</code>, <code>useShallow</code>) and isolate streaming state in a child component. During live streaming, render plain text (or throttle markdown parsing to 100–200&nbsp;ms) and switch to full <code>ReactMarkdown</code> on message completion.</div>
+</div>
+
+<!-- ============================================================ -->
+
+<div class="finding medium" id="finding-13">
+<h2>13. <code>get_api_key</code> command returns the full keychain secret to the webview</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> The <code>get_api_key</code> invoke handler hands the complete Anthropic API key string to any frontend caller.</p>
+<p><strong>Details:</strong> The UI only needs prefix/status information (which <code>get_all_api_keys</code> already provides via <code>get_key_prefix</code>). Exposing the full secret to the renderer means any XSS or webview compromise exfiltrates it directly.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/commands/api_keys.rs</code> — lines 61–65</li>
+</ul>
+<div class="code">pub async fn get_api_key() -&gt; Result&lt;Option&lt;String&gt;, String&gt; {
+    // Get default provider key (anthropic)
+    secure_storage::get_api_key("anthropic")
+}</div>
+<div class="recommendation"><strong>Remediation:</strong> Remove this command from the invoke surface (or return only a masked prefix); keep full secrets Rust-side.</div>
+</div>
+
+<div class="finding medium" id="finding-14">
+<h2>14. Task persistence commands accept arbitrary <code>task_id</code> without validation</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> <code>save_task_message</code>, <code>save_task_status</code>, <code>save_task_session</code>, <code>save_task_summary</code>, and <code>complete_task</code> write to any <code>task_id</code> with no existence or ownership check.</p>
+<p><strong>Details:</strong> A renderer bug or injected call can corrupt another task's history or force premature completion — including automation lifecycle side effects via <code>handle_task_completion_internal</code>. Nothing verifies the task belongs to the active workspace or even exists before the write.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/commands/tasks.rs</code> — lines 394–424, 470–512</li>
+</ul>
+<div class="code">pub async fn save_task_message(
+    task_id: String,
+    message: TaskMessage,
+    state: State&lt;'_, DbState&gt;,
+) -&gt; Result&lt;(), String&gt; {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    db::tasks::add_task_message(&amp;conn, &amp;task_id, ...)</div>
+<div class="recommendation"><strong>Remediation:</strong> Validate that <code>task_id</code> exists (and optionally matches the active workspace) before writes; longer term, persist sidecar events Rust-side instead of round-tripping through the renderer.</div>
+</div>
+
+<div class="finding medium" id="finding-15">
+<h2>15. Workspace validator allows any non-home path without canonicalization</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> After blocking known system prefixes and the home root, <code>validate_workspace_path</code> falls through to <code>Ok(())</code> for any other absolute path, without resolving symlinks.</p>
+<p><strong>Details:</strong> Users (or a compromised renderer) can register <code>/tmp</code>, <code>/opt</code>, another user's directory, or a symlink whose target escapes the intended tree. Because workspace roots feed <code>path_guard</code> and the asset scope, this widens the file-access surface established by the June remediation.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/workspace_validator.rs</code> — lines 91–103</li>
+</ul>
+<div class="code">if let Some(home) = dirs::home_dir() {
+    if folder_path == home_str.as_ref() {
+        return Err("Your home directory cannot be used as a workspace. ...".to_string());
+    }
+    if path.starts_with(&amp;home) {
+        return Ok(());
+    }
+}
+Ok(())   // ← any non-home absolute path is accepted</div>
+<div class="recommendation"><strong>Remediation:</strong> Canonicalize before validating, reject symlinked escapes, and either restrict workspaces to <code>$HOME</code> subtrees (plus removable volumes) or require explicit confirmation for out-of-home paths.</div>
+</div>
+
+<div class="finding medium" id="finding-16">
+<h2>16. Database migrations are not transactional</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Each schema migration runs multi-statement DDL without a wrapping transaction; a crash mid-migration leaves the database in an inconsistent state.</p>
+<p><strong>Details:</strong> Migrations like v6 (which drops and recreates <code>folder_permissions</code> with a data copy) execute as standalone statements. If the process dies between the copy and the drop, the schema version is wrong relative to the actual tables, and the app cannot self-recover on next launch.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/db/migrations.rs</code> — lines 398–451 (orchestration), 311–331 (v6 batch)</li>
+</ul>
+<div class="code">pub fn run_migrations(conn: &amp;Connection) -&gt; Result&lt;(), String&gt; {
+    let stored_version = get_stored_version(conn);
+    if stored_version &lt; 1 { migrate_v1(conn)?; }
+    // ... each migrate_vN runs DDL without BEGIN/COMMIT</div>
+<div class="recommendation"><strong>Remediation:</strong> Wrap each migration in <code>BEGIN IMMEDIATE … COMMIT</code> and only bump <code>schema_meta.version</code> inside the same transaction.</div>
+</div>
+
+<div class="finding medium" id="finding-17">
+<h2>17. DB layer panics: <code>.expect()</code> on queries and residual <code>.lock().unwrap()</code></h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Core DB read helpers panic on prepare/query failure, and ~20 mutex-lock sites still use <code>.unwrap()</code>. <em>(Mutex poisoning is carry-over #9 from the June 11 review — partially fixed: command handlers now propagate errors, but automation and startup paths do not.)</em></p>
+<p><strong>Details:</strong> A corrupted DB, schema drift, or disk error in <code>db/tasks.rs</code> (10 <code>.expect()</code> calls; similar in <code>db/workspaces.rs</code>, <code>db/providers.rs</code>, <code>db/workspace_permissions.rs</code>, <code>db/arenas.rs</code>) crashes the process instead of surfacing an error. Remaining <code>.lock().unwrap()</code> sites in <code>commands/automations.rs</code> (73–254), <code>automation_scheduler.rs</code> (14 sites), <code>lib.rs</code> (118, 166, 188), <code>commands/updates.rs</code> (40, 56), and the log-file mutexes in <code>sidecar.rs</code> (285, 397) re-introduce cascading panics once the mutex is poisoned.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/db/tasks.rs</code> — lines 114–138 and throughout</li>
+  <li><code>src-tauri/src/automation_scheduler.rs</code> — lines 44–422 (14 <code>.unwrap()</code> sites)</li>
+  <li><code>src-tauri/src/commands/automations.rs</code> — lines 73–254</li>
+  <li><code>src-tauri/src/lib.rs</code> — lines 118, 166, 188</li>
+</ul>
+<div class="code">.expect("Failed to prepare messages query");
+// ...
+.expect("Failed to query messages");
+// automation_scheduler.rs
+let conn = db_state.conn.lock().unwrap();</div>
+<div class="recommendation"><strong>Remediation:</strong> Propagate <code>Result</code> through the DB layer (<code>?</code> instead of <code>.expect()</code>), and finish the mutex remediation with a shared helper that recovers from poisoning (<code>unwrap_or_else(|p| p.into_inner())</code>) or maps to an error.</div>
+</div>
+
+<div class="finding medium" id="finding-18">
+<h2>18. Sidecar marked ready immediately after spawn (no handshake)</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> <code>spawn()</code> sets <code>is_ready = true</code> as soon as the child process starts, without waiting for the sidecar's <code>ready</code> IPC event.</p>
+<p><strong>Details:</strong> Commands sent during sidecar initialization (Node startup, PATH resolution, server boot) can be lost or race with server startup, producing intermittent first-task failures that are hard to reproduce.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/sidecar.rs</code> — lines 478–479 (flag set), 324–327 (ready event arrives later)</li>
+</ul>
+<div class="code">self.child = Some(child);
+self.is_ready = true;   // ← before the sidecar has emitted `ready`</div>
+<div class="recommendation"><strong>Remediation:</strong> Gate <code>is_running()</code>/<code>send_command</code> on receipt of the <code>ready</code> event with a timeout, queueing or rejecting commands until then.</div>
+</div>
+
+<div class="finding medium" id="finding-19">
+<h2>19. Filesystem watcher is non-recursive — stale file tree for nested changes</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> <code>watch_folder</code> registers the workspace root with <code>RecursiveMode::NonRecursive</code>, so changes in subdirectories never emit <code>workspace:fs_changed</code>.</p>
+<p><strong>Details:</strong> Agents routinely write into nested folders; the sidebar file tree and artifacts panel will appear stale for anything below the top level, which users perceive as the agent "not doing anything".</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/fs_watcher.rs</code> — lines 50–53</li>
+</ul>
+<div class="code">debouncer
+    .watcher()
+    .watch(Path::new(folder_path), notify::RecursiveMode::NonRecursive)
+    .map_err(|e| format!("Failed to watch folder: {}", e))?;</div>
+<div class="recommendation"><strong>Remediation:</strong> Switch to <code>RecursiveMode::Recursive</code> (debouncing is already in place), or document the limitation and add periodic refresh for expanded tree nodes.</div>
+</div>
+
+<div class="finding medium" id="finding-20">
+<h2>20. TOCTOU race in ephemeral port selection</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> The sidecar binds port 0 to discover a free port, closes the probe socket, then spawns <code>opencode serve</code> on that port later. <em>(Carry-over: deferred #12 from the June 11 review — unchanged.)</em></p>
+<p><strong>Details:</strong> Between close and spawn, another process can claim the port, causing startup failure — or, worse on localhost, the sidecar could authenticate against a different listener squatting the port.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/process-manager.ts</code> — lines 276–307 (<code>getAvailablePort</code>), 469–505 (spawn)</li>
+</ul>
+<div class="code">server.close(() =&gt; { resolve(port); });
+// ... later ...
+this.port = await getAvailablePort();
+const args = ['serve', '--port', String(this.port), '--hostname', this.hostname];
+this.process = spawn(this.cliPath, args, { /* ... */ });</div>
+<div class="recommendation"><strong>Remediation:</strong> Pass <code>--port 0</code> to <code>opencode serve</code> and parse the bound port from its startup output, or add bounded retry on bind failure with server-identity verification (auth challenge) before first use.</div>
+</div>
+
+<div class="finding medium" id="finding-21">
+<h2>21. Stale sessions cleaned up locally but never aborted on the server</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Starting a new non-arena task removes prior task entries from local maps without calling <code>abortSession</code> on the OpenCode server.</p>
+<p><strong>Details:</strong> Orphaned server sessions keep running — consuming tokens and potentially continuing tool execution (file writes, shell commands) after the UI has moved on to a new task.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/session-manager.ts</code> — lines 307–314 (cleanup loop), 480–485 (<code>cleanup()</code>)</li>
+</ul>
+<div class="code">for (const oldTaskId of staleTaskIds) {
+  const managed = this.sessions.get(oldTaskId);
+  logger.info('Cleaning up stale session', { oldTaskId, ... });
+  this.cleanup(oldTaskId);   // ← local maps only; server session keeps running
+}</div>
+<div class="recommendation"><strong>Remediation:</strong> Before <code>cleanup()</code>, call <code>client.abortSession(managed.sessionId, managed.session.directory)</code> for sessions still <code>active</code> or <code>starting</code>.</div>
+</div>
+
+<div class="finding medium" id="finding-22">
+<h2>22. <code>ApiKeys.ollama</code> defined but never applied at server spawn</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> The IPC type includes <code>ollama</code>, but <code>startServer()</code> never maps it to an environment variable, so authenticated Ollama setups silently fail.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/types.ts</code> — line 237</li>
+  <li><code>src-tauri/sidecar-opencode/src/process-manager.ts</code> — lines 489–503 (env mapping, no ollama branch)</li>
+</ul>
+<div class="code">if (apiKeys?.anthropic) env.ANTHROPIC_API_KEY = apiKeys.anthropic;
+if (apiKeys?.openai) env.OPENAI_API_KEY = apiKeys.openai;
+// ... google, bedrock, azure, openrouter, litellm — no ollama branch</div>
+<div class="recommendation"><strong>Remediation:</strong> Map <code>apiKeys.ollama</code> to the env var OpenCode expects (e.g. <code>OLLAMA_API_KEY</code>) and add a spawn-env test.</div>
+</div>
+
+<div class="finding medium" id="finding-23">
+<h2>23. SSE workspace filter disabled when <code>workingDirectory</code> is unset</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Directory filtering only drops events when <em>both</em> the envelope's and the stream's directory are set; if the sidecar initializes without a workspace (e.g. the Copilot OAuth path), all workspace-scoped events pass through.</p>
+<p><strong>Details:</strong> Routing then relies solely on the <code>sessionToTask</code> map, which is fragile if session IDs recur or multiple workspaces are active — events can be misattributed to the wrong task.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/event-stream.ts</code> — lines 95–98</li>
+  <li><code>src-tauri/sidecar-opencode/src/index.ts</code> — lines 408–409</li>
+</ul>
+<div class="code">if (envelope.directory &amp;&amp; this.directory &amp;&amp; envelope.directory !== this.directory) return;
+// ← when this.directory is undefined, nothing is filtered</div>
+<div class="recommendation"><strong>Remediation:</strong> When <code>this.directory</code> is unset, drop envelope events that carry a <code>directory</code>, or require a workspace before subscribing to session events.</div>
+</div>
+
+<div class="finding medium" id="finding-24">
+<h2>24. Permission-reply failures silently dropped</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> <code>handlePermissionReply</code> catches errors and logs them but emits no IPC error event, so a failed reply leaves the agent blocked while the UI shows the permission as answered.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/index.ts</code> — lines 376–386</li>
+</ul>
+<div class="code">} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  logger.error('Failed to reply to permission', { taskId, error: message });
+  // ← no task_error / error event emitted
+}</div>
+<div class="recommendation"><strong>Remediation:</strong> Mirror <code>handleQuestionReply</code>: emit <code>task_error</code> with the failure reason so the frontend can re-prompt or notify the user.</div>
+</div>
+
+<div class="finding medium" id="finding-25">
+<h2>25. OpenCode config merge can clobber user settings on disk</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> <code>writePreStartConfig()</code> merges MCP/model overlays into the existing <code>opencode.json</code> and rewrites it — but an empty MCP map deletes <code>existing.mcp</code>, and repeated model switches rewrite provider overlays, losing user hand-edits.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/process-manager.ts</code> — lines 395–432 (merge), 447–463 (write)</li>
+</ul>
+<div class="code">if (Object.keys(mcpServers).length &gt; 0) {
+  existing.mcp = mcpServers;
+} else {
+  delete existing.mcp;   // ← wipes user-configured MCP servers
+}
+fs.writeFileSync(opencodePath, JSON.stringify(existing, null, 2), 'utf-8');</div>
+<div class="recommendation"><strong>Remediation:</strong> Use an app-private config path isolated from user-managed OpenCode config, or deep-merge only sidecar-owned keys and never delete keys the app did not write.</div>
+</div>
+
+<div class="finding medium" id="finding-26">
+<h2>26. Async <code>listen()</code> unsubscribe races leak Tauri event listeners</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Several call sites use <code>let unlisten; listen(...).then(fn =&gt; unlisten = fn)</code> and return a sync cleanup that calls <code>unlisten?.()</code> — if the component unmounts before the promise resolves, the listener is never removed. <em>(Carry-over: #31 from the June 11 review for the automation listeners — unchanged; <code>App.tsx</code> and <code>useAppUpdate</code> are newly identified instances of the same class.)</em></p>
+<p><strong>Details:</strong> The codebase already has a correct pattern (<code>toSyncUnlisten</code> in <code>tauri-api-interface.ts</code> lines 346–363, with a pending-cancel flag), but the automation listeners, menu listeners, and update hook do not use it. React Strict Mode's double-mount makes the leak deterministic in development.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/lib/tauri-api.ts</code> — lines 1538–1559 (<code>onAutomationRunStarted</code>/<code>Completed</code>)</li>
+  <li><code>src/App.tsx</code> — lines 109–131 (menu listeners)</li>
+  <li><code>src/hooks/useAppUpdate.ts</code> — lines 82–91</li>
+</ul>
+<div class="code">let unlisten: UnlistenFn | null = null;
+listen('automation:run_started', (event) =&gt; { callback(event.payload); })
+  .then((fn) =&gt; { unlisten = fn; });
+return () =&gt; { unlisten?.(); };  // ← no-op if called before then() resolves</div>
+<div class="recommendation"><strong>Remediation:</strong> Route all subscriptions through the existing <code>toSyncUnlisten</code> helper (or a shared <code>useTauriListen</code> hook) that unsubscribes immediately on late resolution.</div>
+</div>
+
+<div class="finding medium" id="finding-27">
+<h2>27. <code>deleteTask</code> leaks <code>todos</code>/<code>artifacts</code> map entries</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Deleting a task removes it from <code>tasks</code>/<code>allTasks</code> but leaves its entries in the <code>todos</code>, <code>artifacts</code>, and <code>partialMessages</code> maps, accumulating memory over long sessions.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/stores/taskStore.ts</code> — lines 1148–1155 (deleteTask), 335–337 (map declarations)</li>
+</ul>
+<div class="code">deleteTask: async (taskId: string) =&gt; {
+  await api.deleteTask(taskId);
+  set((state) =&gt; ({
+    tasks: state.tasks.filter((t) =&gt; t.id !== taskId),
+    allTasks: state.allTasks.filter((t) =&gt; t.id !== taskId),
+    currentTask: state.currentTask?.id === taskId ? null : state.currentTask,
+  }));   // ← todos / artifacts / partialMessages keys survive
+},</div>
+<div class="recommendation"><strong>Remediation:</strong> Delete the <code>taskId</code> keys from <code>todos</code>, <code>artifacts</code>, and <code>partialMessages</code> in the same <code>set()</code> call.</div>
+</div>
+
+<div class="finding medium" id="finding-28">
+<h2>28. Streaming debug logs write full message text in production</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Module-level streaming handlers <code>console.log</code> on every partial/complete event, and <code>logEvent</code> embeds the <em>entire</em> final message text in the persisted log.</p>
+<p><strong>Details:</strong> This violates the project's own "no console.log in production" rule, adds overhead at streaming frequency, and writes full agent conversation content (potentially containing secrets the agent read from files) into the app log.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/stores/taskStore.ts</code> — lines 1233–1249</li>
+</ul>
+<div class="code">void api.onTaskMessageComplete((event) =&gt; {
+  console.log('[streaming] received complete:', event.messageId, 'textLength:', event.text.length);
+  void api.logEvent({
+    level: 'debug',
+    message: `[streaming] complete received: messageId=${event.messageId}, textLength=${event.text.length}, text="${event.text}"`,
+  });</div>
+<div class="recommendation"><strong>Remediation:</strong> Remove the <code>console.log</code> calls and log only IDs/lengths — never message content.</div>
+</div>
+
+<div class="finding medium" id="finding-29">
+<h2>29. CSP residual weaknesses (<code>object-src data:</code>, missing <code>base-uri</code>/<code>frame-ancestors</code>)</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> The CSP introduced by remediation #1 is a major improvement, but <code>object-src 'self' data:</code> permits <code>&lt;embed&gt;</code>/<code>&lt;object&gt;</code> with attacker-supplied base64 payloads, and <code>base-uri</code>/<code>frame-ancestors</code> are absent.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/tauri.conf.json</code> — line 23</li>
+</ul>
+<div class="code">"csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+ img-src 'self' asset: http://asset.localhost data:; media-src 'self' asset: http://asset.localhost;
+ font-src 'self'; connect-src ipc: http://ipc.localhost; object-src 'self' data:"</div>
+<div class="recommendation"><strong>Remediation:</strong> Serve PDF previews through the asset protocol instead of inline <code>data:</code> URIs so <code>object-src</code> can drop <code>data:</code>; add <code>base-uri 'self'</code> and <code>frame-ancestors 'none'</code> for defense in depth.</div>
+</div>
+
+<div class="finding medium" id="finding-30">
+<h2>30. Opener capability still grants <code>$HOME/**</code></h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Shell spawn permissions were removed in the June remediation, but <code>opener:allow-open-path</code> still lets both windows open any path under the user's home with its default OS handler.</p>
+<p><strong>Details:</strong> A compromised renderer could launch arbitrary user files (scripts, documents with macros) via the opener plugin — a meaningful step in an exploitation chain even without shell access.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/capabilities/default.json</code> — lines 9–12</li>
+</ul>
+<div class="code">{
+  "identifier": "opener:allow-open-path",
+  "allow": [{ "path": "$HOME/**" }, { "path": "/Volumes/**" },
+            { "path": "/media/**" }, { "path": "/mnt/**" }]
+},</div>
+<div class="recommendation"><strong>Remediation:</strong> Route "open / reveal in Finder" through a Rust command that validates against <code>path_guard::allowed_roots</code>, then drop the broad capability grant.</div>
+</div>
+
+<div class="finding medium" id="finding-31">
+<h2>31. CI gaps: no typecheck, no production build, single Linux-ARM64 platform</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> CI never runs <code>pnpm typecheck</code> or <code>pnpm build</code>, and all validation runs only on <code>ubuntu-24.04-arm</code> — while the product ships primarily on macOS (and plans Windows support).</p>
+<p><strong>Details:</strong> Vitest transpiles per-file without project-wide type checking, so type errors in untested files merge cleanly. Build-only failures (emit errors, Vite resolution) surface only during release. macOS-specific issues (codesigning, sidecar <code>darwin-*</code> pkg targets, path conventions) are caught only by the manual publish workflow.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>.github/workflows/test.yml</code> — lines 11–12 (runner), 49–62 (steps; no typecheck/build)</li>
+  <li><code>package.json</code> — lines 8, 11 (<code>build</code>, <code>typecheck</code> scripts exist but unused in CI)</li>
+</ul>
+<div class="code">jobs:
+  test:
+    runs-on: ubuntu-24.04-arm
+    # steps run vitest, sidecar jest, cargo test — never tsc --noEmit or vite build</div>
+<div class="recommendation"><strong>Remediation:</strong> Add <code>pnpm typecheck</code> and <code>pnpm build</code> steps, and a matrix including <code>macos-latest</code> (and <code>windows-latest</code> ahead of Windows support) for the test suites.</div>
+</div>
+
+<div class="finding medium" id="finding-32">
+<h2>32. No dependency-audit automation; <code>.gitignore</code> lacks <code>.env</code></h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> There is no Dependabot/Renovate config and no <code>pnpm audit</code>/<code>cargo audit</code> step in CI; the root <code>.gitignore</code> has <code>*.local</code> but no <code>.env</code> pattern. <em>(Carry-over: #35 from the June 11 review — unchanged.)</em></p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>.github/</code> — no <code>dependabot.yml</code>; <code>workflows/test.yml</code> has no audit step</li>
+  <li><code>.gitignore</code> — lines 10–13</li>
+</ul>
+<div class="code">node_modules
+dist
+dist-ssr
+*.local
+# ← no .env / .env.* entries</div>
+<div class="recommendation"><strong>Remediation:</strong> Add <code>.github/dependabot.yml</code> covering npm (root + sidecar) and Cargo; add <code>pnpm audit --audit-level=high</code> and <code>cargo audit</code> CI steps; append <code>.env</code> and <code>.env.*</code> to <code>.gitignore</code>.</div>
+</div>
+
+<div class="finding medium" id="finding-33">
+<h2>33. Husky pre-commit hook skips all <code>.tsx</code> files</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> The pre-commit hook greps staged files for <code>\.ts$</code> only, so every React component and all <code>*.test.tsx</code> files bypass pre-commit formatting/linting.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>.husky/pre-commit</code> — lines 5–6</li>
+</ul>
+<div class="code"># Get only staged *.ts files
+STAGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.ts$' || true)</div>
+<div class="recommendation"><strong>Remediation:</strong> Use <code>grep -E '\.(ts|tsx)$'</code> (note <code>\.ts$</code> also matches <code>.tsx</code> only if unanchored — here it is anchored, so <code>.tsx</code> is excluded).</div>
+</div>
+
+<div class="finding medium" id="finding-34">
+<h2>34. Floating versions on security-sensitive build dependencies</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Tauri JS plugins mix major-only ranges (<code>^2</code>) with tilde pins (<code>~2.10.0</code>), and the sidecar binary compiler <code>@yao-pkg/pkg</code> floats at <code>^5.15.0</code> (lockfile currently resolves 5.16.1).</p>
+<p><strong>Details:</strong> Plugin version drift between the JS and Rust sides of Tauri can cause subtle IPC/permission mismatches. Since sidecar binaries are gitignored and rebuilt per session, a silently-updated <code>pkg</code> can change sidecar bundling behavior with no code diff.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>package.json</code> — lines 29–34</li>
+  <li><code>src-tauri/sidecar-opencode/package.json</code> — line 26</li>
+</ul>
+<div class="code">"@tauri-apps/api": "~2.10.0",
+"@tauri-apps/plugin-opener": "^2",
+"@tauri-apps/plugin-shell": "^2",
+"@tauri-apps/plugin-updater": "~2.10.0",
+// sidecar:
+"@yao-pkg/pkg": "^5.15.0",</div>
+<div class="recommendation"><strong>Remediation:</strong> Pin all <code>@tauri-apps/*</code> packages to the same minor line and bump together with the Cargo side; pin <code>@yao-pkg/pkg</code> exactly and add a smoke test on the built binary.</div>
+</div>
+
+<div class="finding medium" id="finding-35">
+<h2>35. O(n²) per-render scans and unvirtualized chat list</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Inside <code>MessageList</code>'s per-message <code>.map()</code>, the code scans backward for the last assistant message — O(n) per row, O(n²) per render — and there is no list virtualization anywhere. <em>(Carry-over: #30 from the June 11 review — unchanged.)</em></p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/components/chat/MessageList.tsx</code> — lines 76–83, 88–101</li>
+</ul>
+<div class="code">.map((message, index, filteredMessages) =&gt; {
+  // ...
+  let lastAssistantIndex = -1;
+  for (let i = filteredMessages.length - 1; i &gt;= 0; i--) {   // ← per row
+    if (filteredMessages[i].type === 'assistant') { lastAssistantIndex = i; break; }
+  }</div>
+<div class="recommendation"><strong>Remediation:</strong> Hoist <code>lastAssistantIndex</code> into a single <code>useMemo</code> before the map; adopt windowed rendering (e.g. <code>react-window</code>) for sessions beyond ~50 messages.</div>
+</div>
+
+<div class="finding medium" id="finding-36">
+<h2>36. Rust backend largely untested (5 of 46 files)</h2>
+<span class="severity medium">MEDIUM</span>
+<p><strong>Summary:</strong> Only <code>path_guard.rs</code>, <code>workspace_validator.rs</code>, <code>git_ops.rs</code>, <code>fs_utils.rs</code>, and <code>commands/skills.rs</code> contain <code>#[cfg(test)]</code> modules (~11% of files). <em>(Carry-over: #26 from the June 11 review — coverage grew from 4 files but the gap persists.)</em></p>
+<p><strong>Details:</strong> The IPC layer (<code>sidecar.rs</code>), the entire DB layer including migrations, task commands, the automation scheduler, and secure storage are untested — precisely the areas where this review found panics, races, and validation gaps (findings 14, 16, 17, 18).</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/</code> — 41 of 46 files lack tests; notably <code>sidecar.rs</code>, <code>db/*</code>, <code>commands/tasks.rs</code>, <code>automation_scheduler.rs</code></li>
+</ul>
+<div class="code">// files with #[cfg(test)]: path_guard.rs, workspace_validator.rs,
+// git_ops.rs, fs_utils.rs, commands/skills.rs — all other 41 files: none</div>
+<div class="recommendation"><strong>Remediation:</strong> Prioritize tests for migrations (against fixture DBs at each historical version), the <code>SidecarCommand</code> serde contract, and command-handler input validation — the three areas backing this review's medium/high findings.</div>
+</div>
+
+<!-- ============================================================ -->
+
+<div class="finding low" id="finding-37">
+<h2>37. <code>get_key_prefix</code> byte-slice panic on non-ASCII keys</h2>
+<span class="severity low">LOW</span>
+<p><strong>Summary:</strong> <code>&amp;key[..prefix_len]</code> slices at a byte offset; if a stored key contains a multi-byte UTF-8 character within the first 8 bytes, this panics. <em>(Carry-over: #27 from the June 11 review — unchanged.)</em></p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/secure_storage.rs</code> — lines 109–114</li>
+</ul>
+<div class="code">Some(key) =&gt; {
+    let prefix_len = std::cmp::min(8, key.len());     // byte length
+    Ok(Some(format!("{}...", &amp;key[..prefix_len])))    // panics on char boundary split
+}</div>
+<div class="recommendation"><strong>Remediation:</strong> Use <code>key.chars().take(8).collect::&lt;String&gt;()</code> or <code>key.get(..prefix_len)</code> with a fallback.</div>
+</div>
+
+<div class="finding low" id="finding-38">
+<h2>38. Dead and unwired code across the IPC layer</h2>
+<span class="severity low">LOW</span>
+<p><strong>Summary:</strong> Unused command variants, ad-hoc JSON instead of typed enums, and type/handler drift make <code>types.ts</code> unreliable as the IPC source of truth. <em>(Carry-over: #34 from the June 11 review — unchanged.)</em></p>
+<p><strong>Details:</strong> Rust side: <code>SidecarCommand::Ping</code>/<code>CheckServer</code> are <code>#[allow(dead_code)]</code> and never constructed; <code>shutdown</code> is sent as a raw JSON string rather than an enum variant; sidecar events are parsed as untyped strings (no <code>SidecarEvent</code> enum). Sidecar side: <code>OpenCodeEvent</code> variants like <code>session.idle</code>, <code>permission.replied</code>, <code>question.rejected</code> are never handled (the code listens to <code>session.status</code> instead); <code>SessionManager</code> emits a <code>'message'</code> event only tests consume; <code>mcp.tools.changed</code> is handled but missing from the type union.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/src/sidecar.rs</code> — lines 114–118, 224–233, 605–607</li>
+  <li><code>src-tauri/sidecar-opencode/src/types.ts</code> — lines 184, 211–223</li>
+  <li><code>src-tauri/sidecar-opencode/src/session-manager.ts</code> — lines 74, 114–117</li>
+</ul>
+<div class="code">// sidecar.rs — never constructed
+#[allow(dead_code)]
+Ping,
+#[allow(dead_code)]
+CheckServer,
+// shutdown sent as ad-hoc JSON, not via the enum</div>
+<div class="recommendation"><strong>Remediation:</strong> Prune unused variants, route <code>shutdown</code> through the typed enum, add a typed <code>SidecarEvent</code> parser on the Rust side, and align <code>types.ts</code> with actual handlers.</div>
+</div>
+
+<div class="finding low" id="finding-39">
+<h2>39. IPC type contract bypassed with double casts</h2>
+<span class="severity low">LOW</span>
+<p><strong>Summary:</strong> Tool-use forwarding builds a payload missing the required <code>parts</code> field and silences the compiler with <code>as unknown as SidecarEvent</code>, hiding contract drift from Rust deserializers. <em>(Carry-over: #29 from the June 11 review — unchanged.)</em></p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src-tauri/sidecar-opencode/src/index.ts</code> — lines 183–194</li>
+  <li><code>src-tauri/sidecar-opencode/src/types.ts</code> — lines 388–391 (<code>TaskMessagePayload</code>)</li>
+</ul>
+<div class="code">send({
+  type: 'task_message',
+  taskId: data.taskId,
+  payload: { message: toolMessage },   // TaskMessagePayload requires `parts`
+} as unknown as SidecarEvent);</div>
+<div class="recommendation"><strong>Remediation:</strong> Make <code>parts</code> optional (if that reflects reality) or add a dedicated event variant; remove the cast so the compiler enforces the contract.</div>
+</div>
+
+<div class="finding low" id="finding-40">
+<h2>40. Oversized god-files concentrate unrelated concerns</h2>
+<span class="severity low">LOW</span>
+<p><strong>Summary:</strong> The largest source files keep growing and mix many domains, raising merge-conflict and comprehension costs. <em>(Carry-over: #33 from the June 11 review — counts updated.)</em></p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/lib/tauri-api.ts</code> — 1,825 lines (every invoke/listen across all domains)</li>
+  <li><code>src/stores/taskStore.ts</code> — 1,256 lines (state + event handling + persistence)</li>
+  <li><code>src/stores/arenaStore.ts</code> — 647 lines</li>
+  <li><code>src/components/layout/SettingsDialog.tsx</code> — 560 lines</li>
+  <li><code>src/pages/Execution.tsx</code> — 519 lines</li>
+</ul>
+<div class="code">// tauri-api.ts spans tasks, workspaces, skills, automations, copilot,
+// updates, logging, files, packs — one file, 1,825 lines</div>
+<div class="recommendation"><strong>Remediation:</strong> Split <code>tauri-api.ts</code> by domain module; extract task-event handling and persistence from <code>taskStore.ts</code> into a dedicated module (which would also resolve the single-owner question raised in finding 11).</div>
+</div>
+
+<div class="finding low" id="finding-41">
+<h2>41. Inconsistent send shortcuts across chat inputs</h2>
+<span class="severity low">LOW</span>
+<p><strong>Summary:</strong> The shortcuts dialog documents <strong>Enter</strong> to send; <code>ChatInput</code> and <code>TaskInputBar</code> follow that, but <code>ArenaInputBar</code> requires <strong>Cmd/Ctrl+Enter</strong> — plain Enter does nothing.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/components/layout/KeyboardShortcutsDialog.tsx</code> — lines 26–27</li>
+  <li><code>src/components/chat/ChatInput.tsx</code> — lines 182–185</li>
+  <li><code>src/components/arena/ArenaInputBar.tsx</code> — lines 198–205</li>
+</ul>
+<div class="code">// ArenaInputBar.tsx — requires modifier, unlike every other input
+if (e.key === 'Enter' &amp;&amp; (e.metaKey || e.ctrlKey)) {
+  e.preventDefault();
+  if (isRunning) return;
+  if (!arenaId || isNewArena) { handleStart(); }</div>
+<div class="recommendation"><strong>Remediation:</strong> Align Arena with Enter-to-send (Shift+Enter for newline), or update the shortcuts dialog to document the difference.</div>
+</div>
+
+<div class="finding low" id="finding-42">
+<h2>42. <code>ChatInput</code> add-to-chat handler uses stale cursor position</h2>
+<span class="severity low">LOW</span>
+<p><strong>Summary:</strong> The <code>add-to-chat</code> event handler closes over the <code>cursorPosition</code> state, which can lag the textarea's actual selection, inserting text at an outdated index.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/components/chat/ChatInput.tsx</code> — lines 81–97</li>
+</ul>
+<div class="code">const { newText, newCursorPosition } = insertAtCursor(
+  followUpRef.current, detail.text, cursorPosition);  // ← state may be stale
+setFollowUp(newText);
+setCursorPosition(newCursorPosition);</div>
+<div class="recommendation"><strong>Remediation:</strong> Read <code>followUpInputRef.current?.selectionStart</code> inside the handler (the Arena <code>doInsertText</code> pattern already does this).</div>
+</div>
+
+<div class="finding low" id="finding-43">
+<h2>43. <code>MarkdownPreview</code> renders agent files without hardened link handling</h2>
+<span class="severity low">LOW</span>
+<p><strong>Summary:</strong> File-preview markdown uses bare <code>ReactMarkdown</code> without <code>fileAwareUrlTransform</code> or <code>EnhancedLink</code>, so previewed agent-written markdown gets weaker link/path handling than chat messages.</p>
+<p><strong>Occurrences:</strong></p>
+<ul>
+  <li><code>src/components/file-preview/MarkdownPreview.tsx</code> — lines 14–48</li>
+</ul>
+<div class="code">&lt;ReactMarkdown
+  components={{ code({ className, children, ...props }) { /* highlighter only */ } }}
+  remarkPlugins={[remarkGfm]}
+&gt;
+  {content}
+&lt;/ReactMarkdown&gt;</div>
+<div class="recommendation"><strong>Remediation:</strong> Reuse <code>createMarkdownComponents()</code> and <code>fileAwareUrlTransform</code> from the chat rendering path for parity.</div>
+</div>
+
+</div>
+</body>
+</html>

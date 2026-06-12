@@ -19,7 +19,6 @@ Frontend store / performance:
 
 - [ ] #11 Arena mode double-persists and never dedupes task events
 - [ ] #26 Async `listen()` unsubscribe races leak Tauri event listeners
-- [ ] #27 `deleteTask` leaks `todos`/`artifacts` map entries
 - [ ] #19 Filesystem watcher is non-recursive — stale file tree for nested changes
 - [ ] #12 Streaming pipeline re-parses full markdown and re-renders the whole page per delta
 - [ ] #35 O(n²) per-render scans in `MessageList`
@@ -36,6 +35,20 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #27 `deleteTask` leaks `todos`/`artifacts` map entries
+  - Branch/worktree: `fix/tr2-27-deletetask-leaks` (`.worktrees/tr2-27`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: deleting a task now releases its todos, artifacts, and streaming buffers (2026-06-12 review #27)"
+  - Change: `deleteTask`'s `set()` now also removes the task's keys from the
+    `todos` and `artifacts` maps. `partialMessages` deviates from the
+    review's literal suggestion because it is keyed by *messageId*, not
+    taskId, and only ever holds entries for the current task (the partial
+    handler gates on `currentTask.id`) — so it is cleared wholesale exactly
+    when the deleted task is the current one.
+  - Verification: `pnpm typecheck` — pass; `pnpm test --run` — 339/339 pass
+    (new: todo/artifact entries dropped for deleted task only; partials
+    cleared when current task deleted); ultracite clean.
 
 - [x] #25 OpenCode config merge can clobber user settings on disk
   - Branch/worktree: `fix/tr2-25-config-merge` (`.worktrees/tr2-25`)

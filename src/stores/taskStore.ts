@@ -1147,12 +1147,26 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   deleteTask: async (taskId: string) => {
     await api.deleteTask(taskId);
-    set((state) => ({
-      tasks: state.tasks.filter((t) => t.id !== taskId),
-      allTasks: state.allTasks.filter((t) => t.id !== taskId),
-      // Clear currentTask if it's the one being deleted
-      currentTask: state.currentTask?.id === taskId ? null : state.currentTask,
-    }));
+    set((state) => {
+      // Drop the task's per-task map entries too — leaving them accumulates
+      // memory over long sessions (2026-06-12 review #27)
+      const todos = new Map(state.todos);
+      todos.delete(taskId);
+      const artifacts = new Map(state.artifacts);
+      artifacts.delete(taskId);
+      const isCurrent = state.currentTask?.id === taskId;
+      return {
+        tasks: state.tasks.filter((t) => t.id !== taskId),
+        allTasks: state.allTasks.filter((t) => t.id !== taskId),
+        // Clear currentTask if it's the one being deleted
+        currentTask: isCurrent ? null : state.currentTask,
+        todos,
+        artifacts,
+        // partialMessages is keyed by messageId and only ever holds entries
+        // for the current task — clear it when that task is deleted
+        partialMessages: isCurrent ? new Map<string, PartialMessage>() : state.partialMessages,
+      };
+    });
   },
 
   clearHistory: async () => {

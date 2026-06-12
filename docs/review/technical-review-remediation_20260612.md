@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 CI / repo hygiene:
 
-- [ ] #33 Husky pre-commit hook skips all `.tsx` files
 - [ ] #32 No dependency-audit automation; `.gitignore` lacks `.env`
 - [ ] #34 Floating versions on security-sensitive build dependencies
 
@@ -71,9 +70,21 @@ Rust robustness:
 
 ## Fixed
 
+- [x] #33 Husky pre-commit hook skips all `.tsx` files
+  - Branch/worktree: `fix/tr2-33-husky-tsx` (`.worktrees/tr2-33`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: pre-commit formatting now covers .tsx files (2026-06-12 review #33)"
+  - Change: `.husky/pre-commit` — staged-file filter changed from
+    `grep '\.ts$'` (anchored, so `.tsx` never matched) to
+    `grep -E '\.tsx?$'`, so React components and `.test.tsx` files get
+    formatted/linted on commit like plain `.ts` files.
+  - Verification: `echo 'a/b.tsx\na/c.ts\na/d.json' | grep -E '\.tsx?$'`
+    matches the first two only; hook logic otherwise unchanged
+    (config-only, validated by inspection).
+
 - [x] #31 CI gaps: no typecheck, no production build, single Linux-ARM64 platform
   - Branch/worktree: `fix/tr2-31-ci-gaps` (`.worktrees/tr2-31`)
-  - Commit: (this commit)
+  - Commit: `a6b5637`
   - UPDATE_LOG: "Fix: CI now typechecks, builds, and runs on macOS (2026-06-12 review #31)"
   - Change: `.github/workflows/test.yml` — added `pnpm typecheck` and
     `pnpm build` (production Vite build) steps; the job now runs on a

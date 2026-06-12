@@ -2,12 +2,12 @@
 # Exit on any error
 set -e
 
-# Get only staged *.ts files
-STAGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.ts$' || true)
+# Get only staged *.ts / *.tsx files
+STAGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.tsx?$' || true)
 
-# Check if there are any staged .ts files
+# Check if there are any staged .ts/.tsx files
 if [ -z "$STAGED_TS_FILES" ]; then
-  echo "No staged .ts files to format"
+  echo "No staged .ts/.tsx files to format"
   exit 0
 fi
 

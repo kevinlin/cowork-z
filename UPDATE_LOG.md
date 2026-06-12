@@ -4,6 +4,7 @@
 
 ## v0.8.1
 
+- **Fix: pre-commit formatting now covers `.tsx` files** — The husky hook's staged-file filter only matched `.ts`, so React components bypassed pre-commit lint/format entirely (2026-06-12 review #33).
 - **Fix: CI now typechecks, builds, and runs on macOS** — The Build workflow gained `pnpm typecheck` and production `pnpm build` steps, and the test job runs on both Linux ARM64 and macOS ARM64 so platform-specific breakage is caught before release (2026-06-12 review #31).
 - **Fix: CI lint gate restored** — The June 11 CI lint fix had been reverted because `pnpm ultracite:check` failed with 17 pre-existing violations; all 17 are now fixed (`substring` → `slice` conversions plus modal a11y in `McpAddServerDialog`), and the workflow runs lint and tests as separate gating steps (2026-06-12 review #7).
 

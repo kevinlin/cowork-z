@@ -125,6 +125,55 @@ describe('EventStream reconnect behavior', () => {
     stream.disconnect();
   });
 
+  it('drops workspace-scoped events when the stream has no directory scope (2026-06-12 review #23)', () => {
+    const stream = createStream();
+    stream.connect();
+    const received: string[] = [];
+    stream.on('event', (data: { type: string }) => received.push(data.type));
+
+    const es = eventSourceInstances[0];
+    // Workspace-scoped event (envelope carries a directory) — must be dropped
+    es.onmessage?.({
+      data: JSON.stringify({
+        directory: '/some/workspace',
+        payload: { type: 'session.status', properties: { sessionID: 'ses_1', status: { type: 'busy' } } },
+      }),
+    });
+    // Server-only event (no directory) — must pass through
+    es.onmessage?.({
+      data: JSON.stringify({
+        payload: { type: 'server.heartbeat', properties: {} },
+      }),
+    });
+
+    expect(received).toEqual(['server.heartbeat']);
+    stream.disconnect();
+  });
+
+  it('passes only matching workspace events when the stream is directory-scoped', () => {
+    const stream = new EventStream({ baseUrl: 'http://127.0.0.1:1234', directory: '/my/workspace' });
+    stream.connect();
+    const received: string[] = [];
+    stream.on('event', (data: { type: string }) => received.push(data.type));
+
+    const es = eventSourceInstances[0];
+    es.onmessage?.({
+      data: JSON.stringify({
+        directory: '/my/workspace',
+        payload: { type: 'session.status', properties: {} },
+      }),
+    });
+    es.onmessage?.({
+      data: JSON.stringify({
+        directory: '/other/workspace',
+        payload: { type: 'message.updated', properties: {} },
+      }),
+    });
+
+    expect(received).toEqual(['session.status']);
+    stream.disconnect();
+  });
+
   it('resets the backoff after a successful connection', () => {
     const stream = createStream(1000);
     stream.connect();

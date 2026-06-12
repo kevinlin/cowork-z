@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Sidecar lifecycle:
 
-- [ ] #23 SSE workspace filter disabled when `workingDirectory` is unset
 - [ ] #22 `ApiKeys.ollama` defined but never applied at server spawn
 - [ ] #25 OpenCode config merge can clobber user settings on disk
 
@@ -42,6 +41,24 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #23 SSE workspace filter disabled when `workingDirectory` is unset
+  - Branch/worktree: `fix/tr2-23-sse-filter` (`.worktrees/tr2-23`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: workspace-scoped server events are dropped when no workspace is active (2026-06-12 review #23)"
+  - Change: the envelope filter in `EventStream.onmessage` previously only
+    dropped events when *both* the envelope's and the stream's directory
+    were set; an unscoped stream (Copilot OAuth initialization path) passed
+    every workspace event through, leaving routing to the fragile
+    session-id map. Now any envelope that carries a `directory` requires a
+    scoped, matching stream; server-only payloads (no directory —
+    heartbeats, connected) still always pass. Task starts re-scope the
+    stream via the existing `reconnectWithDirectory` path, so the unscoped
+    window only exists before the first task.
+  - Verification: sidecar `pnpm build` (tsc) — pass; `pnpm test` — 122/122
+    pass (new: unscoped stream drops directory-carrying events but passes
+    server-only ones; scoped stream passes matching and drops mismatched);
+    ultracite clean.
 
 - [x] #21 Stale sessions cleaned up locally but never aborted on the server
   - Branch/worktree: `fix/tr2-21-abort-stale` (`.worktrees/tr2-21`)

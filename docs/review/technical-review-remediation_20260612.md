@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Secret handling:
 
-- [ ] #5 All provider API keys sent in bulk over sidecar IPC on every task start
 - [ ] #1 OpenCode server password embedded in every LLM system prompt (CRITICAL)
 
 Sidecar lifecycle:
@@ -52,6 +51,32 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #5 All provider API keys sent in bulk over sidecar IPC on every task start
+  - Branch/worktree: `fix/tr2-05-keys-ipc` (`.worktrees/tr2-05`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: API keys no longer ride along on every task start (2026-06-12 review #5)"
+  - Change: task payloads (`start_task`/`resume_session`, arena, automation
+    dispatch) now carry only `apiKeysFingerprint` — a Rust-computed SHA-256
+    digest with no key material. The sidecar pulls actual credentials
+    through a new narrow bridge (`request_api_keys` event →
+    `api_keys_response` command) only when it is about to (re)spawn the
+    OpenCode server, i.e. on first spawn or when the fingerprint differs
+    from the last applied one (preserving the v0.8.0 restart-on-rotation
+    behavior — the response includes the host-computed fingerprint, so the
+    sidecar never hashes key material itself). Chose this over "send only
+    the active provider's key" because Arena runs three providers against
+    one shared server — per-provider filtering would force a server restart
+    between slots. The full key set still enters the server's environment
+    at spawn (the server serves any provider), but keys now cross IPC only
+    on change instead of on every task. `api-key-fingerprint.ts` moved to
+    Rust (`sidecar::fingerprint_api_keys`); CLAUDE.md IPC protocol lists
+    updated.
+  - Verification: `cd src-tauri && cargo check` — pass;
+    `cargo test --lib sidecar` — 3/3 new fingerprint tests pass; sidecar
+    `pnpm build` + `pnpm test` — 111/111 pass (7 TS fingerprint tests
+    removed with the module); `pnpm typecheck` — pass; `pnpm test --run` —
+    337/337 pass.
 
 - [x] #28 Streaming debug logs write full message text in production
   - Branch/worktree: `fix/tr2-28-streaming-logs` (`.worktrees/tr2-28`)

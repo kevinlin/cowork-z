@@ -1,11 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import readline from 'node:readline';
-import { fingerprintApiKeys } from './api-key-fingerprint';
 import { EventStream } from './event-stream';
 import { logger } from './logger';
 import { ProcessManager } from './process-manager';
 import { SessionManager } from './session-manager';
 import type {
   ApiKeys,
+  ApiKeysResponsePayload,
   PermissionReplyPayload,
   QuestionInfo,
   QuestionReplyPayload,
@@ -46,11 +47,52 @@ let initializePromise: Promise<void> | null = null;
 let appliedApiKeysFingerprint: string | undefined;
 
 // ============================================================================
+// API-key bridge (2026-06-12 review #5)
+//
+// Task payloads carry only a credential fingerprint. The sidecar pulls the
+// actual keys from the host through a request/response pair on the existing
+// stdin/stdout IPC, and only when it is about to (re)spawn the OpenCode
+// server — keys no longer cross the process boundary on every task start.
+// ============================================================================
+
+const API_KEY_REQUEST_TIMEOUT_MS = 10_000;
+
+const pendingApiKeyRequests = new Map<string, (response: ApiKeysResponsePayload | undefined) => void>();
+
+function requestApiKeysFromHost(): Promise<ApiKeysResponsePayload | undefined> {
+  const requestId = randomUUID();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingApiKeyRequests.delete(requestId);
+      logger.warn('Timed out waiting for API keys from host — starting server without provider credentials');
+      resolve(undefined);
+    }, API_KEY_REQUEST_TIMEOUT_MS);
+
+    pendingApiKeyRequests.set(requestId, (response) => {
+      clearTimeout(timer);
+      pendingApiKeyRequests.delete(requestId);
+      resolve(response);
+    });
+
+    send({ type: 'request_api_keys', payload: { requestId } });
+  });
+}
+
+function handleApiKeysResponse(payload: ApiKeysResponsePayload): void {
+  const resolver = pendingApiKeyRequests.get(payload.requestId);
+  if (resolver) {
+    resolver(payload);
+  } else {
+    logger.warn('Received api_keys_response with no pending request', { requestId: payload.requestId });
+  }
+}
+
+// ============================================================================
 // Initialization
 // ============================================================================
 
 async function initialize(
-  apiKeys?: ApiKeys,
+  apiKeysFingerprint?: string,
   mcpServers?: Record<string, unknown>,
   modelId?: string,
   workingDirectory?: string
@@ -59,14 +101,15 @@ async function initialize(
     // API keys are applied as env vars when the server process spawns, so a
     // key added or rotated after initialization needs a deliberate server
     // restart to take effect (technical review finding #14). Callers that
-    // pass no keys (e.g. Copilot OAuth) express no opinion and skip the check.
-    const keysChanged = apiKeys !== undefined && fingerprintApiKeys(apiKeys) !== appliedApiKeysFingerprint;
+    // pass no fingerprint (e.g. Copilot OAuth) express no opinion and skip
+    // the check.
+    const keysChanged = apiKeysFingerprint !== undefined && apiKeysFingerprint !== appliedApiKeysFingerprint;
 
     if (keysChanged && sessionManager.activeSessionCount() === 0) {
       logger.info('API keys changed since initialization — restarting OpenCode server to apply them');
       initializePromise = (async () => {
         await teardown();
-        await doInitialize(apiKeys, mcpServers, modelId, workingDirectory);
+        await doInitialize(mcpServers, modelId, workingDirectory);
       })();
       try {
         await initializePromise;
@@ -97,7 +140,7 @@ async function initialize(
     return;
   }
 
-  initializePromise = doInitialize(apiKeys, mcpServers, modelId, workingDirectory);
+  initializePromise = doInitialize(mcpServers, modelId, workingDirectory);
   try {
     await initializePromise;
   } finally {
@@ -105,14 +148,13 @@ async function initialize(
   }
 }
 
-async function doInitialize(
-  apiKeys?: ApiKeys,
-  mcpServers?: Record<string, unknown>,
-  modelId?: string,
-  workingDirectory?: string
-): Promise<void> {
+async function doInitialize(mcpServers?: Record<string, unknown>, modelId?: string, workingDirectory?: string): Promise<void> {
   currentDirectory = workingDirectory;
-  appliedApiKeysFingerprint = fingerprintApiKeys(apiKeys);
+
+  // Pull credentials from the host at spawn time (2026-06-12 review #5)
+  const keyResponse = await requestApiKeysFromHost();
+  const apiKeys: ApiKeys | undefined = keyResponse?.apiKeys;
+  appliedApiKeysFingerprint = keyResponse?.fingerprint;
 
   // Start process manager — picks a random available port and generates a password
   processManager = new ProcessManager();
@@ -278,7 +320,7 @@ async function doInitialize(
 
 async function handleStartTask(taskId: string, payload: StartTaskPayload): Promise<void> {
   try {
-    await initialize(payload.apiKeys, payload.mcpServers, payload.modelId, payload.workingDirectory);
+    await initialize(payload.apiKeysFingerprint, payload.mcpServers, payload.modelId, payload.workingDirectory);
 
     if (!(sessionManager && processManager)) {
       throw new Error('Session manager not initialized');
@@ -305,7 +347,7 @@ async function handleStartTask(taskId: string, payload: StartTaskPayload): Promi
 
 async function handleResumeSession(taskId: string, payload: ResumeSessionPayload): Promise<void> {
   try {
-    await initialize(payload.apiKeys, payload.mcpServers, payload.modelId, payload.workingDirectory);
+    await initialize(payload.apiKeysFingerprint, payload.mcpServers, payload.modelId, payload.workingDirectory);
 
     if (!(sessionManager && processManager)) {
       throw new Error('Session manager not initialized');
@@ -712,6 +754,10 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
 
     case 'copilot_disconnect':
       await handleCopilotDisconnect();
+      break;
+
+    case 'api_keys_response':
+      handleApiKeysResponse(msg.payload);
       break;
 
     case 'get_session_todos': {

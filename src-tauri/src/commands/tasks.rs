@@ -131,8 +131,9 @@ pub async fn start_task(
         sidecar_perms = Some(perms);
     }
 
-    // Get API keys from secure storage
-    let api_keys = sidecar::get_all_api_keys()?;
+    // Fingerprint of current credentials — the sidecar pulls actual keys
+    // through the request_api_keys bridge only when this changed (#5)
+    let api_keys_fingerprint = sidecar::current_api_keys_fingerprint()?;
 
     // Read user prompt from settings
     let custom_prompt = {
@@ -163,7 +164,7 @@ pub async fn start_task(
             payload: sidecar::StartTaskPayload {
                 task_id: task_id.clone(),
                 prompt: config.prompt.clone(),
-                api_keys: Some(api_keys),
+                api_keys_fingerprint: Some(api_keys_fingerprint),
                 working_directory,
                 model_id: resolved_model_id,
                 folder_permissions: sidecar_perms,
@@ -660,8 +661,8 @@ pub async fn resume_session(
         sidecar_perms = Some(perms);
     }
 
-    // Get API keys from secure storage
-    let api_keys = sidecar::get_all_api_keys()?;
+    // Fingerprint only — keys travel via the request_api_keys bridge (#5)
+    let api_keys_fingerprint = sidecar::current_api_keys_fingerprint()?;
 
     // Read user prompt from settings
     let custom_prompt = {
@@ -693,7 +694,7 @@ pub async fn resume_session(
                 task_id: task_id.clone(),
                 session_id: session_id.clone(),
                 prompt: Some(prompt.clone()),
-                api_keys: Some(api_keys),
+                api_keys_fingerprint: Some(api_keys_fingerprint),
                 working_directory,
                 model_id: None,
                 folder_permissions: sidecar_perms,

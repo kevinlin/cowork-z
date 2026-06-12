@@ -125,9 +125,11 @@ OpenCode server endpoints used by sidecar: `GET /event` (SSE), `POST /session/{i
 
 Rust serializes `SidecarCommand` to JSON-line on sidecar stdin. Sidecar emits `SidecarEvent` as JSON-line on stdout. Both use `snake_case` type discriminants.
 
-**Rust → Sidecar:** `start_task`, `resume_session`, `cancel_task`, `abort_session`, `send_permission_reply`, `send_question_reply`, `get_session_todos`, `update_mcp_config`, `copilot_oauth_authorize`, `copilot_get_models`, `copilot_disconnect`, `ping`, `check_server`, `shutdown`
+**Rust → Sidecar:** `start_task`, `resume_session`, `cancel_task`, `abort_session`, `send_permission_reply`, `send_question_reply`, `get_session_todos`, `update_mcp_config`, `copilot_oauth_authorize`, `copilot_get_models`, `copilot_disconnect`, `api_keys_response`, `ping`, `check_server`, `shutdown`
 
-**Sidecar → Rust:** `ready`, `pong`, `server_status`, `task_started`, `task_message`, `task_message_partial`, `task_message_complete`, `task_progress`, `task_complete`, `task_error`, `permission_request`, `question_request`, `todo_updated`, `copilot_oauth_result`, `copilot_oauth_complete`, `copilot_models_result`, `log`, `error`
+**Sidecar → Rust:** `ready`, `pong`, `server_status`, `task_started`, `task_message`, `task_message_partial`, `task_message_complete`, `task_progress`, `task_complete`, `task_error`, `permission_request`, `question_request`, `todo_updated`, `copilot_oauth_result`, `copilot_oauth_complete`, `copilot_models_result`, `request_api_keys`, `log`, `error`
+
+Note: task payloads carry an `apiKeysFingerprint` (no key material). The sidecar pulls actual provider keys via `request_api_keys` → `api_keys_response` only when it (re)spawns the OpenCode server.
 
 Note: `cancel_task` is a no-op in server mode — use `abort_session` instead.
 

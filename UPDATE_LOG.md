@@ -4,6 +4,7 @@
 
 ## v0.8.1
 
+- **Fix: API keys no longer ride along on every task start** — Every task start serialized the complete credential set (all providers) onto the sidecar's stdin; task payloads now carry only a SHA-256 fingerprint, and the sidecar requests the actual keys through a dedicated request/response bridge solely when it (re)spawns the OpenCode server — keys cross the process boundary only when they change (2026-06-12 review #5).
 - **Fix: streaming handlers no longer log message content** — Every streamed message wrote its complete final text into the persisted app log (agent conversation content can include secrets read from files) and `console.log`-ed every delta; streaming logs now record message id and length only (2026-06-12 review #28).
 - **Fix: removed the IPC command that returned the full Anthropic API key to the webview** — `get_api_key` handed the complete keychain secret to any frontend caller (any XSS or webview compromise could exfiltrate it), and nothing in the UI used it; the renderer now only ever sees existence + masked prefix via `get_all_api_keys` (2026-06-12 review #13).
 - **Fix: API keys can no longer escape log redaction** — The sidecar logged full incoming command payloads (which include every provider's API key on task start), and the redactor's key-name pattern missed provider-name fields like `anthropic` or `openai` inside the `apiKeys` map; commands are now logged as type + task id only, and the entire `apiKeys` container is masked like `environment`/`headers` (2026-06-12 review #6).

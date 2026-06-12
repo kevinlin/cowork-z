@@ -52,9 +52,11 @@ pub async fn save_azure_foundry_config(
     config: AzureFoundryTestConfig,
     state: State<'_, DbState>,
 ) -> Result<(), String> {
-    // Store API key securely if present
+    // Store API key securely if present.
+    // "azure-foundry" matches the frontend provider id and the keychain
+    // status list in secure_storage::PROVIDERS.
     if let Some(api_key) = &config.api_key {
-        secure_storage::store_api_key("azureFoundry", api_key)?;
+        secure_storage::store_api_key("azure-foundry", api_key)?;
     }
 
     // Store rest of config (without API key) in database

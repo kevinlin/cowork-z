@@ -38,36 +38,31 @@ export function StreamingText({
   const lastTimeRef = useRef<number>(0);
   const textRef = useRef(text);
 
-  // Real streaming mode - show text immediately without animation
-  if (isRealStreaming) {
-    return (
-      <div className={className}>
-        {children(text)}
-        {!isComplete && <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-foreground/60 align-text-bottom" />}
-      </div>
-    );
-  }
+  // All hooks run unconditionally (Rules of Hooks); each effect no-ops in
+  // real-streaming mode, which needs no animation state.
 
   // Update ref when text changes
   useEffect(() => {
+    if (isRealStreaming) return;
     // If new text is longer, continue streaming from current position
     if (text.length > textRef.current.length && !isComplete) {
       setIsStreaming(true);
     }
     textRef.current = text;
-  }, [text, isComplete]);
+  }, [text, isComplete, isRealStreaming]);
 
   // Handle immediate completion
   useEffect(() => {
+    if (isRealStreaming) return;
     if (isComplete) {
       setDisplayedLength(text.length);
       setIsStreaming(false);
     }
-  }, [isComplete, text.length]);
+  }, [isComplete, text.length, isRealStreaming]);
 
   // Animation loop
   useEffect(() => {
-    if (!isStreaming || isComplete) return;
+    if (isRealStreaming || !isStreaming || isComplete) return;
 
     const charsPerMs = speed / 1000;
 
@@ -103,7 +98,17 @@ export function StreamingText({
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [isStreaming, isComplete, speed, onComplete, displayedLength]);
+  }, [isRealStreaming, isStreaming, isComplete, speed, onComplete, displayedLength]);
+
+  // Real streaming mode - show text immediately without animation
+  if (isRealStreaming) {
+    return (
+      <div className={className}>
+        {children(text)}
+        {!isComplete && <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-foreground/60 align-text-bottom" />}
+      </div>
+    );
+  }
 
   const displayedText = text.slice(0, displayedLength);
 

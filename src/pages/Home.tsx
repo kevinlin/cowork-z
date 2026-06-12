@@ -25,23 +25,20 @@ export default function HomePage() {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<HomeTab>('skills');
 
-  const { startTask, isLoading, addTaskUpdate, enqueuePermissionRequest } = useTaskStore();
+  const { startTask, isLoading, enqueuePermissionRequest } = useTaskStore();
   const navigate = useNavigate();
   const api = getTauriAPI();
 
-  // Subscribe to task events
+  // Subscribe to permission requests. Task updates are handled by the single
+  // global onTaskUpdate subscription in taskStore (technical review #20).
   useEffect(() => {
-    const unsubscribeTask = api.onTaskUpdate((event) => {
-      addTaskUpdate(event);
-    });
     const unsubscribePermission = api.onPermissionRequest((request) => {
       enqueuePermissionRequest(request);
     });
     return () => {
-      unsubscribeTask();
       unsubscribePermission();
     };
-  }, [addTaskUpdate, enqueuePermissionRequest, api]);
+  }, [enqueuePermissionRequest, api]);
 
   const executeTask = useCallback(
     async (taskPrompt: string) => {

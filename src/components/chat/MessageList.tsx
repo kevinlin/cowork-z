@@ -151,7 +151,7 @@ export function MessageList({
           taskId={taskId}
         />
 
-        <div ref={messagesEndRef} />
+        <div data-messages-end ref={messagesEndRef} />
 
         <AnimatePresence>
           {!isAtBottom && (

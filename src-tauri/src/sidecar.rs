@@ -184,6 +184,11 @@ pub struct ResumeSessionPayload {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateMcpConfigPayload {
     pub mcp_servers: serde_json::Value,
+    /// Active workspace directory — the sidecar forwards this as
+    /// `?directory=<path>` so the PATCH /config reaches the correct
+    /// per-workspace OpenCode server instance.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -677,7 +682,9 @@ pub fn get_all_api_keys() -> Result<ApiKeys, String> {
     if let Ok(Some(key)) = secure_storage::get_api_key("ollama") {
         keys.ollama = Some(key);
     }
-    if let Ok(Some(key)) = secure_storage::get_api_key("azureFoundry") {
+    // Legacy `azureFoundry` entries are migrated to this id at app startup
+    // (secure_storage::migrate_legacy_azure_foundry_key), so no fallback here.
+    if let Ok(Some(key)) = secure_storage::get_api_key("azure-foundry") {
         keys.azure_foundry = Some(key);
     }
 

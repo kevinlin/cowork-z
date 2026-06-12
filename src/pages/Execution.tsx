@@ -1,23 +1,11 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
-import {
-  AlertCircle,
-  ArrowLeft,
-  Bug,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  Download,
-  Square,
-  Trash2,
-  XCircle,
-} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock, Square, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChatInput } from '@/components/chat/ChatInput';
+import { DebugLogPanel } from '@/components/chat/DebugLogPanel';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { MessageList } from '@/components/chat/MessageList';
 import { PermissionModal } from '@/components/chat/PermissionModal';
@@ -33,15 +21,6 @@ import { springs } from '../lib/animations';
 import * as api from '../lib/tauri-api';
 import { useTaskStore } from '../stores/taskStore';
 
-// Debug log entry type
-interface DebugLogEntry {
-  taskId: string;
-  timestamp: string;
-  type: string;
-  message: string;
-  data?: unknown;
-}
-
 // Spinning icon component
 const SpinningIcon = ({ className }: { className?: string }) => (
   <img alt="" className={cn('animate-spin-ccw', className)} src={loadingSymbol} />
@@ -52,11 +31,7 @@ export default function ExecutionPage() {
   const navigate = useNavigate();
   const [currentTool, setCurrentTool] = useState<string | null>(null);
   const [currentToolInput, setCurrentToolInput] = useState<unknown>(null);
-  const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
-  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
   const [debugModeEnabled, setDebugModeEnabled] = useState(false);
-  const [debugExported, setDebugExported] = useState(false);
-  const debugPanelRef = useRef<HTMLDivElement>(null);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [pendingFollowUp, setPendingFollowUp] = useState<string | null>(null);
   const [questionRequest, setQuestionRequest] = useState<QuestionRequest | null>(null);
@@ -74,7 +49,6 @@ export default function ExecutionPage() {
     loadTaskById,
     isLoading,
     error,
-    addTaskUpdate,
     addTaskUpdateBatch,
     updateTaskStatus,
     enqueuePermissionRequest,
@@ -141,7 +115,6 @@ export default function ExecutionPage() {
     if (id) {
       hasScrolledOnLoadRef.current = null;
       loadTaskById(id);
-      setDebugLogs([]);
     }
 
     // Use a cancelled flag to handle the race between cleanup and async
@@ -160,9 +133,12 @@ export default function ExecutionPage() {
       }
     };
 
+    // Tool-activity tracking only. Store updates and persistence are handled
+    // by the single global onTaskUpdate subscription in taskStore — calling
+    // addTaskUpdate here would double-process complete/error events
+    // (technical review #20).
     api
       .onTaskUpdate((event) => {
-        addTaskUpdate(event);
         if (event.type === 'message' && event.message?.type === 'tool') {
           const toolName = event.message.toolName || event.message.content?.match(/Using tool: (\w+)/)?.[1];
           if (toolName) {
@@ -214,19 +190,12 @@ export default function ExecutionPage() {
       })
       .then(track);
 
-    api
-      .onDebugLog((log) => {
-        const entry = log as DebugLogEntry;
-        setDebugLogs((prev) => [...prev, entry]);
-      })
-      .then(track);
-
     return () => {
       cancelled = true;
       unlisteners.forEach((unsub) => unsub());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, loadTaskById, addTaskUpdate, addTaskUpdateBatch, updateTaskStatus, enqueuePermissionRequest]);
+  }, [id, loadTaskById, addTaskUpdateBatch, updateTaskStatus, enqueuePermissionRequest]);
 
   // On session resume/load, jump to the latest conversation once.
   useEffect(() => {
@@ -257,13 +226,6 @@ export default function ExecutionPage() {
       messagesEnd?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [currentTask?.messages?.length, partialMessages.size, isAtBottom]);
-
-  // Auto-scroll debug panel when new logs arrive
-  useEffect(() => {
-    if (debugPanelOpen && debugPanelRef.current) {
-      debugPanelRef.current.scrollTop = debugPanelRef.current.scrollHeight;
-    }
-  }, [debugLogs.length, debugPanelOpen]);
 
   // Computed state
   const isComplete = ['completed', 'failed', 'cancelled', 'interrupted'].includes(currentTask?.status ?? '');
@@ -335,31 +297,6 @@ export default function ExecutionPage() {
       setPendingFollowUp(null);
     }
   };
-
-  const handleExportDebugLogs = useCallback(async () => {
-    const text = debugLogs
-      .map((log) => {
-        const dataStr = log.data === undefined ? '' : ` ${typeof log.data === 'string' ? log.data : JSON.stringify(log.data)}`;
-        return `${new Date(log.timestamp).toISOString()} [${log.type}] ${log.message}${dataStr}`;
-      })
-      .join('\n');
-
-    const defaultFilename = `debug-logs-${id}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
-
-    try {
-      const savedPath = await api.saveTextFile(text, {
-        title: 'Export Debug Logs',
-        defaultPath: defaultFilename,
-        filters: [{ name: 'Text Files', extensions: ['txt', 'log'] }],
-      });
-      if (savedPath) {
-        setDebugExported(true);
-        setTimeout(() => setDebugExported(false), 2000);
-      }
-    } catch (err) {
-      console.error('Failed to export debug logs:', err);
-    }
-  }, [debugLogs, id]);
 
   const handlePermissionResponse = async (allowed: boolean, selectedOptions?: string[], customText?: string) => {
     if (!(permissionRequest && currentTask)) return;
@@ -574,104 +511,8 @@ export default function ExecutionPage() {
           taskStatus={taskStatus}
         />
 
-        {/* Debug Panel - Only visible when debug mode is enabled */}
-        {debugModeEnabled && (
-          <div className="flex-shrink-0 border-border border-t" data-testid="debug-panel">
-            <button
-              className="flex w-full items-center justify-between bg-zinc-900 px-6 py-2.5 transition-colors hover:bg-zinc-800"
-              onClick={() => setDebugPanelOpen(!debugPanelOpen)}
-            >
-              <div className="flex items-center gap-2 text-sm text-zinc-400">
-                <Bug className="h-4 w-4" />
-                <span className="font-medium">Debug Logs</span>
-                {debugLogs.length > 0 && (
-                  <span className="rounded-full bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-300">{debugLogs.length}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {debugLogs.length > 0 && (
-                  <>
-                    <Button
-                      className="h-6 px-2 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleExportDebugLogs();
-                      }}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      {debugExported ? <Check className="mr-1 h-3 w-3 text-green-400" /> : <Download className="mr-1 h-3 w-3" />}
-                      {debugExported ? 'Exported' : 'Export'}
-                    </Button>
-                    <Button
-                      className="h-6 px-2 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDebugLogs([]);
-                      }}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      <Trash2 className="mr-1 h-3 w-3" />
-                      Clear
-                    </Button>
-                  </>
-                )}
-                {debugPanelOpen ? <ChevronDown className="h-4 w-4 text-zinc-500" /> : <ChevronUp className="h-4 w-4 text-zinc-500" />}
-              </div>
-            </button>
-
-            <AnimatePresence>
-              {debugPanelOpen && (
-                <motion.div
-                  animate={{ height: 200, opacity: 1 }}
-                  className="overflow-hidden"
-                  exit={{ height: 0, opacity: 0 }}
-                  initial={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="h-[200px] overflow-y-auto bg-zinc-950 p-4 font-mono text-xs text-zinc-300" ref={debugPanelRef}>
-                    {debugLogs.length === 0 ? (
-                      <div className="flex h-full items-center justify-center text-zinc-500">
-                        No debug logs yet. Run a task to see logs.
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        {debugLogs.map((log, index) => (
-                          <div className="flex gap-2" key={index}>
-                            <span className="shrink-0 text-zinc-500">{new Date(log.timestamp).toLocaleTimeString()}</span>
-                            <span
-                              className={cn(
-                                'shrink-0 rounded px-1',
-                                log.type === 'error'
-                                  ? 'bg-red-500/20 text-red-400'
-                                  : log.type === 'warn'
-                                    ? 'bg-yellow-500/20 text-yellow-400'
-                                    : log.type === 'info'
-                                      ? 'bg-blue-500/20 text-blue-400'
-                                      : 'bg-zinc-700 text-zinc-400'
-                              )}
-                            >
-                              [{log.type}]
-                            </span>
-                            <span className="break-all text-zinc-300">
-                              {log.message}
-                              {log.data !== undefined && (
-                                <span className="ml-2 text-zinc-500">
-                                  {typeof log.data === 'string' ? log.data : JSON.stringify(log.data, null, 0)}
-                                </span>
-                              )}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
+        {/* Debug Panel - Only mounted (and subscribed to sidecar logs) when debug mode is enabled */}
+        {debugModeEnabled && <DebugLogPanel taskId={id} />}
       </div>
     </>
   );

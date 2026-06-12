@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import ReactMarkdown from 'react-markdown';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMarkdownComponents, EnhancedLink } from '../EnhancedLink';
+import { createMarkdownComponents, EnhancedLink, fileAwareUrlTransform } from '../EnhancedLink';
 
 // Mock the tauri-api module
 vi.mock('@/lib/tauri-api', () => ({
@@ -128,5 +129,35 @@ describe('createMarkdownComponents - code component', () => {
     const link = container.querySelector('a');
     expect(link).toBeTruthy();
     expect(link!.getAttribute('href')).toBe('file:///Users/name/My Documents/file.xlsx');
+  });
+});
+
+describe('fileAwareUrlTransform', () => {
+  it('should preserve file: hrefs', () => {
+    expect(fileAwareUrlTransform('file:///Users/name/report.pdf')).toBe('file:///Users/name/report.pdf');
+  });
+
+  it('should preserve default-safe protocols', () => {
+    expect(fileAwareUrlTransform('https://example.com')).toBe('https://example.com');
+    expect(fileAwareUrlTransform('mailto:a@b.com')).toBe('mailto:a@b.com');
+  });
+
+  it('should strip unsafe protocols', () => {
+    expect(fileAwareUrlTransform('javascript:alert(1)')).toBe('');
+  });
+
+  // Regression for technical review finding #22: previous tests called the
+  // component factory directly and never exercised react-markdown's URL
+  // sanitizer, which strips file: hrefs to "" without a custom urlTransform.
+  it('should keep file:// hrefs clickable through a full ReactMarkdown render', () => {
+    const markdown = '[/Users/name/report.pdf](file:///Users/name/report.pdf)';
+    const { container } = render(
+      <ReactMarkdown components={createMarkdownComponents()} urlTransform={fileAwareUrlTransform}>
+        {markdown}
+      </ReactMarkdown>
+    );
+    const link = container.querySelector('a');
+    expect(link).toBeTruthy();
+    expect(link!.getAttribute('href')).toBe('file:///Users/name/report.pdf');
   });
 });

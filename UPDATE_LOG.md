@@ -4,10 +4,29 @@
 
 ## v0.7.15
 
-- **Fix: Orphaned `opencode serve` process on app shutdown** — Quitting the app could leave `opencode serve` running with API keys in its environment and a live listening port.
-
 - **Workspace convention aligned with `rfp-daily` folder governance** — `Misc/` is now `edit: ask` (was `edit: deny`) so the agent can promote curated supporting scripts and prompt experiments from `Output/` to `Misc/` after user approval, matching the four-tier governance model in `~/dev/ai-sdlc/zapac-agent-skills/rfp-daily/assets/folder_governance.md`. The `<workspace-conventions>` system prompt block now documents `Misc/` as holding both static user assets (icons, logos, brand images, fonts) **and** curated utilities promoted from `Output/`, and describes the dual promotion workflow (`Output/` → `Artefacts/<category>/` for governed deliverables, `Output/` → `Misc/<topic>/` like `Misc/scripts/` or `Misc/prompt-experiments/` for curated utilities). `mkdir -p` first-action still seeds all four folders silently because bash is not gated by the `edit` permission. Config-builder test updated; all 93 sidecar tests pass.
-
+- **Address findings from technical review** — Security hardening, bug fixes, and performance improvements across the app:
+  - Orphaned `opencode serve` process on app shutdown — Quitting the app could leave `opencode serve` running with API keys in its environment and a live listening port.
+  - Enabled a restrictive Content Security Policy (previously disabled), so markup-injection bugs can no longer escalate to arbitrary script execution.
+  - Narrowed the `asset:` protocol scope from the entire filesystem to exactly the directories previews need (workspaces, granted folders, app-managed dirs), synced at runtime.
+  - Renderer-reachable file read/trash commands now validate paths against registered workspaces and granted folders; file exports go through a Rust-side native save dialog instead of renderer-supplied write paths.
+  - Git personal access tokens are no longer persisted in plaintext to skill-repo `.git/config`; credentials persisted by earlier versions are scrubbed on the next sync.
+  - Removed unused shell permissions from both webview capability files and narrowed the filesystem-wide opener grant to user-accessible locations.
+  - HTML preview sandbox no longer lets agent-generated scripts escape via popups, and the injected base href is HTML-encoded.
+  - MCP secrets, HTTP bodies, and SSE payloads are redacted from sidecar logs by default; full payload logging is now an explicit debug opt-in.
+  - The OpenCode server password is no longer written to logs or the debug panel; the sidecar logger redacts secret-looking values from every entry.
+  - API keys added or rotated mid-session now take effect by restarting the OpenCode server, instead of being silently ignored until app restart.
+  - API-key change detection now compares SHA-256 fingerprints, so no raw key material is retained in memory.
+  - SSE reconnect timers are cleared on disconnect and retries use exponential backoff (capped at 60s) instead of retrying every 5s forever.
+  - The Azure Foundry API key is now stored under the standardized keychain id, reported correctly in Settings, and forwarded to the OpenCode server environment.
+  - Azure Foundry keys stored under the legacy keychain id are migrated to the canonical id at startup (replacing the read-time fallback), so UI deletes can't leave a stale entry behind.
+  - MCP config updates now carry the active workspace directory so they reach the correct OpenCode server instance.
+  - Task completion events are handled by a single global listener, eliminating duplicate DB writes and state updates.
+  - The debug-log panel mounts only when debug mode is on, caps retained logs at 500 entries, and no longer re-renders the whole chat per log line.
+  - `file://` links in chat messages work again (the markdown URL sanitizer now allows them, with path safety still enforced at click time).
+  - Permission approvals covering multiple path patterns no longer drop all but the last folder grant.
+  - Fixed a Rules of Hooks violation in `StreamingText` that could crash the chat view when streaming mode flipped on a mounted instance.
+  - Chat auto-scroll now fires on new and streaming messages (the scroll sentinel was missing its anchor attribute).
 
 ## v0.7.14
 

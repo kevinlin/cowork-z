@@ -9,6 +9,7 @@ mod db;
 mod fs_utils;
 mod fs_watcher;
 mod git_ops;
+mod path_guard;
 mod secure_storage;
 mod sidecar;
 mod skill_discovery;
@@ -31,8 +32,20 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            // Migrate the Azure Foundry key from the legacy `azureFoundry`
+            // keychain id before anything reads API keys
+            secure_storage::migrate_legacy_azure_foundry_key();
+
             // Initialize database
             let db_state = db::init_database(app.handle()).expect("Failed to initialize database");
+
+            // Allow registered workspaces / granted folders / app-managed dirs
+            // through the asset: protocol (static scope is empty — technical
+            // review finding #2)
+            if let Ok(conn) = db_state.conn.lock() {
+                path_guard::sync_asset_scope(app.handle(), &conn);
+            }
+
             app.manage(db_state);
 
             // Initialize sidecar state
@@ -360,7 +373,7 @@ pub fn run() {
             commands::copilot::copilot_disconnect,
             // Logging
             commands::logging::log_event,
-            commands::logging::write_text_file,
+            commands::logging::export_text_file,
             // App Updates
             commands::updates::check_for_update,
             commands::updates::install_update,

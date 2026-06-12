@@ -66,6 +66,15 @@ pub async fn set_mcp_servers_config(
         db::settings::set_mcp_servers_config(&conn, parsed_config.as_ref())?;
     }
 
+    // Resolve the active workspace directory so the config update is routed
+    // to the correct per-workspace OpenCode server instance
+    let working_directory = {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        db::settings::get_last_workspace_id(&conn)
+            .and_then(|id| db::workspaces::get_workspace(&conn, &id))
+            .map(|ws| ws.folder_path)
+    };
+
     // Apply to OpenCode server immediately if sidecar is running
     let mut manager = sidecar_state.manager.lock().await;
     if manager.is_running() {
@@ -74,6 +83,7 @@ pub async fn set_mcp_servers_config(
             .send_command(sidecar::SidecarCommand::UpdateMcpConfig {
                 payload: sidecar::UpdateMcpConfigPayload {
                     mcp_servers: mcp_value,
+                    working_directory,
                 },
             })
             .await?;

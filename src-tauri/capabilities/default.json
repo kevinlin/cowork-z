@@ -8,15 +8,10 @@
     "opener:default",
     {
       "identifier": "opener:allow-open-path",
-      "allow": [{ "path": "**" }]
+      "allow": [{ "path": "$HOME/**" }, { "path": "/Volumes/**" }, { "path": "/media/**" }, { "path": "/mnt/**" }]
     },
-    "shell:allow-spawn",
-    "shell:allow-stdin-write",
-    "shell:allow-kill",
-    "shell:allow-open",
     "dialog:default",
     "dialog:allow-open",
-    "dialog:allow-save",
     "core:webview:allow-create-webview-window"
   ]
 }

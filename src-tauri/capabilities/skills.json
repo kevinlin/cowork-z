@@ -3,10 +3,11 @@
   "windows": ["skills"],
   "permissions": [
     "core:default",
-    "shell:allow-execute",
-    "shell:allow-open",
     "opener:default",
-    { "identifier": "opener:allow-open-path", "allow": [{ "path": "**" }] },
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "$HOME/**" }, { "path": "/Volumes/**" }, { "path": "/media/**" }, { "path": "/mnt/**" }]
+    },
     "dialog:default",
     "dialog:allow-open"
   ]

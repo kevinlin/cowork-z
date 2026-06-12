@@ -34,7 +34,7 @@ type SidebarTab = 'sessions' | 'automations' | 'files';
 
 export default function Sidebar() {
   const navigate = useNavigate();
-  const { tasks, loadTasks, updateTaskStatus, addTaskUpdate, openLauncher, setShowSettings } = useTaskStore();
+  const { tasks, loadTasks, updateTaskStatus, openLauncher, setShowSettings } = useTaskStore();
   const api = getTauriAPI();
   const currentTaskTodos = useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? EMPTY_TODOS);
   const hasTodos = currentTaskTodos.length > 0;
@@ -149,21 +149,17 @@ export default function Sidebar() {
     return unsubscribe;
   }, [loadTasks, navigate]);
 
-  // Subscribe to task status changes and task updates
+  // Subscribe to task status changes. Task updates are handled by the single
+  // global onTaskUpdate subscription in taskStore (technical review #20).
   useEffect(() => {
     const unsubscribeStatusChange = api.onTaskStatusChange?.((data) => {
       updateTaskStatus(data.taskId, data.status);
     });
 
-    const unsubscribeTaskUpdate = api.onTaskUpdate((event) => {
-      addTaskUpdate(event);
-    });
-
     return () => {
       unsubscribeStatusChange?.();
-      unsubscribeTaskUpdate();
     };
-  }, [updateTaskStatus, addTaskUpdate, api]);
+  }, [updateTaskStatus, api]);
 
   // Subscribe to automation run events to refresh runs panel and unread badge
   useEffect(() => {

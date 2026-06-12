@@ -13,7 +13,7 @@
  */
 
 import { memo, useCallback } from 'react';
-import type { Components } from 'react-markdown';
+import { type Components, defaultUrlTransform } from 'react-markdown';
 
 import { getFileCategory, getFileExtension, isAbsolutePath, isPathSafe } from '@/lib/file-utils';
 import { getFileIcon, getUrlIcon } from '@/lib/icon-utils';
@@ -36,6 +36,19 @@ async function expandTilde(path: string): Promise<string> {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * URL transform for ReactMarkdown that allows `file:` hrefs in addition
+ * to the default-safe protocols (http/https/irc/ircs/mailto/xmpp).
+ *
+ * react-markdown's `defaultUrlTransform` strips every `file:` href to "",
+ * which silently killed the content-enrichment file links. Path safety is
+ * still enforced at click time by `isPathSafe` in EnhancedLink.
+ */
+export function fileAwareUrlTransform(url: string): string {
+  if (url.startsWith('file:')) return url;
+  return defaultUrlTransform(url);
+}
 
 function isFileUrl(href: string): boolean {
   return href.startsWith('file://');

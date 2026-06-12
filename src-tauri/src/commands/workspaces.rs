@@ -88,6 +88,9 @@ pub async fn add_workspace(
 
     db::workspaces::save_workspace(&conn, &ws)?;
 
+    // Make the new workspace folder loadable via the asset: protocol
+    crate::path_guard::sync_asset_scope(&app, &conn);
+
     let result = to_workspace(ws);
     let _ = app.emit("workspace:added", &result);
     Ok(result)
@@ -148,6 +151,9 @@ pub async fn switch_workspace(
     let now = now_ts();
     db::workspaces::update_last_opened_at(&conn, &workspace_id, now)?;
     db::settings::set_last_workspace_id(&conn, Some(&workspace_id))?;
+
+    // Ensure the workspace folder is loadable via the asset: protocol
+    crate::path_guard::sync_asset_scope(&app, &conn);
 
     let result = Workspace {
         last_opened_at: now,
@@ -306,6 +312,9 @@ pub async fn initialize_workspace(
     db::workspaces::save_workspace(&conn, &ws)?;
     db::settings::set_last_workspace_id(&conn, Some(&ws.id))?;
     db::workspaces::assign_orphaned_tasks(&conn, &ws.id)?;
+
+    // Make the default workspace folder loadable via the asset: protocol
+    crate::path_guard::sync_asset_scope(&app, &conn);
 
     let result = to_workspace(ws);
     if let Err(e) = fs_watcher::watch_folder(&app, &result.folder_path) {

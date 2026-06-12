@@ -1,11 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
-import { type RefObject, useCallback, useMemo, useRef } from 'react';
+import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
 import { springs } from '@/lib/animations';
 import { cn } from '@/lib/utils';
 import { isWaitingForUser } from '@/lib/waiting-detection';
 import type { PartialMessage, TaskMessage } from '@/shared';
-import type { StartupStageInfo } from '@/stores/taskStore';
+import { type StartupStageInfo, useTaskStore } from '@/stores/taskStore';
 import { MessageBubble } from './MessageBubble';
 import { ThinkingIndicator } from './ThinkingIndicator';
 
@@ -22,7 +22,6 @@ type RenderableMessage = TaskMessage | PartialMessage;
 
 interface MessageListProps {
   messages: TaskMessage[];
-  partialMessages: Map<string, PartialMessage>;
   isTaskRunning: boolean;
   isLoading: boolean;
   taskStatus: string | undefined;
@@ -42,7 +41,6 @@ interface MessageListProps {
 
 export function MessageList({
   messages,
-  partialMessages,
   isTaskRunning,
   isLoading,
   taskStatus,
@@ -60,6 +58,11 @@ export function MessageList({
   onContinue,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Subscribed here rather than received as a prop so streaming deltas only
+  // re-render the message list, not the whole Execution page
+  // (2026-06-12 review #12).
+  const partialMessages = useTaskStore((state) => state.partialMessages);
 
   const scrollToBottom = useMemo(
     () =>
@@ -82,64 +85,80 @@ export function MessageList({
     return combined.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   }, [messages, partialMessages]);
 
+  // Hoisted out of the per-row map: filter once and locate the last
+  // assistant message once per render instead of O(n) per row
+  // (2026-06-12 review #35).
+  const { filteredMessages, lastAssistantIndex } = useMemo(() => {
+    const filtered = messagesToRender.filter(
+      (m) => !(m.type === 'tool' && 'toolName' in m && (m as TaskMessage).toolName?.toLowerCase() === 'bash')
+    );
+    let lastIdx = -1;
+    for (let i = filtered.length - 1; i >= 0; i--) {
+      if (filtered[i].type === 'assistant') {
+        lastIdx = i;
+        break;
+      }
+    }
+    return { filteredMessages: filtered, lastAssistantIndex: lastIdx };
+  }, [messagesToRender]);
+
+  // Follow the conversation while streaming, but only when the user is
+  // already at the bottom.
+  useEffect(() => {
+    if (isAtBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages.length, partialMessages.size, isAtBottom]);
+
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6" data-testid="messages-scroll-container" onScroll={onScroll} ref={scrollContainerRef}>
       <div className="mx-auto max-w-4xl">
-        {messagesToRender
-          .filter((m) => !(m.type === 'tool' && 'toolName' in m && (m as TaskMessage).toolName?.toLowerCase() === 'bash'))
-          .map((message, index, filteredMessages) => {
-            const isLastMessage = index === filteredMessages.length - 1;
-            const isPartial = 'isStreaming' in message && message.isStreaming;
-            const isLastAssistantMessage = message.type === 'assistant' && isLastMessage;
+        {filteredMessages.map((message, index) => {
+          const isLastMessage = index === filteredMessages.length - 1;
+          const isPartial = 'isStreaming' in message && message.isStreaming;
+          const isLastAssistantMessage = message.type === 'assistant' && isLastMessage;
 
-            let lastAssistantIndex = -1;
-            for (let i = filteredMessages.length - 1; i >= 0; i--) {
-              if (filteredMessages[i].type === 'assistant') {
-                lastAssistantIndex = i;
-                break;
-              }
-            }
-            const isLastAssistantForContinue = index === lastAssistantIndex;
+          const isLastAssistantForContinue = index === lastAssistantIndex;
 
-            const messageContent = isPartial ? (message as PartialMessage).textSoFar : (message as TaskMessage).content;
+          const messageContent = isPartial ? (message as PartialMessage).textSoFar : (message as TaskMessage).content;
 
-            const showContinue =
-              isLastAssistantForContinue &&
-              !!sessionId &&
-              !isPartial &&
-              (taskStatus === 'interrupted' || (taskStatus === 'completed' && isWaitingForUser(messageContent)));
+          const showContinue =
+            isLastAssistantForContinue &&
+            !!sessionId &&
+            !isPartial &&
+            (taskStatus === 'interrupted' || (taskStatus === 'completed' && isWaitingForUser(messageContent)));
 
-            const shouldStream = isLastAssistantMessage && isTaskRunning && !isPartial;
+          const shouldStream = isLastAssistantMessage && isTaskRunning && !isPartial;
 
-            // Use tighter spacing (4px) between consecutive tool messages, normal (16px) otherwise
-            const isTool = message.type === 'tool';
-            const prevIsTool = index > 0 && filteredMessages[index - 1].type === 'tool';
-            const gapClass = index === 0 ? '' : isTool && prevIsTool ? 'mt-1' : '';
+          // Use tighter spacing (4px) between consecutive tool messages, normal (16px) otherwise
+          const isTool = message.type === 'tool';
+          const prevIsTool = index > 0 && filteredMessages[index - 1].type === 'tool';
+          const gapClass = index === 0 ? '' : isTool && prevIsTool ? 'mt-1' : '';
 
-            return (
-              <div className={cn(gapClass)} key={message.id}>
-                <MessageBubble
-                  continueLabel={taskStatus === 'interrupted' ? 'Continue' : 'Done, Continue'}
-                  isLastMessage={isLastMessage}
-                  isLoading={isLoading}
-                  isRealStreaming={isPartial}
-                  isRunning={isTaskRunning}
-                  message={
-                    isPartial
-                      ? {
-                          ...message,
-                          content: messageContent,
-                          type: 'assistant' as const,
-                        }
-                      : (message as TaskMessage)
-                  }
-                  onContinue={onContinue}
-                  shouldStream={shouldStream}
-                  showContinueButton={showContinue}
-                />
-              </div>
-            );
-          })}
+          return (
+            <div className={cn(gapClass)} key={message.id}>
+              <MessageBubble
+                continueLabel={taskStatus === 'interrupted' ? 'Continue' : 'Done, Continue'}
+                isLastMessage={isLastMessage}
+                isLoading={isLoading}
+                isRealStreaming={isPartial}
+                isRunning={isTaskRunning}
+                message={
+                  isPartial
+                    ? {
+                        ...message,
+                        content: messageContent,
+                        type: 'assistant' as const,
+                      }
+                    : (message as TaskMessage)
+                }
+                onContinue={onContinue}
+                shouldStream={shouldStream}
+                showContinueButton={showContinue}
+              />
+            </div>
+          );
+        })}
 
         <ThinkingIndicator
           currentTool={currentTool}

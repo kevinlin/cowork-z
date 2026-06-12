@@ -15,11 +15,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 ## Queued
 
-Frontend store / performance:
-
-- [ ] #12 Streaming pipeline re-parses full markdown and re-renders the whole page per delta
-- [ ] #35 O(n²) per-render scans in `MessageList`
-
 Rust robustness:
 
 - [ ] #16 Database migrations are not transactional
@@ -32,6 +27,38 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #12 Streaming pipeline re-parses full markdown and re-renders the whole page per delta
+  - Branch/worktree: `fix/tr2-12-streaming-perf` (`.worktrees/tr2-12`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Perf: streaming responses no longer re-render the whole page or re-parse markdown per delta (2026-06-12 review #12)"
+  - Change: three layers. (1) `Execution.tsx` swaps its whole-store
+    destructure for a `useShallow` selector that deliberately excludes
+    `partialMessages`, so per-delta Map replacement no longer re-renders the
+    page shell. (2) `MessageList` now owns the `partialMessages` subscription
+    (prop removed) and the streaming auto-scroll effect, isolating
+    streaming-frequency renders to the list subtree; memoized `MessageBubble`s
+    skip unchanged rows. (3) `MessageBubble` throttles the
+    normalize → enrich → remark/GFM parse chain to once per 150ms during
+    live streaming via a new `useThrottledValue` hook (trailing-edge emit
+    guarantees the final text always lands), and memoizes the rendered
+    `<ReactMarkdown>` element so per-delta re-renders reuse the same React
+    subtree between parses. The static prose class string was hoisted to
+    module scope (`PROSE_CLASSES`).
+  - Verification: `pnpm typecheck` — pass; full `pnpm test --run` —
+    352/352 pass incl. new `src/hooks/__tests__/useThrottledValue.test.ts`
+    (pass-through at 0ms, suppression inside window, trailing emit,
+    immediate emit after idle); `pnpm build` — pass; ultracite — clean.
+
+- [x] #35 O(n²) per-render scans in `MessageList`
+  - Branch/worktree: `fix/tr2-12-streaming-perf` (same commit as #12)
+  - UPDATE_LOG: "Perf: chat message list no longer rescans all messages per row (2026-06-12 review #35)"
+  - Change: the bash-tool filter and the backward scan for the last
+    assistant message were hoisted out of the per-row `.map()` into a single
+    `useMemo` (`filteredMessages` + `lastAssistantIndex`), making the render
+    O(n). The review's second remediation (windowed rendering via
+    react-window for >50-message sessions) is deferred — see Review Later.
+  - Verification: covered by the #12 verification run above.
 
 - [x] #11 Arena mode double-persists and never dedupes task events
   - Branch/worktree: `fix/tr2-11-arena-persist` (`.worktrees/tr2-11`)

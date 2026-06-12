@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Frontend store / performance:
 
-- [ ] #11 Arena mode double-persists and never dedupes task events
 - [ ] #12 Streaming pipeline re-parses full markdown and re-renders the whole page per delta
 - [ ] #35 O(n²) per-render scans in `MessageList`
 
@@ -33,6 +32,29 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #11 Arena mode double-persists and never dedupes task events
+  - Branch/worktree: `fix/tr2-11-arena-persist` (`.worktrees/tr2-11`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: Arena no longer writes duplicate message rows to the database (2026-06-12 review #11)"
+  - Change: persistence is now single-owner. `arenaStore.handleTaskUpdate`,
+    `handleTaskUpdateBatch`, and `handleStatusChange` no longer call
+    `saveTaskMessage`/`completeTask`/`saveTaskSession`/`saveTaskStatus` —
+    `taskStore`'s module-level `onTaskUpdate` subscription already persists
+    task events for ALL task IDs, and the always-mounted Sidebar's
+    `onTaskStatusChange → updateTaskStatus` persists status. The one
+    exception kept in the arena store is `handlePartialMessageComplete`
+    (finalized streaming messages): `taskStore.finalizePartialMessage` only
+    persists for its `currentTask`, which is never an arena task, so the
+    arena store remains the sole persister there. A persistence-ownership
+    comment block documents the contract. Arena UI appends now dedupe by
+    message ID (`mergeMessageById` mirroring taskStore's merge; batch handler
+    uses a Map-by-ID merge), so re-delivered or replayed events update in
+    place instead of duplicating rows.
+  - Verification: `pnpm typecheck` — pass; new
+    `src/stores/__tests__/arenaStore.test.ts` — 6/6 pass (no persistence
+    from update/batch/status handlers, dedup on re-delivery, partial-complete
+    persists exactly once); ultracite — clean.
 
 - [x] #26 Async `listen()` unsubscribe races leak Tauri event listeners
   - Branch/worktree: `fix/tr2-26-unlisten-races` (`.worktrees/tr2-26`)

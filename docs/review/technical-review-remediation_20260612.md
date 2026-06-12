@@ -15,10 +15,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 ## Queued
 
-Sidecar lifecycle:
-
-- [ ] #25 OpenCode config merge can clobber user settings on disk
-
 Frontend store / performance:
 
 - [ ] #11 Arena mode double-persists and never dedupes task events
@@ -40,6 +36,26 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #25 OpenCode config merge can clobber user settings on disk
+  - Branch/worktree: `fix/tr2-25-config-merge` (`.worktrees/tr2-25`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: the app's OpenCode config is now written to an app-private directory (2026-06-12 review #25)"
+  - Change: chose the review's "app-private config path" option over
+    sentinel-tracked deep-merge. New `getAppOpenCodeConfigDir()`
+    (`~/.local/share/cowork-z/opencode`, `%LOCALAPPDATA%\cowork-z\opencode`
+    on Windows) replaces OpenCode's log dir as both the server cwd and the
+    `opencode.json`/`config.json` write location — the directory is fully
+    app-owned, so the existing replace/delete merge semantics are safe by
+    construction, and the user's global `~/.config/opencode/opencode.json`
+    is never in the write path. Server spawn best-effort deletes the two
+    stale config files earlier versions left in the log dir (no longer
+    read after the cwd move, and confusing for anyone running `opencode`
+    there). Workspace behavior unchanged — sessions pass `directory` per
+    request; the cwd only anchors config discovery.
+  - Verification: sidecar `pnpm build` (tsc) — pass; `pnpm test` — 126/126
+    pass (new: app config dir is cowork-z-owned and disjoint from the
+    OpenCode log tree, Windows LOCALAPPDATA shape); ultracite clean.
 
 - [x] #22 `ApiKeys.ollama` defined but never applied at server spawn
   - Branch/worktree: `fix/tr2-22-ollama-key` (`.worktrees/tr2-22`)

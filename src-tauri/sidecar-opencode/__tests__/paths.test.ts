@@ -1,6 +1,6 @@
 import os from 'node:os';
 import { describe, expect, it, jest } from '@jest/globals';
-import { getOpenCodeLogDir } from '../src/paths';
+import { getAppOpenCodeConfigDir, getOpenCodeLogDir } from '../src/paths';
 
 describe('getOpenCodeLogDir', () => {
   const originalPlatform = process.platform;
@@ -82,5 +82,41 @@ describe('getOpenCodeLogDir', () => {
     expect(result).toContain('opencode');
     expect(result).toContain('log');
     expect(result).not.toContain('AppData');
+  });
+});
+
+describe('getAppOpenCodeConfigDir (2026-06-12 review #25)', () => {
+  const originalPlatform = process.platform;
+  const originalEnv = process.env;
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', {
+      value: originalPlatform,
+      writable: true,
+      configurable: true,
+    });
+    process.env = originalEnv;
+    jest.restoreAllMocks();
+  });
+
+  it('lives under the cowork-z app dir, not inside the opencode tree', () => {
+    Object.defineProperty(process, 'platform', { value: 'darwin' });
+    process.env = {};
+    jest.spyOn(os, 'homedir').mockReturnValue('/Users/testuser');
+
+    const result = getAppOpenCodeConfigDir();
+    expect(result).toContain('cowork-z');
+    expect(result).toContain('.local');
+    // Must be disjoint from the OpenCode log/data tree
+    expect(result.startsWith(getOpenCodeLogDir())).toBe(false);
+  });
+
+  it('uses LOCALAPPDATA on Windows', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    process.env = { LOCALAPPDATA: 'C:\\Users\\TestUser\\AppData\\Local' };
+
+    const result = getAppOpenCodeConfigDir();
+    expect(result).toContain('AppData');
+    expect(result).toContain('cowork-z');
   });
 });

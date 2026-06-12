@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Sidecar lifecycle:
 
-- [ ] #9 `sendMessage` failures swallowed — tasks hang with no error surfaced
 - [ ] #24 Permission-reply failures silently dropped
 - [ ] #21 Stale sessions cleaned up locally but never aborted on the server
 - [ ] #23 SSE workspace filter disabled when `workingDirectory` is unset
@@ -45,6 +44,24 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #9 `sendMessage` failures swallowed — tasks hang with no error surfaced
+  - Branch/worktree: `fix/tr2-09-sendmessage-errors` (`.worktrees/tr2-09`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: failed message sends now surface as task errors instead of hanging the UI (2026-06-12 review #9)"
+  - Change: sendMessage stays fire-and-forget (awaiting would mark long
+    turns failed when the HTTP socket times out), but the catch handler now
+    routes to `handleSendMessageFailure`, which disambiguates via a new
+    `turnConfirmed` flag set by any SSE evidence the server is processing
+    the turn (`session.status busy`, `message.updated`, part deltas/
+    updates). Unconfirmed rejection → emit `error` (→ `task_error` IPC),
+    abort the orphaned server session, clean up local maps. Confirmed or
+    already-cleaned-up → log-only, as before. Applied to both the initial
+    message (startTask) and follow-ups (resumeSession).
+  - Verification: sidecar `pnpm build` (tsc) — pass; `pnpm test` — 117/117
+    pass (new: unconfirmed rejection emits error + aborts; rejection after
+    busy SSE is tolerated; resume follow-up failure surfaces); ultracite
+    clean.
 
 - [x] #18 Sidecar marked ready immediately after spawn (no handshake)
   - Branch/worktree: `fix/tr2-18-ready-handshake` (`.worktrees/tr2-18`)

@@ -158,6 +158,85 @@ describe('SessionManager', () => {
     });
   });
 
+  describe('sendMessage failure surfacing (2026-06-12 review #9)', () => {
+    function flush(): Promise<void> {
+      return new Promise((r) => setImmediate(r));
+    }
+
+    it('emits error and aborts the session when sendMessage rejects before any SSE confirmation', async () => {
+      client.sendMessage.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
+
+      const errors: Array<{ taskId: string; error: string; sessionId?: string }> = [];
+      manager.on('error', (data) => errors.push(data));
+
+      await manager.startTask({
+        taskId: 'task_1',
+        prompt: 'Do something',
+        workingDirectory: '/test',
+      });
+      await flush();
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].taskId).toBe('task_1');
+      expect(errors[0].error).toContain('ECONNREFUSED');
+      expect(client.abortSession).toHaveBeenCalledWith('ses_123', '/test');
+      // Session cleaned up — later SSE events for it are ignored
+      expect(manager.activeSessionCount()).toBe(0);
+    });
+
+    it('does not emit error when sendMessage rejects after SSE confirmed the turn', async () => {
+      let rejectSend!: (err: Error) => void;
+      client.sendMessage.mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        }) as never
+      );
+
+      const errors: unknown[] = [];
+      manager.on('error', (data) => errors.push(data));
+
+      await manager.startTask({
+        taskId: 'task_1',
+        prompt: 'Do something',
+        workingDirectory: '/test',
+      });
+
+      // SSE confirms the server is processing the turn
+      eventStream.emit('session.status', {
+        sessionID: 'ses_123',
+        status: { type: 'busy' },
+      });
+
+      // Then the HTTP request times out (long-running turn artifact)
+      rejectSend(new Error('socket hang up'));
+      await flush();
+
+      expect(errors).toHaveLength(0);
+      expect(client.abortSession).not.toHaveBeenCalled();
+      expect(manager.activeSessionCount()).toBe(1);
+    });
+
+    it('emits error for a resumed session when the follow-up message fails unconfirmed', async () => {
+      client.sendMessage.mockRejectedValueOnce(new Error('401 Unauthorized'));
+
+      const errors: Array<{ taskId: string; error: string }> = [];
+      manager.on('error', (data) => errors.push(data));
+
+      await manager.resumeSession({
+        taskId: 'task_2',
+        sessionId: 'ses_456',
+        prompt: 'Continue working',
+        workingDirectory: '/test',
+      });
+      await flush();
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].taskId).toBe('task_2');
+      expect(errors[0].error).toContain('401');
+      expect(client.abortSession).toHaveBeenCalledWith('ses_456', '/test');
+    });
+  });
+
   describe('abortSession', () => {
     it('should abort the session and emit complete event', async () => {
       // First start a task so there's a managed session

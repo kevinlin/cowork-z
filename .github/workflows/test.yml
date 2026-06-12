@@ -47,7 +47,7 @@ jobs:
         working-directory: src-tauri/sidecar-opencode
 
       - name: Run frontend lint and tests
-        run: pnpm ultracite:check && pnpm test --run
+        run: pnpm ultracite:check & pnpm test --run
 
       - name: Run sidecar tests
         run: pnpm test

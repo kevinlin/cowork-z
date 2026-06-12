@@ -27,7 +27,6 @@
   - Permission approvals covering multiple path patterns no longer drop all but the last folder grant.
   - Fixed a Rules of Hooks violation in `StreamingText` that could crash the chat view when streaming mode flipped on a mounted instance.
   - Chat auto-scroll now fires on new and streaming messages (the scroll sentinel was missing its anchor attribute).
-  - CI no longer silently discards lint failures — lint and tests both gate the build.
 
 ## v0.7.14
 

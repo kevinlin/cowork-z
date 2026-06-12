@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 CI / repo hygiene:
 
-- [ ] #31 CI gaps: no typecheck, no production build
 - [ ] #33 Husky pre-commit hook skips all `.tsx` files
 - [ ] #32 No dependency-audit automation; `.gitignore` lacks `.env`
 - [ ] #34 Floating versions on security-sensitive build dependencies
@@ -72,9 +71,22 @@ Rust robustness:
 
 ## Fixed
 
+- [x] #31 CI gaps: no typecheck, no production build, single Linux-ARM64 platform
+  - Branch/worktree: `fix/tr2-31-ci-gaps` (`.worktrees/tr2-31`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: CI now typechecks, builds, and runs on macOS (2026-06-12 review #31)"
+  - Change: `.github/workflows/test.yml` — added `pnpm typecheck` and
+    `pnpm build` (production Vite build) steps; the job now runs on a
+    `fail-fast: false` matrix of `ubuntu-24.04-arm` + `macos-latest`. The
+    apt system-deps step is Linux-only; the sidecar binary build step is
+    split per OS (`build:binary:linux-arm64` on Linux, `build:binary`
+    macOS ARM64 on macOS).
+  - Verification: `pnpm build` — passes locally (tsc + vite build, chunk-size
+    warning only); workflow change validated by inspection (config-only).
+
 - [x] #7 CI lint failures still silently discarded (remediation regression)
   - Branch/worktree: `fix/tr2-07-ci-lint` (`.worktrees/tr2-07`)
-  - Commit: (this commit)
+  - Commit: `24fcd79`
   - UPDATE_LOG: "Fix: CI lint gate restored (2026-06-12 review #7)"
   - Root cause: the June 11 fix (`5854d3f`, `&` → `&&`) was deliberately
     reverted on `main` (`ff522dd`) because `pnpm ultracite:check` fails with

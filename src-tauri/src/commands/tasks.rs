@@ -392,6 +392,17 @@ pub async fn clear_task_history(state: State<'_, DbState>) -> Result<(), String>
 // Task Persistence Commands (for saving task updates from frontend events)
 // ============================================================================
 
+/// Reject writes against task ids that don't reference a real task
+/// (technical review #14 — a renderer bug or injected call must not be able
+/// to corrupt another task's history or trigger completion side effects).
+fn ensure_task_exists(conn: &rusqlite::Connection, task_id: &str) -> Result<(), String> {
+    if db::tasks::task_exists(conn, task_id)? {
+        Ok(())
+    } else {
+        Err(format!("Unknown task id: {}", task_id))
+    }
+}
+
 #[tauri::command]
 pub async fn save_task_message(
     task_id: String,
@@ -399,6 +410,7 @@ pub async fn save_task_message(
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ensure_task_exists(&conn, &task_id)?;
 
     db::tasks::add_task_message(
         &conn,
@@ -431,6 +443,7 @@ pub async fn save_task_status(
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ensure_task_exists(&conn, &task_id)?;
     db::tasks::update_task_status(&conn, &task_id, &status, None)?;
 
     // Check arena completion after any terminal status change
@@ -451,6 +464,7 @@ pub async fn save_task_session(
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ensure_task_exists(&conn, &task_id)?;
     db::tasks::update_task_session_id(&conn, &task_id, &session_id)
 }
 
@@ -461,6 +475,7 @@ pub async fn save_task_summary(
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ensure_task_exists(&conn, &task_id)?;
     db::tasks::update_task_summary(&conn, &task_id, &summary)
 }
 
@@ -476,6 +491,7 @@ pub fn handle_task_completion_internal(
 ) -> Result<(), String> {
     let db_state = app.state::<DbState>();
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+    ensure_task_exists(&conn, task_id)?;
 
     let completed_at = chrono::Utc::now().to_rfc3339();
 

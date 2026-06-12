@@ -426,6 +426,17 @@ pub fn save_task(conn: &Connection, task: &TaskInput) -> Result<(), String> {
     Ok(())
 }
 
+/// Check whether a task row exists. Renderer-supplied task ids must reference
+/// a real task before any persistence write (technical review #14).
+pub fn task_exists(conn: &Connection, task_id: &str) -> Result<bool, String> {
+    conn.query_row("SELECT 1 FROM tasks WHERE id = ?1", [task_id], |_| Ok(()))
+        .map(|_| true)
+        .or_else(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => Ok(false),
+            other => Err(format!("Failed to check task existence: {}", other)),
+        })
+}
+
 /// Update task status
 pub fn update_task_status(
     conn: &Connection,
@@ -654,4 +665,42 @@ pub fn get_tasks_by_arena(conn: &Connection, arena_id: &str) -> Result<Vec<Store
         });
     }
     Ok(tasks)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_conn() -> Connection {
+        let mut conn = Connection::open_in_memory().expect("open in-memory db");
+        crate::db::migrations::run_migrations(&mut conn).expect("migrations");
+        conn
+    }
+
+    #[test]
+    fn task_exists_false_for_unknown_id() {
+        let conn = test_conn();
+        assert!(!task_exists(&conn, "task_nope").unwrap());
+    }
+
+    #[test]
+    fn task_exists_true_after_save() {
+        let conn = test_conn();
+        save_task(
+            &conn,
+            &TaskInput {
+                id: "task_a".to_string(),
+                prompt: "p".to_string(),
+                status: "starting".to_string(),
+                session_id: None,
+                summary: None,
+                messages: vec![],
+                created_at: "2026-06-12T00:00:00Z".to_string(),
+                started_at: None,
+                completed_at: None,
+            },
+        )
+        .unwrap();
+        assert!(task_exists(&conn, "task_a").unwrap());
+    }
 }

@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Rust robustness:
 
-- [ ] #14 Task persistence commands accept arbitrary `task_id` without validation
 - [ ] #29 CSP residual weaknesses (`object-src data:`, missing `base-uri`/`frame-ancestors`)
 
 ## In Progress
@@ -25,6 +24,22 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #14 Task persistence commands accept arbitrary `task_id` without validation
+  - Branch/worktree: `fix/tr2-14-task-id-validation` (`.worktrees/tr2-14`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: task persistence commands now validate the task id (2026-06-12 review #14)"
+  - Change: new `db::tasks::task_exists` + `ensure_task_exists` guard in
+    `commands/tasks.rs`, applied to `save_task_message`, `save_task_status`,
+    `save_task_session`, `save_task_summary`, and
+    `handle_task_completion_internal` (covers the `complete_task` command and
+    the Rust-side sidecar completion path). Writes against unknown task ids
+    now fail with "Unknown task id" instead of silently no-opting (UPDATE) or
+    inserting orphan rows (INSERT), and completion side effects (arena
+    terminal checks, automation run transitions) can no longer be triggered
+    for tasks that don't exist.
+  - Verification: `cargo check` — pass; `cargo test` — 74/74 pass incl. new
+    `task_exists` tests (unknown id false, saved id true).
 
 - [x] #17 DB layer panics: `.expect()` on queries and residual `.lock().unwrap()`
   - Branch/worktree: `fix/tr2-17-db-panics` (`.worktrees/tr2-17`)

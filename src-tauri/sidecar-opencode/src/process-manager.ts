@@ -12,6 +12,31 @@ import type { ApiKeys, Config } from './types';
 /** Default working directory for `opencode serve` to avoid writing config.json into the source tree. */
 const OPENCODE_DATA_DIR = getOpenCodeLogDir();
 
+/**
+ * Map provider API keys onto the environment variables `opencode serve`
+ * reads at startup. Every key defined in the `ApiKeys` IPC type must have a
+ * branch here — `ollama` was missing, silently breaking authenticated
+ * Ollama setups (2026-06-12 review #22).
+ */
+export function applyApiKeyEnv(env: NodeJS.ProcessEnv, apiKeys?: ApiKeys): void {
+  if (apiKeys?.anthropic) env.ANTHROPIC_API_KEY = apiKeys.anthropic;
+  if (apiKeys?.openai) env.OPENAI_API_KEY = apiKeys.openai;
+  if (apiKeys?.google) env.GOOGLE_GENERATIVE_AI_API_KEY = apiKeys.google;
+  if (apiKeys?.xai) env.XAI_API_KEY = apiKeys.xai;
+  if (apiKeys?.deepseek) env.DEEPSEEK_API_KEY = apiKeys.deepseek;
+  if (apiKeys?.openrouter) env.OPENROUTER_API_KEY = apiKeys.openrouter;
+  if (apiKeys?.litellm) env.LITELLM_API_KEY = apiKeys.litellm;
+  if (apiKeys?.ollama) env.OLLAMA_API_KEY = apiKeys.ollama;
+  if (apiKeys?.azureFoundry) env.AZURE_API_KEY = apiKeys.azureFoundry;
+
+  // AWS Bedrock credentials
+  if (apiKeys?.bedrock) {
+    env.AWS_ACCESS_KEY_ID = apiKeys.bedrock.accessKeyId;
+    env.AWS_SECRET_ACCESS_KEY = apiKeys.bedrock.secretAccessKey;
+    env.AWS_REGION = apiKeys.bedrock.region;
+  }
+}
+
 const UNIX_ALLOWED_LOGIN_SHELLS = [
   '/bin/zsh',
   '/bin/bash',
@@ -486,21 +511,7 @@ export class ProcessManager {
     logger.debug(`OPENCODE_SERVER_PASSWORD set (length ${this.password.length})`);
 
     // Set API keys as environment variables
-    if (apiKeys?.anthropic) env.ANTHROPIC_API_KEY = apiKeys.anthropic;
-    if (apiKeys?.openai) env.OPENAI_API_KEY = apiKeys.openai;
-    if (apiKeys?.google) env.GOOGLE_GENERATIVE_AI_API_KEY = apiKeys.google;
-    if (apiKeys?.xai) env.XAI_API_KEY = apiKeys.xai;
-    if (apiKeys?.deepseek) env.DEEPSEEK_API_KEY = apiKeys.deepseek;
-    if (apiKeys?.openrouter) env.OPENROUTER_API_KEY = apiKeys.openrouter;
-    if (apiKeys?.litellm) env.LITELLM_API_KEY = apiKeys.litellm;
-    if (apiKeys?.azureFoundry) env.AZURE_API_KEY = apiKeys.azureFoundry;
-
-    // AWS Bedrock credentials
-    if (apiKeys?.bedrock) {
-      env.AWS_ACCESS_KEY_ID = apiKeys.bedrock.accessKeyId;
-      env.AWS_SECRET_ACCESS_KEY = apiKeys.bedrock.secretAccessKey;
-      env.AWS_REGION = apiKeys.bedrock.region;
-    }
+    applyApiKeyEnv(env, apiKeys);
 
     const args = ['serve', '--port', String(this.port), '--hostname', this.hostname];
 

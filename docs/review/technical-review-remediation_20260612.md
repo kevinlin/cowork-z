@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Sidecar lifecycle:
 
-- [ ] #22 `ApiKeys.ollama` defined but never applied at server spawn
 - [ ] #25 OpenCode config merge can clobber user settings on disk
 
 Frontend store / performance:
@@ -41,6 +40,19 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #22 `ApiKeys.ollama` defined but never applied at server spawn
+  - Branch/worktree: `fix/tr2-22-ollama-key` (`.worktrees/tr2-22`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: a stored Ollama API key is now passed to the OpenCode server (2026-06-12 review #22)"
+  - Change: the inline API-key → env-var mapping in `startServer()` is
+    extracted into an exported `applyApiKeyEnv(env, apiKeys)` helper (so
+    the mapping is unit-testable, per the review's "add a spawn-env test")
+    and gains the missing branch: `apiKeys.ollama` → `OLLAMA_API_KEY`
+    (the variable authenticated/cloud Ollama deployments use).
+  - Verification: sidecar `pnpm build` (tsc) — pass; `pnpm test` — 124/124
+    pass (new: full mapping matrix including ollama + bedrock; no-op when
+    keys absent); ultracite clean.
 
 - [x] #23 SSE workspace filter disabled when `workingDirectory` is unset
   - Branch/worktree: `fix/tr2-23-sse-filter` (`.worktrees/tr2-23`)

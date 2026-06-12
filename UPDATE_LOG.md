@@ -4,6 +4,7 @@
 
 ## v0.8.1
 
+- **Fix: a stored Ollama API key is now passed to the OpenCode server** — The IPC contract defined an `ollama` key but the server spawn never mapped it to an environment variable, so authenticated Ollama setups silently failed; it is now exported as `OLLAMA_API_KEY` alongside the other providers (2026-06-12 review #22).
 - **Fix: workspace-scoped server events are dropped when no workspace is active** — If the sidecar connected to the OpenCode server before any task set a workspace (e.g. during Copilot sign-in), the event stream's directory filter was effectively disabled and events from any workspace passed through, risking misattribution to the wrong task; workspace-scoped events are now dropped until a task scopes the stream to its workspace (2026-06-12 review #23).
 - **Fix: superseded sessions are now aborted on the OpenCode server** — Starting a new task only removed the previous task's session from the sidecar's local tracking; the server-side session kept running, consuming tokens and potentially still executing tools (file writes, shell commands) after the UI had moved on; still-running stale sessions are now aborted server-side before local cleanup (2026-06-12 review #21).
 - **Fix: failed permission replies now surface as task errors** — When delivering a permission approval/denial to the OpenCode server failed, the sidecar only logged it, leaving the agent blocked on the permission while the UI showed it as answered; the failure is now reported as a task error like question replies already were (2026-06-12 review #24).

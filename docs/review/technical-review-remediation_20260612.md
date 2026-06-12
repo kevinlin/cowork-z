@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Rust robustness:
 
-- [ ] #16 Database migrations are not transactional
 - [ ] #17 DB layer panics: `.expect()` on queries and residual `.lock().unwrap()`
 - [ ] #14 Task persistence commands accept arbitrary `task_id` without validation
 - [ ] #29 CSP residual weaknesses (`object-src data:`, missing `base-uri`/`frame-ancestors`)
@@ -27,6 +26,22 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #16 Database migrations are not transactional
+  - Branch/worktree: `fix/tr2-16-tx-migrations` (`.worktrees/tr2-16`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: database migrations are now transactional (2026-06-12 review #16)"
+  - Change: `run_migrations` now takes `&mut Connection`, iterates a
+    `MIGRATIONS` table of `(version, fn)` pairs, and wraps each pending step
+    in `conn.transaction()` — commit on success, automatic rollback on
+    failure. Because `set_stored_version` executes inside the same
+    transaction as the step's DDL, a mid-migration failure leaves both the
+    schema and the recorded version at the last fully-applied state (SQLite
+    DDL is transactional). Caller in `db/mod.rs` updated to pass `&mut`.
+  - Verification: `cargo check` — pass; `cargo test migrations` — 5/5 pass
+    (fresh-db to current version, idempotent re-run, newer-version rejection,
+    rollback keeps prior version and drops partial artifacts, expected-tables
+    matrix incl. `folder_permissions` dropped by v6).
 
 - [x] #12 Streaming pipeline re-parses full markdown and re-renders the whole page per delta
   - Branch/worktree: `fix/tr2-12-streaming-perf` (`.worktrees/tr2-12`)

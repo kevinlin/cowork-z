@@ -49,7 +49,7 @@ pub fn init_database(app: &AppHandle) -> Result<DbState, String> {
     let db_path = get_database_path(app);
     println!("[DB] Opening database at: {:?}", db_path);
 
-    let conn = Connection::open(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
+    let mut conn = Connection::open(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
     // Enable WAL mode for better concurrent read/write performance
     conn.pragma_update(None, "journal_mode", "WAL")
@@ -59,8 +59,8 @@ pub fn init_database(app: &AppHandle) -> Result<DbState, String> {
     conn.pragma_update(None, "foreign_keys", "ON")
         .map_err(|e| format!("Failed to enable foreign keys: {}", e))?;
 
-    // Run migrations
-    run_migrations(&conn)?;
+    // Run migrations (each step in its own transaction — review #16)
+    run_migrations(&mut conn)?;
 
     println!("[DB] Database initialized successfully");
 

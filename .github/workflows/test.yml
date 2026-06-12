@@ -80,3 +80,35 @@ jobs:
       - name: Run Rust tests
         run: cargo test
         working-directory: src-tauri
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit frontend dependencies
+        run: pnpm audit --audit-level=high
+
+      - name: Audit sidecar dependencies
+        run: pnpm audit --audit-level=high --ignore-workspace
+        working-directory: src-tauri/sidecar-opencode
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Audit Rust dependencies
+        run: cargo audit
+        working-directory: src-tauri

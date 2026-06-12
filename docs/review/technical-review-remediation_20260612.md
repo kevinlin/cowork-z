@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 CI / repo hygiene:
 
-- [ ] #32 No dependency-audit automation; `.gitignore` lacks `.env`
 - [ ] #34 Floating versions on security-sensitive build dependencies
 
 Filesystem sandbox:
@@ -70,9 +69,29 @@ Rust robustness:
 
 ## Fixed
 
+- [x] #32 No dependency-audit automation; `.gitignore` lacks `.env`
+  - Branch/worktree: `fix/tr2-32-dep-audit` (`.worktrees/tr2-32`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: dependency-audit automation added; known vulnerable dependencies updated (2026-06-12 review #32)"
+  - Change: added `.github/dependabot.yml` (weekly npm root + sidecar, cargo,
+    github-actions; Tauri JS/Rust packages grouped); new `audit` CI job runs
+    `pnpm audit --audit-level=high` (root + sidecar) and `cargo audit`;
+    `.gitignore` gained `.env` / `.env.*`. To make the gates green from day
+    one (avoiding a repeat of #7): updated JS deps within semver ranges
+    (root: 30 → 3 moderate-only vulns; sidecar: 16 → 0), added a pnpm
+    override `@actions/http-client>undici: >=6.24.0` for the
+    `@tauri-release/cli` chain (latest 0.2.5 still pins `@actions/github@5`),
+    and bumped `bytes`/`rustls-webpki`/`tar`/`time` in `Cargo.lock`
+    (`time` held at 0.3.47 — 0.3.48 breaks `cookie`'s trait coherence).
+  - Verification: `pnpm audit --audit-level=high` — pass (root + sidecar);
+    `cargo audit` — pass (unmaintained-crate warnings only, from Tauri's
+    Linux GTK3 bindings); `cd src-tauri && cargo check` — pass;
+    `pnpm typecheck` — pass; `pnpm test --run` — 332/332 pass; `pnpm build` —
+    pass; sidecar `pnpm build` + `pnpm test` — 117/117 pass.
+
 - [x] #33 Husky pre-commit hook skips all `.tsx` files
   - Branch/worktree: `fix/tr2-33-husky-tsx` (`.worktrees/tr2-33`)
-  - Commit: (this commit)
+  - Commit: `ef89dc2`
   - UPDATE_LOG: "Fix: pre-commit formatting now covers .tsx files (2026-06-12 review #33)"
   - Change: `.husky/pre-commit` — staged-file filter changed from
     `grep '\.ts$'` (anchored, so `.tsx` never matched) to

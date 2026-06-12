@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import readline from 'node:readline';
+import { CommandQueue } from './command-queue';
 import { EventStream } from './event-stream';
 import { logger } from './logger';
 import { ProcessManager } from './process-manager';
@@ -833,10 +834,15 @@ async function main(): Promise<void> {
     terminal: false,
   });
 
-  rl.on('line', async (line: string) => {
+  // Serialize command handling: each stdin line used to spawn a concurrent
+  // handler, racing on processManager/sessionManager/initializePromise
+  // (2026-06-12 review #8). Commands now run strictly FIFO.
+  const queue = new CommandQueue();
+
+  rl.on('line', (line: string) => {
+    let msg: SidecarCommand;
     try {
-      const msg = JSON.parse(line) as SidecarCommand;
-      await handleMessage(msg);
+      msg = JSON.parse(line) as SidecarCommand;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error('Failed to parse command', { line, error: message });
@@ -844,6 +850,37 @@ async function main(): Promise<void> {
         type: 'error',
         payload: { message: `Failed to parse command: ${message}` },
       });
+      return;
+    }
+
+    // Handled outside the queue: api_keys_response resolves a promise that a
+    // queued command (doInitialize) is awaiting — queueing it would deadlock.
+    // ping stays out so liveness checks aren't delayed by long-running tasks.
+    if (msg.type === 'api_keys_response') {
+      handleApiKeysResponse(msg.payload);
+      return;
+    }
+    if (msg.type === 'ping') {
+      send({ type: 'pong', payload: { timestamp: Date.now() } });
+      return;
+    }
+
+    const accepted = queue.enqueue(
+      () => handleMessage(msg),
+      (error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error('Command handler failed', { type: msg.type, error: message });
+      }
+    );
+    if (!accepted) {
+      logger.warn('Dropping command received after shutdown began', { type: msg.type });
+      return;
+    }
+
+    if (msg.type === 'shutdown') {
+      // The shutdown command itself is queued (so in-flight commands finish
+      // before teardown); anything arriving after it is dropped.
+      queue.beginShutdown();
     }
   });
 

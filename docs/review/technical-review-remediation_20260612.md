@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Sidecar lifecycle:
 
-- [ ] #8 Unserialized concurrent stdin command handling in the sidecar
 - [ ] #18 Sidecar marked ready immediately after spawn (no handshake)
 - [ ] #9 `sendMessage` failures swallowed — tasks hang with no error surfaced
 - [ ] #24 Permission-reply failures silently dropped
@@ -47,6 +46,23 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #8 Unserialized concurrent stdin command handling in the sidecar
+  - Branch/worktree: `fix/tr2-08-stdin-serialize` (`.worktrees/tr2-08`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: sidecar commands are now handled strictly one at a time (2026-06-12 review #8)"
+  - Change: new `CommandQueue` (promise-chain FIFO) serializes every stdin
+    command; the readline handler parses, then enqueues. A failing handler
+    is logged and never breaks the chain. `shutdown` is queued (in-flight
+    commands finish first) and flips a flag that drops anything arriving
+    after it. Two commands deliberately bypass the queue: `ping` (liveness
+    must not wait behind a long task) and `api_keys_response` — it resolves
+    a promise that a *queued* command (`doInitialize` inside
+    `start_task`) is awaiting, so queueing it would deadlock the bridge
+    added for #5.
+  - Verification: sidecar `pnpm build` (tsc) — pass; `pnpm test` — 114/114
+    pass (new: FIFO ordering, error isolation, post-shutdown drop);
+    ultracite clean.
 
 - [x] #1 OpenCode server password embedded in every LLM system prompt (CRITICAL)
   - Branch/worktree: `fix/tr2-01-password-prompt` (`.worktrees/tr2-01`)

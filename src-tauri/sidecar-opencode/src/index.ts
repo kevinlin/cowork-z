@@ -427,6 +427,14 @@ async function handlePermissionReply(taskId: string, payload: PermissionReplyPay
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Failed to reply to permission', { taskId, error: message });
+    // Surface the failure — otherwise the UI shows the permission as
+    // answered while the agent stays blocked waiting for the reply
+    // (2026-06-12 review #24; mirrors handleQuestionReply).
+    send({
+      type: 'task_error',
+      taskId,
+      payload: { error: `Failed to reply to permission: ${message}` },
+    });
   }
 }
 

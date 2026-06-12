@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Sidecar lifecycle:
 
-- [ ] #24 Permission-reply failures silently dropped
 - [ ] #21 Stale sessions cleaned up locally but never aborted on the server
 - [ ] #23 SSE workspace filter disabled when `workingDirectory` is unset
 - [ ] #22 `ApiKeys.ollama` defined but never applied at server spawn
@@ -44,6 +43,18 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #24 Permission-reply failures silently dropped
+  - Branch/worktree: `fix/tr2-24-permission-reply` (`.worktrees/tr2-24`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: failed permission replies now surface as task errors (2026-06-12 review #24)"
+  - Change: `handlePermissionReply`'s catch block now emits a `task_error`
+    IPC event with the failure reason, exactly mirroring
+    `handleQuestionReply` (which already did this) — the frontend can show
+    the failure instead of leaving the agent blocked behind a permission
+    the UI considers answered.
+  - Verification: sidecar `pnpm build` (tsc) — pass; `pnpm test` — 117/117
+    pass; ultracite clean.
 
 - [x] #9 `sendMessage` failures swallowed — tasks hang with no error surfaced
   - Branch/worktree: `fix/tr2-09-sendmessage-errors` (`.worktrees/tr2-09`)

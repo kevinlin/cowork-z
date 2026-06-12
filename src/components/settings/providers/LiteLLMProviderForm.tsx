@@ -70,7 +70,7 @@ export function LiteLLMProviderForm({
           type: 'litellm',
           serverUrl,
           hasApiKey: !!trimmedKey,
-          keyPrefix: trimmedKey ? trimmedKey.substring(0, 10) + '...' : undefined,
+          keyPrefix: trimmedKey ? trimmedKey.slice(0, 10) + '...' : undefined,
         } as LiteLLMCredentials,
         lastConnectedAt: new Date().toISOString(),
         availableModels: models,

@@ -215,8 +215,8 @@ function resolveShellPath(rawPath: string, toolOutput?: string, allMessages?: Ta
 
   // Build a regex from the path template: replace each $varname with (.+)
   // to match against output text and assistant messages
-  const dir = path.substring(0, path.lastIndexOf('/') + 1); // e.g. "~/Downloads/"
-  const ext = path.includes('.') ? path.substring(path.lastIndexOf('.')) : '';
+  const dir = path.slice(0, path.lastIndexOf('/') + 1); // e.g. "~/Downloads/"
+  const ext = path.includes('.') ? path.slice(path.lastIndexOf('.')) : '';
 
   // Look for a resolved absolute path in toolOutput or assistant messages
   const candidates: string[] = [];
@@ -733,7 +733,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         } else {
           const lastSlash = pattern.lastIndexOf('/');
           if (lastSlash <= 0) continue;
-          targetFolder = pattern.substring(0, lastSlash);
+          targetFolder = pattern.slice(0, lastSlash);
         }
         targetFolders.push(targetFolder);
       }

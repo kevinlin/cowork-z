@@ -46,8 +46,8 @@ function parseModelId(modelId?: string): { providerID: string; modelID: string }
   const slashIdx = modelId.indexOf('/');
   if (slashIdx <= 0) return undefined;
   return {
-    providerID: modelId.substring(0, slashIdx),
-    modelID: modelId.substring(slashIdx + 1),
+    providerID: modelId.slice(0, slashIdx),
+    modelID: modelId.slice(slashIdx + 1),
   };
 }
 

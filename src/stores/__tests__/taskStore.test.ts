@@ -61,8 +61,8 @@ function resolveShellPath(rawPath: string, toolOutput?: string, allMessages?: Ta
   const path = rawPath.replace(/^\$HOME\//, '~/').replace(/^\$\{HOME\}\//, '~/');
   if (!path.includes('$')) return path;
 
-  const dir = path.substring(0, path.lastIndexOf('/') + 1);
-  const ext = path.includes('.') ? path.substring(path.lastIndexOf('.')) : '';
+  const dir = path.slice(0, path.lastIndexOf('/') + 1);
+  const ext = path.includes('.') ? path.slice(path.lastIndexOf('.')) : '';
 
   const candidates: string[] = [];
   if (toolOutput) candidates.push(toolOutput);

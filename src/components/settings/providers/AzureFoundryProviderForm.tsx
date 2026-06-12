@@ -83,7 +83,7 @@ export function AzureFoundryProviderForm({
           authMethod: authType,
           endpoint: endpoint.trim(),
           deploymentName: deploymentName.trim(),
-          ...(authType === 'api-key' && apiKey ? { keyPrefix: apiKey.substring(0, 8) + '...' } : {}),
+          ...(authType === 'api-key' && apiKey ? { keyPrefix: apiKey.slice(0, 8) + '...' } : {}),
         } as AzureFoundryCredentials,
         lastConnectedAt: new Date().toISOString(),
         availableModels: models,

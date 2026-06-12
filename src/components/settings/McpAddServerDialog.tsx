@@ -74,8 +74,17 @@ export function McpAddServerDialog({ open, onClose, onSave, editName, editConfig
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+      role="presentation"
+    >
+      <div aria-modal="true" className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl" role="dialog">
         <h3 className="mb-4 font-semibold text-base text-foreground">{isEdit ? 'Edit MCP Server' : 'Add MCP Server'}</h3>
 
         {/* Mode toggle */}

@@ -4,7 +4,7 @@
 
 ## v0.8.1
 
-- 
+- **Fix: CI lint gate restored** — The June 11 CI lint fix had been reverted because `pnpm ultracite:check` failed with 17 pre-existing violations; all 17 are now fixed (`substring` → `slice` conversions plus modal a11y in `McpAddServerDialog`), and the workflow runs lint and tests as separate gating steps (2026-06-12 review #7).
 
 ## v0.8.0
 

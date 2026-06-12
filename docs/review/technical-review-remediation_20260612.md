@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 CI / repo hygiene:
 
-- [ ] #7 CI lint failures still silently discarded (remediation regression)
 - [ ] #31 CI gaps: no typecheck, no production build
 - [ ] #33 Husky pre-commit hook skips all `.tsx` files
 - [ ] #32 No dependency-audit automation; `.gitignore` lacks `.env`
@@ -73,7 +72,27 @@ Rust robustness:
 
 ## Fixed
 
-(none yet)
+- [x] #7 CI lint failures still silently discarded (remediation regression)
+  - Branch/worktree: `fix/tr2-07-ci-lint` (`.worktrees/tr2-07`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: CI lint gate restored (2026-06-12 review #7)"
+  - Root cause: the June 11 fix (`5854d3f`, `&` → `&&`) was deliberately
+    reverted on `main` (`ff522dd`) because `pnpm ultracite:check` fails with
+    17 pre-existing errors — enabling the gate broke CI, so it was turned
+    back off instead of fixing the violations.
+  - Change: fixed all 17 lint errors — 15 mechanical `substring` → `slice`
+    conversions across 9 files (all call sites use non-negative indices, so
+    `slice` is behavior-identical; the one `lastIndexOf`-derived bound in
+    `FilePreviewPanel.tsx` is clamped with `Math.max(0, …)`), and 2 a11y
+    errors in `McpAddServerDialog.tsx` (backdrop gained Escape key handling +
+    `role="presentation"`, the panel is `role="dialog"` + `aria-modal`, and
+    the inner stopPropagation click handler was replaced with an
+    `e.target === e.currentTarget` check on the backdrop). The workflow now
+    runs lint and tests as two separate named steps so failures are
+    attributable and both gate the build.
+  - Verification: `pnpm ultracite:check` — clean; `pnpm typecheck` — pass;
+    `pnpm test --run` — 332/332 pass; sidecar `pnpm build` (tsc) + `pnpm test`
+    — 117/117 pass.
 
 ## Review Later
 

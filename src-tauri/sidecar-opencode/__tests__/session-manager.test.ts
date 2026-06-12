@@ -23,7 +23,7 @@ jest.mock('../src/config-builder', () => ({
     permission: { doom_loop: 'deny' },
     agent: { accomplish: { description: 'test', prompt: 'test', mode: 'primary' } },
   })),
-  buildSystemPrompt: jest.fn((port: number, password: string) => `mock-system-prompt-port-${port}-pw-${password}`),
+  buildSystemPrompt: jest.fn((port: number, workspaceDir: string) => `mock-system-prompt-port-${port}-ws-${workspaceDir}`),
 }));
 
 function createMockClient(): jest.Mocked<OpenCodeClient> {
@@ -80,7 +80,7 @@ describe('SessionManager', () => {
   beforeEach(() => {
     client = createMockClient();
     eventStream = createMockEventStream();
-    manager = new SessionManager(client, eventStream, 54_321, 'test-secret');
+    manager = new SessionManager(client, eventStream, 54_321);
   });
 
   describe('startTask', () => {
@@ -103,7 +103,7 @@ describe('SessionManager', () => {
       expect(client.sendMessage).toHaveBeenCalledWith('ses_123', {
         parts: [{ type: 'text', text: 'Do something' }],
         directory: '/test',
-        system: 'mock-system-prompt-port-54321-pw-test-secret',
+        system: 'mock-system-prompt-port-54321-ws-/test',
       });
       expect(events).toEqual(['progress:configuring', 'started', 'progress:executing']);
     });
@@ -142,7 +142,7 @@ describe('SessionManager', () => {
       expect(client.sendMessage).toHaveBeenCalledWith('ses_456', {
         parts: [{ type: 'text', text: 'Continue working' }],
         directory: '/test',
-        system: 'mock-system-prompt-port-54321-pw-test-secret',
+        system: 'mock-system-prompt-port-54321-ws-/test',
       });
       expect(events).toEqual(['progress:configuring', 'started', 'progress:executing']);
     });

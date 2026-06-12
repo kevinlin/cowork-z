@@ -4,20 +4,22 @@ This skill gives you access to the OpenCode server REST API for self-introspecti
 
 ## Authentication
 
-The server credentials are provided in your system prompt inside the `<server-access>` block. All requests require HTTP basic auth:
+The server port is provided in your system prompt inside the `<server-access>` block. The basic-auth password is already present in your shell environment as `OPENCODE_SERVER_PASSWORD` — your shell expands it locally when you run a command. All requests require HTTP basic auth:
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/<endpoint>
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/<endpoint>
 ```
 
-Replace `$PORT` and `$PASSWORD` with the values from your system prompt.
+Replace `$PORT` with the port from your system prompt. Use `$OPENCODE_SERVER_PASSWORD` exactly as written (PowerShell: `$env:OPENCODE_SERVER_PASSWORD`).
+
+**NEVER print, echo, log, or write the password's value anywhere — not to the chat, not to files, not to command output. Only reference it as a shell variable inside commands.**
 
 ## IMPORTANT: Fetch the API Spec First
 
 **Before calling ANY specific endpoint, you MUST first fetch and parse the live OpenAPI specification.** The spec is the source of truth for all available endpoints, request/response schemas, and query parameters. The endpoint summaries in this skill are a convenient reference, but the server's own spec may be newer or more complete.
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/doc
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/doc
 ```
 
 This returns the full OpenAPI JSON spec. Parse it to understand the exact request format, required parameters, and response shapes before invoking any endpoint. **Do not guess or rely solely on the examples below — always verify against `/doc` first.**
@@ -31,7 +33,7 @@ This returns the full OpenAPI JSON spec. Parse it to understand the exact reques
 Check server health and get the OpenCode version.
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/global/health
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/global/health
 ```
 
 **Response:**
@@ -49,7 +51,7 @@ Read the current server configuration (model, agents, permissions, MCP servers, 
 - `directory` (optional) — project directory to scope the config
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/config
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/config
 ```
 
 **Response:** Full config object including `model`, `default_agent`, `enabled_providers`, `permission`, `agent`, `mcp`, etc.
@@ -66,7 +68,7 @@ Update configuration at runtime (e.g., switch model, update permissions, modify 
 **Body:** Partial config object — only include fields you want to change.
 
 ```bash
-curl -s -u opencode:$PASSWORD -X PATCH \
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" -X PATCH \
   -H "Content-Type: application/json" \
   -d '{"model": "claude-sonnet-4-20250514"}' \
   http://localhost:$PORT/config
@@ -88,7 +90,7 @@ List all sessions.
 - `limit` (optional) — max number of sessions to return
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/session
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/session
 ```
 
 **Response:**
@@ -116,7 +118,7 @@ Get details of a specific session.
 - `directory` (optional) — project directory
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/session/ses_abc123
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/session/ses_abc123
 ```
 
 **Response:** Single session object (same shape as list items above).
@@ -132,7 +134,7 @@ Read back message history for a session.
 - `limit` (optional) — max number of messages to return
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/session/ses_abc123/message
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/session/ses_abc123/message
 ```
 
 **Response:**
@@ -152,7 +154,7 @@ curl -s -u opencode:$PASSWORD http://localhost:$PORT/session/ses_abc123/message
 Get todo items for a session.
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/session/ses_abc123/todo
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/session/ses_abc123/todo
 ```
 
 **Response:**
@@ -173,7 +175,7 @@ Todo priorities: `high`, `medium`, `low`
 List available skills.
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/skill
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/skill
 ```
 
 **Response:** Array of skill objects, each with `name`, `description`, `location`, and `content` fields.
@@ -185,7 +187,7 @@ curl -s -u opencode:$PASSWORD http://localhost:$PORT/skill
 Check MCP server connection status.
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/mcp
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/mcp
 ```
 
 **Response:** Map of MCP server names to their connection status:
@@ -200,7 +202,7 @@ curl -s -u opencode:$PASSWORD http://localhost:$PORT/mcp
 List pending permission requests.
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/permission
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/permission
 ```
 
 **Response:**
@@ -224,7 +226,7 @@ curl -s -u opencode:$PASSWORD http://localhost:$PORT/permission
 List pending question requests.
 
 ```bash
-curl -s -u opencode:$PASSWORD http://localhost:$PORT/question
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/question
 ```
 
 **Response:**

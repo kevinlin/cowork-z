@@ -57,14 +57,12 @@ export class SessionManager extends EventEmitter {
   private sessions: Map<string, ManagedSession> = new Map();
   private sessionToTask: Map<string, string> = new Map();
   private serverPort: number;
-  private serverPassword: string;
 
-  constructor(client: OpenCodeClient, eventStream: EventStream, serverPort: number, serverPassword: string) {
+  constructor(client: OpenCodeClient, eventStream: EventStream, serverPort: number) {
     super();
     this.client = client;
     this.eventStream = eventStream;
     this.serverPort = serverPort;
-    this.serverPassword = serverPassword;
     this.setupEventListeners();
   }
 
@@ -362,7 +360,7 @@ export class SessionManager extends EventEmitter {
       .sendMessage(session.id, {
         parts: [{ type: 'text', text: prompt }],
         directory: workingDirectory,
-        system: buildSystemPrompt(this.serverPort, this.serverPassword, workingDirectory ?? '.', customPrompt),
+        system: buildSystemPrompt(this.serverPort, workingDirectory ?? '.', customPrompt),
         model: messageModel,
       })
       .catch((err) => {
@@ -418,7 +416,7 @@ export class SessionManager extends EventEmitter {
         .sendMessage(sessionId, {
           parts: [{ type: 'text', text: prompt }],
           directory: workingDirectory,
-          system: buildSystemPrompt(this.serverPort, this.serverPassword, workingDirectory ?? '', customPrompt),
+          system: buildSystemPrompt(this.serverPort, workingDirectory ?? '', customPrompt),
           model: messageModel,
         })
         .catch((err) => {

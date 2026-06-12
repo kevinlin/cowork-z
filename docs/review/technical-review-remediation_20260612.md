@@ -15,10 +15,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 ## Queued
 
-Secret handling:
-
-- [ ] #1 OpenCode server password embedded in every LLM system prompt (CRITICAL)
-
 Sidecar lifecycle:
 
 - [ ] #8 Unserialized concurrent stdin command handling in the sidecar
@@ -51,6 +47,27 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #1 OpenCode server password embedded in every LLM system prompt (CRITICAL)
+  - Branch/worktree: `fix/tr2-01-password-prompt` (`.worktrees/tr2-01`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: the OpenCode server password no longer enters the LLM system prompt (2026-06-12 review #1)"
+  - Change: `buildSystemPrompt` no longer takes or interpolates the server
+    password. The `<server-access>` block (and every curl example in the
+    bundled `opencode-server-api` skill) now references
+    `$OPENCODE_SERVER_PASSWORD` (`$env:` form noted for PowerShell), which
+    the agent's shell expands locally — the agent's bash tool runs as a
+    child of `opencode serve`, whose environment already carries the
+    variable (set by `process-manager` at spawn). Both prompt and skill
+    explicitly instruct the agent to never print/echo/write the value.
+    `SessionManager` drops its `serverPassword` field; the password now
+    lives only in the sidecar process and the server's env. Chose the
+    review's env-var option over a localhost token broker — no new
+    surface, and the variable is already in place.
+  - Verification: sidecar `pnpm build` (tsc) — pass; `pnpm test` — 111/111
+    pass (new regression test: every `opencode:` auth reference in the
+    prompt must be the env-var form, plus a never-print instruction
+    check); ultracite clean.
 
 - [x] #5 All provider API keys sent in bulk over sidecar IPC on every task start
   - Branch/worktree: `fix/tr2-05-keys-ipc` (`.worktrees/tr2-05`)

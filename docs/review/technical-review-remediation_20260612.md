@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Secret handling:
 
-- [ ] #28 Streaming debug logs write full message text in production
 - [ ] #5 All provider API keys sent in bulk over sidecar IPC on every task start
 - [ ] #1 OpenCode server password embedded in every LLM system prompt (CRITICAL)
 
@@ -53,6 +52,19 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #28 Streaming debug logs write full message text in production
+  - Branch/worktree: `fix/tr2-28-streaming-logs` (`.worktrees/tr2-28`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: streaming handlers no longer log message content or console.log per delta (2026-06-12 review #28)"
+  - Change: removed both `console.log` calls in the module-level streaming
+    handlers (the only ones in production frontend code) and the
+    per-partial `logEvent` IPC call (overhead at streaming frequency);
+    the message-complete log now records `messageId` + `textLength` only —
+    the full message text (which can contain secrets the agent read from
+    files) no longer reaches the persisted app log.
+  - Verification: `pnpm typecheck` — pass; `pnpm test --run` — 337/337
+    pass; ultracite clean.
 
 - [x] #13 `get_api_key` command returns the full keychain secret to the webview
   - Branch/worktree: `fix/tr2-13-get-api-key` (`.worktrees/tr2-13`)

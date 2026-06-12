@@ -1229,22 +1229,19 @@ if (typeof window !== 'undefined' && api.isRunningInTauri()) {
     useTaskStore.getState().setTaskSummary(data.taskId, data.summary);
   });
 
-  // Subscribe to partial message updates (streaming)
+  // Subscribe to partial message updates (streaming). Not logged: an IPC
+  // log call per delta is pure overhead (2026-06-12 review #28).
   void api.onTaskMessagePartial((event) => {
-    console.log('[streaming] received partial:', event.messageId, 'textLength:', event.textSoFar.length);
-    void api.logEvent({
-      level: 'debug',
-      message: `[streaming] partial received: messageId=${event.messageId}, textLength=${event.textSoFar.length}`,
-    });
     useTaskStore.getState().addPartialMessage(event);
   });
 
-  // Subscribe to complete message updates (streaming finalized)
+  // Subscribe to complete message updates (streaming finalized).
+  // Log IDs/lengths only — never message content, which can contain
+  // secrets the agent read from files (2026-06-12 review #28).
   void api.onTaskMessageComplete((event) => {
-    console.log('[streaming] received complete:', event.messageId, 'textLength:', event.text.length);
     void api.logEvent({
       level: 'debug',
-      message: `[streaming] complete received: messageId=${event.messageId}, textLength=${event.text.length}, text="${event.text}"`,
+      message: `[streaming] complete received: messageId=${event.messageId}, textLength=${event.text.length}`,
     });
     useTaskStore.getState().finalizePartialMessage(event);
   });

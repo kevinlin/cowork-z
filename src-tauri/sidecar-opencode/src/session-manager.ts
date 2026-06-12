@@ -322,6 +322,19 @@ export class SessionManager extends EventEmitter {
       for (const oldTaskId of staleTaskIds) {
         const managed = this.sessions.get(oldTaskId);
         logger.info('Cleaning up stale session', { oldTaskId, sessionId: managed?.sessionId, status: managed?.status });
+        // A session still starting/active keeps running on the server after
+        // local cleanup — consuming tokens and possibly executing tools.
+        // Abort it server-side first (2026-06-12 review #21). Fire-and-forget:
+        // a failed abort must not block the new task.
+        if (managed && (managed.status === 'starting' || managed.status === 'active')) {
+          this.client.abortSession(managed.sessionId, managed.session?.directory).catch((err) => {
+            logger.warn('Failed to abort stale session on server', {
+              oldTaskId,
+              sessionId: managed.sessionId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+        }
         this.cleanup(oldTaskId);
       }
     }

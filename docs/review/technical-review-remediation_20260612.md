@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Sidecar lifecycle:
 
-- [ ] #21 Stale sessions cleaned up locally but never aborted on the server
 - [ ] #23 SSE workspace filter disabled when `workingDirectory` is unset
 - [ ] #22 `ApiKeys.ollama` defined but never applied at server spawn
 - [ ] #25 OpenCode config merge can clobber user settings on disk
@@ -43,6 +42,20 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #21 Stale sessions cleaned up locally but never aborted on the server
+  - Branch/worktree: `fix/tr2-21-abort-stale` (`.worktrees/tr2-21`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: superseded sessions are now aborted on the OpenCode server (2026-06-12 review #21)"
+  - Change: the stale-session loop in `startTask` now calls
+    `client.abortSession(sessionId, directory)` for sessions still in
+    `starting`/`active` status before dropping them from local maps.
+    Fire-and-forget with a warn on failure — an unreachable server must not
+    block the new task. Completed/errored stale entries and coexisting
+    arena slots are untouched.
+  - Verification: sidecar `pnpm build` (tsc) — pass; `pnpm test` — 120/120
+    pass (new: active stale session aborted server-side; completed session
+    not re-aborted; arena slots coexist without aborts); ultracite clean.
 
 - [x] #24 Permission-reply failures silently dropped
   - Branch/worktree: `fix/tr2-24-permission-reply` (`.worktrees/tr2-24`)

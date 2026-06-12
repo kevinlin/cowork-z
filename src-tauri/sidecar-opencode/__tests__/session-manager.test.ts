@@ -158,6 +158,88 @@ describe('SessionManager', () => {
     });
   });
 
+  describe('stale session cleanup (2026-06-12 review #21)', () => {
+    it('aborts a still-active stale session on the server when a new task starts', async () => {
+      await manager.startTask({
+        taskId: 'task_old',
+        prompt: 'First task',
+        workingDirectory: '/test',
+      });
+      // task_old is 'active' (set before sendMessage resolves)
+
+      client.createSession.mockResolvedValueOnce({
+        id: 'ses_new',
+        slug: 'new',
+        projectID: 'proj_1',
+        directory: '/test',
+        title: 'New',
+        version: '1',
+        time: { created: Date.now(), updated: Date.now() },
+      } as never);
+
+      await manager.startTask({
+        taskId: 'task_new',
+        prompt: 'Second task',
+        workingDirectory: '/test',
+      });
+
+      expect(client.abortSession).toHaveBeenCalledWith('ses_123', '/test');
+      expect(manager.activeSessionCount()).toBe(1);
+    });
+
+    it('does not abort a stale session that already completed', async () => {
+      await manager.startTask({
+        taskId: 'task_old',
+        prompt: 'First task',
+        workingDirectory: '/test',
+      });
+
+      // Session completes normally (idle → completed + cleanup)
+      eventStream.emit('session.status', {
+        sessionID: 'ses_123',
+        status: { type: 'idle' },
+      });
+      expect(manager.activeSessionCount()).toBe(0);
+
+      await manager.startTask({
+        taskId: 'task_new',
+        prompt: 'Second task',
+        workingDirectory: '/test',
+      });
+
+      expect(client.abortSession).not.toHaveBeenCalled();
+    });
+
+    it('does not abort coexisting arena sessions', async () => {
+      await manager.startTask({
+        taskId: 'task_arena_1',
+        prompt: 'Arena slot 1',
+        workingDirectory: '/test',
+        arenaId: 'arena_1',
+      });
+
+      client.createSession.mockResolvedValueOnce({
+        id: 'ses_arena_2',
+        slug: 'arena2',
+        projectID: 'proj_1',
+        directory: '/test',
+        title: 'Arena 2',
+        version: '1',
+        time: { created: Date.now(), updated: Date.now() },
+      } as never);
+
+      await manager.startTask({
+        taskId: 'task_arena_2',
+        prompt: 'Arena slot 2',
+        workingDirectory: '/test',
+        arenaId: 'arena_1',
+      });
+
+      expect(client.abortSession).not.toHaveBeenCalled();
+      expect(manager.activeSessionCount()).toBe(2);
+    });
+  });
+
   describe('sendMessage failure surfacing (2026-06-12 review #9)', () => {
     function flush(): Promise<void> {
       return new Promise((r) => setImmediate(r));

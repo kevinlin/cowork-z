@@ -318,7 +318,10 @@ fn create_log_file(
 /// Manages the sidecar process lifecycle
 pub struct SidecarManager {
     child: Option<CommandChild>,
-    is_ready: bool,
+    /// Set by the stdout reader task when the sidecar emits its `ready` IPC
+    /// event — NOT when the process spawns (2026-06-12 review #18). Commands
+    /// sent before the sidecar wired up its stdin reader would be lost.
+    ready: Arc<AtomicBool>,
     log_file: Option<Arc<std::sync::Mutex<File>>>,
     /// Set by the stdout reader task when the sidecar process terminates.
     exited: Arc<AtomicBool>,
@@ -328,21 +331,27 @@ impl SidecarManager {
     pub fn new() -> Self {
         Self {
             child: None,
-            is_ready: false,
+            ready: Arc::new(AtomicBool::new(false)),
             log_file: None,
             exited: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    /// Check if sidecar is running
+    /// Check if sidecar is running and has completed its ready handshake
     pub fn is_running(&self) -> bool {
-        self.child.is_some() && self.is_ready
+        self.child.is_some()
+            && self.ready.load(Ordering::SeqCst)
+            && !self.exited.load(Ordering::SeqCst)
     }
 
-    /// Spawn the sidecar process
+    /// Spawn the sidecar process and wait for its `ready` IPC event
     pub async fn spawn(&mut self, app: &AppHandle) -> Result<(), String> {
         if self.child.is_some() {
-            return Ok(());
+            if !self.exited.load(Ordering::SeqCst) {
+                return Ok(());
+            }
+            // The previous process died — drop the stale handle and respawn.
+            self.child = None;
         }
 
         let resource_dir = app.path().resource_dir().ok();
@@ -425,7 +434,9 @@ impl SidecarManager {
         let app_handle = app.clone();
         let log_file_clone = Arc::clone(&log_file);
         self.exited.store(false, Ordering::SeqCst);
+        self.ready.store(false, Ordering::SeqCst);
         let exited = Arc::clone(&self.exited);
+        let ready = Arc::clone(&self.ready);
 
         // Spawn stdout reader task
         tauri::async_runtime::spawn(async move {
@@ -444,6 +455,9 @@ impl SidecarManager {
                         }
                         for json_line in line_str.lines() {
                             if let Ok(event) = serde_json::from_str::<SidecarEvent>(json_line) {
+                                if event.event_type == "ready" {
+                                    ready.store(true, Ordering::SeqCst);
+                                }
                                 Self::handle_sidecar_event(&app_handle, event);
                             }
                         }
@@ -495,7 +509,36 @@ impl SidecarManager {
         });
 
         self.child = Some(child);
-        self.is_ready = true;
+
+        // Block until the sidecar has wired its stdin reader and emitted
+        // `ready` — commands written before that point would be lost
+        // (2026-06-12 review #18). Normal startup is well under a second;
+        // the generous timeout covers slow cold starts (login-shell PATH
+        // resolution, AV scanning).
+        const READY_TIMEOUT_MS: u64 = 15_000;
+        const READY_POLL_MS: u64 = 50;
+        let mut waited: u64 = 0;
+        while !self.ready.load(Ordering::SeqCst)
+            && !self.exited.load(Ordering::SeqCst)
+            && waited < READY_TIMEOUT_MS
+        {
+            tokio::time::sleep(std::time::Duration::from_millis(READY_POLL_MS)).await;
+            waited += READY_POLL_MS;
+        }
+
+        if self.exited.load(Ordering::SeqCst) {
+            self.child = None;
+            return Err("Sidecar process exited before becoming ready".to_string());
+        }
+        if !self.ready.load(Ordering::SeqCst) {
+            if let Some(child) = self.child.take() {
+                let _ = child.kill();
+            }
+            return Err(format!(
+                "Sidecar did not become ready within {}ms",
+                READY_TIMEOUT_MS
+            ));
+        }
 
         Ok(())
     }
@@ -682,7 +725,7 @@ impl SidecarManager {
                 let _ = child.kill();
             }
         }
-        self.is_ready = false;
+        self.ready.store(false, Ordering::SeqCst);
         Ok(())
     }
 }

@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Sidecar lifecycle:
 
-- [ ] #18 Sidecar marked ready immediately after spawn (no handshake)
 - [ ] #9 `sendMessage` failures swallowed — tasks hang with no error surfaced
 - [ ] #24 Permission-reply failures silently dropped
 - [ ] #21 Stale sessions cleaned up locally but never aborted on the server
@@ -46,6 +45,26 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #18 Sidecar marked ready immediately after spawn (no handshake)
+  - Branch/worktree: `fix/tr2-18-ready-handshake` (`.worktrees/tr2-18`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: the app now waits for the sidecar's ready handshake before sending commands (2026-06-12 review #18)"
+  - Change: `is_ready: bool` (set unconditionally right after `spawn()`)
+    replaced with an `Arc<AtomicBool>` that the stdout reader task flips
+    when the sidecar's `ready` IPC event arrives. `spawn()` now polls that
+    flag (50ms interval, 15s timeout) before returning; on timeout the
+    child is killed and an error returned, and if the process dies during
+    startup the spawn fails with a clear message. Two adjacent gaps in the
+    same state machine closed: `is_running()` now also checks the existing
+    `exited` flag (a crashed sidecar previously kept reporting as running),
+    and `spawn()` respawns over a dead child instead of early-returning
+    `Ok` on the stale handle (previously a crashed sidecar could never be
+    restarted without an app restart). Since all callers hold the manager
+    mutex across `spawn()`, concurrent commands queue behind the handshake
+    rather than racing it.
+  - Verification: `cd src-tauri && cargo check` — pass;
+    `cargo test --lib sidecar` — 3/3 pass.
 
 - [x] #8 Unserialized concurrent stdin command handling in the sidecar
   - Branch/worktree: `fix/tr2-08-stdin-serialize` (`.worktrees/tr2-08`)

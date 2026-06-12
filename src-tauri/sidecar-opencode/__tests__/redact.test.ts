@@ -52,6 +52,28 @@ describe('redactSecrets', () => {
     expect(result.mcp.myServer.command).toBe('npx server');
   });
 
+  it('redacts the entire apiKeys container including provider-name keys', () => {
+    const input = {
+      payload: {
+        prompt: 'hello',
+        apiKeys: {
+          anthropic: 'sk-ant-real-key',
+          openai: 'sk-real-key',
+          bedrock: { accessKeyId: 'AKIA...', secretAccessKey: 's3cret', region: 'us-east-1' },
+        },
+        api_keys: { google: 'AIza-real' },
+      },
+    };
+    const result = redactSecrets(input) as {
+      payload: { prompt: string; apiKeys: Record<string, unknown>; api_keys: Record<string, unknown> };
+    };
+    expect(result.payload.prompt).toBe('hello');
+    expect(result.payload.apiKeys).toEqual({ anthropic: REDACTED, openai: REDACTED, bedrock: REDACTED });
+    expect(result.payload.api_keys).toEqual({ google: REDACTED });
+    expect(JSON.stringify(result)).not.toContain('sk-ant-real-key');
+    expect(JSON.stringify(result)).not.toContain('s3cret');
+  });
+
   it('leaves non-secret values and primitives untouched', () => {
     expect(redactSecrets({ port: 4096, ok: true })).toEqual({ port: 4096, ok: true });
     expect(redactSecrets('plain string')).toBe('plain string');

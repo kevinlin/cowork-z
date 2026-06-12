@@ -642,7 +642,12 @@ async function handleCheckServer(): Promise<void> {
 // ============================================================================
 
 async function handleMessage(msg: SidecarCommand): Promise<void> {
-  logger.debug('Received command', msg);
+  // Never log full command payloads — start_task/resume_session carry
+  // API keys (2026-06-12 review #6). Type + taskId is enough to trace flow.
+  logger.debug('Received command', {
+    type: msg.type,
+    taskId: 'taskId' in msg ? msg.taskId : undefined,
+  });
 
   switch (msg.type) {
     case 'start_task':

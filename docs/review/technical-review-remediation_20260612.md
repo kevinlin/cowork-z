@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Secret handling:
 
-- [ ] #6 API keys escape redaction into plaintext logs
 - [ ] #13 `get_api_key` command returns the full keychain secret to the webview
 - [ ] #28 Streaming debug logs write full message text in production
 - [ ] #5 All provider API keys sent in bulk over sidecar IPC on every task start
@@ -55,6 +54,23 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #6 API keys escape redaction into plaintext logs
+  - Branch/worktree: `fix/tr2-06-apikey-redaction` (`.worktrees/tr2-06`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: API keys can no longer escape log redaction (2026-06-12 review #6)"
+  - Change: the sidecar's command router now logs only `{ type, taskId }`
+    instead of the full `start_task`/`resume_session` payload (which carries
+    every provider key), and `redactSecrets` treats `apiKeys`/`api_keys` as
+    secret *containers* (like `environment`/`headers`/`env`) so
+    provider-name keys (`anthropic`, `openai`, nested Bedrock objects) are
+    fully masked even when they don't look secret themselves. The Rust-side
+    verbatim stdout log inherits the fix: with the payload log gone and the
+    container redacted at the sidecar logger, key material no longer
+    reaches stdout in the first place.
+  - Verification: sidecar `pnpm build` (tsc) — pass; `pnpm test` — 118/118
+    pass (new regression test: `apiKeys` container with provider-name keys
+    and nested Bedrock credentials never appear in redacted output).
 
 - [x] #30 Opener capability still grants `$HOME/**`
   - Branch/worktree: `fix/tr2-30-opener-scope` (`.worktrees/tr2-30`)

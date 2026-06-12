@@ -10,9 +10,12 @@ const SECRET_KEY_PATTERN = /(password|passwd|secret|token|api[-_]?key|authorizat
 /**
  * Container properties whose *entire* value maps hold secrets — MCP server
  * configs carry `environment` and `headers` maps that typically contain API
- * tokens under arbitrary key names (technical review finding #10).
+ * tokens under arbitrary key names (technical review finding #10), and the
+ * `apiKeys` payload maps provider names (anthropic, openai, ...) to raw
+ * keys, so the provider-name keys never match SECRET_KEY_PATTERN
+ * (2026-06-12 review #6).
  */
-const SECRET_CONTAINER_PATTERN = /^(environment|headers|env)$/i;
+const SECRET_CONTAINER_PATTERN = /^(environment|headers|env|api[-_]?keys)$/i;
 
 /** Inline `KEY=value` / `KEY: value` patterns in plain log messages. */
 const SECRET_ASSIGNMENT_PATTERN =

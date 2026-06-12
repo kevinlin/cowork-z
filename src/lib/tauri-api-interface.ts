@@ -90,7 +90,6 @@ export interface TauriAPI {
   // API Key management
   hasApiKey(): Promise<boolean>;
   setApiKey(key: string): Promise<void>;
-  getApiKey(): Promise<string | null>;
   validateApiKey(key: string): Promise<{ valid: boolean; error?: string }>;
   validateApiKeyForProvider(provider: string, key: string, options?: Record<string, any>): Promise<{ valid: boolean; error?: string }>;
   clearApiKey(): Promise<void>;

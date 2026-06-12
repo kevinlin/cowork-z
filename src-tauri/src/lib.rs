@@ -322,7 +322,6 @@ pub fn run() {
             commands::api_keys::remove_api_key,
             commands::api_keys::has_api_key,
             commands::api_keys::set_api_key,
-            commands::api_keys::get_api_key,
             commands::api_keys::validate_api_key,
             commands::api_keys::validate_api_key_for_provider,
             commands::api_keys::clear_api_key,

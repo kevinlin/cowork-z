@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Secret handling:
 
-- [ ] #13 `get_api_key` command returns the full keychain secret to the webview
 - [ ] #28 Streaming debug logs write full message text in production
 - [ ] #5 All provider API keys sent in bulk over sidecar IPC on every task start
 - [ ] #1 OpenCode server password embedded in every LLM system prompt (CRITICAL)
@@ -54,6 +53,18 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #13 `get_api_key` command returns the full keychain secret to the webview
+  - Branch/worktree: `fix/tr2-13-get-api-key` (`.worktrees/tr2-13`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: removed the IPC command that returned the full Anthropic API key to the webview (2026-06-12 review #13)"
+  - Change: removed the `get_api_key` Tauri command, its registration, and
+    the `getApiKey` frontend bridge/interface entries. It had zero frontend
+    call sites — pure dead exfiltration surface. The UI keeps using
+    `get_all_api_keys` (existence + masked prefix); full secrets stay
+    Rust-side (`secure_storage::get_api_key` remains for internal use).
+  - Verification: `cd src-tauri && cargo check` — pass; `pnpm typecheck` —
+    pass; `pnpm test --run` — 337/337 pass.
 
 - [x] #6 API keys escape redaction into plaintext logs
   - Branch/worktree: `fix/tr2-06-apikey-redaction` (`.worktrees/tr2-06`)

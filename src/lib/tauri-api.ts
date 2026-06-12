@@ -437,10 +437,6 @@ export async function setApiKey(key: string): Promise<void> {
   return invoke<void>('set_api_key', { key });
 }
 
-export async function getApiKey(): Promise<string | null> {
-  return invoke<string | null>('get_api_key');
-}
-
 export async function validateApiKey(key: string): Promise<{ valid: boolean; error?: string }> {
   return invoke<{ valid: boolean; error?: string }>('validate_api_key', {
     key,
@@ -1679,7 +1675,6 @@ export function getTauriApi() {
     // API Key management
     hasApiKey,
     setApiKey,
-    getApiKey,
     validateApiKey,
     validateApiKeyForProvider,
     clearApiKey,

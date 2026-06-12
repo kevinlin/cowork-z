@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Rust robustness:
 
-- [ ] #17 DB layer panics: `.expect()` on queries and residual `.lock().unwrap()`
 - [ ] #14 Task persistence commands accept arbitrary `task_id` without validation
 - [ ] #29 CSP residual weaknesses (`object-src data:`, missing `base-uri`/`frame-ancestors`)
 
@@ -26,6 +25,32 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #17 DB layer panics: `.expect()` on queries and residual `.lock().unwrap()`
+  - Branch/worktree: `fix/tr2-17-db-panics` (`.worktrees/tr2-17`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: database reads and lock acquisition no longer crash the app (2026-06-12 review #17)"
+  - Change: two layers. (1) DB read functions that used `.expect()` on
+    prepare/query now return `Result<_, String>` and propagate errors:
+    `db/tasks.rs` (`get_messages_for_task`, `get_attachments_for_message`,
+    `get_tasks`, `get_tasks_by_workspace`, `get_task`, `get_tasks_by_arena`),
+    `db/arenas.rs` (`get_arena_with_tasks`, `get_arenas_by_workspace`),
+    `db/providers.rs` (`get_provider_settings`), `db/workspaces.rs`
+    (`list_workspaces`), `db/workspace_permissions.rs`
+    (`get_workspace_permissions`), `db/mod.rs` (`get_database_path`), plus
+    `commands/skill_repos.rs` cache-dir helpers (`.expect("app data dir")` →
+    propagated). All callers updated (`commands/tasks.rs`, `arena.rs`,
+    `providers.rs`, `workspaces.rs`, `workspace_permissions.rs`,
+    `automation_dispatch.rs`, `path_guard.rs`, `lib.rs` background sync).
+    (2) New `lock_util::lock_or_recover` recovers poisoned mutexes
+    (`poisoned.into_inner()` + log) instead of panicking; all residual
+    `.lock().unwrap()` sites converted (`lib.rs` repo sync, `sidecar.rs` log
+    file, `commands/updates.rs` pending update, `commands/automations.rs`
+    ×11, `automation_scheduler.rs` threads/next_runs/wake/condvar-wait).
+    Intentionally kept: `init_database` expect at startup (fail-fast before
+    any UI exists) and tauri builder expect.
+  - Verification: `cargo check` — pass; `cargo test` — 72/72 pass incl. new
+    `lock_util` tests (normal lock, poisoned-mutex recovery).
 
 - [x] #16 Database migrations are not transactional
   - Branch/worktree: `fix/tr2-16-tx-migrations` (`.worktrees/tr2-16`)

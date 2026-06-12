@@ -28,7 +28,7 @@ pub(crate) fn build_dispatch_context(
         .map(|w| w.folder_path);
 
     let workspace_perms =
-        crate::db::workspace_permissions::get_workspace_permissions(conn, &automation.workspace_id);
+        crate::db::workspace_permissions::get_workspace_permissions(conn, &automation.workspace_id)?;
     let mut perms: Vec<FolderPermissionPayload> = Vec::new();
     if let Some(ref wd) = working_directory {
         perms.push(FolderPermissionPayload {

@@ -39,7 +39,7 @@ pub fn save_workspace_permission(
 pub fn get_workspace_permissions(
     conn: &Connection,
     workspace_id: &str,
-) -> Vec<StoredWorkspacePermission> {
+) -> Result<Vec<StoredWorkspacePermission>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id, workspace_id, folder_path, access_level, source, created_at
@@ -47,7 +47,7 @@ pub fn get_workspace_permissions(
              WHERE workspace_id = ?1
              ORDER BY folder_path ASC",
         )
-        .expect("Failed to prepare workspace_permissions query");
+        .map_err(|e| format!("Failed to prepare workspace_permissions query: {}", e))?;
 
     let iter = stmt
         .query_map([workspace_id], |row| {
@@ -60,9 +60,9 @@ pub fn get_workspace_permissions(
                 created_at: row.get(5)?,
             })
         })
-        .expect("Failed to query workspace_permissions");
+        .map_err(|e| format!("Failed to query workspace_permissions: {}", e))?;
 
-    iter.filter_map(|r| r.ok()).collect()
+    Ok(iter.filter_map(|r| r.ok()).collect())
 }
 
 /// Remove a specific workspace permission

@@ -79,7 +79,7 @@ fn resolve_shared_state(
         .map(|w| w.folder_path);
 
     let workspace_perms = if let Some(ref ws_id) = ws_id {
-        db::workspace_permissions::get_workspace_permissions(&conn, ws_id)
+        db::workspace_permissions::get_workspace_permissions(&conn, ws_id)?
     } else {
         vec![]
     };
@@ -291,7 +291,7 @@ pub async fn resume_arena(
     // Load arena with tasks
     let arena = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::arenas::get_arena_with_tasks(&conn, &arena_id)
+        db::arenas::get_arena_with_tasks(&conn, &arena_id)?
             .ok_or_else(|| format!("Arena not found: {}", arena_id))?
     };
 
@@ -356,7 +356,7 @@ pub async fn resume_arena(
     // Return updated arena
     let updated_arena = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::arenas::get_arena_with_tasks(&conn, &arena_id)
+        db::arenas::get_arena_with_tasks(&conn, &arena_id)?
             .ok_or_else(|| format!("Arena not found after resume: {}", arena_id))?
     };
 
@@ -374,7 +374,7 @@ pub async fn resume_arena(
 #[tauri::command]
 pub async fn get_arena(arena_id: String, db_state: State<'_, DbState>) -> Result<Arena, String> {
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-    let stored = db::arenas::get_arena_with_tasks(&conn, &arena_id)
+    let stored = db::arenas::get_arena_with_tasks(&conn, &arena_id)?
         .ok_or_else(|| format!("Arena not found: {}", arena_id))?;
 
     Ok(Arena {
@@ -395,7 +395,7 @@ pub async fn list_arenas(
 ) -> Result<Vec<db::arenas::ArenaListItem>, String> {
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
     match workspace_id {
-        Some(ws_id) => Ok(db::arenas::get_arenas_by_workspace(&conn, &ws_id)),
+        Some(ws_id) => db::arenas::get_arenas_by_workspace(&conn, &ws_id),
         None => Ok(vec![]),
     }
 }
@@ -416,7 +416,7 @@ pub async fn abort_arena(
 ) -> Result<(), String> {
     let tasks = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::tasks::get_tasks_by_arena(&conn, &arena_id)
+        db::tasks::get_tasks_by_arena(&conn, &arena_id)?
     };
 
     let mut manager = sidecar_state.manager.lock().await;

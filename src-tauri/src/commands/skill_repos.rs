@@ -57,15 +57,16 @@ pub struct SyncProgress {
     pub error: Option<String>,
 }
 
-fn cache_dir(app: &AppHandle) -> PathBuf {
-    app.path()
+fn cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
         .app_data_dir()
-        .expect("app data dir")
-        .join("skill-repo-cache")
+        .map_err(|e| format!("Failed to resolve app data dir: {}", e))?
+        .join("skill-repo-cache"))
 }
 
-fn repo_cache_dir(app: &AppHandle, repo_url: &str) -> PathBuf {
-    cache_dir(app).join(git_ops::derive_cache_dir_name(repo_url))
+fn repo_cache_dir(app: &AppHandle, repo_url: &str) -> Result<PathBuf, String> {
+    Ok(cache_dir(app)?.join(git_ops::derive_cache_dir_name(repo_url)))
 }
 
 fn resolve_target_folder(target: &str) -> Result<PathBuf, String> {
@@ -166,7 +167,7 @@ pub async fn skill_repos_add(
         }
     }
 
-    let dest = repo_cache_dir(&app, &url);
+    let dest = repo_cache_dir(&app, &url)?;
     if dest.exists() {
         let _ = fs::remove_dir_all(&dest);
     }
@@ -246,7 +247,7 @@ pub async fn skill_repos_remove(
     }
 
     let cache_url = repo.as_ref().map(|r| r.url.as_str()).unwrap_or("");
-    let cache = repo_cache_dir(&app, cache_url);
+    let cache = repo_cache_dir(&app, cache_url)?;
     if cache.exists() {
         let _ = fs::remove_dir_all(&cache);
     }
@@ -281,7 +282,7 @@ pub async fn skill_repos_sync(
         None
     };
 
-    let cache = repo_cache_dir(&app, &repo.url);
+    let cache = repo_cache_dir(&app, &repo.url)?;
     let now = chrono::Utc::now().to_rfc3339();
 
     let sync_result = if cache.exists() {
@@ -409,7 +410,7 @@ pub async fn skills_install_from_repo(
             .ok_or_else(|| format!("Skill not found: {}", skill_path))?
     };
 
-    let cache = repo_cache_dir(&app, &repo.url);
+    let cache = repo_cache_dir(&app, &repo.url)?;
     let source = cache.join(&skill.skill_path);
     if !source.exists() {
         return Err(format!(

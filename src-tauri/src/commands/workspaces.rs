@@ -36,7 +36,7 @@ fn folder_basename(path: &str) -> String {
 #[tauri::command]
 pub async fn list_workspaces(state: State<'_, DbState>) -> Result<Vec<Workspace>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    Ok(db::workspaces::list_workspaces(&conn)
+    Ok(db::workspaces::list_workspaces(&conn)?
         .into_iter()
         .map(to_workspace)
         .collect())

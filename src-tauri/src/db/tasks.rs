@@ -103,7 +103,10 @@ pub struct AttachmentInput {
 }
 
 /// Get messages for a task
-fn get_messages_for_task(conn: &Connection, task_id: &str) -> Vec<StoredTaskMessage> {
+fn get_messages_for_task(
+    conn: &Connection,
+    task_id: &str,
+) -> Result<Vec<StoredTaskMessage>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id, type, content, tool_name, tool_input, timestamp, tool_output
@@ -111,7 +114,7 @@ fn get_messages_for_task(conn: &Connection, task_id: &str) -> Vec<StoredTaskMess
              WHERE task_id = ?1
              ORDER BY sort_order ASC",
         )
-        .expect("Failed to prepare messages query");
+        .map_err(|e| format!("Failed to prepare messages query: {}", e))?;
 
     let message_iter = stmt
         .query_map([task_id], |row| {
@@ -135,38 +138,39 @@ fn get_messages_for_task(conn: &Connection, task_id: &str) -> Vec<StoredTaskMess
                 tool_output,
             ))
         })
-        .expect("Failed to query messages");
+        .map_err(|e| format!("Failed to query messages: {}", e))?;
 
-    message_iter
-        .filter_map(|r| r.ok())
-        .map(
-            |(id, msg_type, content, tool_name, tool_input, timestamp, tool_output)| {
-                let attachments = get_attachments_for_message(conn, &id);
+    let mut messages = Vec::new();
+    for row in message_iter.filter_map(|r| r.ok()) {
+        let (id, msg_type, content, tool_name, tool_input, timestamp, tool_output) = row;
+        let attachments = get_attachments_for_message(conn, &id)?;
 
-                StoredTaskMessage {
-                    id,
-                    msg_type,
-                    content,
-                    timestamp,
-                    tool_name,
-                    tool_input,
-                    tool_output,
-                    attachments: if attachments.is_empty() {
-                        None
-                    } else {
-                        Some(attachments)
-                    },
-                }
+        messages.push(StoredTaskMessage {
+            id,
+            msg_type,
+            content,
+            timestamp,
+            tool_name,
+            tool_input,
+            tool_output,
+            attachments: if attachments.is_empty() {
+                None
+            } else {
+                Some(attachments)
             },
-        )
-        .collect()
+        });
+    }
+    Ok(messages)
 }
 
 /// Get attachments for a message
-fn get_attachments_for_message(conn: &Connection, message_id: &str) -> Vec<StoredAttachment> {
+fn get_attachments_for_message(
+    conn: &Connection,
+    message_id: &str,
+) -> Result<Vec<StoredAttachment>, String> {
     let mut stmt = conn
         .prepare("SELECT type, data, label FROM task_attachments WHERE message_id = ?1")
-        .expect("Failed to prepare attachments query");
+        .map_err(|e| format!("Failed to prepare attachments query: {}", e))?;
 
     let att_iter = stmt
         .query_map([message_id], |row| {
@@ -176,14 +180,17 @@ fn get_attachments_for_message(conn: &Connection, message_id: &str) -> Vec<Store
                 label: row.get(2)?,
             })
         })
-        .expect("Failed to query attachments");
+        .map_err(|e| format!("Failed to query attachments: {}", e))?;
 
-    att_iter.filter_map(|r| r.ok()).collect()
+    Ok(att_iter.filter_map(|r| r.ok()).collect())
 }
 
 /// Get tasks for a specific workspace (limited to MAX_HISTORY_ITEMS).
 /// Excludes tasks that belong to an arena (they are displayed via the arena UI).
-pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<StoredTask> {
+pub fn get_tasks_by_workspace(
+    conn: &Connection,
+    workspace_id: &str,
+) -> Result<Vec<StoredTask>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id
@@ -192,7 +199,7 @@ pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Stor
              ORDER BY created_at DESC
              LIMIT ?2",
         )
-        .expect("Failed to prepare tasks query");
+        .map_err(|e| format!("Failed to prepare tasks query: {}", e))?;
 
     let task_iter = stmt
         .query_map(params![workspace_id, MAX_HISTORY_ITEMS], |row| {
@@ -208,45 +215,34 @@ pub fn get_tasks_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Stor
                 row.get::<_, Option<String>>(8)?,
             ))
         })
-        .expect("Failed to query tasks");
+        .map_err(|e| format!("Failed to query tasks: {}", e))?;
 
-    task_iter
-        .filter_map(|r| r.ok())
-        .map(
-            |(
-                id,
-                prompt,
-                summary,
-                status,
-                session_id,
-                created_at,
-                started_at,
-                completed_at,
-                ws_id,
-            )| {
-                let messages = get_messages_for_task(conn, &id);
-                StoredTask {
-                    id,
-                    prompt,
-                    summary,
-                    status,
-                    messages,
-                    session_id,
-                    created_at,
-                    started_at,
-                    completed_at,
-                    workspace_id: ws_id,
-                    arena_id: None,
-                    arena_slot: None,
-                    model_id: None,
-                }
-            },
-        )
-        .collect()
+    let mut tasks = Vec::new();
+    for row in task_iter.filter_map(|r| r.ok()) {
+        let (id, prompt, summary, status, session_id, created_at, started_at, completed_at, ws_id) =
+            row;
+        let messages = get_messages_for_task(conn, &id)?;
+        tasks.push(StoredTask {
+            id,
+            prompt,
+            summary,
+            status,
+            messages,
+            session_id,
+            created_at,
+            started_at,
+            completed_at,
+            workspace_id: ws_id,
+            arena_id: None,
+            arena_slot: None,
+            model_id: None,
+        });
+    }
+    Ok(tasks)
 }
 
 /// Get all tasks (limited to MAX_HISTORY_ITEMS)
-pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
+pub fn get_tasks(conn: &Connection) -> Result<Vec<StoredTask>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id
@@ -255,7 +251,7 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
              ORDER BY created_at DESC
              LIMIT ?1",
         )
-        .expect("Failed to prepare tasks query");
+        .map_err(|e| format!("Failed to prepare tasks query: {}", e))?;
 
     let task_iter = stmt
         .query_map([MAX_HISTORY_ITEMS], |row| {
@@ -271,45 +267,43 @@ pub fn get_tasks(conn: &Connection) -> Vec<StoredTask> {
                 row.get::<_, Option<String>>(8)?,
             ))
         })
-        .expect("Failed to query tasks");
+        .map_err(|e| format!("Failed to query tasks: {}", e))?;
 
-    task_iter
-        .filter_map(|r| r.ok())
-        .map(
-            |(
-                id,
-                prompt,
-                summary,
-                status,
-                session_id,
-                created_at,
-                started_at,
-                completed_at,
-                workspace_id,
-            )| {
-                let messages = get_messages_for_task(conn, &id);
-                StoredTask {
-                    id,
-                    prompt,
-                    summary,
-                    status,
-                    messages,
-                    session_id,
-                    created_at,
-                    started_at,
-                    completed_at,
-                    workspace_id,
-                    arena_id: None,
-                    arena_slot: None,
-                    model_id: None,
-                }
-            },
-        )
-        .collect()
+    let mut tasks = Vec::new();
+    for row in task_iter.filter_map(|r| r.ok()) {
+        let (
+            id,
+            prompt,
+            summary,
+            status,
+            session_id,
+            created_at,
+            started_at,
+            completed_at,
+            workspace_id,
+        ) = row;
+        let messages = get_messages_for_task(conn, &id)?;
+        tasks.push(StoredTask {
+            id,
+            prompt,
+            summary,
+            status,
+            messages,
+            session_id,
+            created_at,
+            started_at,
+            completed_at,
+            workspace_id,
+            arena_id: None,
+            arena_slot: None,
+            model_id: None,
+        });
+    }
+    Ok(tasks)
 }
 
 /// Get a single task by ID
-pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
+pub fn get_task(conn: &Connection, task_id: &str) -> Result<Option<StoredTask>, String> {
     let result = conn.query_row(
         "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id
          FROM tasks WHERE id = ?1",
@@ -341,8 +335,8 @@ pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
             completed_at,
             workspace_id,
         )) => {
-            let messages = get_messages_for_task(conn, &id);
-            Some(StoredTask {
+            let messages = get_messages_for_task(conn, &id)?;
+            Ok(Some(StoredTask {
                 id,
                 prompt,
                 summary,
@@ -356,9 +350,10 @@ pub fn get_task(conn: &Connection, task_id: &str) -> Option<StoredTask> {
                 arena_id: None,
                 arena_slot: None,
                 model_id: None,
-            })
+            }))
         }
-        Err(_) => None,
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(format!("Failed to query task: {}", e)),
     }
 }
 
@@ -596,7 +591,7 @@ pub fn clear_history(conn: &Connection) -> Result<(), String> {
 }
 
 /// Get tasks for an arena, ordered by arena_slot (0, 1, 2)
-pub fn get_tasks_by_arena(conn: &Connection, arena_id: &str) -> Vec<StoredTask> {
+pub fn get_tasks_by_arena(conn: &Connection, arena_id: &str) -> Result<Vec<StoredTask>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id, prompt, summary, status, session_id, created_at, started_at, completed_at, workspace_id, arena_id, arena_slot, model_id
@@ -604,7 +599,7 @@ pub fn get_tasks_by_arena(conn: &Connection, arena_id: &str) -> Vec<StoredTask> 
              WHERE arena_id = ?1
              ORDER BY arena_slot ASC",
         )
-        .expect("Failed to prepare arena tasks query");
+        .map_err(|e| format!("Failed to prepare arena tasks query: {}", e))?;
 
     let task_iter = stmt
         .query_map([arena_id], |row| {
@@ -623,42 +618,40 @@ pub fn get_tasks_by_arena(conn: &Connection, arena_id: &str) -> Vec<StoredTask> 
                 row.get::<_, Option<String>>(11)?,
             ))
         })
-        .expect("Failed to query arena tasks");
+        .map_err(|e| format!("Failed to query arena tasks: {}", e))?;
 
-    task_iter
-        .filter_map(|r| r.ok())
-        .map(
-            |(
-                id,
-                prompt,
-                summary,
-                status,
-                session_id,
-                created_at,
-                started_at,
-                completed_at,
-                workspace_id,
-                arena_id,
-                arena_slot,
-                model_id,
-            )| {
-                let messages = get_messages_for_task(conn, &id);
-                StoredTask {
-                    id,
-                    prompt,
-                    summary,
-                    status,
-                    messages,
-                    session_id,
-                    created_at,
-                    started_at,
-                    completed_at,
-                    workspace_id,
-                    arena_id,
-                    arena_slot,
-                    model_id,
-                }
-            },
-        )
-        .collect()
+    let mut tasks = Vec::new();
+    for row in task_iter.filter_map(|r| r.ok()) {
+        let (
+            id,
+            prompt,
+            summary,
+            status,
+            session_id,
+            created_at,
+            started_at,
+            completed_at,
+            workspace_id,
+            arena_id,
+            arena_slot,
+            model_id,
+        ) = row;
+        let messages = get_messages_for_task(conn, &id)?;
+        tasks.push(StoredTask {
+            id,
+            prompt,
+            summary,
+            status,
+            messages,
+            session_id,
+            created_at,
+            started_at,
+            completed_at,
+            workspace_id,
+            arena_id,
+            arena_slot,
+            model_id,
+        });
+    }
+    Ok(tasks)
 }

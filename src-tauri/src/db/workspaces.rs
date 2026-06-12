@@ -66,14 +66,14 @@ pub fn get_workspace_by_path(conn: &Connection, folder_path: &str) -> Option<Sto
 }
 
 /// List all workspaces, most recently opened first
-pub fn list_workspaces(conn: &Connection) -> Vec<StoredWorkspace> {
+pub fn list_workspaces(conn: &Connection) -> Result<Vec<StoredWorkspace>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id, folder_path, display_name, created_at, last_opened_at
              FROM workspaces
              ORDER BY last_opened_at DESC",
         )
-        .expect("Failed to prepare workspaces query");
+        .map_err(|e| format!("Failed to prepare workspaces query: {}", e))?;
 
     let iter = stmt
         .query_map([], |row| {
@@ -85,9 +85,9 @@ pub fn list_workspaces(conn: &Connection) -> Vec<StoredWorkspace> {
                 last_opened_at: row.get(4)?,
             })
         })
-        .expect("Failed to query workspaces");
+        .map_err(|e| format!("Failed to query workspaces: {}", e))?;
 
-    iter.filter_map(|r| r.ok()).collect()
+    Ok(iter.filter_map(|r| r.ok()).collect())
 }
 
 /// Remove a workspace (preserves tasks by nulling their workspace_id)

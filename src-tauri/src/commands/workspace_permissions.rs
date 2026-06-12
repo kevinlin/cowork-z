@@ -38,7 +38,7 @@ pub async fn get_workspace_permissions(
     state: State<'_, DbState>,
 ) -> Result<Vec<FolderPermission>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let perms = db::workspace_permissions::get_workspace_permissions(&conn, &workspace_id);
+    let perms = db::workspace_permissions::get_workspace_permissions(&conn, &workspace_id)?;
     Ok(perms
         .iter()
         .map(|p| FolderPermission {

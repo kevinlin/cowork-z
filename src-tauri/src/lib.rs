@@ -9,6 +9,7 @@ mod db;
 mod fs_utils;
 mod fs_watcher;
 mod git_ops;
+mod lock_util;
 mod path_guard;
 mod secure_storage;
 mod sidecar;
@@ -115,7 +116,7 @@ pub fn run() {
 
                 let db_state = app_handle_for_sync.state::<crate::db::DbState>();
                 let repos = {
-                    let conn = db_state.conn.lock().unwrap();
+                    let conn = crate::lock_util::lock_or_recover(&db_state.conn, "db (repo sync)");
                     crate::db::skill_repos::list_skill_repos(&conn)
                 };
 
@@ -123,11 +124,13 @@ pub fn run() {
                     return;
                 }
 
+                let Ok(app_data_dir) = app_handle_for_sync.path().app_data_dir() else {
+                    eprintln!("[Skills] Cannot resolve app data dir — skipping repo sync");
+                    return;
+                };
+
                 for repo in repos {
-                    let cache = app_handle_for_sync
-                        .path()
-                        .app_data_dir()
-                        .expect("app data dir")
+                    let cache = app_data_dir
                         .join("skill-repo-cache")
                         .join(crate::git_ops::derive_cache_dir_name(&repo.url));
 
@@ -163,7 +166,10 @@ pub fn run() {
                             let discovered = crate::skill_discovery::discover_skills(
                                 &repo.id, &cache, &repo.url,
                             );
-                            let conn = db_state.conn.lock().unwrap();
+                            let conn = crate::lock_util::lock_or_recover(
+                                &db_state.conn,
+                                "db (repo sync ok)",
+                            );
                             let _ = crate::db::skill_repos::update_sync_status(
                                 &conn,
                                 &repo.id,
@@ -185,7 +191,10 @@ pub fn run() {
                             );
                         }
                         Err(e) => {
-                            let conn = db_state.conn.lock().unwrap();
+                            let conn = crate::lock_util::lock_or_recover(
+                                &db_state.conn,
+                                "db (repo sync err)",
+                            );
                             let _ = crate::db::skill_repos::update_sync_status(
                                 &conn,
                                 &repo.id,

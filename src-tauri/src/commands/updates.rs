@@ -37,7 +37,7 @@ pub async fn check_for_update(
                 body: u.body.clone(),
                 date: u.date.map(|d| format!("{d}")),
             };
-            *pending.0.lock().unwrap() = Some(u);
+            *crate::lock_util::lock_or_recover(&pending.0, "pending update") = Some(u);
             Ok(Some(info))
         }
         None => Ok(None),
@@ -50,10 +50,7 @@ pub async fn install_update(
     app: tauri::AppHandle,
     pending: State<'_, PendingUpdate>,
 ) -> Result<(), String> {
-    let update = pending
-        .0
-        .lock()
-        .unwrap()
+    let update = crate::lock_util::lock_or_recover(&pending.0, "pending update")
         .take()
         .ok_or("No pending update to install")?;
 

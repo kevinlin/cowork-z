@@ -16,6 +16,7 @@ use tauri::Manager;
 /// bad historical grant (e.g. `/` or `~/.ssh`) cannot re-open the sandbox.
 pub fn allowed_roots(conn: &Connection) -> Vec<PathBuf> {
     let mut roots: Vec<PathBuf> = crate::db::workspaces::list_workspaces(conn)
+        .unwrap_or_default()
         .into_iter()
         .map(|ws| PathBuf::from(ws.folder_path))
         .collect();

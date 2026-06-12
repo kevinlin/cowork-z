@@ -301,7 +301,7 @@ fn create_log_file(
 
     // Write header to log file
     {
-        let mut file = log_file.lock().unwrap();
+        let mut file = crate::lock_util::lock_or_recover(&log_file, "sidecar log header");
         let _ = writeln!(file, "=== Sidecar Log Started: {} ===", Local::now());
         let _ = writeln!(file, "Log file: {}", log_path.display());
         if let Some(sid) = session_id {
@@ -422,7 +422,7 @@ impl SidecarManager {
 
         // Log spawn success
         {
-            let mut file = log_file.lock().unwrap();
+            let mut file = crate::lock_util::lock_or_recover(&log_file, "sidecar log spawn");
             let _ = writeln!(
                 file,
                 "[{}] Sidecar process spawned successfully",

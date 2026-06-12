@@ -39,7 +39,7 @@ pub async fn set_selected_model(
 #[tauri::command]
 pub async fn get_provider_settings(state: State<'_, DbState>) -> Result<ProviderSettings, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let settings = db::providers::get_provider_settings(&conn);
+    let settings = db::providers::get_provider_settings(&conn)?;
 
     let connected_providers: HashMap<String, ConnectedProviderResponse> = settings
         .connected_providers

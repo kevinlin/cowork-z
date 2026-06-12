@@ -35,7 +35,7 @@ pub async fn start_task(
             None
         }
         .or_else(|| {
-            let settings = db::providers::get_provider_settings(&conn);
+            let settings = db::providers::get_provider_settings(&conn).ok()?;
             settings.connected_providers.values().find_map(|provider| {
                 if provider.connection_status == "connected" {
                     provider.selected_model_id.clone()
@@ -96,7 +96,7 @@ pub async fn start_task(
     let workspace_perms = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
         if let Some(ref ws_id) = ws_id_for_perms {
-            db::workspace_permissions::get_workspace_permissions(&conn, ws_id)
+            db::workspace_permissions::get_workspace_permissions(&conn, ws_id)?
         } else {
             vec![]
         }
@@ -279,7 +279,7 @@ pub async fn reply_to_question(
 #[tauri::command]
 pub async fn get_task(task_id: String, state: State<'_, DbState>) -> Result<Option<Task>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let stored = db::tasks::get_task(&conn, &task_id);
+    let stored = db::tasks::get_task(&conn, &task_id)?;
 
     Ok(stored.map(|t| Task {
         id: t.id,
@@ -328,9 +328,9 @@ pub async fn list_tasks(
 ) -> Result<Vec<Task>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let tasks = if let Some(ref ws_id) = workspace_id {
-        db::tasks::get_tasks_by_workspace(&conn, ws_id)
+        db::tasks::get_tasks_by_workspace(&conn, ws_id)?
     } else {
-        db::tasks::get_tasks(&conn)
+        db::tasks::get_tasks(&conn)?
     };
 
     Ok(tasks
@@ -626,7 +626,7 @@ pub async fn resume_session(
     let workspace_perms = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
         if let Some(ref ws_id) = ws_id_for_perms {
-            db::workspace_permissions::get_workspace_permissions(&conn, ws_id)
+            db::workspace_permissions::get_workspace_permissions(&conn, ws_id)?
         } else {
             vec![]
         }

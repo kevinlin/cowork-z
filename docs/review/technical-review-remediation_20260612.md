@@ -18,7 +18,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 Frontend store / performance:
 
 - [ ] #11 Arena mode double-persists and never dedupes task events
-- [ ] #26 Async `listen()` unsubscribe races leak Tauri event listeners
 - [ ] #12 Streaming pipeline re-parses full markdown and re-renders the whole page per delta
 - [ ] #35 O(n²) per-render scans in `MessageList`
 
@@ -34,6 +33,25 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #26 Async `listen()` unsubscribe races leak Tauri event listeners
+  - Branch/worktree: `fix/tr2-26-unlisten-races` (`.worktrees/tr2-26`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: event listeners no longer leak when components unmount quickly (2026-06-12 review #26)"
+  - Change: the race-safe `toSyncUnlisten` helper (previously private to
+    `tauri-api-interface.ts`) is now exported from `tauri-api.ts` and applied
+    everywhere a `listen()` promise was being unwrapped by hand: the three
+    automation listeners in `tauri-api.ts`, the `show-about` /
+    `show-keyboard-shortcuts` menu listeners in `App.tsx`, and the
+    `check-for-updates` listener in `useAppUpdate.ts`. If cleanup runs before
+    registration resolves, the helper unlistens on late resolution instead of
+    dropping the handle. The duplicate private copy in
+    `tauri-api-interface.ts` was removed. These three files were the only
+    remaining direct importers of `@tauri-apps/api/event`.
+  - Verification: `pnpm typecheck` — pass; new
+    `src/lib/__tests__/to-sync-unlisten.test.ts` — 3/3 pass (normal
+    unsubscribe, late-resolution cancel, rejected registration no-op);
+    ultracite check — clean.
 
 - [x] #19 Filesystem watcher is non-recursive — stale file tree for nested changes
   - Branch/worktree: `fix/tr2-19-recursive-watcher` (`.worktrees/tr2-19`)

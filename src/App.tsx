@@ -21,7 +21,7 @@ import { useTheme } from './hooks/useTheme';
 import { analytics } from './lib/analytics';
 import { springs, variants } from './lib/animations';
 import { formatPathForChat } from './lib/file-utils';
-import { isRunningInTauri, setOnboardingComplete } from './lib/tauri-api';
+import { isRunningInTauri, setOnboardingComplete, toSyncUnlisten } from './lib/tauri-api';
 import { getThemeById } from './lib/themes';
 import ArenaPage from './pages/Arena';
 import ExecutionPage from './pages/Execution';
@@ -106,30 +106,26 @@ export default function App() {
   const appUpdate = useAppUpdate();
 
   // Listen for native "show-about" menu event from Rust
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen('show-about', () => {
-      setShowAbout(true);
-    }).then((fn) => {
-      unlisten = fn;
-    });
-    return () => {
-      unlisten?.();
-    };
-  }, [setShowAbout]);
+  useEffect(
+    () =>
+      toSyncUnlisten(
+        listen('show-about', () => {
+          setShowAbout(true);
+        })
+      ),
+    [setShowAbout]
+  );
 
   // Listen for native "show-keyboard-shortcuts" menu event from Rust
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen('show-keyboard-shortcuts', () => {
-      setShowKeyboardShortcuts(true);
-    }).then((fn) => {
-      unlisten = fn;
-    });
-    return () => {
-      unlisten?.();
-    };
-  }, [setShowKeyboardShortcuts]);
+  useEffect(
+    () =>
+      toSyncUnlisten(
+        listen('show-keyboard-shortcuts', () => {
+          setShowKeyboardShortcuts(true);
+        })
+      ),
+    [setShowKeyboardShortcuts]
+  );
 
   // Track page views on route changes
   useEffect(() => {

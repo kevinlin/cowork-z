@@ -39,6 +39,35 @@ import type {
   Workspace,
 } from '@/shared';
 
+/**
+ * Convert an async `listen()` registration into a synchronous unsubscribe
+ * function that is safe to return from a `useEffect` cleanup. If cleanup runs
+ * before the registration promise resolves, the listener is removed as soon
+ * as the promise settles instead of leaking a live Tauri event listener
+ * (2026-06-12 review #26).
+ */
+export function toSyncUnlisten(promise: Promise<UnlistenFn>): () => void {
+  let unlisten: UnlistenFn | null = null;
+  let pendingCancel = false;
+  promise
+    .then((fn) => {
+      unlisten = fn;
+      if (pendingCancel) {
+        fn();
+      }
+    })
+    .catch(() => {
+      // Registration failed — nothing to clean up.
+    });
+  return () => {
+    if (unlisten) {
+      unlisten();
+    } else {
+      pendingCancel = true;
+    }
+  };
+}
+
 // ============================================================================
 // App Info
 // ============================================================================
@@ -1537,39 +1566,27 @@ export async function validateCron(cronExpression: string): Promise<boolean> {
 }
 
 export function onAutomationRunStarted(callback: (event: { automationId: string; runId: string }) => void): () => void {
-  let unlisten: UnlistenFn | null = null;
-  listen<{ automationId: string; runId: string }>('automation:run_started', (event) => {
-    callback(event.payload);
-  }).then((fn) => {
-    unlisten = fn;
-  });
-  return () => {
-    unlisten?.();
-  };
+  return toSyncUnlisten(
+    listen<{ automationId: string; runId: string }>('automation:run_started', (event) => {
+      callback(event.payload);
+    })
+  );
 }
 
 export function onAutomationRunCompleted(callback: (event: { runId: string; hasFindings: boolean; status: string }) => void): () => void {
-  let unlisten: UnlistenFn | null = null;
-  listen<{ runId: string; hasFindings: boolean; status: string }>('automation:run_completed', (event) => {
-    callback(event.payload);
-  }).then((fn) => {
-    unlisten = fn;
-  });
-  return () => {
-    unlisten?.();
-  };
+  return toSyncUnlisten(
+    listen<{ runId: string; hasFindings: boolean; status: string }>('automation:run_completed', (event) => {
+      callback(event.payload);
+    })
+  );
 }
 
 export function onAutomationChanged(callback: (event: { automationId: string; action: string }) => void): () => void {
-  let unlisten: UnlistenFn | null = null;
-  listen<{ automationId: string; action: string }>('automation:changed', (event) => {
-    callback(event.payload);
-  }).then((fn) => {
-    unlisten = fn;
-  });
-  return () => {
-    unlisten?.();
-  };
+  return toSyncUnlisten(
+    listen<{ automationId: string; action: string }>('automation:changed', (event) => {
+      callback(event.payload);
+    })
+  );
 }
 
 // ============================================================================

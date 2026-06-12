@@ -24,7 +24,7 @@ import type {
   Workspace,
 } from '@/shared';
 import type { InstalledSkill, PackInstallResult, PackMeta, RepoSkill, SkillRepo, SkillWithStatus, SyncProgress } from './tauri-api';
-import { getTauriApi, isRunningInTauri } from './tauri-api';
+import { getTauriApi, isRunningInTauri, toSyncUnlisten } from './tauri-api';
 
 export interface TauriAPI {
   // App info
@@ -341,26 +341,6 @@ export interface TauriAPI {
   onAutomationRunCompleted(callback: (event: { runId: string; hasFindings: boolean; status: string }) => void): () => void;
   onAutomationChanged(callback: (event: { automationId: string; action: string }) => void): () => void;
 }
-
-const toSyncUnlisten = (promise: Promise<() => void>) => {
-  let unlisten: (() => void) | null = null;
-  let pendingCancel = false;
-  promise
-    .then((fn) => {
-      unlisten = fn;
-      if (pendingCancel) {
-        fn();
-      }
-    })
-    .catch(() => {});
-  return () => {
-    if (unlisten) {
-      unlisten();
-    } else {
-      pendingCancel = true;
-    }
-  };
-};
 
 /** Cached singleton so callers always receive a referentially stable object. */
 let cachedTauriAPI: TauriAPI | null = null;

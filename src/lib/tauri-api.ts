@@ -132,16 +132,6 @@ export async function readFileContent(path: string, maxSize?: number): Promise<s
 }
 
 /**
- * Read binary content from a file as a base64-encoded string.
- * Used for images, PDFs, and other binary formats.
- * @param path Absolute file path
- * @param maxSize Maximum file size in bytes (default 10 MB)
- */
-export async function readBinaryFile(path: string, maxSize?: number): Promise<string> {
-  return invoke<string>('read_binary_file', { path, maxSize });
-}
-
-/**
  * Move a file to the system trash (macOS Trash / Windows Recycle Bin / Linux freedesktop trash).
  * @param path Absolute file path
  */

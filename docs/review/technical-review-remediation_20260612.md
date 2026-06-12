@@ -15,15 +15,32 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 ## Queued
 
-Rust robustness:
-
-- [ ] #29 CSP residual weaknesses (`object-src data:`, missing `base-uri`/`frame-ancestors`)
+(none — all tractable issues fixed)
 
 ## In Progress
 
 (none)
 
 ## Fixed
+
+- [x] #29 CSP residual weaknesses (`object-src data:`, missing `base-uri`/`frame-ancestors`)
+  - Branch/worktree: `fix/tr2-29-csp` (`.worktrees/tr2-29`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: CSP hardened — no more `data:` plugin content, plus `base-uri`/`frame-ancestors` (2026-06-12 review #29)"
+  - Change: `PdfPreview` now renders `<embed src={convertFileSrc(path)}>`
+    through the scoped asset protocol instead of fetching bytes over IPC and
+    inlining a base64 `data:` URL, so the CSP's `object-src` could drop
+    `data:` (now `'self' asset: http://asset.localhost`). Added
+    `base-uri 'self'` and `frame-ancestors 'none'` for defense in depth.
+    The PDF path change also made the renderer's `readBinaryFile` wrapper and
+    the Rust `read_binary_file` command dead code — both removed from the
+    invoke surface (same rationale as #13/#30: don't keep unused
+    file-content commands reachable from the webview). Asset-protocol access
+    remains bounded by the runtime asset scope (workspaces + validated
+    grants + app dirs) and PDFs outside it simply don't render.
+  - Verification: `pnpm typecheck` — pass; `pnpm test --run` — 352/352 pass;
+    `cargo check` — pass; ultracite — clean. Manual: PDF preview renders via
+    `asset:` URL in dev (asset scope includes workspace roots).
 
 - [x] #14 Task persistence commands accept arbitrary `task_id` without validation
   - Branch/worktree: `fix/tr2-14-task-id-validation` (`.worktrees/tr2-14`)

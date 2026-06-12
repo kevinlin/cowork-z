@@ -387,7 +387,6 @@ pub fn run() {
             commands::updates::install_update,
             // File preview
             commands::files::read_file_content,
-            commands::files::read_binary_file,
             commands::files::trash_file,
             commands::files::open_path_in_default_app,
             commands::files::reveal_path_in_file_manager,

@@ -4,6 +4,7 @@
 
 ## v0.8.1
 
+- **Fix: permission grants are validated and canonicalized before persisting** — Folder grants (user-saved or ad-hoc from permission approvals) previously accepted any path, including `/` and `~/.ssh`, which then fed the file-access guard and asset scope; grants now pass system-path rules and a credential-directory denylist, and historical bad grants are filtered out at load time (2026-06-12 review #3).
 - **Fix: directory listing is now scoped to workspace and granted folders** — `read_directory` validated no paths at all, letting a compromised webview enumerate any directory on disk; it now goes through the same canonicalizing path guard as the file read/trash commands (2026-06-12 review #2).
 - **Fix: Tauri packages pinned to minor lines; sidecar binary compiler pinned exactly** — `@tauri-apps/*` JS packages and the matching Rust crates now use tilde version ranges so the two sides of the IPC/permission contract bump together, and `@yao-pkg/pkg` is pinned exactly so sidecar bundling behavior can't drift without a code diff (2026-06-12 review #34).
 - **Fix: dependency-audit automation added; known vulnerable dependencies updated** — Dependabot now watches npm (root + sidecar), Cargo, and GitHub Actions weekly; CI gained an `audit` job (`pnpm audit --audit-level=high` + `cargo audit`). JS dependencies were updated within existing semver ranges and vulnerable Rust crates patched in `Cargo.lock`, clearing 46 npm advisories and 8 RustSec advisories; `.gitignore` now excludes `.env` files (2026-06-12 review #32).

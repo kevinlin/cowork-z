@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Filesystem sandbox:
 
-- [ ] #3 Workspace permission grants persisted without path validation
 - [ ] #4 Path traversal in `skills_delete_installed` via unsanitized `skill_id`
 - [ ] #15 Workspace validator allows any non-home path without canonicalization
 - [ ] #10 Agent-triggered file previews bypass `isPathSafe`
@@ -64,9 +63,30 @@ Rust robustness:
 
 ## Fixed
 
+- [x] #3 Workspace permission grants persisted without path validation widen the sandbox
+  - Branch/worktree: `fix/tr2-03-grant-validation` (`.worktrees/tr2-03`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: permission grants are validated and canonicalized before persisting (2026-06-12 review #3)"
+  - Change: new `path_guard::validate_grant_path` canonicalizes grant paths
+    (resolving symlinks/`..` via the deepest existing ancestor, so grants for
+    not-yet-created folders still work; traversal segments through missing
+    directories are rejected), applies the `workspace_validator` rules
+    (blocks `/`, system dirs, the home root), and denies credential
+    directories (`~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.kube`, `~/.docker`,
+    `~/.azure`, `~/Library/Keychains`). Applied in
+    `save_workspace_permission` (rejects) and the `respond_to_permission`
+    ad-hoc grant loop (skips the grant with a warning — the permission reply
+    still reaches the agent). Defense in depth: `allowed_roots` re-validates
+    persisted grants at load time, so bad grants from older versions can no
+    longer re-open the sandbox or the asset scope.
+  - Verification: `cd src-tauri && cargo check` — pass;
+    `cargo test --lib path_guard` — 14/14 pass (8 new grant-validation tests:
+    root/home/system/sensitive-dir/traversal denial, missing-tail
+    resolution).
+
 - [x] #2 Unscoped `read_directory` allows arbitrary filesystem enumeration
   - Branch/worktree: `fix/tr2-02-read-directory` (`.worktrees/tr2-02`)
-  - Commit: (this commit)
+  - Commit: `95356c9`
   - UPDATE_LOG: "Fix: directory listing is now scoped to workspace and granted folders (2026-06-12 review #2)"
   - Change: `read_directory` now canonicalizes its path and validates it via
     a new shared `path_guard::validate_path_allowed` (registered workspaces +

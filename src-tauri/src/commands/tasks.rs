@@ -548,14 +548,27 @@ pub async fn respond_to_permission(
                 if let Some(folder_path) = folder_path {
                     if !folder_path.is_empty() {
                         if let Some(ref ws_id) = ws_id {
-                            let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-                            let _ = db::workspace_permissions::save_workspace_permission(
-                                &conn,
-                                ws_id,
-                                &folder_path,
-                                "read-write",
-                                "adhoc",
-                            );
+                            // Validate before persisting; an invalid pattern only
+                            // skips the grant, the permission reply still goes out.
+                            match crate::path_guard::validate_grant_path(&folder_path) {
+                                Ok(validated) => {
+                                    let conn =
+                                        db_state.conn.lock().map_err(|e| e.to_string())?;
+                                    let _ = db::workspace_permissions::save_workspace_permission(
+                                        &conn,
+                                        ws_id,
+                                        &validated,
+                                        "read-write",
+                                        "adhoc",
+                                    );
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "[warn] Skipping ad-hoc folder grant for '{}': {}",
+                                        folder_path, e
+                                    );
+                                }
+                            }
                         }
                     }
                 }

@@ -17,7 +17,6 @@ label (under `v0.8.1`), and verification commands with outcomes.
 
 Filesystem sandbox:
 
-- [ ] #10 Agent-triggered file previews bypass `isPathSafe`
 - [ ] #30 Opener capability still grants `$HOME/**`
 
 Secret handling:
@@ -60,6 +59,21 @@ Rust robustness:
 (none)
 
 ## Fixed
+
+- [x] #10 Agent-triggered file previews bypass `isPathSafe`
+  - Branch/worktree: `fix/tr2-10-preview-pathsafe` (`.worktrees/tr2-10`)
+  - Commit: (this commit)
+  - UPDATE_LOG: "Fix: media thumbnails and preview-by-path now pass the same path-safety gate as chat links (2026-06-12 review #10)"
+  - Change: `filePreviewStore.openPreviewByPath` (the single entry point used
+    by media thumbnails, tool-call cards, chat-input attachments, and
+    markdown links) now silently rejects paths failing `isPathSafe`
+    (traversal segments, sensitive system paths), and
+    `extractMediaPaths` applies the same gate before any path reaches
+    `convertFileSrc` thumbnails. The Rust `path_guard` remains the backstop;
+    this makes the frontend trust boundary consistent with `EnhancedLink`.
+  - Verification: `pnpm typecheck` — pass; `pnpm test --run` — 337/337 pass
+    (new: traversal/sensitive-path rejection for both `extractMediaPaths`
+    and `openPreviewByPath`, plus a safe-path happy case).
 
 - [x] #15 Workspace validator allows any non-home path without canonicalization
   - Branch/worktree: `fix/tr2-15-workspace-canonicalize` (`.worktrees/tr2-15`)

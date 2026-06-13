@@ -122,14 +122,18 @@ function isArenaTask(columns: ArenaColumns, pendingTaskIds: Set<string>, taskId:
 }
 
 /**
- * Merge a message into a list by ID: replace in place when the ID already
+ * Merge messages into a list by ID: replace in place when an ID already
  * exists (e.g. a tool call transitioning pending → completed, or an event
- * re-delivered after a buffered replay), append otherwise. Mirrors the
- * dedup logic in taskStore (2026-06-12 review #11).
+ * re-delivered after a buffered replay), append otherwise. Existing order is
+ * preserved; new IDs are appended in arrival order. Mirrors the dedup logic
+ * in taskStore (2026-06-12 review #11).
  */
-function mergeMessageById(messages: TaskMessage[], message: TaskMessage): TaskMessage[] {
-  const existingIndex = messages.findIndex((m) => m.id === message.id);
-  return existingIndex === -1 ? [...messages, message] : messages.map((m, idx) => (idx === existingIndex ? message : m));
+function mergeMessagesById(messages: TaskMessage[], incoming: TaskMessage[]): TaskMessage[] {
+  const byId = new Map(messages.map((m) => [m.id, m]));
+  for (const message of incoming) {
+    byId.set(message.id, message);
+  }
+  return Array.from(byId.values());
 }
 
 function deriveIsRunning(columns: ArenaColumns): boolean {
@@ -449,7 +453,7 @@ export const useArenaStore = create<ArenaState>((set, get) => {
           if (task) {
             col.task = {
               ...task,
-              messages: mergeMessageById(task.messages, event.message),
+              messages: mergeMessagesById(task.messages, [event.message]),
             };
           }
         } else if (event.type === 'complete') {
@@ -492,13 +496,9 @@ export const useArenaStore = create<ArenaState>((set, get) => {
         const cols = [...state.columns] as ArenaColumns;
         const col = { ...cols[idx] };
         if (col.task) {
-          const existingById = new Map(col.task.messages.map((msg) => [msg.id, msg]));
-          for (const message of messages) {
-            existingById.set(message.id, message);
-          }
           col.task = {
             ...col.task,
-            messages: Array.from(existingById.values()),
+            messages: mergeMessagesById(col.task.messages, messages),
           };
         }
         cols[idx] = col;
@@ -567,7 +567,7 @@ export const useArenaStore = create<ArenaState>((set, get) => {
         if (col.task) {
           col.task = {
             ...col.task,
-            messages: mergeMessageById(col.task.messages, finalMessage),
+            messages: mergeMessagesById(col.task.messages, [finalMessage]),
           };
         }
 

@@ -18,8 +18,9 @@ export function useThrottledValue<T>(value: T, intervalMs: number): T {
   latestValueRef.current = value;
 
   useEffect(() => {
+    // Passthrough mode: the return below already yields `value` directly, so
+    // `throttled` is never read here — skip the wasted state update/re-render.
     if (intervalMs <= 0) {
-      setThrottled(value);
       return;
     }
 

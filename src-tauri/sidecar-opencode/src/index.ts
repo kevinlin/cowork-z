@@ -726,10 +726,6 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
       await handleQuestionReply(msg.taskId, msg.payload);
       break;
 
-    case 'ping':
-      send({ type: 'pong', payload: { timestamp: Date.now() } });
-      break;
-
     case 'check_server':
       await handleCheckServer();
       break;
@@ -764,10 +760,6 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
 
     case 'copilot_disconnect':
       await handleCopilotDisconnect();
-      break;
-
-    case 'api_keys_response':
-      handleApiKeysResponse(msg.payload);
       break;
 
     case 'get_session_todos': {

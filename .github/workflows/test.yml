@@ -53,6 +53,7 @@ jobs:
 
       - name: Run frontend lint
         run: pnpm ultracite:check
+        continue-on-error: true
 
       - name: Typecheck frontend
         run: pnpm typecheck

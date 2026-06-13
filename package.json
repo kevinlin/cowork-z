@@ -75,7 +75,8 @@
   "pnpm": {
     "overrides": {
       "@isaacs/brace-expansion": "5.0.1",
-      "@actions/http-client>undici": ">=6.24.0"
+      "@actions/http-client>undici": ">=6.24.0",
+      "esbuild": "^0.28.1"
     }
   }
 }

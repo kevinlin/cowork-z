@@ -410,7 +410,7 @@ App.tsx
         ├── CodePreview (react-syntax-highlighter)
         ├── MarkdownPreview (react-markdown + remark-gfm)
         ├── MediaPreview (convertFileSrc — images and video)
-        ├── PdfPreview (readBinaryFile → base64 data URL → embed)
+        ├── PdfPreview (convertFileSrc — asset protocol → embed)
         ├── HtmlPreview (sandboxed iframe)
         ├── TextPreview (monospace pre)
         └── BinaryPreview (icon + name + size)
@@ -444,7 +444,7 @@ Extension-based dispatch via `getPreviewType(file: DirectoryEntry)`:
 - **CodePreview** — `react-syntax-highlighter` with theme-aware highlighting (`oneLight`/`oneDark`). Observes `dark` class on `<html>` via `useSyncExternalStore` + `MutationObserver`. Shows line numbers.
 - **MarkdownPreview** — `react-markdown` with `remark-gfm`. Code blocks get syntax highlighting with a macOS-style header bar (three colored dots + language label).
 - **MediaPreview** — Combined image/video. Uses `convertFileSrc()` for Tauri's asset protocol. `<video>` includes `<track kind="captions">` for accessibility.
-- **PdfPreview** — `readBinaryFile()` → base64 data URL → `<embed type="application/pdf">`.
+- **PdfPreview** — `convertFileSrc()` (asset protocol) → `<embed type="application/pdf">`. Asset URLs keep `data:` out of the CSP's `object-src` (2026-06-12 review #29).
 - **HtmlPreview** — Sandboxed iframe with `srcDoc`. Sandbox: `allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms`. No `allow-same-origin` for security.
 - **TextPreview** — Plain monospace `<pre>` text, scrollable.
 - **BinaryPreview** — Generic file icon with file name and formatted file size. No content preview.

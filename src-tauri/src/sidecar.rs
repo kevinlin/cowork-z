@@ -111,6 +111,11 @@ pub enum SidecarCommand {
     CopilotGetModels,
     #[serde(rename = "copilot_disconnect")]
     CopilotDisconnect,
+    /// Reply to the sidecar's `request_api_keys` event — the only message
+    /// that carries key material over IPC, sent solely at server-spawn time
+    /// (2026-06-12 review #5).
+    #[serde(rename = "api_keys_response")]
+    ApiKeysResponse { payload: ApiKeysResponsePayload },
     #[allow(dead_code)]
     Ping,
     /// Health check command sent to sidecar
@@ -133,8 +138,11 @@ pub struct FolderPermissionPayload {
 pub struct StartTaskPayload {
     pub task_id: String,
     pub prompt: String,
+    /// Fingerprint of the current keychain credentials — no key material.
+    /// The sidecar pulls actual keys via `request_api_keys` only when this
+    /// differs from what it last applied (2026-06-12 review #5).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub api_keys: Option<ApiKeys>,
+    pub api_keys_fingerprint: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub working_directory: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -160,8 +168,9 @@ pub struct ResumeSessionPayload {
     pub session_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
+    /// See `StartTaskPayload::api_keys_fingerprint`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub api_keys: Option<ApiKeys>,
+    pub api_keys_fingerprint: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub working_directory: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -178,6 +187,16 @@ pub struct ResumeSessionPayload {
     /// Arena ID — prevents cleanup of sibling sessions
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arena_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiKeysResponsePayload {
+    pub request_id: String,
+    pub api_keys: ApiKeys,
+    /// Fingerprint of `api_keys`, so the sidecar can record what it applied
+    /// without ever computing hashes over key material itself.
+    pub fingerprint: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -282,7 +301,7 @@ fn create_log_file(
 
     // Write header to log file
     {
-        let mut file = log_file.lock().unwrap();
+        let mut file = crate::lock_util::lock_or_recover(&log_file, "sidecar log header");
         let _ = writeln!(file, "=== Sidecar Log Started: {} ===", Local::now());
         let _ = writeln!(file, "Log file: {}", log_path.display());
         if let Some(sid) = session_id {
@@ -299,7 +318,10 @@ fn create_log_file(
 /// Manages the sidecar process lifecycle
 pub struct SidecarManager {
     child: Option<CommandChild>,
-    is_ready: bool,
+    /// Set by the stdout reader task when the sidecar emits its `ready` IPC
+    /// event — NOT when the process spawns (2026-06-12 review #18). Commands
+    /// sent before the sidecar wired up its stdin reader would be lost.
+    ready: Arc<AtomicBool>,
     log_file: Option<Arc<std::sync::Mutex<File>>>,
     /// Set by the stdout reader task when the sidecar process terminates.
     exited: Arc<AtomicBool>,
@@ -309,21 +331,27 @@ impl SidecarManager {
     pub fn new() -> Self {
         Self {
             child: None,
-            is_ready: false,
+            ready: Arc::new(AtomicBool::new(false)),
             log_file: None,
             exited: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    /// Check if sidecar is running
+    /// Check if sidecar is running and has completed its ready handshake
     pub fn is_running(&self) -> bool {
-        self.child.is_some() && self.is_ready
+        self.child.is_some()
+            && self.ready.load(Ordering::SeqCst)
+            && !self.exited.load(Ordering::SeqCst)
     }
 
-    /// Spawn the sidecar process
+    /// Spawn the sidecar process and wait for its `ready` IPC event
     pub async fn spawn(&mut self, app: &AppHandle) -> Result<(), String> {
         if self.child.is_some() {
-            return Ok(());
+            if !self.exited.load(Ordering::SeqCst) {
+                return Ok(());
+            }
+            // The previous process died — drop the stale handle and respawn.
+            self.child = None;
         }
 
         let resource_dir = app.path().resource_dir().ok();
@@ -394,7 +422,7 @@ impl SidecarManager {
 
         // Log spawn success
         {
-            let mut file = log_file.lock().unwrap();
+            let mut file = crate::lock_util::lock_or_recover(&log_file, "sidecar log spawn");
             let _ = writeln!(
                 file,
                 "[{}] Sidecar process spawned successfully",
@@ -406,7 +434,9 @@ impl SidecarManager {
         let app_handle = app.clone();
         let log_file_clone = Arc::clone(&log_file);
         self.exited.store(false, Ordering::SeqCst);
+        self.ready.store(false, Ordering::SeqCst);
         let exited = Arc::clone(&self.exited);
+        let ready = Arc::clone(&self.ready);
 
         // Spawn stdout reader task
         tauri::async_runtime::spawn(async move {
@@ -425,6 +455,9 @@ impl SidecarManager {
                         }
                         for json_line in line_str.lines() {
                             if let Ok(event) = serde_json::from_str::<SidecarEvent>(json_line) {
+                                if event.event_type == "ready" {
+                                    ready.store(true, Ordering::SeqCst);
+                                }
                                 Self::handle_sidecar_event(&app_handle, event);
                             }
                         }
@@ -476,7 +509,36 @@ impl SidecarManager {
         });
 
         self.child = Some(child);
-        self.is_ready = true;
+
+        // Block until the sidecar has wired its stdin reader and emitted
+        // `ready` — commands written before that point would be lost
+        // (2026-06-12 review #18). Normal startup is well under a second;
+        // the generous timeout covers slow cold starts (login-shell PATH
+        // resolution, AV scanning).
+        const READY_TIMEOUT_MS: u64 = 15_000;
+        const READY_POLL_MS: u64 = 50;
+        let mut waited: u64 = 0;
+        while !self.ready.load(Ordering::SeqCst)
+            && !self.exited.load(Ordering::SeqCst)
+            && waited < READY_TIMEOUT_MS
+        {
+            tokio::time::sleep(std::time::Duration::from_millis(READY_POLL_MS)).await;
+            waited += READY_POLL_MS;
+        }
+
+        if self.exited.load(Ordering::SeqCst) {
+            self.child = None;
+            return Err("Sidecar process exited before becoming ready".to_string());
+        }
+        if !self.ready.load(Ordering::SeqCst) {
+            if let Some(child) = self.child.take() {
+                let _ = child.kill();
+            }
+            return Err(format!(
+                "Sidecar did not become ready within {}ms",
+                READY_TIMEOUT_MS
+            ));
+        }
 
         Ok(())
     }
@@ -499,6 +561,7 @@ impl SidecarManager {
             SidecarCommand::CopilotOAuthAuthorize { .. } => "copilot_oauth_authorize",
             SidecarCommand::CopilotGetModels => "copilot_get_models",
             SidecarCommand::CopilotDisconnect => "copilot_disconnect",
+            SidecarCommand::ApiKeysResponse { .. } => "api_keys_response",
             SidecarCommand::Ping => "ping",
             SidecarCommand::CheckServer => "check_server",
         };
@@ -517,6 +580,47 @@ impl SidecarManager {
 
     /// Handle events from the sidecar and forward to frontend
     fn handle_sidecar_event(app: &AppHandle, event: SidecarEvent) {
+        // Narrow key bridge (2026-06-12 review #5): the sidecar requests
+        // credentials only when it is about to (re)spawn the OpenCode
+        // server. Keys are loaded from the keychain at that moment and sent
+        // back over stdin; they never ride along on task payloads. Not
+        // forwarded to the frontend.
+        if event.event_type == "request_api_keys" {
+            let request_id = event
+                .payload
+                .as_ref()
+                .and_then(|p| p.get("requestId"))
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                let api_keys = match get_all_api_keys() {
+                    Ok(keys) => keys,
+                    Err(e) => {
+                        eprintln!("[sidecar] failed to load API keys for request: {}", e);
+                        ApiKeys::default()
+                    }
+                };
+                let fingerprint = fingerprint_api_keys(&api_keys);
+                let state = app.state::<SidecarState>();
+                let mut manager = state.manager.lock().await;
+                if let Err(e) = manager
+                    .send_command(SidecarCommand::ApiKeysResponse {
+                        payload: ApiKeysResponsePayload {
+                            request_id,
+                            api_keys,
+                            fingerprint,
+                        },
+                    })
+                    .await
+                {
+                    eprintln!("[sidecar] failed to send api_keys_response: {}", e);
+                }
+            });
+            return;
+        }
+
         let event_name = match event.event_type.as_str() {
             "ready" => "sidecar:ready",
             "pong" => "sidecar:pong",
@@ -621,7 +725,7 @@ impl SidecarManager {
                 let _ = child.kill();
             }
         }
-        self.is_ready = false;
+        self.ready.store(false, Ordering::SeqCst);
         Ok(())
     }
 }
@@ -649,6 +753,58 @@ impl Default for SidecarState {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Stable SHA-256 fingerprint of an `ApiKeys` set. Mirrors the scheme the
+/// sidecar previously used (`api-key-fingerprint.ts`): sorted
+/// `[name, value]` entries for non-empty string keys (JSON field names),
+/// plus a combined bedrock entry, hashed as a JSON array. The digest
+/// contains no key material, so it is safe to send per task and to log.
+pub fn fingerprint_api_keys(keys: &ApiKeys) -> String {
+    use sha2::{Digest, Sha256};
+
+    let mut entries: Vec<(&str, String)> = Vec::new();
+    let string_keys: [(&str, &Option<String>); 9] = [
+        ("anthropic", &keys.anthropic),
+        ("openai", &keys.openai),
+        ("google", &keys.google),
+        ("xai", &keys.xai),
+        ("deepseek", &keys.deepseek),
+        ("openrouter", &keys.openrouter),
+        ("litellm", &keys.litellm),
+        ("ollama", &keys.ollama),
+        ("azureFoundry", &keys.azure_foundry),
+    ];
+    for (name, value) in string_keys {
+        if let Some(v) = value {
+            if !v.is_empty() {
+                entries.push((name, v.clone()));
+            }
+        }
+    }
+    entries.sort_by(|a, b| a.0.cmp(b.0));
+    if let Some(bedrock) = &keys.bedrock {
+        entries.push((
+            "bedrock",
+            format!(
+                "{}:{}:{}",
+                bedrock.access_key_id, bedrock.secret_access_key, bedrock.region
+            ),
+        ));
+    }
+
+    let json = serde_json::to_string(&entries).unwrap_or_default();
+    let mut hasher = Sha256::new();
+    hasher.update(json.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+/// Load all keys from the keychain, return only their fingerprint, and drop
+/// the key material immediately. Task payloads carry this instead of the
+/// keys themselves (2026-06-12 review #5).
+pub fn current_api_keys_fingerprint() -> Result<String, String> {
+    let keys = get_all_api_keys()?;
+    Ok(fingerprint_api_keys(&keys))
 }
 
 /// Get all API keys from secure storage
@@ -698,4 +854,55 @@ pub fn get_all_api_keys() -> Result<ApiKeys, String> {
     }
 
     Ok(keys)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fingerprint_is_stable_and_ignores_empty_strings() {
+        let keys = ApiKeys {
+            anthropic: Some("sk-ant-1".to_string()),
+            openai: Some(String::new()),
+            ..Default::default()
+        };
+        let only_anthropic = ApiKeys {
+            anthropic: Some("sk-ant-1".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(fingerprint_api_keys(&keys), fingerprint_api_keys(&only_anthropic));
+        assert_eq!(fingerprint_api_keys(&keys), fingerprint_api_keys(&keys));
+    }
+
+    #[test]
+    fn fingerprint_changes_when_a_key_changes() {
+        let a = ApiKeys {
+            anthropic: Some("sk-ant-1".to_string()),
+            ..Default::default()
+        };
+        let b = ApiKeys {
+            anthropic: Some("sk-ant-2".to_string()),
+            ..Default::default()
+        };
+        assert_ne!(fingerprint_api_keys(&a), fingerprint_api_keys(&b));
+        assert_ne!(fingerprint_api_keys(&a), fingerprint_api_keys(&ApiKeys::default()));
+    }
+
+    #[test]
+    fn fingerprint_includes_bedrock_credentials() {
+        let with_bedrock = ApiKeys {
+            bedrock: Some(BedrockCredentials {
+                access_key_id: "AKIA".to_string(),
+                secret_access_key: "s3cret".to_string(),
+                region: "us-east-1".to_string(),
+            }),
+            ..Default::default()
+        };
+        let fp = fingerprint_api_keys(&with_bedrock);
+        assert_ne!(fp, fingerprint_api_keys(&ApiKeys::default()));
+        // The fingerprint is a hex digest — never contains key material
+        assert!(!fp.contains("s3cret"));
+        assert_eq!(fp.len(), 64);
+    }
 }

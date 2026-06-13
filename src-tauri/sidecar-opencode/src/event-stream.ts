@@ -94,8 +94,14 @@ export class EventStream extends EventEmitter {
 
       // Filter to events for our workspace. Server-only payloads (no `directory` on the
       // envelope) such as server.connected / server.heartbeat are always passed through;
-      // workspace-scoped payloads are gated on directory match.
-      if (envelope.directory && this.directory && envelope.directory !== this.directory) return;
+      // workspace-scoped payloads are gated on directory match. When this stream has no
+      // directory scope (e.g. the sidecar initialized for Copilot OAuth before any task),
+      // workspace-scoped events are dropped rather than passed through — routing them on
+      // the session map alone risks misattribution (2026-06-12 review #23). A task start
+      // re-scopes the stream via reconnectWithDirectory.
+      if (envelope.directory) {
+        if (!this.directory || envelope.directory !== this.directory) return;
+      }
 
       try {
         logger.serverEvent(data);

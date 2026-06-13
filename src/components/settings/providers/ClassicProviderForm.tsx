@@ -128,7 +128,7 @@ export function ClassicProviderForm({
         credentials: {
           type: 'api_key',
           keyPrefix:
-            trimmedKey.length > 40 ? trimmedKey.substring(0, 40) + '...' : trimmedKey.substring(0, Math.min(trimmedKey.length, 20)) + '...',
+            trimmedKey.length > 40 ? trimmedKey.slice(0, 40) + '...' : trimmedKey.slice(0, Math.min(trimmedKey.length, 20)) + '...',
         } as ApiKeyCredentials,
         lastConnectedAt: new Date().toISOString(),
         availableModels,

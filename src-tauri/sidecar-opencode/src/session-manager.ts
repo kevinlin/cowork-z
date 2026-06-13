@@ -33,6 +33,13 @@ interface ManagedSession {
   currentMessageId?: string;
   textAccumulator: string;
   consecutiveCompactions: number;
+  /**
+   * True once any SSE event confirmed the server is processing the turn.
+   * Used to distinguish a sendMessage rejection that means "the turn never
+   * started" (must surface a task_error) from an HTTP-level artifact like a
+   * socket timeout on a long-running turn (2026-06-12 review #9).
+   */
+  turnConfirmed: boolean;
 }
 
 /**
@@ -46,8 +53,8 @@ function parseModelId(modelId?: string): { providerID: string; modelID: string }
   const slashIdx = modelId.indexOf('/');
   if (slashIdx <= 0) return undefined;
   return {
-    providerID: modelId.substring(0, slashIdx),
-    modelID: modelId.substring(slashIdx + 1),
+    providerID: modelId.slice(0, slashIdx),
+    modelID: modelId.slice(slashIdx + 1),
   };
 }
 
@@ -57,14 +64,12 @@ export class SessionManager extends EventEmitter {
   private sessions: Map<string, ManagedSession> = new Map();
   private sessionToTask: Map<string, string> = new Map();
   private serverPort: number;
-  private serverPassword: string;
 
-  constructor(client: OpenCodeClient, eventStream: EventStream, serverPort: number, serverPassword: string) {
+  constructor(client: OpenCodeClient, eventStream: EventStream, serverPort: number) {
     super();
     this.client = client;
     this.eventStream = eventStream;
     this.serverPort = serverPort;
-    this.serverPassword = serverPassword;
     this.setupEventListeners();
   }
 
@@ -84,6 +89,7 @@ export class SessionManager extends EventEmitter {
         this.handleSessionIdle(managed);
       } else if (props.status.type === 'busy') {
         managed.status = 'active';
+        managed.turnConfirmed = true;
         this.emit('progress', {
           taskId,
           stage: 'executing',
@@ -99,6 +105,8 @@ export class SessionManager extends EventEmitter {
 
       const managed = this.sessions.get(taskId);
       if (!managed) return;
+
+      managed.turnConfirmed = true;
 
       if (props.info.role === 'assistant') {
         // Finalize previous message's accumulated text before starting new one
@@ -129,6 +137,8 @@ export class SessionManager extends EventEmitter {
         const managed = this.sessions.get(taskId);
         if (!managed) return;
 
+        managed.turnConfirmed = true;
+
         if (props.field === 'text') {
           managed.textAccumulator += props.delta;
           this.emit('message-partial', {
@@ -150,6 +160,8 @@ export class SessionManager extends EventEmitter {
 
       const managed = this.sessions.get(taskId);
       if (!managed) return;
+
+      managed.turnConfirmed = true;
 
       if (props.part.type === 'text' && props.delta) {
         managed.textAccumulator += props.delta;
@@ -310,6 +322,19 @@ export class SessionManager extends EventEmitter {
       for (const oldTaskId of staleTaskIds) {
         const managed = this.sessions.get(oldTaskId);
         logger.info('Cleaning up stale session', { oldTaskId, sessionId: managed?.sessionId, status: managed?.status });
+        // A session still starting/active keeps running on the server after
+        // local cleanup — consuming tokens and possibly executing tools.
+        // Abort it server-side first (2026-06-12 review #21). Fire-and-forget:
+        // a failed abort must not block the new task.
+        if (managed && (managed.status === 'starting' || managed.status === 'active')) {
+          this.client.abortSession(managed.sessionId, managed.session?.directory).catch((err) => {
+            logger.warn('Failed to abort stale session on server', {
+              oldTaskId,
+              sessionId: managed.sessionId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+        }
         this.cleanup(oldTaskId);
       }
     }
@@ -338,6 +363,7 @@ export class SessionManager extends EventEmitter {
       status: 'starting',
       textAccumulator: '',
       consecutiveCompactions: 0,
+      turnConfirmed: false,
     };
 
     this.sessions.set(taskId, managed);
@@ -358,20 +384,17 @@ export class SessionManager extends EventEmitter {
     // Fire-and-forget: session lifecycle is managed entirely via SSE events.
     // Awaiting would cause a false "failed" status when the HTTP timeout
     // fires on long-running agent turns (the session keeps running on the server).
+    // A rejection BEFORE any SSE event confirmed the turn is a real failure
+    // and is surfaced as a task error (2026-06-12 review #9).
     this.client
       .sendMessage(session.id, {
         parts: [{ type: 'text', text: prompt }],
         directory: workingDirectory,
-        system: buildSystemPrompt(this.serverPort, this.serverPassword, workingDirectory ?? '.', customPrompt),
+        system: buildSystemPrompt(this.serverPort, workingDirectory ?? '.', customPrompt),
         model: messageModel,
       })
       .catch((err) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        logger.warn('sendMessage request failed (session may still be active via SSE)', {
-          taskId,
-          sessionId: session.id,
-          error: msg,
-        });
+        this.handleSendMessageFailure(taskId, session.id, err);
       });
   }
 
@@ -399,6 +422,7 @@ export class SessionManager extends EventEmitter {
       status: 'starting',
       textAccumulator: '',
       consecutiveCompactions: 0,
+      turnConfirmed: false,
     };
 
     this.sessions.set(taskId, managed);
@@ -418,18 +442,58 @@ export class SessionManager extends EventEmitter {
         .sendMessage(sessionId, {
           parts: [{ type: 'text', text: prompt }],
           directory: workingDirectory,
-          system: buildSystemPrompt(this.serverPort, this.serverPassword, workingDirectory ?? '', customPrompt),
+          system: buildSystemPrompt(this.serverPort, workingDirectory ?? '', customPrompt),
           model: messageModel,
         })
         .catch((err) => {
-          const msg = err instanceof Error ? err.message : String(err);
-          logger.warn('sendMessage request failed (session may still be active via SSE)', {
-            taskId,
-            sessionId,
-            error: msg,
-          });
+          this.handleSendMessageFailure(taskId, sessionId, err);
         });
     }
+  }
+
+  /**
+   * A rejected sendMessage either means the turn never started (network
+   * blip, auth error, model error — the UI would otherwise spin forever) or
+   * is an HTTP-level artifact on a turn that is already running (socket
+   * timeout on a long agent turn). SSE confirmation disambiguates the two
+   * (2026-06-12 review #9).
+   */
+  private handleSendMessageFailure(taskId: string, sessionId: string, err: unknown): void {
+    const msg = err instanceof Error ? err.message : String(err);
+    const managed = this.sessions.get(taskId);
+
+    if (!managed || managed.sessionId !== sessionId) {
+      logger.debug('sendMessage rejected after the session ended — nothing to surface', { taskId, sessionId, error: msg });
+      return;
+    }
+
+    if (managed.turnConfirmed) {
+      logger.warn('sendMessage request failed after the turn started (session still active via SSE)', {
+        taskId,
+        sessionId,
+        error: msg,
+      });
+      return;
+    }
+
+    logger.error('sendMessage failed before the turn started — surfacing task error', { taskId, sessionId, error: msg });
+    managed.status = 'error';
+    this.emit('error', {
+      taskId,
+      error: `Failed to send message to the model: ${msg}`,
+      sessionId,
+    });
+
+    // Abort the orphaned server session so it cannot keep running detached
+    this.client.abortSession(sessionId, managed.session?.directory).catch((abortErr) => {
+      logger.warn('Failed to abort orphaned session after sendMessage failure', {
+        taskId,
+        sessionId,
+        error: abortErr instanceof Error ? abortErr.message : String(abortErr),
+      });
+    });
+
+    this.cleanup(taskId);
   }
 
   async abortSession(taskId: string, sessionId: string): Promise<void> {

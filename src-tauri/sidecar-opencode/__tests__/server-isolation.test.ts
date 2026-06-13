@@ -59,36 +59,43 @@ describe('Server Isolation', () => {
 
   describe('buildSystemPrompt', () => {
     it('should include the dynamic server port in the skill discovery curl command', () => {
-      const prompt = buildSystemPrompt(12_345, 'my-secret', '/tmp/workspace');
+      const prompt = buildSystemPrompt(12_345, '/tmp/workspace');
       expect(prompt).toContain('http://localhost:12345/skill');
     });
 
-    it('should include basic auth credentials in the curl command', () => {
-      const prompt = buildSystemPrompt(12_345, 'my-secret', '/tmp/workspace');
-      expect(prompt).toContain('curl -s -u opencode:my-secret http://localhost:12345/skill');
+    it('should reference the password via env var and never inline a credential (2026-06-12 review #1)', () => {
+      const prompt = buildSystemPrompt(12_345, '/tmp/workspace');
+      expect(prompt).toContain('OPENCODE_SERVER_PASSWORD');
+      // Every basic-auth reference must use the shell variable, never a literal value
+      const authRefs = prompt.match(/opencode:[^\s"]+/g) ?? [];
+      for (const ref of authRefs) {
+        expect(ref).toMatch(/^opencode:\$(?:env:)?OPENCODE_SERVER_PASSWORD/);
+      }
+      // The prompt must warn the agent not to print the value
+      expect(prompt).toMatch(/NEVER print/i);
     });
 
     it('should not contain hardcoded port 4096', () => {
-      const prompt = buildSystemPrompt(9999, 'pw', '/tmp/workspace');
+      const prompt = buildSystemPrompt(9999, '/tmp/workspace');
       expect(prompt).not.toContain('localhost:4096');
       expect(prompt).toContain('localhost:9999');
     });
 
     it('should contain the Cowork-Z identity section', () => {
-      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/workspace');
+      const prompt = buildSystemPrompt(5000, '/tmp/workspace');
       expect(prompt).toContain('Cowork-Z');
       expect(prompt).toContain('<identity>');
     });
 
     it('should include the workspace directory and output-folder convention', () => {
-      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
+      const prompt = buildSystemPrompt(5000, '/tmp/my-ws');
       expect(prompt).toContain('/tmp/my-ws');
       expect(prompt).toContain('/tmp/my-ws/Output/');
       expect(prompt).toContain('<workspace-conventions>');
     });
 
     it('should instruct the agent to organize output into category subfolders', () => {
-      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
+      const prompt = buildSystemPrompt(5000, '/tmp/my-ws');
       expect(prompt).toContain('category subfolder');
       expect(prompt).toContain('executable/');
       expect(prompt).toContain('product/');
@@ -98,7 +105,7 @@ describe('Server Isolation', () => {
     });
 
     it('should mention all four convention folders (Input, Output, Misc, Artefacts)', () => {
-      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
+      const prompt = buildSystemPrompt(5000, '/tmp/my-ws');
       expect(prompt).toContain('`Input/`');
       expect(prompt).toContain('`Output/`');
       expect(prompt).toContain('`Misc/`');
@@ -106,7 +113,7 @@ describe('Server Isolation', () => {
     });
 
     it('should include an idempotent mkdir -p auto-create instruction for the four folders', () => {
-      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
+      const prompt = buildSystemPrompt(5000, '/tmp/my-ws');
       // The auto-create instruction must reference mkdir -p (or PowerShell New-Item) and the four folders
       expect(prompt).toMatch(/mkdir -p|New-Item -ItemType Directory -Force/);
       expect(prompt).toContain('/tmp/my-ws/Input');
@@ -116,7 +123,7 @@ describe('Server Isolation', () => {
     });
 
     it('should describe the promote-from-Output-to-Artefacts workflow', () => {
-      const prompt = buildSystemPrompt(5000, 'pw', '/tmp/my-ws');
+      const prompt = buildSystemPrompt(5000, '/tmp/my-ws');
       expect(prompt.toLowerCase()).toContain('promote');
       expect(prompt).toContain('Artefacts/');
       // The workflow describes moving/copying from Output/ to Artefacts/

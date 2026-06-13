@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::automation_dispatch::{build_dispatch_context, dispatch_start_task};
 use crate::automation_scheduler::AutomationSchedulerRegistry;
 use crate::db::{self, automations as db_automations, DbState};
+use crate::lock_util::lock_or_recover;
 
 #[tauri::command]
 pub async fn validate_cron(cron_expression: String) -> Result<bool, String> {
@@ -70,7 +71,7 @@ pub async fn create_automation(
     };
 
     {
-        let conn = db.conn.lock().unwrap();
+        let conn = lock_or_recover(&db.conn, "db (automations)");
         db_automations::create_automation(&conn, &automation)?;
     }
 
@@ -98,7 +99,7 @@ pub async fn update_automation(
 
     {
         let now = chrono::Utc::now().to_rfc3339();
-        let conn = db.conn.lock().unwrap();
+        let conn = lock_or_recover(&db.conn, "db (automations)");
 
         let existing = db_automations::get_automation(&conn, &automation_id)?
             .ok_or_else(|| format!("Automation not found: {}", automation_id))?;
@@ -141,7 +142,7 @@ pub async fn delete_automation(
     app: tauri::AppHandle,
 ) -> Result<(), String> {
     {
-        let conn = db.conn.lock().unwrap();
+        let conn = lock_or_recover(&db.conn, "db (automations)");
         db_automations::delete_automation(&conn, &id)?;
     }
 
@@ -164,7 +165,7 @@ pub async fn list_automations(
     workspace_id: Option<String>,
     db: State<'_, DbState>,
 ) -> Result<Vec<db_automations::StoredAutomation>, String> {
-    let conn = db.conn.lock().unwrap();
+    let conn = lock_or_recover(&db.conn, "db (automations)");
     Ok(db_automations::list_automations(
         &conn,
         workspace_id.as_deref(),
@@ -176,7 +177,7 @@ pub async fn get_automation(
     id: String,
     db: State<'_, DbState>,
 ) -> Result<Option<db_automations::StoredAutomation>, String> {
-    let conn = db.conn.lock().unwrap();
+    let conn = lock_or_recover(&db.conn, "db (automations)");
     db_automations::get_automation(&conn, &id)
 }
 
@@ -188,7 +189,7 @@ pub async fn toggle_automation_enabled(
     app: tauri::AppHandle,
 ) -> Result<(), String> {
     {
-        let conn = db.conn.lock().unwrap();
+        let conn = lock_or_recover(&db.conn, "db (automations)");
         db_automations::toggle_automation_enabled(&conn, &id, enabled)?;
     }
 
@@ -212,7 +213,7 @@ pub async fn list_automation_runs(
     unread_only: bool,
     db: State<'_, DbState>,
 ) -> Result<Vec<db_automations::StoredAutomationRun>, String> {
-    let conn = db.conn.lock().unwrap();
+    let conn = lock_or_recover(&db.conn, "db (automations)");
     Ok(db_automations::list_automation_runs(
         &conn,
         &workspace_id,
@@ -222,7 +223,7 @@ pub async fn list_automation_runs(
 
 #[tauri::command]
 pub async fn mark_run_read(run_id: String, db: State<'_, DbState>) -> Result<(), String> {
-    let conn = db.conn.lock().unwrap();
+    let conn = lock_or_recover(&db.conn, "db (automations)");
     db_automations::mark_run_read(&conn, &run_id)
 }
 
@@ -231,7 +232,7 @@ pub async fn mark_all_runs_read(
     workspace_id: String,
     db: State<'_, DbState>,
 ) -> Result<(), String> {
-    let conn = db.conn.lock().unwrap();
+    let conn = lock_or_recover(&db.conn, "db (automations)");
     db_automations::mark_all_runs_read(&conn, &workspace_id)
 }
 
@@ -240,7 +241,7 @@ pub async fn get_automation_unread_count(
     workspace_id: String,
     db: State<'_, DbState>,
 ) -> Result<i32, String> {
-    let conn = db.conn.lock().unwrap();
+    let conn = lock_or_recover(&db.conn, "db (automations)");
     Ok(db_automations::get_unread_count(&conn, &workspace_id))
 }
 
@@ -251,7 +252,7 @@ pub async fn run_automation_now(
     app: tauri::AppHandle,
 ) -> Result<(), String> {
     let (run_id, task_id, dispatch) = {
-        let conn = db.conn.lock().unwrap();
+        let conn = lock_or_recover(&db.conn, "db (automations)");
         let automation = db_automations::get_automation(&conn, &automation_id)?
             .ok_or_else(|| format!("Automation not found: {}", automation_id))?;
 

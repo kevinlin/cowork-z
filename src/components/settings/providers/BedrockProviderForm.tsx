@@ -89,7 +89,7 @@ export function BedrockProviderForm({
           authMethod: authTab,
           region,
           ...(authTab === 'accessKey'
-            ? { accessKeyIdPrefix: accessKeyId.substring(0, 8) + '...' }
+            ? { accessKeyIdPrefix: accessKeyId.slice(0, 8) + '...' }
             : { profileName: profileName.trim() || 'default' }),
         } as BedrockProviderCredentials,
         lastConnectedAt: new Date().toISOString(),

@@ -215,8 +215,8 @@ function resolveShellPath(rawPath: string, toolOutput?: string, allMessages?: Ta
 
   // Build a regex from the path template: replace each $varname with (.+)
   // to match against output text and assistant messages
-  const dir = path.substring(0, path.lastIndexOf('/') + 1); // e.g. "~/Downloads/"
-  const ext = path.includes('.') ? path.substring(path.lastIndexOf('.')) : '';
+  const dir = path.slice(0, path.lastIndexOf('/') + 1); // e.g. "~/Downloads/"
+  const ext = path.includes('.') ? path.slice(path.lastIndexOf('.')) : '';
 
   // Look for a resolved absolute path in toolOutput or assistant messages
   const candidates: string[] = [];
@@ -733,7 +733,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         } else {
           const lastSlash = pattern.lastIndexOf('/');
           if (lastSlash <= 0) continue;
-          targetFolder = pattern.substring(0, lastSlash);
+          targetFolder = pattern.slice(0, lastSlash);
         }
         targetFolders.push(targetFolder);
       }
@@ -1147,12 +1147,26 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   deleteTask: async (taskId: string) => {
     await api.deleteTask(taskId);
-    set((state) => ({
-      tasks: state.tasks.filter((t) => t.id !== taskId),
-      allTasks: state.allTasks.filter((t) => t.id !== taskId),
-      // Clear currentTask if it's the one being deleted
-      currentTask: state.currentTask?.id === taskId ? null : state.currentTask,
-    }));
+    set((state) => {
+      // Drop the task's per-task map entries too — leaving them accumulates
+      // memory over long sessions (2026-06-12 review #27)
+      const todos = new Map(state.todos);
+      todos.delete(taskId);
+      const artifacts = new Map(state.artifacts);
+      artifacts.delete(taskId);
+      const isCurrent = state.currentTask?.id === taskId;
+      return {
+        tasks: state.tasks.filter((t) => t.id !== taskId),
+        allTasks: state.allTasks.filter((t) => t.id !== taskId),
+        // Clear currentTask if it's the one being deleted
+        currentTask: isCurrent ? null : state.currentTask,
+        todos,
+        artifacts,
+        // partialMessages is keyed by messageId and only ever holds entries
+        // for the current task — clear it when that task is deleted
+        partialMessages: isCurrent ? new Map<string, PartialMessage>() : state.partialMessages,
+      };
+    });
   },
 
   clearHistory: async () => {
@@ -1229,22 +1243,19 @@ if (typeof window !== 'undefined' && api.isRunningInTauri()) {
     useTaskStore.getState().setTaskSummary(data.taskId, data.summary);
   });
 
-  // Subscribe to partial message updates (streaming)
+  // Subscribe to partial message updates (streaming). Not logged: an IPC
+  // log call per delta is pure overhead (2026-06-12 review #28).
   void api.onTaskMessagePartial((event) => {
-    console.log('[streaming] received partial:', event.messageId, 'textLength:', event.textSoFar.length);
-    void api.logEvent({
-      level: 'debug',
-      message: `[streaming] partial received: messageId=${event.messageId}, textLength=${event.textSoFar.length}`,
-    });
     useTaskStore.getState().addPartialMessage(event);
   });
 
-  // Subscribe to complete message updates (streaming finalized)
+  // Subscribe to complete message updates (streaming finalized).
+  // Log IDs/lengths only — never message content, which can contain
+  // secrets the agent read from files (2026-06-12 review #28).
   void api.onTaskMessageComplete((event) => {
-    console.log('[streaming] received complete:', event.messageId, 'textLength:', event.text.length);
     void api.logEvent({
       level: 'debug',
-      message: `[streaming] complete received: messageId=${event.messageId}, textLength=${event.text.length}, text="${event.text}"`,
+      message: `[streaming] complete received: messageId=${event.messageId}, textLength=${event.text.length}`,
     });
     useTaskStore.getState().finalizePartialMessage(event);
   });

@@ -270,9 +270,21 @@ export type SidecarCommand =
   | { type: 'copilot_oauth_authorize'; enterpriseUrl?: string }
   | { type: 'copilot_get_models' }
   | { type: 'copilot_disconnect' }
+  | { type: 'api_keys_response'; payload: ApiKeysResponsePayload }
   | { type: 'ping' }
   | { type: 'check_server' }
   | { type: 'shutdown' };
+
+/**
+ * Host reply to a `request_api_keys` event — the only IPC message carrying
+ * key material, sent solely at server-spawn time (2026-06-12 review #5).
+ */
+export interface ApiKeysResponsePayload {
+  requestId: string;
+  apiKeys: ApiKeys;
+  /** Host-computed fingerprint of `apiKeys` (the sidecar never hashes key material). */
+  fingerprint: string;
+}
 
 export interface FolderPermission {
   path: string;
@@ -284,7 +296,13 @@ export interface FolderPermission {
 export interface StartTaskPayload {
   taskId: string;
   prompt: string;
-  apiKeys?: ApiKeys;
+  /**
+   * Fingerprint of the host's current credential set — no key material.
+   * The sidecar pulls actual keys via the `request_api_keys` event only
+   * when this differs from the fingerprint it last applied
+   * (technical review 2026-06-12 finding #5).
+   */
+  apiKeysFingerprint?: string;
   workingDirectory?: string;
   modelId?: string;
   folderPermissions?: FolderPermission[];
@@ -300,7 +318,8 @@ export interface ResumeSessionPayload {
   taskId: string;
   sessionId: string;
   prompt?: string;
-  apiKeys?: ApiKeys;
+  /** See {@link StartTaskPayload.apiKeysFingerprint}. */
+  apiKeysFingerprint?: string;
   workingDirectory?: string;
   modelId?: string;
   folderPermissions?: FolderPermission[];
@@ -365,6 +384,7 @@ export type SidecarEvent =
   | { type: 'copilot_oauth_result'; payload: CopilotOAuthResultPayload }
   | { type: 'copilot_oauth_complete'; payload: CopilotOAuthCompletePayload }
   | { type: 'copilot_models_result'; payload: CopilotModelsResultPayload }
+  | { type: 'request_api_keys'; payload: { requestId: string } }
   | { type: 'log'; payload: LogPayload }
   | { type: 'error'; payload: ErrorPayload };
 

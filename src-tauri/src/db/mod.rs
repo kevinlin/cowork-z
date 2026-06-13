@@ -26,14 +26,15 @@ pub struct DbState {
 }
 
 /// Get the database file path based on environment
-pub fn get_database_path(app: &AppHandle) -> PathBuf {
+pub fn get_database_path(app: &AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app
         .path()
         .app_data_dir()
-        .expect("Failed to get app data directory");
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
 
     // Ensure directory exists
-    std::fs::create_dir_all(&app_data_dir).expect("Failed to create app data directory");
+    std::fs::create_dir_all(&app_data_dir)
+        .map_err(|e| format!("Failed to create app data directory: {}", e))?;
 
     // Use different database for development vs production
     #[cfg(debug_assertions)]
@@ -41,15 +42,15 @@ pub fn get_database_path(app: &AppHandle) -> PathBuf {
     #[cfg(not(debug_assertions))]
     let db_name = "cowork.db";
 
-    app_data_dir.join(db_name)
+    Ok(app_data_dir.join(db_name))
 }
 
 /// Initialize the database connection and run migrations
 pub fn init_database(app: &AppHandle) -> Result<DbState, String> {
-    let db_path = get_database_path(app);
+    let db_path = get_database_path(app)?;
     println!("[DB] Opening database at: {:?}", db_path);
 
-    let conn = Connection::open(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
+    let mut conn = Connection::open(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
     // Enable WAL mode for better concurrent read/write performance
     conn.pragma_update(None, "journal_mode", "WAL")
@@ -59,8 +60,8 @@ pub fn init_database(app: &AppHandle) -> Result<DbState, String> {
     conn.pragma_update(None, "foreign_keys", "ON")
         .map_err(|e| format!("Failed to enable foreign keys: {}", e))?;
 
-    // Run migrations
-    run_migrations(&conn)?;
+    // Run migrations (each step in its own transaction — review #16)
+    run_migrations(&mut conn)?;
 
     println!("[DB] Database initialized successfully");
 

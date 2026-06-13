@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 use crate::automation_dispatch::{build_dispatch_context, spawn_start_task_dispatch};
 use crate::db::{automations as db_automations, DbState};
+use crate::lock_util::lock_or_recover;
 
 struct ScheduledThread {
     cancel: Arc<AtomicBool>,
@@ -41,7 +42,7 @@ impl AutomationSchedulerRegistry {
         automation_ids: &[String],
         app: &AppHandle,
     ) -> HashMap<String, Option<String>> {
-        let map = self.next_runs.lock().unwrap();
+        let map = lock_or_recover(&self.next_runs, "scheduler next_runs");
         let mut result: HashMap<String, Option<String>> = HashMap::new();
         let mut missing: Vec<String> = Vec::new();
 
@@ -59,7 +60,7 @@ impl AutomationSchedulerRegistry {
 
         if !missing.is_empty() {
             let db_state = app.state::<DbState>();
-            let conn = db_state.conn.lock().unwrap();
+            let conn = lock_or_recover(&db_state.conn, "db (scheduler next_runs)");
             for id in &missing {
                 let next = match db_automations::get_automation(&conn, id) {
                     Ok(Some(a)) if a.enabled => Self::compute_next_fire(&a.schedule_cron)
@@ -158,7 +159,7 @@ impl AutomationSchedulerRegistry {
         };
 
         {
-            let mut map = self.next_runs.lock().unwrap();
+            let mut map = lock_or_recover(&self.next_runs, "scheduler next_runs");
             map.insert(
                 automation.id.clone(),
                 Some(next_fire.to_rfc3339()),
@@ -192,8 +193,10 @@ impl AutomationSchedulerRegistry {
 
                 if !wait_duration.is_zero() {
                     let (lock, cvar) = &*wake_clone;
-                    let guard = lock.lock().unwrap();
-                    let _ = cvar.wait_timeout(guard, wait_duration).unwrap();
+                    let guard = lock_or_recover(lock, "scheduler wake");
+                    let _ = cvar
+                        .wait_timeout(guard, wait_duration)
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
                 }
 
                 if cancel_clone.load(Ordering::Relaxed) {
@@ -206,7 +209,7 @@ impl AutomationSchedulerRegistry {
                     match Self::compute_next_fire(&cron_expr) {
                         Some(t) => {
                             next = t;
-                            let mut map = next_runs.lock().unwrap();
+                            let mut map = lock_or_recover(&next_runs, "scheduler next_runs");
                             map.insert(auto_id.clone(), Some(next.to_rfc3339()));
                         }
                         None => break,
@@ -215,7 +218,7 @@ impl AutomationSchedulerRegistry {
             }
         });
 
-        let mut threads = self.threads.lock().unwrap();
+        let mut threads = lock_or_recover(&self.threads, "scheduler threads");
         threads.insert(
             automation.id.clone(),
             ScheduledThread {
@@ -234,14 +237,14 @@ impl AutomationSchedulerRegistry {
 
     pub fn stop_automation(&self, automation_id: &str) {
         let thread = {
-            let mut threads = self.threads.lock().unwrap();
+            let mut threads = lock_or_recover(&self.threads, "scheduler threads");
             threads.remove(automation_id)
         };
 
         if let Some(mut t) = thread {
             t.cancel.store(true, Ordering::Relaxed);
             let (lock, cvar) = &*t.wake;
-            let mut signaled = lock.lock().unwrap();
+            let mut signaled = lock_or_recover(lock, "scheduler wake");
             *signaled = true;
             cvar.notify_one();
             drop(signaled);
@@ -251,7 +254,7 @@ impl AutomationSchedulerRegistry {
             }
         }
 
-        let mut map = self.next_runs.lock().unwrap();
+        let mut map = lock_or_recover(&self.next_runs, "scheduler next_runs");
         map.remove(automation_id);
     }
 
@@ -259,7 +262,7 @@ impl AutomationSchedulerRegistry {
         self.stop_automation(automation_id);
 
         let db_state = app.state::<DbState>();
-        let conn = db_state.conn.lock().unwrap();
+        let conn = lock_or_recover(&db_state.conn, "db (scheduler reload)");
         match db_automations::get_automation(&conn, automation_id) {
             Ok(Some(a)) if a.enabled => {
                 drop(conn);
@@ -271,7 +274,7 @@ impl AutomationSchedulerRegistry {
 
     pub fn reload_all(&self, app: &AppHandle) {
         let ids: Vec<String> = {
-            let threads = self.threads.lock().unwrap();
+            let threads = lock_or_recover(&self.threads, "scheduler threads");
             threads.keys().cloned().collect()
         };
         for id in &ids {
@@ -279,7 +282,7 @@ impl AutomationSchedulerRegistry {
         }
 
         let db_state = app.state::<DbState>();
-        let conn = db_state.conn.lock().unwrap();
+        let conn = lock_or_recover(&db_state.conn, "db (scheduler reload_all)");
         let automations = db_automations::list_enabled_automations(&conn);
         drop(conn);
 
@@ -298,7 +301,7 @@ impl AutomationSchedulerRegistry {
         let scheduler_state = app.state::<AutomationSchedulerState>();
 
         let db_state = app.state::<DbState>();
-        let conn = db_state.conn.lock().unwrap();
+        let conn = lock_or_recover(&db_state.conn, "db (scheduler fire)");
 
         let automation = match db_automations::get_automation(&conn, automation_id) {
             Ok(Some(a)) if a.enabled => a,
@@ -369,7 +372,7 @@ impl Default for AutomationSchedulerState {
 pub fn mark_automation_run_complete(app: &AppHandle, run_id: &str, has_findings: bool) {
     let transition_result = {
         let db_state = app.state::<DbState>();
-        let conn = db_state.conn.lock().unwrap();
+        let conn = lock_or_recover(&db_state.conn, "db (run transition)");
         let now = Utc::now().to_rfc3339();
         db_automations::try_complete_run_if_running(&conn, run_id, has_findings, &now)
     };
@@ -419,7 +422,7 @@ fn process_pending_runs(app: &AppHandle) {
     }
 
     let db_state = app.state::<DbState>();
-    let conn = db_state.conn.lock().unwrap();
+    let conn = lock_or_recover(&db_state.conn, "db (pending runs)");
     let pending = db_automations::get_pending_runs(&conn);
 
     let Some(run) = pending.first() else {

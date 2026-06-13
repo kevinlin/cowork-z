@@ -23,7 +23,7 @@ jest.mock('../src/config-builder', () => ({
     permission: { doom_loop: 'deny' },
     agent: { accomplish: { description: 'test', prompt: 'test', mode: 'primary' } },
   })),
-  buildSystemPrompt: jest.fn((port: number, password: string) => `mock-system-prompt-port-${port}-pw-${password}`),
+  buildSystemPrompt: jest.fn((port: number, workspaceDir: string) => `mock-system-prompt-port-${port}-ws-${workspaceDir}`),
 }));
 
 function createMockClient(): jest.Mocked<OpenCodeClient> {
@@ -80,7 +80,7 @@ describe('SessionManager', () => {
   beforeEach(() => {
     client = createMockClient();
     eventStream = createMockEventStream();
-    manager = new SessionManager(client, eventStream, 54_321, 'test-secret');
+    manager = new SessionManager(client, eventStream, 54_321);
   });
 
   describe('startTask', () => {
@@ -103,7 +103,7 @@ describe('SessionManager', () => {
       expect(client.sendMessage).toHaveBeenCalledWith('ses_123', {
         parts: [{ type: 'text', text: 'Do something' }],
         directory: '/test',
-        system: 'mock-system-prompt-port-54321-pw-test-secret',
+        system: 'mock-system-prompt-port-54321-ws-/test',
       });
       expect(events).toEqual(['progress:configuring', 'started', 'progress:executing']);
     });
@@ -142,7 +142,7 @@ describe('SessionManager', () => {
       expect(client.sendMessage).toHaveBeenCalledWith('ses_456', {
         parts: [{ type: 'text', text: 'Continue working' }],
         directory: '/test',
-        system: 'mock-system-prompt-port-54321-pw-test-secret',
+        system: 'mock-system-prompt-port-54321-ws-/test',
       });
       expect(events).toEqual(['progress:configuring', 'started', 'progress:executing']);
     });
@@ -155,6 +155,167 @@ describe('SessionManager', () => {
 
       expect(client.getSession).toHaveBeenCalledWith('ses_456', undefined);
       expect(client.sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('stale session cleanup (2026-06-12 review #21)', () => {
+    it('aborts a still-active stale session on the server when a new task starts', async () => {
+      await manager.startTask({
+        taskId: 'task_old',
+        prompt: 'First task',
+        workingDirectory: '/test',
+      });
+      // task_old is 'active' (set before sendMessage resolves)
+
+      client.createSession.mockResolvedValueOnce({
+        id: 'ses_new',
+        slug: 'new',
+        projectID: 'proj_1',
+        directory: '/test',
+        title: 'New',
+        version: '1',
+        time: { created: Date.now(), updated: Date.now() },
+      } as never);
+
+      await manager.startTask({
+        taskId: 'task_new',
+        prompt: 'Second task',
+        workingDirectory: '/test',
+      });
+
+      expect(client.abortSession).toHaveBeenCalledWith('ses_123', '/test');
+      expect(manager.activeSessionCount()).toBe(1);
+    });
+
+    it('does not abort a stale session that already completed', async () => {
+      await manager.startTask({
+        taskId: 'task_old',
+        prompt: 'First task',
+        workingDirectory: '/test',
+      });
+
+      // Session completes normally (idle → completed + cleanup)
+      eventStream.emit('session.status', {
+        sessionID: 'ses_123',
+        status: { type: 'idle' },
+      });
+      expect(manager.activeSessionCount()).toBe(0);
+
+      await manager.startTask({
+        taskId: 'task_new',
+        prompt: 'Second task',
+        workingDirectory: '/test',
+      });
+
+      expect(client.abortSession).not.toHaveBeenCalled();
+    });
+
+    it('does not abort coexisting arena sessions', async () => {
+      await manager.startTask({
+        taskId: 'task_arena_1',
+        prompt: 'Arena slot 1',
+        workingDirectory: '/test',
+        arenaId: 'arena_1',
+      });
+
+      client.createSession.mockResolvedValueOnce({
+        id: 'ses_arena_2',
+        slug: 'arena2',
+        projectID: 'proj_1',
+        directory: '/test',
+        title: 'Arena 2',
+        version: '1',
+        time: { created: Date.now(), updated: Date.now() },
+      } as never);
+
+      await manager.startTask({
+        taskId: 'task_arena_2',
+        prompt: 'Arena slot 2',
+        workingDirectory: '/test',
+        arenaId: 'arena_1',
+      });
+
+      expect(client.abortSession).not.toHaveBeenCalled();
+      expect(manager.activeSessionCount()).toBe(2);
+    });
+  });
+
+  describe('sendMessage failure surfacing (2026-06-12 review #9)', () => {
+    function flush(): Promise<void> {
+      return new Promise((r) => setImmediate(r));
+    }
+
+    it('emits error and aborts the session when sendMessage rejects before any SSE confirmation', async () => {
+      client.sendMessage.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
+
+      const errors: Array<{ taskId: string; error: string; sessionId?: string }> = [];
+      manager.on('error', (data) => errors.push(data));
+
+      await manager.startTask({
+        taskId: 'task_1',
+        prompt: 'Do something',
+        workingDirectory: '/test',
+      });
+      await flush();
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].taskId).toBe('task_1');
+      expect(errors[0].error).toContain('ECONNREFUSED');
+      expect(client.abortSession).toHaveBeenCalledWith('ses_123', '/test');
+      // Session cleaned up — later SSE events for it are ignored
+      expect(manager.activeSessionCount()).toBe(0);
+    });
+
+    it('does not emit error when sendMessage rejects after SSE confirmed the turn', async () => {
+      let rejectSend!: (err: Error) => void;
+      client.sendMessage.mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        }) as never
+      );
+
+      const errors: unknown[] = [];
+      manager.on('error', (data) => errors.push(data));
+
+      await manager.startTask({
+        taskId: 'task_1',
+        prompt: 'Do something',
+        workingDirectory: '/test',
+      });
+
+      // SSE confirms the server is processing the turn
+      eventStream.emit('session.status', {
+        sessionID: 'ses_123',
+        status: { type: 'busy' },
+      });
+
+      // Then the HTTP request times out (long-running turn artifact)
+      rejectSend(new Error('socket hang up'));
+      await flush();
+
+      expect(errors).toHaveLength(0);
+      expect(client.abortSession).not.toHaveBeenCalled();
+      expect(manager.activeSessionCount()).toBe(1);
+    });
+
+    it('emits error for a resumed session when the follow-up message fails unconfirmed', async () => {
+      client.sendMessage.mockRejectedValueOnce(new Error('401 Unauthorized'));
+
+      const errors: Array<{ taskId: string; error: string }> = [];
+      manager.on('error', (data) => errors.push(data));
+
+      await manager.resumeSession({
+        taskId: 'task_2',
+        sessionId: 'ses_456',
+        prompt: 'Continue working',
+        workingDirectory: '/test',
+      });
+      await flush();
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].taskId).toBe('task_2');
+      expect(errors[0].error).toContain('401');
+      expect(client.abortSession).toHaveBeenCalledWith('ses_456', '/test');
     });
   });
 

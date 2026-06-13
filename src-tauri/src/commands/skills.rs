@@ -195,6 +195,8 @@ pub fn skills_get_skill_file_path(
     skill_id: String,
     workspace_path: Option<String>,
 ) -> Result<String, String> {
+    crate::commands::skill_repos::validate_skill_id(&skill_id)?;
+
     // 1. Project-level locations (if workspace_path provided)
     if let Some(ref ws) = workspace_path {
         let ws_path = Path::new(ws);

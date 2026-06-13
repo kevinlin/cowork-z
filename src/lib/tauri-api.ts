@@ -9,7 +9,7 @@ import { invoke, convertFileSrc as tauriConvertFileSrc } from '@tauri-apps/api/c
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { homeDir } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
-import { openPath, openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 import type {
   ApiKeyConfig,
@@ -39,6 +39,35 @@ import type {
   Workspace,
 } from '@/shared';
 
+/**
+ * Convert an async `listen()` registration into a synchronous unsubscribe
+ * function that is safe to return from a `useEffect` cleanup. If cleanup runs
+ * before the registration promise resolves, the listener is removed as soon
+ * as the promise settles instead of leaking a live Tauri event listener
+ * (2026-06-12 review #26).
+ */
+export function toSyncUnlisten(promise: Promise<UnlistenFn>): () => void {
+  let unlisten: UnlistenFn | null = null;
+  let pendingCancel = false;
+  promise
+    .then((fn) => {
+      unlisten = fn;
+      if (pendingCancel) {
+        fn();
+      }
+    })
+    .catch(() => {
+      // Registration failed — nothing to clean up.
+    });
+  return () => {
+    if (unlisten) {
+      unlisten();
+    } else {
+      pendingCancel = true;
+    }
+  };
+}
+
 // ============================================================================
 // App Info
 // ============================================================================
@@ -63,13 +92,18 @@ export async function openExternal(url: string): Promise<void> {
   await openUrl(url);
 }
 
+/**
+ * Reveal a path in Finder/Explorer. Routed through a Rust command that
+ * validates against the workspace/granted/app-managed roots instead of
+ * granting the webview opener access to all of $HOME (2026-06-12 review #30).
+ */
 export async function revealInFinder(path: string): Promise<void> {
-  await revealItemInDir(path);
+  await invoke('reveal_path_in_file_manager', { path });
 }
 
-/** Open a local file with the OS default application. */
+/** Open a local file with the OS default application (path-guard validated). */
 export async function openFilePath(path: string): Promise<void> {
-  await openPath(path);
+  await invoke('open_path_in_default_app', { path });
 }
 
 // ============================================================================
@@ -95,16 +129,6 @@ export function convertFileSrc(filePath: string): string {
  */
 export async function readFileContent(path: string, maxSize?: number): Promise<string> {
   return invoke<string>('read_file_content', { path, maxSize });
-}
-
-/**
- * Read binary content from a file as a base64-encoded string.
- * Used for images, PDFs, and other binary formats.
- * @param path Absolute file path
- * @param maxSize Maximum file size in bytes (default 10 MB)
- */
-export async function readBinaryFile(path: string, maxSize?: number): Promise<string> {
-  return invoke<string>('read_binary_file', { path, maxSize });
 }
 
 /**
@@ -430,10 +454,6 @@ export async function hasApiKey(): Promise<boolean> {
 
 export async function setApiKey(key: string): Promise<void> {
   return invoke<void>('set_api_key', { key });
-}
-
-export async function getApiKey(): Promise<string | null> {
-  return invoke<string | null>('get_api_key');
 }
 
 export async function validateApiKey(key: string): Promise<{ valid: boolean; error?: string }> {
@@ -1536,39 +1556,27 @@ export async function validateCron(cronExpression: string): Promise<boolean> {
 }
 
 export function onAutomationRunStarted(callback: (event: { automationId: string; runId: string }) => void): () => void {
-  let unlisten: UnlistenFn | null = null;
-  listen<{ automationId: string; runId: string }>('automation:run_started', (event) => {
-    callback(event.payload);
-  }).then((fn) => {
-    unlisten = fn;
-  });
-  return () => {
-    unlisten?.();
-  };
+  return toSyncUnlisten(
+    listen<{ automationId: string; runId: string }>('automation:run_started', (event) => {
+      callback(event.payload);
+    })
+  );
 }
 
 export function onAutomationRunCompleted(callback: (event: { runId: string; hasFindings: boolean; status: string }) => void): () => void {
-  let unlisten: UnlistenFn | null = null;
-  listen<{ runId: string; hasFindings: boolean; status: string }>('automation:run_completed', (event) => {
-    callback(event.payload);
-  }).then((fn) => {
-    unlisten = fn;
-  });
-  return () => {
-    unlisten?.();
-  };
+  return toSyncUnlisten(
+    listen<{ runId: string; hasFindings: boolean; status: string }>('automation:run_completed', (event) => {
+      callback(event.payload);
+    })
+  );
 }
 
 export function onAutomationChanged(callback: (event: { automationId: string; action: string }) => void): () => void {
-  let unlisten: UnlistenFn | null = null;
-  listen<{ automationId: string; action: string }>('automation:changed', (event) => {
-    callback(event.payload);
-  }).then((fn) => {
-    unlisten = fn;
-  });
-  return () => {
-    unlisten?.();
-  };
+  return toSyncUnlisten(
+    listen<{ automationId: string; action: string }>('automation:changed', (event) => {
+      callback(event.payload);
+    })
+  );
 }
 
 // ============================================================================
@@ -1674,7 +1682,6 @@ export function getTauriApi() {
     // API Key management
     hasApiKey,
     setApiKey,
-    getApiKey,
     validateApiKey,
     validateApiKeyForProvider,
     clearApiKey,

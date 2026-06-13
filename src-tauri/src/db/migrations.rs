@@ -395,8 +395,26 @@ fn migrate_v8(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-/// Run all pending migrations
-pub fn run_migrations(conn: &Connection) -> Result<(), String> {
+/// Ordered list of all migrations. Each entry is (target_version, migration_fn).
+const MIGRATIONS: &[(i32, fn(&Connection) -> Result<(), String>)] = &[
+    (1, migrate_v1),
+    (2, migrate_v2),
+    (3, migrate_v3),
+    (4, migrate_v4),
+    (5, migrate_v5),
+    (6, migrate_v6),
+    (7, migrate_v7),
+    (8, migrate_v8),
+];
+
+/// Run all pending migrations.
+///
+/// Each migration runs inside its own transaction (2026-06-12 review #16):
+/// SQLite DDL is transactional, so a failure mid-migration rolls back every
+/// statement of that step — including the `set_stored_version` bump — leaving
+/// the database at the last fully-applied version instead of a half-migrated
+/// schema that would crash subsequent launches.
+pub fn run_migrations(conn: &mut Connection) -> Result<(), String> {
     let stored_version = get_stored_version(conn);
     println!(
         "[Migrations] Stored version: {}, App version: {}",
@@ -415,38 +433,119 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
         return Ok(());
     }
 
-    if stored_version < 1 {
-        migrate_v1(conn)?;
-    }
-
-    if stored_version < 2 {
-        migrate_v2(conn)?;
-    }
-
-    if stored_version < 3 {
-        migrate_v3(conn)?;
-    }
-
-    if stored_version < 4 {
-        migrate_v4(conn)?;
-    }
-
-    if stored_version < 5 {
-        migrate_v5(conn)?;
-    }
-
-    if stored_version < 6 {
-        migrate_v6(conn)?;
-    }
-
-    if stored_version < 7 {
-        migrate_v7(conn)?;
-    }
-
-    if stored_version < 8 {
-        migrate_v8(conn)?;
+    for (version, migrate) in MIGRATIONS {
+        if stored_version < *version {
+            let tx = conn
+                .transaction()
+                .map_err(|e| format!("Failed to begin transaction for migration v{}: {}", version, e))?;
+            migrate(&tx)?;
+            tx.commit()
+                .map_err(|e| format!("Failed to commit migration v{}: {}", version, e))?;
+        }
     }
 
     println!("[Migrations] All migrations complete");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fresh_conn() -> Connection {
+        let mut conn = Connection::open_in_memory().expect("open in-memory db");
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+        run_migrations(&mut conn).expect("migrations should succeed on a fresh db");
+        conn
+    }
+
+    #[test]
+    fn migrations_bring_fresh_db_to_current_version() {
+        let conn = fresh_conn();
+        assert_eq!(get_stored_version(&conn), CURRENT_VERSION);
+    }
+
+    #[test]
+    fn migrations_are_idempotent_on_current_db() {
+        let mut conn = fresh_conn();
+        run_migrations(&mut conn).expect("re-running on up-to-date db should be a no-op");
+        assert_eq!(get_stored_version(&conn), CURRENT_VERSION);
+    }
+
+    #[test]
+    fn newer_db_version_is_rejected() {
+        let mut conn = fresh_conn();
+        set_stored_version(&conn, CURRENT_VERSION + 1).unwrap();
+        let err = run_migrations(&mut conn).expect_err("newer schema must be rejected");
+        assert!(err.contains("newer than app version"));
+    }
+
+    #[test]
+    fn failed_migration_rolls_back_and_keeps_previous_version() {
+        let mut conn = fresh_conn();
+
+        // A migration that creates a table, then fails — the table creation
+        // and the version bump must both be rolled back.
+        fn failing_migration(conn: &Connection) -> Result<(), String> {
+            conn.execute("CREATE TABLE half_migrated (id INTEGER PRIMARY KEY)", [])
+                .map_err(|e| e.to_string())?;
+            set_stored_version(conn, 999)?;
+            Err("simulated mid-migration failure".to_string())
+        }
+
+        let version_before = get_stored_version(&conn);
+        let tx = conn.transaction().unwrap();
+        let result = failing_migration(&tx);
+        assert!(result.is_err());
+        drop(tx); // rollback
+
+        assert_eq!(get_stored_version(&conn), version_before);
+        let table_exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='half_migrated'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(!table_exists, "partial migration artifacts must be rolled back");
+    }
+
+    #[test]
+    fn expected_tables_exist_after_migration() {
+        let conn = fresh_conn();
+        for table in [
+            "schema_meta",
+            "app_settings",
+            "provider_meta",
+            "providers",
+            "tasks",
+            "task_messages",
+            "task_attachments",
+            "workspaces",
+            "skill_repos",
+            "repo_skills",
+            "arenas",
+            "workspace_permissions",
+            "automations",
+            "automation_runs",
+        ] {
+            let exists: bool = conn
+                .query_row(
+                    "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name = ?1",
+                    [table],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(exists, "expected table `{}` to exist", table);
+        }
+        // folder_permissions is dropped by migration v6
+        let dropped: bool = conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='folder_permissions'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(!dropped, "folder_permissions should be dropped by v6");
+    }
 }

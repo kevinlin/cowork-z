@@ -53,7 +53,7 @@ pub struct AvailableModel {
 }
 
 /// Get all provider settings
-pub fn get_provider_settings(conn: &Connection) -> ProviderSettings {
+pub fn get_provider_settings(conn: &Connection) -> Result<ProviderSettings, String> {
     // Get provider meta
     let meta = conn
         .query_row(
@@ -76,7 +76,7 @@ pub fn get_provider_settings(conn: &Connection) -> ProviderSettings {
                     credentials_data, last_connected_at, available_models
              FROM providers",
         )
-        .expect("Failed to prepare providers query");
+        .map_err(|e| format!("Failed to prepare providers query: {}", e))?;
 
     let provider_iter = stmt
         .query_map([], |row| {
@@ -113,17 +113,17 @@ pub fn get_provider_settings(conn: &Connection) -> ProviderSettings {
                 available_models,
             })
         })
-        .expect("Failed to query providers");
+        .map_err(|e| format!("Failed to query providers: {}", e))?;
 
     for provider in provider_iter.flatten() {
         connected_providers.insert(provider.provider_id.clone(), provider);
     }
 
-    ProviderSettings {
+    Ok(ProviderSettings {
         active_provider_id: meta.0,
         connected_providers,
         debug_mode: meta.1,
-    }
+    })
 }
 
 /// Set the active provider

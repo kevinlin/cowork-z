@@ -58,11 +58,10 @@ pub async fn set_api_key(key: String) -> Result<(), String> {
     secure_storage::store_api_key("anthropic", &key)
 }
 
-#[tauri::command]
-pub async fn get_api_key() -> Result<Option<String>, String> {
-    // Get default provider key (anthropic)
-    secure_storage::get_api_key("anthropic")
-}
+// `get_api_key` (returning the full keychain secret to the webview) was
+// removed — the UI only needs existence/prefix info, which
+// `get_all_api_keys` provides (technical review 2026-06-12 finding #13).
+// Full secrets stay Rust-side.
 
 #[tauri::command]
 pub async fn validate_api_key(_key: String) -> Result<ValidationResult, String> {

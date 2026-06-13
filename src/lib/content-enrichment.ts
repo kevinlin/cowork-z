@@ -6,7 +6,7 @@
  * syntax so ReactMarkdown can render them as clickable links.
  */
 
-import { analyzeFile, isAbsolutePath, looksLikeFilePath } from './file-utils';
+import { analyzeFile, isAbsolutePath, isPathSafe, looksLikeFilePath } from './file-utils';
 
 // ── Internal helpers ────────────────────────────────────────────────
 
@@ -214,6 +214,9 @@ export function extractMediaPaths(content: string): string[] {
   const addIfPreviewable = (candidate: string) => {
     if (!isAbsolutePath(candidate)) return;
     if (!looksLikeFilePath(candidate)) return;
+    // Same safety gate as chat links — thumbnails feed convertFileSrc and
+    // the preview panel's file reads (2026-06-12 review #10)
+    if (!isPathSafe(candidate)) return;
     const info = analyzeFile(candidate);
     if (info.previewable && !seen.has(candidate)) {
       seen.add(candidate);

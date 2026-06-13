@@ -80,7 +80,7 @@ export function OpenRouterProviderForm({
         credentials: {
           type: 'openrouter',
           keyPrefix:
-            trimmedKey.length > 40 ? trimmedKey.substring(0, 40) + '...' : trimmedKey.substring(0, Math.min(trimmedKey.length, 20)) + '...',
+            trimmedKey.length > 40 ? trimmedKey.slice(0, 40) + '...' : trimmedKey.slice(0, Math.min(trimmedKey.length, 20)) + '...',
         } as OpenRouterCredentials,
         lastConnectedAt: new Date().toISOString(),
         availableModels: models,

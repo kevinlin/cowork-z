@@ -35,7 +35,7 @@ pub async fn start_task(
             None
         }
         .or_else(|| {
-            let settings = db::providers::get_provider_settings(&conn);
+            let settings = db::providers::get_provider_settings(&conn).ok()?;
             settings.connected_providers.values().find_map(|provider| {
                 if provider.connection_status == "connected" {
                     provider.selected_model_id.clone()
@@ -96,7 +96,7 @@ pub async fn start_task(
     let workspace_perms = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
         if let Some(ref ws_id) = ws_id_for_perms {
-            db::workspace_permissions::get_workspace_permissions(&conn, ws_id)
+            db::workspace_permissions::get_workspace_permissions(&conn, ws_id)?
         } else {
             vec![]
         }
@@ -131,8 +131,9 @@ pub async fn start_task(
         sidecar_perms = Some(perms);
     }
 
-    // Get API keys from secure storage
-    let api_keys = sidecar::get_all_api_keys()?;
+    // Fingerprint of current credentials — the sidecar pulls actual keys
+    // through the request_api_keys bridge only when this changed (#5)
+    let api_keys_fingerprint = sidecar::current_api_keys_fingerprint()?;
 
     // Read user prompt from settings
     let custom_prompt = {
@@ -163,7 +164,7 @@ pub async fn start_task(
             payload: sidecar::StartTaskPayload {
                 task_id: task_id.clone(),
                 prompt: config.prompt.clone(),
-                api_keys: Some(api_keys),
+                api_keys_fingerprint: Some(api_keys_fingerprint),
                 working_directory,
                 model_id: resolved_model_id,
                 folder_permissions: sidecar_perms,
@@ -278,7 +279,7 @@ pub async fn reply_to_question(
 #[tauri::command]
 pub async fn get_task(task_id: String, state: State<'_, DbState>) -> Result<Option<Task>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let stored = db::tasks::get_task(&conn, &task_id);
+    let stored = db::tasks::get_task(&conn, &task_id)?;
 
     Ok(stored.map(|t| Task {
         id: t.id,
@@ -327,9 +328,9 @@ pub async fn list_tasks(
 ) -> Result<Vec<Task>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let tasks = if let Some(ref ws_id) = workspace_id {
-        db::tasks::get_tasks_by_workspace(&conn, ws_id)
+        db::tasks::get_tasks_by_workspace(&conn, ws_id)?
     } else {
-        db::tasks::get_tasks(&conn)
+        db::tasks::get_tasks(&conn)?
     };
 
     Ok(tasks
@@ -391,6 +392,17 @@ pub async fn clear_task_history(state: State<'_, DbState>) -> Result<(), String>
 // Task Persistence Commands (for saving task updates from frontend events)
 // ============================================================================
 
+/// Reject writes against task ids that don't reference a real task
+/// (technical review #14 — a renderer bug or injected call must not be able
+/// to corrupt another task's history or trigger completion side effects).
+fn ensure_task_exists(conn: &rusqlite::Connection, task_id: &str) -> Result<(), String> {
+    if db::tasks::task_exists(conn, task_id)? {
+        Ok(())
+    } else {
+        Err(format!("Unknown task id: {}", task_id))
+    }
+}
+
 #[tauri::command]
 pub async fn save_task_message(
     task_id: String,
@@ -398,6 +410,7 @@ pub async fn save_task_message(
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ensure_task_exists(&conn, &task_id)?;
 
     db::tasks::add_task_message(
         &conn,
@@ -430,6 +443,7 @@ pub async fn save_task_status(
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ensure_task_exists(&conn, &task_id)?;
     db::tasks::update_task_status(&conn, &task_id, &status, None)?;
 
     // Check arena completion after any terminal status change
@@ -450,6 +464,7 @@ pub async fn save_task_session(
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ensure_task_exists(&conn, &task_id)?;
     db::tasks::update_task_session_id(&conn, &task_id, &session_id)
 }
 
@@ -460,6 +475,7 @@ pub async fn save_task_summary(
     state: State<'_, DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ensure_task_exists(&conn, &task_id)?;
     db::tasks::update_task_summary(&conn, &task_id, &summary)
 }
 
@@ -475,6 +491,7 @@ pub fn handle_task_completion_internal(
 ) -> Result<(), String> {
     let db_state = app.state::<DbState>();
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+    ensure_task_exists(&conn, task_id)?;
 
     let completed_at = chrono::Utc::now().to_rfc3339();
 
@@ -548,14 +565,27 @@ pub async fn respond_to_permission(
                 if let Some(folder_path) = folder_path {
                     if !folder_path.is_empty() {
                         if let Some(ref ws_id) = ws_id {
-                            let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-                            let _ = db::workspace_permissions::save_workspace_permission(
-                                &conn,
-                                ws_id,
-                                &folder_path,
-                                "read-write",
-                                "adhoc",
-                            );
+                            // Validate before persisting; an invalid pattern only
+                            // skips the grant, the permission reply still goes out.
+                            match crate::path_guard::validate_grant_path(&folder_path) {
+                                Ok(validated) => {
+                                    let conn =
+                                        db_state.conn.lock().map_err(|e| e.to_string())?;
+                                    let _ = db::workspace_permissions::save_workspace_permission(
+                                        &conn,
+                                        ws_id,
+                                        &validated,
+                                        "read-write",
+                                        "adhoc",
+                                    );
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "[warn] Skipping ad-hoc folder grant for '{}': {}",
+                                        folder_path, e
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -612,7 +642,7 @@ pub async fn resume_session(
     let workspace_perms = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
         if let Some(ref ws_id) = ws_id_for_perms {
-            db::workspace_permissions::get_workspace_permissions(&conn, ws_id)
+            db::workspace_permissions::get_workspace_permissions(&conn, ws_id)?
         } else {
             vec![]
         }
@@ -647,8 +677,8 @@ pub async fn resume_session(
         sidecar_perms = Some(perms);
     }
 
-    // Get API keys from secure storage
-    let api_keys = sidecar::get_all_api_keys()?;
+    // Fingerprint only — keys travel via the request_api_keys bridge (#5)
+    let api_keys_fingerprint = sidecar::current_api_keys_fingerprint()?;
 
     // Read user prompt from settings
     let custom_prompt = {
@@ -680,7 +710,7 @@ pub async fn resume_session(
                 task_id: task_id.clone(),
                 session_id: session_id.clone(),
                 prompt: Some(prompt.clone()),
-                api_keys: Some(api_keys),
+                api_keys_fingerprint: Some(api_keys_fingerprint),
                 working_directory,
                 model_id: None,
                 folder_permissions: sidecar_perms,

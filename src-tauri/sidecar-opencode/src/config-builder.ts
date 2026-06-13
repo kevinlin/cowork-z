@@ -25,12 +25,19 @@ You are running on ${process.platform === 'darwin' ? 'macOS' : 'Linux'}.
  * agent-issued HTTP requests (e.g. skill discovery) target the correct
  * dynamically-assigned port.
  *
+ * The server password is deliberately NOT interpolated (technical review
+ * 2026-06-12 finding #1, CRITICAL): anything in the prompt reaches the
+ * model provider on every turn (logging, retention, prompt-injection
+ * echo). The agent's shell tools run as children of `opencode serve`,
+ * which carries `OPENCODE_SERVER_PASSWORD` in its environment — so the
+ * prompt references the variable and the shell expands it locally.
+ *
  * OpenCode 1.1.48 ignores custom agent names set via PATCH /config
  * (falls back to the built-in "build" agent). Passing the prompt
  * directly through the sendMessage `system` parameter bypasses
  * agent resolution and reliably applies the prompt.
  */
-export function buildSystemPrompt(serverPort: number, serverPassword: string, workspaceDir: string, customPrompt?: string): string {
+export function buildSystemPrompt(serverPort: number, workspaceDir: string, customPrompt?: string): string {
   return `<identity>
 You are **Cowork-Z**, a general-purpose desktop agent that helps users complete tasks on their computer.
 You are NOT "OpenCode", "opencode", or any other name. Your name is Cowork-Z — always identify yourself as Cowork-Z.
@@ -96,10 +103,11 @@ When the user asks to "promote", "publish", "save as artefact", "save as utility
 
 <server-access>
 The OpenCode server is running at http://localhost:${serverPort}
-Authenticate with: -u opencode:${serverPassword}
-Before calling any API endpoint, ALWAYS fetch the OpenAPI spec first: curl -s -u opencode:${serverPassword} http://localhost:${serverPort}/doc
+The basic-auth password is available in your shell environment as \`OPENCODE_SERVER_PASSWORD\` — your shell expands it locally. NEVER print, echo, log, or write this value anywhere; only reference it as a shell variable inside commands.
+Authenticate with: -u "opencode:$OPENCODE_SERVER_PASSWORD" (bash/zsh) or -u "opencode:$env:OPENCODE_SERVER_PASSWORD" (PowerShell)
+Before calling any API endpoint, ALWAYS fetch the OpenAPI spec first: curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:${serverPort}/doc
 Refer to the "opencode-server-api" skill for the full API reference.
-To load it: curl -s -u opencode:${serverPassword} http://localhost:${serverPort}/skill
+To load it: curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:${serverPort}/skill
 </server-access>
 
 <tools>

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { isPathSafe } from '@/lib/file-utils';
 import type { DirectoryEntry } from '@/shared/types/workspace';
 
 interface FilePreviewState {
@@ -27,6 +28,11 @@ export const useFilePreviewStore = create<FilePreviewState>((set) => ({
   closePreview: () => set({ selectedFile: null, isPreviewOpen: false }),
 
   openPreviewByPath: (path) => {
+    // Agent-supplied paths (markdown links, media thumbnails, tool cards)
+    // must pass the same gate as chat links — no traversal segments or
+    // sensitive system paths (2026-06-12 review #10).
+    if (!isPathSafe(path)) return;
+
     const segments = path.replace(/\\/g, '/').split('/');
     const name = segments[segments.length - 1] || path;
     const lastDot = name.lastIndexOf('.');

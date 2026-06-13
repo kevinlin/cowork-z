@@ -91,7 +91,10 @@ pub fn save_task_arena_fields(
 }
 
 /// Get an arena with its 3 child tasks (including messages)
-pub fn get_arena_with_tasks(conn: &Connection, arena_id: &str) -> Option<StoredArena> {
+pub fn get_arena_with_tasks(
+    conn: &Connection,
+    arena_id: &str,
+) -> Result<Option<StoredArena>, String> {
     let result = conn.query_row(
         "SELECT id, prompt, workspace_id, created_at, completed_at
          FROM arenas WHERE id = ?1",
@@ -109,23 +112,27 @@ pub fn get_arena_with_tasks(conn: &Connection, arena_id: &str) -> Option<StoredA
 
     match result {
         Ok((id, prompt, workspace_id, created_at, completed_at)) => {
-            let tasks = get_tasks_by_arena(conn, &id);
-            Some(StoredArena {
+            let tasks = get_tasks_by_arena(conn, &id)?;
+            Ok(Some(StoredArena {
                 id,
                 prompt,
                 workspace_id,
                 created_at,
                 completed_at,
                 tasks,
-            })
+            }))
         }
-        Err(_) => None,
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(format!("Failed to query arena: {}", e)),
     }
 }
 
 /// List arenas for a workspace (for sidebar display).
 /// Uses a single JOIN to fetch arenas and their child tasks together.
-pub fn get_arenas_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<ArenaListItem> {
+pub fn get_arenas_by_workspace(
+    conn: &Connection,
+    workspace_id: &str,
+) -> Result<Vec<ArenaListItem>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT a.id, a.prompt, a.workspace_id, a.created_at, a.completed_at,
@@ -135,7 +142,7 @@ pub fn get_arenas_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Are
              WHERE a.workspace_id = ?1
              ORDER BY a.created_at DESC, t.arena_slot ASC",
         )
-        .expect("Failed to prepare arenas query");
+        .map_err(|e| format!("Failed to prepare arenas query: {}", e))?;
 
     let rows: Vec<(
         String,
@@ -163,7 +170,7 @@ pub fn get_arenas_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Are
                 row.get::<_, Option<String>>(9)?,
             ))
         })
-        .expect("Failed to query arenas")
+        .map_err(|e| format!("Failed to query arenas: {}", e))?
         .filter_map(|r| r.ok())
         .collect();
 
@@ -214,7 +221,7 @@ pub fn get_arenas_by_workspace(conn: &Connection, workspace_id: &str) -> Vec<Are
     }
 
     arenas.truncate(50);
-    arenas
+    Ok(arenas)
 }
 
 fn derive_arena_status(tasks: &[ArenaChildTask]) -> String {

@@ -428,3 +428,46 @@ describe('getSafeUnixLoginShell and login-shell PATH behavior', () => {
     });
   });
 });
+
+describe('applyApiKeyEnv — server spawn env mapping (2026-06-12 review #22)', () => {
+  it('maps every ApiKeys field to its environment variable, including ollama', async () => {
+    const { applyApiKeyEnv } = await import('../src/process-manager');
+    const env: NodeJS.ProcessEnv = {};
+
+    applyApiKeyEnv(env, {
+      anthropic: 'sk-ant-1',
+      openai: 'sk-oai-1',
+      google: 'g-key',
+      xai: 'xai-key',
+      deepseek: 'ds-key',
+      openrouter: 'or-key',
+      litellm: 'll-key',
+      ollama: 'ollama-key',
+      azureFoundry: 'az-key',
+      bedrock: { accessKeyId: 'AKIA1', secretAccessKey: 'aws-secret', region: 'us-east-1' },
+    });
+
+    expect(env.ANTHROPIC_API_KEY).toBe('sk-ant-1');
+    expect(env.OPENAI_API_KEY).toBe('sk-oai-1');
+    expect(env.GOOGLE_GENERATIVE_AI_API_KEY).toBe('g-key');
+    expect(env.XAI_API_KEY).toBe('xai-key');
+    expect(env.DEEPSEEK_API_KEY).toBe('ds-key');
+    expect(env.OPENROUTER_API_KEY).toBe('or-key');
+    expect(env.LITELLM_API_KEY).toBe('ll-key');
+    expect(env.OLLAMA_API_KEY).toBe('ollama-key');
+    expect(env.AZURE_API_KEY).toBe('az-key');
+    expect(env.AWS_ACCESS_KEY_ID).toBe('AKIA1');
+    expect(env.AWS_SECRET_ACCESS_KEY).toBe('aws-secret');
+    expect(env.AWS_REGION).toBe('us-east-1');
+  });
+
+  it('sets nothing when keys are absent', async () => {
+    const { applyApiKeyEnv } = await import('../src/process-manager');
+    const env: NodeJS.ProcessEnv = {};
+
+    applyApiKeyEnv(env, undefined);
+    applyApiKeyEnv(env, {});
+
+    expect(Object.keys(env)).toHaveLength(0);
+  });
+});

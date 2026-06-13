@@ -148,7 +148,7 @@ export function FilePreviewPanel({ file, onClose, onAddToChat }: FilePreviewPane
       case 'markdown':
         return <MarkdownPreview content={content} />;
       case 'html': {
-        const parentDir = file.path.substring(0, file.path.lastIndexOf(file.name));
+        const parentDir = file.path.slice(0, Math.max(0, file.path.lastIndexOf(file.name)));
         const baseHref = api.convertFileSrc(parentDir);
         return <HtmlPreview baseHref={baseHref} content={content} />;
       }

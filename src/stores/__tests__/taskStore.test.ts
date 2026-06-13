@@ -61,8 +61,8 @@ function resolveShellPath(rawPath: string, toolOutput?: string, allMessages?: Ta
   const path = rawPath.replace(/^\$HOME\//, '~/').replace(/^\$\{HOME\}\//, '~/');
   if (!path.includes('$')) return path;
 
-  const dir = path.substring(0, path.lastIndexOf('/') + 1);
-  const ext = path.includes('.') ? path.substring(path.lastIndexOf('.')) : '';
+  const dir = path.slice(0, path.lastIndexOf('/') + 1);
+  const ext = path.includes('.') ? path.slice(path.lastIndexOf('.')) : '';
 
   const candidates: string[] = [];
   if (toolOutput) candidates.push(toolOutput);
@@ -492,6 +492,7 @@ describe('extractArtifactsFromMessages', () => {
 vi.mock('@/lib/tauri-api', () => ({
   isRunningInTauri: () => false,
   saveTaskMessage: vi.fn().mockResolvedValue(undefined),
+  deleteTask: vi.fn().mockResolvedValue(undefined),
   logEvent: vi.fn().mockResolvedValue(undefined),
   resumeSession: vi.fn().mockResolvedValue({ id: 'task-123', status: 'running' }),
   startTask: vi.fn().mockResolvedValue({
@@ -932,5 +933,56 @@ describe('taskStore - Initial Prompt Persistence', () => {
 
     expect(result).toBeNull();
     expect(mockSaveTaskMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('taskStore - deleteTask cleanup (2026-06-12 review #27)', () => {
+  beforeEach(() => {
+    useTaskStore.getState().reset();
+  });
+
+  function makeTask(id: string): Task {
+    return {
+      id,
+      prompt: `Task ${id}`,
+      status: 'completed',
+      messages: [],
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  it('removes todos and artifacts map entries for the deleted task', async () => {
+    const taskA = makeTask('task-a');
+    const taskB = makeTask('task-b');
+    useTaskStore.setState({ tasks: [taskA, taskB], allTasks: [taskA, taskB] });
+    useTaskStore.getState().setTodos('task-a', [{ id: 't1', content: 'Todo', status: 'pending', priority: 'medium' }]);
+    useTaskStore.getState().setTodos('task-b', [{ id: 't2', content: 'Keep', status: 'pending', priority: 'medium' }]);
+    useTaskStore.getState().setArtifacts('task-a', [createArtifact('a1', '/tmp/file.txt', new Date().toISOString())]);
+
+    await useTaskStore.getState().deleteTask('task-a');
+
+    const state = useTaskStore.getState();
+    expect(state.tasks.map((t) => t.id)).toEqual(['task-b']);
+    expect(state.todos.has('task-a')).toBe(false);
+    expect(state.todos.has('task-b')).toBe(true);
+    expect(state.artifacts.has('task-a')).toBe(false);
+  });
+
+  it('clears partial messages when deleting the current task', async () => {
+    const task = makeTask('task-current');
+    useTaskStore.setState({ currentTask: { ...task, status: 'running' }, tasks: [task], allTasks: [task] });
+    useTaskStore.getState().addPartialMessage({
+      taskId: 'task-current',
+      messageId: 'msg-1',
+      textSoFar: 'streaming…',
+      isStreaming: true,
+    });
+    expect(useTaskStore.getState().partialMessages.size).toBe(1);
+
+    await useTaskStore.getState().deleteTask('task-current');
+
+    const state = useTaskStore.getState();
+    expect(state.currentTask).toBeNull();
+    expect(state.partialMessages.size).toBe(0);
   });
 });

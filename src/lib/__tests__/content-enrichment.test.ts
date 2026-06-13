@@ -174,6 +174,18 @@ describe('extractMediaPaths', () => {
     expect(paths).toEqual(['/Users/name/photo.jpg']);
   });
 
+  it('should reject paths with traversal segments', () => {
+    const content = 'Sneaky: /Users/name/../../etc/secret.png and file:///tmp/../etc/shadow.jpg';
+    const paths = extractMediaPaths(content);
+    expect(paths).toEqual([]);
+  });
+
+  it('should reject sensitive system paths', () => {
+    const content = 'Look: /System/Library/CoreServices/icon.png and /Users/name/.Trash/old.jpg';
+    const paths = extractMediaPaths(content);
+    expect(paths).toEqual([]);
+  });
+
   it('should extract multiple different media paths', () => {
     const content = `
       Image: /Users/name/Pictures/photo1.jpg

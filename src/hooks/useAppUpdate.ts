@@ -1,6 +1,6 @@
 import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { checkForUpdate, installUpdate, type UpdateInfo } from '@/lib/tauri-api';
+import { checkForUpdate, installUpdate, toSyncUnlisten, type UpdateInfo } from '@/lib/tauri-api';
 
 export type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'error' | 'up-to-date';
 
@@ -79,17 +79,15 @@ export function useAppUpdate() {
   }, []);
 
   // Listen for "Check for Updates" menu event from Rust
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen('check-for-updates', () => {
-      doCheck(true);
-    }).then((fn) => {
-      unlisten = fn;
-    });
-    return () => {
-      unlisten?.();
-    };
-  }, [doCheck]);
+  useEffect(
+    () =>
+      toSyncUnlisten(
+        listen('check-for-updates', () => {
+          doCheck(true);
+        })
+      ),
+    [doCheck]
+  );
 
   return {
     ...state,

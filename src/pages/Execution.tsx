@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { AlertCircle, ArrowLeft, CheckCircle2, Clock, Square, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { DebugLogPanel } from '@/components/chat/DebugLogPanel';
 import { MessageBubble } from '@/components/chat/MessageBubble';
@@ -44,6 +45,10 @@ export default function ExecutionPage() {
   // Elapsed time for startup indicator
   const [elapsedTime, setElapsedTime] = useState(0);
 
+  // Granular subscription (2026-06-12 review #12): deliberately excludes
+  // partialMessages — that Map is replaced on every streaming delta and is
+  // consumed by MessageList directly, so the page shell (header, input,
+  // modals) doesn't re-render at streaming frequency.
   const {
     currentTask,
     loadTaskById,
@@ -58,8 +63,23 @@ export default function ExecutionPage() {
     interruptTask,
     startupStage,
     startupStageTaskId,
-    partialMessages,
-  } = useTaskStore();
+  } = useTaskStore(
+    useShallow((state) => ({
+      currentTask: state.currentTask,
+      loadTaskById: state.loadTaskById,
+      isLoading: state.isLoading,
+      error: state.error,
+      addTaskUpdateBatch: state.addTaskUpdateBatch,
+      updateTaskStatus: state.updateTaskStatus,
+      enqueuePermissionRequest: state.enqueuePermissionRequest,
+      permissionRequest: state.permissionRequest,
+      respondToPermission: state.respondToPermission,
+      sendFollowUp: state.sendFollowUp,
+      interruptTask: state.interruptTask,
+      startupStage: state.startupStage,
+      startupStageTaskId: state.startupStageTaskId,
+    }))
+  );
   const taskStatus = currentTask?.status as string | undefined;
   const isTaskRunning = taskStatus === 'running' || taskStatus === 'starting';
 
@@ -219,13 +239,8 @@ export default function ExecutionPage() {
     }
   }, [id, currentTask?.sessionId, currentTask?.result?.sessionId]);
 
-  // Auto-scroll to bottom only if user is at bottom
-  useEffect(() => {
-    if (isAtBottom) {
-      const messagesEnd = document.querySelector('[data-testid="messages-scroll-container"] [data-messages-end]');
-      messagesEnd?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [currentTask?.messages?.length, partialMessages.size, isAtBottom]);
+  // Auto-scroll during streaming lives in MessageList, which owns the
+  // partialMessages subscription (2026-06-12 review #12).
 
   // Computed state
   const isComplete = ['completed', 'failed', 'cancelled', 'interrupted'].includes(currentTask?.status ?? '');
@@ -482,7 +497,6 @@ export default function ExecutionPage() {
             messages={currentTask.messages}
             onContinue={handleContinue}
             onScroll={handleScroll}
-            partialMessages={partialMessages}
             scrollContainerRef={scrollContainerRef}
             sessionId={sessionId}
             startupStage={startupStage}

@@ -3,7 +3,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::db::automations as db_automations;
 use crate::sidecar::{
-    self, ApiKeys, FolderPermissionPayload, SidecarCommand, SidecarState, StartTaskPayload,
+    self, FolderPermissionPayload, SidecarCommand, SidecarState, StartTaskPayload,
 };
 
 /// Resolved context needed to dispatch a `StartTask` to the sidecar.
@@ -15,7 +15,7 @@ pub(crate) struct StartTaskDispatch {
     pub custom_prompt: Option<String>,
     pub mcp_servers: Option<serde_json::Value>,
     pub model_id: String,
-    pub api_keys: ApiKeys,
+    pub api_keys_fingerprint: String,
 }
 
 /// Resolve workspace + settings + secrets needed to dispatch a `StartTask` for an automation.
@@ -28,7 +28,7 @@ pub(crate) fn build_dispatch_context(
         .map(|w| w.folder_path);
 
     let workspace_perms =
-        crate::db::workspace_permissions::get_workspace_permissions(conn, &automation.workspace_id);
+        crate::db::workspace_permissions::get_workspace_permissions(conn, &automation.workspace_id)?;
     let mut perms: Vec<FolderPermissionPayload> = Vec::new();
     if let Some(ref wd) = working_directory {
         perms.push(FolderPermissionPayload {
@@ -53,8 +53,9 @@ pub(crate) fn build_dispatch_context(
     let mcp_servers = crate::db::settings::get_mcp_servers_config(conn)
         .map(|c| serde_json::to_value(c).unwrap());
 
-    let api_keys =
-        sidecar::get_all_api_keys().map_err(|e| format!("Failed to get API keys: {}", e))?;
+    // Fingerprint only — keys travel via the request_api_keys bridge (#5)
+    let api_keys_fingerprint = sidecar::current_api_keys_fingerprint()
+        .map_err(|e| format!("Failed to fingerprint API keys: {}", e))?;
 
     Ok(StartTaskDispatch {
         task_id,
@@ -64,7 +65,7 @@ pub(crate) fn build_dispatch_context(
         custom_prompt,
         mcp_servers,
         model_id: automation.model_id.clone(),
-        api_keys,
+        api_keys_fingerprint,
     })
 }
 
@@ -109,7 +110,7 @@ async fn dispatch_start_task_inner(
         custom_prompt,
         mcp_servers,
         model_id,
-        api_keys,
+        api_keys_fingerprint,
     } = dispatch;
 
     manager
@@ -118,7 +119,7 @@ async fn dispatch_start_task_inner(
             payload: StartTaskPayload {
                 task_id,
                 prompt,
-                api_keys: Some(api_keys),
+                api_keys_fingerprint: Some(api_keys_fingerprint),
                 working_directory,
                 model_id: Some(model_id),
                 folder_permissions,

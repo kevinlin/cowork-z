@@ -9,7 +9,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
@@ -35,6 +39,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install system dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -46,17 +51,65 @@ jobs:
         run: pnpm install --ignore-workspace
         working-directory: src-tauri/sidecar-opencode
 
-      - name: Run frontend lint and tests
-        run: pnpm ultracite:check & pnpm test --run
+      - name: Run frontend lint
+        run: pnpm ultracite:check
+        continue-on-error: true
+
+      - name: Typecheck frontend
+        run: pnpm typecheck
+
+      - name: Run frontend tests
+        run: pnpm test --run
+
+      - name: Build frontend (production)
+        run: pnpm build
 
       - name: Run sidecar tests
         run: pnpm test
         working-directory: src-tauri/sidecar-opencode
 
-      - name: Build sidecar binary for Linux ARM64
+      - name: Build sidecar binary (Linux ARM64)
+        if: runner.os == 'Linux'
         run: pnpm build:binary:linux-arm64
+        working-directory: src-tauri/sidecar-opencode
+
+      - name: Build sidecar binary (macOS ARM64)
+        if: runner.os == 'macOS'
+        run: pnpm build:binary
         working-directory: src-tauri/sidecar-opencode
 
       - name: Run Rust tests
         run: cargo test
+        working-directory: src-tauri
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit frontend dependencies
+        run: pnpm audit --audit-level=high
+
+      - name: Audit sidecar dependencies
+        run: pnpm audit --audit-level=high --ignore-workspace
+        working-directory: src-tauri/sidecar-opencode
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Audit Rust dependencies
+        run: cargo audit
         working-directory: src-tauri

@@ -1,11 +1,13 @@
+import { randomUUID } from 'node:crypto';
 import readline from 'node:readline';
-import { fingerprintApiKeys } from './api-key-fingerprint';
+import { CommandQueue } from './command-queue';
 import { EventStream } from './event-stream';
 import { logger } from './logger';
 import { ProcessManager } from './process-manager';
 import { SessionManager } from './session-manager';
 import type {
   ApiKeys,
+  ApiKeysResponsePayload,
   PermissionReplyPayload,
   QuestionInfo,
   QuestionReplyPayload,
@@ -46,11 +48,52 @@ let initializePromise: Promise<void> | null = null;
 let appliedApiKeysFingerprint: string | undefined;
 
 // ============================================================================
+// API-key bridge (2026-06-12 review #5)
+//
+// Task payloads carry only a credential fingerprint. The sidecar pulls the
+// actual keys from the host through a request/response pair on the existing
+// stdin/stdout IPC, and only when it is about to (re)spawn the OpenCode
+// server — keys no longer cross the process boundary on every task start.
+// ============================================================================
+
+const API_KEY_REQUEST_TIMEOUT_MS = 10_000;
+
+const pendingApiKeyRequests = new Map<string, (response: ApiKeysResponsePayload | undefined) => void>();
+
+function requestApiKeysFromHost(): Promise<ApiKeysResponsePayload | undefined> {
+  const requestId = randomUUID();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingApiKeyRequests.delete(requestId);
+      logger.warn('Timed out waiting for API keys from host — starting server without provider credentials');
+      resolve(undefined);
+    }, API_KEY_REQUEST_TIMEOUT_MS);
+
+    pendingApiKeyRequests.set(requestId, (response) => {
+      clearTimeout(timer);
+      pendingApiKeyRequests.delete(requestId);
+      resolve(response);
+    });
+
+    send({ type: 'request_api_keys', payload: { requestId } });
+  });
+}
+
+function handleApiKeysResponse(payload: ApiKeysResponsePayload): void {
+  const resolver = pendingApiKeyRequests.get(payload.requestId);
+  if (resolver) {
+    resolver(payload);
+  } else {
+    logger.warn('Received api_keys_response with no pending request', { requestId: payload.requestId });
+  }
+}
+
+// ============================================================================
 // Initialization
 // ============================================================================
 
 async function initialize(
-  apiKeys?: ApiKeys,
+  apiKeysFingerprint?: string,
   mcpServers?: Record<string, unknown>,
   modelId?: string,
   workingDirectory?: string
@@ -59,14 +102,15 @@ async function initialize(
     // API keys are applied as env vars when the server process spawns, so a
     // key added or rotated after initialization needs a deliberate server
     // restart to take effect (technical review finding #14). Callers that
-    // pass no keys (e.g. Copilot OAuth) express no opinion and skip the check.
-    const keysChanged = apiKeys !== undefined && fingerprintApiKeys(apiKeys) !== appliedApiKeysFingerprint;
+    // pass no fingerprint (e.g. Copilot OAuth) express no opinion and skip
+    // the check.
+    const keysChanged = apiKeysFingerprint !== undefined && apiKeysFingerprint !== appliedApiKeysFingerprint;
 
     if (keysChanged && sessionManager.activeSessionCount() === 0) {
       logger.info('API keys changed since initialization — restarting OpenCode server to apply them');
       initializePromise = (async () => {
         await teardown();
-        await doInitialize(apiKeys, mcpServers, modelId, workingDirectory);
+        await doInitialize(mcpServers, modelId, workingDirectory);
       })();
       try {
         await initializePromise;
@@ -97,7 +141,7 @@ async function initialize(
     return;
   }
 
-  initializePromise = doInitialize(apiKeys, mcpServers, modelId, workingDirectory);
+  initializePromise = doInitialize(mcpServers, modelId, workingDirectory);
   try {
     await initializePromise;
   } finally {
@@ -105,14 +149,13 @@ async function initialize(
   }
 }
 
-async function doInitialize(
-  apiKeys?: ApiKeys,
-  mcpServers?: Record<string, unknown>,
-  modelId?: string,
-  workingDirectory?: string
-): Promise<void> {
+async function doInitialize(mcpServers?: Record<string, unknown>, modelId?: string, workingDirectory?: string): Promise<void> {
   currentDirectory = workingDirectory;
-  appliedApiKeysFingerprint = fingerprintApiKeys(apiKeys);
+
+  // Pull credentials from the host at spawn time (2026-06-12 review #5)
+  const keyResponse = await requestApiKeysFromHost();
+  const apiKeys: ApiKeys | undefined = keyResponse?.apiKeys;
+  appliedApiKeysFingerprint = keyResponse?.fingerprint;
 
   // Start process manager — picks a random available port and generates a password
   processManager = new ProcessManager();
@@ -129,8 +172,9 @@ async function doInitialize(
     directory: workingDirectory,
   });
 
-  // Initialize session manager with port and password (for dynamic system prompt with auth)
-  sessionManager = new SessionManager(processManager.getClient(), eventStream, port, password);
+  // Initialize session manager with the port (the system prompt references
+  // the auth password via env var only — 2026-06-12 review #1)
+  sessionManager = new SessionManager(processManager.getClient(), eventStream, port);
 
   // Wire up session manager events to IPC
   sessionManager.on('started', (data: { taskId: string; sessionId: string }) => {
@@ -278,7 +322,7 @@ async function doInitialize(
 
 async function handleStartTask(taskId: string, payload: StartTaskPayload): Promise<void> {
   try {
-    await initialize(payload.apiKeys, payload.mcpServers, payload.modelId, payload.workingDirectory);
+    await initialize(payload.apiKeysFingerprint, payload.mcpServers, payload.modelId, payload.workingDirectory);
 
     if (!(sessionManager && processManager)) {
       throw new Error('Session manager not initialized');
@@ -305,7 +349,7 @@ async function handleStartTask(taskId: string, payload: StartTaskPayload): Promi
 
 async function handleResumeSession(taskId: string, payload: ResumeSessionPayload): Promise<void> {
   try {
-    await initialize(payload.apiKeys, payload.mcpServers, payload.modelId, payload.workingDirectory);
+    await initialize(payload.apiKeysFingerprint, payload.mcpServers, payload.modelId, payload.workingDirectory);
 
     if (!(sessionManager && processManager)) {
       throw new Error('Session manager not initialized');
@@ -383,6 +427,14 @@ async function handlePermissionReply(taskId: string, payload: PermissionReplyPay
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Failed to reply to permission', { taskId, error: message });
+    // Surface the failure — otherwise the UI shows the permission as
+    // answered while the agent stays blocked waiting for the reply
+    // (2026-06-12 review #24; mirrors handleQuestionReply).
+    send({
+      type: 'task_error',
+      taskId,
+      payload: { error: `Failed to reply to permission: ${message}` },
+    });
   }
 }
 
@@ -642,7 +694,12 @@ async function handleCheckServer(): Promise<void> {
 // ============================================================================
 
 async function handleMessage(msg: SidecarCommand): Promise<void> {
-  logger.debug('Received command', msg);
+  // Never log full command payloads — start_task/resume_session carry
+  // API keys (2026-06-12 review #6). Type + taskId is enough to trace flow.
+  logger.debug('Received command', {
+    type: msg.type,
+    taskId: 'taskId' in msg ? msg.taskId : undefined,
+  });
 
   switch (msg.type) {
     case 'start_task':
@@ -667,10 +724,6 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
 
     case 'send_question_reply':
       await handleQuestionReply(msg.taskId, msg.payload);
-      break;
-
-    case 'ping':
-      send({ type: 'pong', payload: { timestamp: Date.now() } });
       break;
 
     case 'check_server':
@@ -781,10 +834,15 @@ async function main(): Promise<void> {
     terminal: false,
   });
 
-  rl.on('line', async (line: string) => {
+  // Serialize command handling: each stdin line used to spawn a concurrent
+  // handler, racing on processManager/sessionManager/initializePromise
+  // (2026-06-12 review #8). Commands now run strictly FIFO.
+  const queue = new CommandQueue();
+
+  rl.on('line', (line: string) => {
+    let msg: SidecarCommand;
     try {
-      const msg = JSON.parse(line) as SidecarCommand;
-      await handleMessage(msg);
+      msg = JSON.parse(line) as SidecarCommand;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error('Failed to parse command', { line, error: message });
@@ -792,6 +850,37 @@ async function main(): Promise<void> {
         type: 'error',
         payload: { message: `Failed to parse command: ${message}` },
       });
+      return;
+    }
+
+    // Handled outside the queue: api_keys_response resolves a promise that a
+    // queued command (doInitialize) is awaiting — queueing it would deadlock.
+    // ping stays out so liveness checks aren't delayed by long-running tasks.
+    if (msg.type === 'api_keys_response') {
+      handleApiKeysResponse(msg.payload);
+      return;
+    }
+    if (msg.type === 'ping') {
+      send({ type: 'pong', payload: { timestamp: Date.now() } });
+      return;
+    }
+
+    const accepted = queue.enqueue(
+      () => handleMessage(msg),
+      (error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error('Command handler failed', { type: msg.type, error: message });
+      }
+    );
+    if (!accepted) {
+      logger.warn('Dropping command received after shutdown began', { type: msg.type });
+      return;
+    }
+
+    if (msg.type === 'shutdown') {
+      // The shutdown command itself is queued (so in-flight commands finish
+      // before teardown); anything arriving after it is dropped.
+      queue.beginShutdown();
     }
   });
 

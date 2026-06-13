@@ -54,14 +54,14 @@ fn stored_tasks_to_tasks(stored: Vec<db::tasks::StoredTask>) -> Vec<Task> {
         .collect()
 }
 
-/// Helper: resolve shared task state (API keys, workspace, perms, custom prompt, MCP).
-/// Returns (api_keys, working_directory, folder_permissions, custom_prompt, mcp_servers, workspace_id)
+/// Helper: resolve shared task state (API-key fingerprint, workspace, perms, custom prompt, MCP).
+/// Returns (api_keys_fingerprint, working_directory, folder_permissions, custom_prompt, mcp_servers, workspace_id)
 fn resolve_shared_state(
     db_state: &State<'_, DbState>,
     _task_id: &str,
 ) -> Result<
     (
-        sidecar::ApiKeys,
+        String,
         Option<String>,
         Option<Vec<sidecar::FolderPermissionPayload>>,
         Option<String>,
@@ -79,7 +79,7 @@ fn resolve_shared_state(
         .map(|w| w.folder_path);
 
     let workspace_perms = if let Some(ref ws_id) = ws_id {
-        db::workspace_permissions::get_workspace_permissions(&conn, ws_id)
+        db::workspace_permissions::get_workspace_permissions(&conn, ws_id)?
     } else {
         vec![]
     };
@@ -113,9 +113,10 @@ fn resolve_shared_state(
         sidecar_perms = Some(perms);
     }
 
-    drop(conn); // Release lock before calling get_all_api_keys
+    drop(conn); // Release lock before touching the keychain
 
-    let api_keys = sidecar::get_all_api_keys()?;
+    // Fingerprint only — keys travel via the request_api_keys bridge (#5)
+    let api_keys_fingerprint = sidecar::current_api_keys_fingerprint()?;
 
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
     let custom_prompt = if db::settings::get_user_prompt_enabled(&conn) {
@@ -128,7 +129,7 @@ fn resolve_shared_state(
         db::settings::get_mcp_servers_config(&conn).map(|c| serde_json::to_value(c).unwrap());
 
     Ok((
-        api_keys,
+        api_keys_fingerprint,
         working_directory,
         sidecar_perms,
         custom_prompt,
@@ -170,7 +171,7 @@ pub async fn start_arena(
 
     // Resolve shared state once (using the first task_id as placeholder for perms)
     let first_task_id = format!("task_{}", uuid::Uuid::new_v4());
-    let (api_keys, working_directory, folder_permissions, custom_prompt, mcp_servers, _ws_id) =
+    let (api_keys_fingerprint, working_directory, folder_permissions, custom_prompt, mcp_servers, _ws_id) =
         resolve_shared_state(&db_state, &first_task_id)?;
 
     // Ensure sidecar is running
@@ -237,7 +238,7 @@ pub async fn start_arena(
                 payload: sidecar::StartTaskPayload {
                     task_id: task_id.clone(),
                     prompt: arena_prompt,
-                    api_keys: Some(api_keys.clone()),
+                    api_keys_fingerprint: Some(api_keys_fingerprint.clone()),
                     working_directory: working_directory.clone(),
                     model_id: Some(model_config.model_id.clone()),
                     folder_permissions: folder_permissions.clone(),
@@ -290,7 +291,7 @@ pub async fn resume_arena(
     // Load arena with tasks
     let arena = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::arenas::get_arena_with_tasks(&conn, &arena_id)
+        db::arenas::get_arena_with_tasks(&conn, &arena_id)?
             .ok_or_else(|| format!("Arena not found: {}", arena_id))?
     };
 
@@ -300,7 +301,7 @@ pub async fn resume_arena(
         .first()
         .map(|t| t.id.clone())
         .unwrap_or_default();
-    let (api_keys, working_directory, folder_permissions, custom_prompt, mcp_servers, _ws_id) =
+    let (api_keys_fingerprint, working_directory, folder_permissions, custom_prompt, mcp_servers, _ws_id) =
         resolve_shared_state(&db_state, &first_task_id)?;
 
     // Ensure sidecar is running
@@ -339,7 +340,7 @@ pub async fn resume_arena(
                     task_id: task.id.clone(),
                     session_id,
                     prompt: Some(prompt.clone()),
-                    api_keys: Some(api_keys.clone()),
+                    api_keys_fingerprint: Some(api_keys_fingerprint.clone()),
                     working_directory: working_directory.clone(),
                     model_id,
                     folder_permissions: folder_permissions.clone(),
@@ -355,7 +356,7 @@ pub async fn resume_arena(
     // Return updated arena
     let updated_arena = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::arenas::get_arena_with_tasks(&conn, &arena_id)
+        db::arenas::get_arena_with_tasks(&conn, &arena_id)?
             .ok_or_else(|| format!("Arena not found after resume: {}", arena_id))?
     };
 
@@ -373,7 +374,7 @@ pub async fn resume_arena(
 #[tauri::command]
 pub async fn get_arena(arena_id: String, db_state: State<'_, DbState>) -> Result<Arena, String> {
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-    let stored = db::arenas::get_arena_with_tasks(&conn, &arena_id)
+    let stored = db::arenas::get_arena_with_tasks(&conn, &arena_id)?
         .ok_or_else(|| format!("Arena not found: {}", arena_id))?;
 
     Ok(Arena {
@@ -394,7 +395,7 @@ pub async fn list_arenas(
 ) -> Result<Vec<db::arenas::ArenaListItem>, String> {
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
     match workspace_id {
-        Some(ws_id) => Ok(db::arenas::get_arenas_by_workspace(&conn, &ws_id)),
+        Some(ws_id) => db::arenas::get_arenas_by_workspace(&conn, &ws_id),
         None => Ok(vec![]),
     }
 }
@@ -415,7 +416,7 @@ pub async fn abort_arena(
 ) -> Result<(), String> {
     let tasks = {
         let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-        db::tasks::get_tasks_by_arena(&conn, &arena_id)
+        db::tasks::get_tasks_by_arena(&conn, &arena_id)?
     };
 
     let mut manager = sidecar_state.manager.lock().await;

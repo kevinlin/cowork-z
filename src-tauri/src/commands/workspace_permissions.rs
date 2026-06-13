@@ -13,6 +13,10 @@ pub async fn save_workspace_permission(
     state: State<'_, DbState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
+    // Canonicalize and validate before persisting: grants feed allowed_roots
+    // and the asset: protocol scope (technical review 2026-06-12 #3).
+    let folder_path = crate::path_guard::validate_grant_path(&folder_path)?;
+
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let source = source.as_deref().unwrap_or("user");
     db::workspace_permissions::save_workspace_permission(
@@ -34,7 +38,7 @@ pub async fn get_workspace_permissions(
     state: State<'_, DbState>,
 ) -> Result<Vec<FolderPermission>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let perms = db::workspace_permissions::get_workspace_permissions(&conn, &workspace_id);
+    let perms = db::workspace_permissions::get_workspace_permissions(&conn, &workspace_id)?;
     Ok(perms
         .iter()
         .map(|p| FolderPermission {

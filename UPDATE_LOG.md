@@ -4,7 +4,41 @@
 
 ## v0.8.1
 
-- 
+- **Address findings from the 2026-06-12 technical review** — A second pass of security hardening, reliability fixes, and performance improvements across the app:
+  - Hardened the Content Security Policy: PDF previews load through a scoped per-directory protocol instead of inline base64, embedded plugin content can no longer carry arbitrary payloads, and base/frame restrictions were added.
+  - Task persistence now rejects writes aimed at a task that doesn't exist, so a renderer bug or injected call can't corrupt another task's history or trigger its completion side effects.
+  - Database reads return errors to the caller instead of panicking, and lock acquisition recovers from a poisoned lock, so a storage or locking error no longer crashes the whole app.
+  - Each schema migration step runs in its own transaction, so a failure mid-migration rolls back to the last fully-applied version instead of leaving the database half-migrated.
+  - Streaming responses no longer re-render the whole conversation page or re-parse the message markdown on every delta; rendering is scoped to the message list and parsing is throttled and cached during live streaming.
+  - Finding the last assistant message is done once per render instead of once per row; list virtualization for very long sessions remains deferred.
+  - Arena task events are persisted by a single owner and de-duplicated by message, so they no longer write duplicate rows to the database.
+  - Event listeners that register asynchronously are cancelled if the component unmounts first, so they no longer leak and fire stale callbacks.
+  - The workspace file watcher is now recursive (ignoring noisy directories and coalescing bursts), so changes the agent makes in nested folders refresh the file tree.
+  - Deleting a task frees its todos, artifacts, and in-flight streaming text instead of retaining them for the whole session.
+  - The app writes its OpenCode configuration to its own private directory (cleaning up stale files from older versions) and never modifies the user's global OpenCode config.
+  - A saved Ollama key is now actually passed to the server, so authenticated Ollama setups no longer fail silently.
+  - Server events scoped to a workspace are ignored until a task has scoped the stream to its workspace, preventing events being attributed to the wrong task before any workspace is active.
+  - When a new task supersedes an old one, the old session is aborted on the server before local cleanup, so it stops consuming tokens and running tools.
+  - A failure to deliver a permission reply is surfaced as a task error instead of being only logged, so the agent isn't left blocked on a permission the UI shows as answered.
+  - A message that fails to start a turn surfaces as a task error and aborts the orphaned session, instead of leaving the task looking active forever.
+  - Task commands wait for the sidecar's readiness handshake before being sent, a crashed sidecar is no longer reported as running, and a dead one is respawned on the next task.
+  - Commands sent to the sidecar are processed strictly one at a time, and commands arriving after shutdown starts are dropped, eliminating races over shared server and session state.
+  - The server password is no longer embedded in the model's system prompt; the prompt references an environment variable the agent's shell expands locally, so the secret never leaves the machine as prompt text.
+  - Task payloads carry only a hash fingerprint of the API keys; the actual keys are requested separately and only when the server is (re)started, so they cross the process boundary only when they change.
+  - Streaming logs record only message identifiers and lengths, no longer writing conversation content (which can include secrets read from files) to the persisted log.
+  - Removed the command that handed the full API key to the web layer; the UI now only sees whether a key exists and a masked prefix.
+  - Incoming commands are logged by type only and the credential payload is fully masked, so API keys can no longer slip past log redaction.
+  - Opening or revealing a file goes through validated backend commands restricted to allowed folders, and the broad home-directory open permission was removed from both windows.
+  - Media thumbnails and path-based previews now pass the same path-safety check as chat links, so unsafe or traversal paths can't reach the file layer.
+  - Workspace paths are resolved (following symlinks) and must live under your home folder, the shared folder, or a mounted volume, instead of any path that merely avoided a blocklist.
+  - Skill identifiers must be a single plain path segment wherever they touch the filesystem, and deletion confirms the target sits directly inside the skills directory, preventing path-traversal deletes.
+  - Folder grants are validated against system-path rules and a credential-directory denylist before being saved, and previously-saved bad grants are filtered out on load.
+  - Directory listing passes through the same path guard as file read and trash, so the web layer can't enumerate arbitrary directories.
+  - Tauri packages and their matching Rust crates are pinned to compatible ranges so both halves of the contract upgrade together, and the sidecar bundler is pinned exactly.
+  - Automated weekly dependency scanning and a CI audit step were added, and known-vulnerable dependencies were updated (clearing 46 npm and 8 Rust advisories); environment files are now ignored by git.
+  - The pre-commit hook now formats React component files, which previously bypassed it.
+  - CI now typechecks, runs a production build, and tests on both Linux and macOS.
+  - Restored the CI lint gate by fixing 17 pre-existing violations, with linting and tests as separate gating steps.
 
 ## v0.8.0
 

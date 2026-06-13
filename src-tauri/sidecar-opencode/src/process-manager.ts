@@ -6,11 +6,44 @@ import os from 'node:os';
 import path from 'node:path';
 import { logger } from './logger';
 import { OpenCodeClient } from './opencode-client';
-import { getOpenCodeLogDir } from './paths';
+import { getAppOpenCodeConfigDir, getOpenCodeLogDir } from './paths';
 import type { ApiKeys, Config } from './types';
 
-/** Default working directory for `opencode serve` to avoid writing config.json into the source tree. */
-const OPENCODE_DATA_DIR = getOpenCodeLogDir();
+/**
+ * Working directory for `opencode serve` and the location of the
+ * opencode.json/config.json files the sidecar writes.
+ *
+ * App-private (2026-06-12 review #25): earlier versions wrote into
+ * OpenCode's own log directory, where the replace/delete merge semantics
+ * could clobber settings the app did not write. The user's global OpenCode
+ * config (~/.config/opencode/) is never touched.
+ */
+const OPENCODE_DATA_DIR = getAppOpenCodeConfigDir();
+
+/**
+ * Map provider API keys onto the environment variables `opencode serve`
+ * reads at startup. Every key defined in the `ApiKeys` IPC type must have a
+ * branch here — `ollama` was missing, silently breaking authenticated
+ * Ollama setups (2026-06-12 review #22).
+ */
+export function applyApiKeyEnv(env: NodeJS.ProcessEnv, apiKeys?: ApiKeys): void {
+  if (apiKeys?.anthropic) env.ANTHROPIC_API_KEY = apiKeys.anthropic;
+  if (apiKeys?.openai) env.OPENAI_API_KEY = apiKeys.openai;
+  if (apiKeys?.google) env.GOOGLE_GENERATIVE_AI_API_KEY = apiKeys.google;
+  if (apiKeys?.xai) env.XAI_API_KEY = apiKeys.xai;
+  if (apiKeys?.deepseek) env.DEEPSEEK_API_KEY = apiKeys.deepseek;
+  if (apiKeys?.openrouter) env.OPENROUTER_API_KEY = apiKeys.openrouter;
+  if (apiKeys?.litellm) env.LITELLM_API_KEY = apiKeys.litellm;
+  if (apiKeys?.ollama) env.OLLAMA_API_KEY = apiKeys.ollama;
+  if (apiKeys?.azureFoundry) env.AZURE_API_KEY = apiKeys.azureFoundry;
+
+  // AWS Bedrock credentials
+  if (apiKeys?.bedrock) {
+    env.AWS_ACCESS_KEY_ID = apiKeys.bedrock.accessKeyId;
+    env.AWS_SECRET_ACCESS_KEY = apiKeys.bedrock.secretAccessKey;
+    env.AWS_REGION = apiKeys.bedrock.region;
+  }
+}
 
 const UNIX_ALLOWED_LOGIN_SHELLS = [
   '/bin/zsh',
@@ -486,21 +519,7 @@ export class ProcessManager {
     logger.debug(`OPENCODE_SERVER_PASSWORD set (length ${this.password.length})`);
 
     // Set API keys as environment variables
-    if (apiKeys?.anthropic) env.ANTHROPIC_API_KEY = apiKeys.anthropic;
-    if (apiKeys?.openai) env.OPENAI_API_KEY = apiKeys.openai;
-    if (apiKeys?.google) env.GOOGLE_GENERATIVE_AI_API_KEY = apiKeys.google;
-    if (apiKeys?.xai) env.XAI_API_KEY = apiKeys.xai;
-    if (apiKeys?.deepseek) env.DEEPSEEK_API_KEY = apiKeys.deepseek;
-    if (apiKeys?.openrouter) env.OPENROUTER_API_KEY = apiKeys.openrouter;
-    if (apiKeys?.litellm) env.LITELLM_API_KEY = apiKeys.litellm;
-    if (apiKeys?.azureFoundry) env.AZURE_API_KEY = apiKeys.azureFoundry;
-
-    // AWS Bedrock credentials
-    if (apiKeys?.bedrock) {
-      env.AWS_ACCESS_KEY_ID = apiKeys.bedrock.accessKeyId;
-      env.AWS_SECRET_ACCESS_KEY = apiKeys.bedrock.secretAccessKey;
-      env.AWS_REGION = apiKeys.bedrock.region;
-    }
+    applyApiKeyEnv(env, apiKeys);
 
     const args = ['serve', '--port', String(this.port), '--hostname', this.hostname];
 
@@ -508,6 +527,22 @@ export class ProcessManager {
     // instead of into the source tree (which would trigger Tauri rebuilds).
     if (!fs.existsSync(OPENCODE_DATA_DIR)) {
       fs.mkdirSync(OPENCODE_DATA_DIR, { recursive: true });
+    }
+
+    // Best-effort cleanup: earlier versions wrote these config files into
+    // OpenCode's log directory (2026-06-12 review #25). They are no longer
+    // read after the server cwd moved to the app-private dir, and leaving
+    // them could surprise anyone running `opencode` there manually.
+    for (const staleName of ['opencode.json', 'config.json']) {
+      const stalePath = path.join(getOpenCodeLogDir(), staleName);
+      try {
+        if (fs.existsSync(stalePath)) {
+          fs.unlinkSync(stalePath);
+          logger.info('Removed stale config written by a previous version', { stalePath });
+        }
+      } catch {
+        // Non-fatal — the file is simply ignored at the new location.
+      }
     }
 
     // Build model-specific config overlay (e.g. OpenRouter small_model pinning)

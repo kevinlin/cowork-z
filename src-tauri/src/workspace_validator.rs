@@ -3,8 +3,38 @@
 
 use std::path::Path;
 
+/// Canonicalize a folder path (resolving symlinks and `..`) and validate the
+/// resolved path as a workspace (technical review 2026-06-12 finding #15).
+/// The path must exist. Returns the canonical path to persist, so symlinks
+/// can never alias a workspace root to a different tree than was validated.
+pub fn validate_and_canonicalize_workspace_path(folder_path: &str) -> Result<String, String> {
+    let path = Path::new(folder_path);
+    if !path.is_absolute() {
+        return Err("Workspace path must be absolute".to_string());
+    }
+
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| format!("Cannot resolve workspace path '{}': {}", folder_path, e))?;
+
+    let mut canonical_str = canonical.to_string_lossy().to_string();
+    // Windows canonicalize() yields verbatim paths (\\?\C:\...); strip the
+    // prefix so the drive-letter rules below apply.
+    if let Some(stripped) = canonical_str.strip_prefix(r"\\?\") {
+        canonical_str = stripped.to_string();
+    }
+
+    validate_workspace_path(&canonical_str)?;
+    Ok(canonical_str)
+}
+
 /// Validate that a folder path is safe to use as a workspace.
 /// Returns `Ok(())` if allowed, or `Err` with a human-readable reason if blocked.
+///
+/// Note: this checks rules against the path string as given. Callers taking
+/// untrusted input should use [`validate_and_canonicalize_workspace_path`]
+/// (or canonicalize themselves, as `path_guard::validate_grant_path` does)
+/// so symlinks and `..` cannot dodge the rules.
 pub fn validate_workspace_path(folder_path: &str) -> Result<(), String> {
     let path = Path::new(folder_path);
 
@@ -100,7 +130,27 @@ fn validate_unix(folder_path: &str) -> Result<(), String> {
         }
     }
 
-    Ok(())
+    // Outside the home tree, only mounted-volume subtrees and the macOS
+    // shared-users folder are allowed (2026-06-12 review #15). Anything else
+    // (/tmp, /opt, another user's home, ...) is rejected rather than falling
+    // through to "allowed".
+    if folder_path.starts_with("/Volumes/")
+        || folder_path == "/Users/Shared"
+        || folder_path.starts_with("/Users/Shared/")
+    {
+        return Ok(());
+    }
+    let linux_mount_prefixes = ["/media/", "/run/media/", "/mnt/"];
+    for prefix in &linux_mount_prefixes {
+        if folder_path.starts_with(prefix) {
+            return Ok(());
+        }
+    }
+
+    Err(format!(
+        "'{}' is outside your home folder and mounted volumes, so it cannot be used as a workspace",
+        folder_path
+    ))
 }
 
 fn validate_windows(folder_path: &str) -> Result<(), String> {
@@ -207,5 +257,83 @@ mod tests {
     fn test_relative_path_blocked() {
         assert!(validate_workspace_path("relative/path").is_err());
         assert!(validate_workspace_path("./relative").is_err());
+    }
+
+    #[test]
+    fn test_non_home_non_volume_blocked() {
+        assert!(validate_workspace_path("/tmp").is_err());
+        assert!(validate_workspace_path("/opt/projects").is_err());
+        assert!(validate_workspace_path("/home/otheruser/stuff").is_err());
+    }
+
+    #[test]
+    fn test_shared_users_folder_allowed() {
+        assert!(validate_workspace_path("/Users/Shared/projects").is_ok());
+    }
+
+    #[test]
+    fn test_linux_mount_subtrees_allowed() {
+        assert!(validate_workspace_path("/media/me/usb/projects").is_ok());
+        assert!(validate_workspace_path("/run/media/me/usb").is_ok());
+        assert!(validate_workspace_path("/mnt/data/projects").is_ok());
+    }
+
+    #[test]
+    fn test_canonicalize_missing_path_blocked() {
+        assert!(validate_and_canonicalize_workspace_path("/definitely/missing/dir-xyz").is_err());
+    }
+
+    #[cfg(unix)]
+    fn symlink_test_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "ws-validator-test-{}-{}",
+            name,
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_canonicalize_resolves_symlink_to_allowed_target() {
+        let Some(home) = dirs::home_dir() else { return };
+        let target = home.join("Downloads");
+        if !target.is_dir() {
+            return; // environment without ~/Downloads
+        }
+
+        let dir = symlink_test_dir("allowed");
+        let link = dir.join("link-to-downloads");
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        // The link lives in a blocked tree (temp), but it resolves into the
+        // home tree — the canonical target is what gets validated/persisted.
+        let result = validate_and_canonicalize_workspace_path(&link.to_string_lossy());
+        assert!(result.is_ok(), "expected symlink-to-home allowed: {:?}", result);
+        assert_eq!(
+            result.unwrap(),
+            target.canonicalize().unwrap().to_string_lossy()
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_canonicalize_blocks_symlink_to_system_dir() {
+        let home = match dirs::home_dir() {
+            Some(h) => h,
+            None => return,
+        };
+        // Place the link inside the home tree so only the *target* is bad.
+        let dir = home.join(format!(".ws-validator-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let link = dir.join("link-to-etc");
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink("/etc", &link).unwrap();
+
+        assert!(validate_and_canonicalize_workspace_path(&link.to_string_lossy()).is_err());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

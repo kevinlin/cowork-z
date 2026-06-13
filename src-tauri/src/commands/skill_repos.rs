@@ -57,15 +57,16 @@ pub struct SyncProgress {
     pub error: Option<String>,
 }
 
-fn cache_dir(app: &AppHandle) -> PathBuf {
-    app.path()
+fn cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
         .app_data_dir()
-        .expect("app data dir")
-        .join("skill-repo-cache")
+        .map_err(|e| format!("Failed to resolve app data dir: {}", e))?
+        .join("skill-repo-cache"))
 }
 
-fn repo_cache_dir(app: &AppHandle, repo_url: &str) -> PathBuf {
-    cache_dir(app).join(git_ops::derive_cache_dir_name(repo_url))
+fn repo_cache_dir(app: &AppHandle, repo_url: &str) -> Result<PathBuf, String> {
+    Ok(cache_dir(app)?.join(git_ops::derive_cache_dir_name(repo_url)))
 }
 
 fn resolve_target_folder(target: &str) -> Result<PathBuf, String> {
@@ -76,6 +77,22 @@ fn resolve_target_folder(target: &str) -> Result<PathBuf, String> {
         "agents" => Ok(home.join(".agents/skills")),
         _ => Err(format!("Unknown target folder: {}", target)),
     }
+}
+
+/// Reject skill ids that are not a single plain path component, so they can
+/// never escape the install directory when joined (technical review
+/// 2026-06-12 finding #4).
+pub(crate) fn validate_skill_id(skill_id: &str) -> Result<(), String> {
+    if skill_id.is_empty()
+        || skill_id == "."
+        || skill_id == ".."
+        || skill_id.contains('/')
+        || skill_id.contains('\\')
+        || skill_id.contains('\0')
+    {
+        return Err(format!("Invalid skill id: '{}'", skill_id));
+    }
+    Ok(())
 }
 
 fn is_symlink(path: &std::path::Path) -> bool {
@@ -150,7 +167,7 @@ pub async fn skill_repos_add(
         }
     }
 
-    let dest = repo_cache_dir(&app, &url);
+    let dest = repo_cache_dir(&app, &url)?;
     if dest.exists() {
         let _ = fs::remove_dir_all(&dest);
     }
@@ -230,7 +247,7 @@ pub async fn skill_repos_remove(
     }
 
     let cache_url = repo.as_ref().map(|r| r.url.as_str()).unwrap_or("");
-    let cache = repo_cache_dir(&app, cache_url);
+    let cache = repo_cache_dir(&app, cache_url)?;
     if cache.exists() {
         let _ = fs::remove_dir_all(&cache);
     }
@@ -265,7 +282,7 @@ pub async fn skill_repos_sync(
         None
     };
 
-    let cache = repo_cache_dir(&app, &repo.url);
+    let cache = repo_cache_dir(&app, &repo.url)?;
     let now = chrono::Utc::now().to_rfc3339();
 
     let sync_result = if cache.exists() {
@@ -393,7 +410,7 @@ pub async fn skills_install_from_repo(
             .ok_or_else(|| format!("Skill not found: {}", skill_path))?
     };
 
-    let cache = repo_cache_dir(&app, &repo.url);
+    let cache = repo_cache_dir(&app, &repo.url)?;
     let source = cache.join(&skill.skill_path);
     if !source.exists() {
         return Err(format!(
@@ -401,6 +418,10 @@ pub async fn skills_install_from_repo(
             source.display()
         ));
     }
+
+    // Skill ids originate from repo scans/manifests — a malicious repo must
+    // not be able to point the install destination outside the install dir.
+    validate_skill_id(&skill.skill_id)?;
 
     let target = target_folder.as_deref().unwrap_or("opencode");
     let install_dir = resolve_target_folder(target)?;
@@ -518,6 +539,8 @@ pub fn skills_delete_installed(
     skill_id: String,
     target_folder: Option<String>,
 ) -> Result<(), String> {
+    validate_skill_id(&skill_id)?;
+
     let target = target_folder.as_deref().unwrap_or("opencode");
     let install_dir = resolve_target_folder(target)?;
     let skill_dir = install_dir.join(&skill_id);
@@ -529,8 +552,57 @@ pub fn skills_delete_installed(
         ));
     }
 
+    // Belt and braces for real directories: the canonicalized target must
+    // still be a direct child of the canonicalized install dir. (Symlinks
+    // are removed as links without traversal, and a single-component id
+    // cannot relocate them.)
+    if !is_symlink(&skill_dir) {
+        let canonical_install = install_dir
+            .canonicalize()
+            .map_err(|e| format!("Cannot resolve install dir: {}", e))?;
+        let canonical_target = skill_dir
+            .canonicalize()
+            .map_err(|e| format!("Cannot resolve skill dir: {}", e))?;
+        if canonical_target.parent() != Some(canonical_install.as_path()) {
+            return Err(format!(
+                "Refusing to delete '{}': not a direct child of the skills directory",
+                canonical_target.display()
+            ));
+        }
+    }
+
     remove_path(&skill_dir)?;
 
     let _ = app.emit("skills:changed", ());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_skill_id;
+
+    #[test]
+    fn accepts_plain_skill_ids() {
+        for id in ["my-skill", "skill_2", "Skill.Name", "..hidden"] {
+            assert!(validate_skill_id(id).is_ok(), "should accept '{}'", id);
+        }
+    }
+
+    #[test]
+    fn rejects_traversal_and_separator_ids() {
+        for id in [
+            "",
+            ".",
+            "..",
+            "../other",
+            "../../.ssh",
+            "a/b",
+            "a\\b",
+            "/etc",
+            "..\\..\\windows",
+            "nul\0byte",
+        ] {
+            assert!(validate_skill_id(id).is_err(), "should reject '{}'", id);
+        }
+    }
 }

@@ -121,6 +121,21 @@ function isArenaTask(columns: ArenaColumns, pendingTaskIds: Set<string>, taskId:
   return findColumnByTaskId(columns, taskId) !== -1 || pendingTaskIds.has(taskId);
 }
 
+/**
+ * Merge messages into a list by ID: replace in place when an ID already
+ * exists (e.g. a tool call transitioning pending → completed, or an event
+ * re-delivered after a buffered replay), append otherwise. Existing order is
+ * preserved; new IDs are appended in arrival order. Mirrors the dedup logic
+ * in taskStore (2026-06-12 review #11).
+ */
+function mergeMessagesById(messages: TaskMessage[], incoming: TaskMessage[]): TaskMessage[] {
+  const byId = new Map(messages.map((m) => [m.id, m]));
+  for (const message of incoming) {
+    byId.set(message.id, message);
+  }
+  return Array.from(byId.values());
+}
+
 function deriveIsRunning(columns: ArenaColumns): boolean {
   return columns.some((col) => col.status === 'running' || col.status === 'starting');
 }
@@ -408,6 +423,16 @@ export const useArenaStore = create<ArenaState>((set, get) => {
     // Each handler checks findColumnByTaskId first. If the taskId isn't mapped
     // to a column yet but IS in pendingTaskIds (arena started, columns not yet
     // populated), the event is buffered and replayed once columns are set.
+    //
+    // PERSISTENCE OWNERSHIP (2026-06-12 review #11): task-update events
+    // (saveTaskMessage / completeTask / saveTaskSession) are persisted exactly
+    // once by taskStore's module-level onTaskUpdate subscription, which covers
+    // ALL task IDs including arena tasks. Status changes are persisted by
+    // updateTaskStatus via the always-mounted Sidebar's onTaskStatusChange
+    // subscription. These handlers only update arena UI state — do NOT add
+    // persistence calls here. The single exception is finalized streaming
+    // messages (handlePartialMessageComplete): taskStore only persists those
+    // for its currentTask, which is never an arena task.
 
     handleTaskUpdate: (event) => {
       const { columns, pendingTaskIds } = get();
@@ -419,25 +444,6 @@ export const useArenaStore = create<ArenaState>((set, get) => {
         return;
       }
 
-      if (event.type === 'message' && event.message) {
-        api.saveTaskMessage(event.taskId, event.message).catch((err) => {
-          console.error('Failed to save arena task message:', err);
-        });
-      } else if (event.type === 'complete' && event.result) {
-        const status = event.result.status === 'success' ? 'completed' : event.result.status === 'interrupted' ? 'interrupted' : 'failed';
-        api.completeTask(event.taskId, status, event.result.sessionId).catch((err) => {
-          console.error('Failed to save arena task completion:', err);
-        });
-      } else if (event.type === 'error') {
-        api.completeTask(event.taskId, 'failed', event.sessionId).catch((err) => {
-          console.error('Failed to save arena task error status:', err);
-        });
-      } else if (event.type === 'started' && event.sessionId) {
-        api.saveTaskSession(event.taskId, event.sessionId).catch((err) => {
-          console.error('Failed to save arena task session ID:', err);
-        });
-      }
-
       set((state) => {
         const cols = [...state.columns] as ArenaColumns;
         const col = { ...cols[idx] };
@@ -447,7 +453,7 @@ export const useArenaStore = create<ArenaState>((set, get) => {
           if (task) {
             col.task = {
               ...task,
-              messages: [...task.messages, event.message],
+              messages: mergeMessagesById(task.messages, [event.message]),
             };
           }
         } else if (event.type === 'complete') {
@@ -486,19 +492,13 @@ export const useArenaStore = create<ArenaState>((set, get) => {
         return;
       }
 
-      for (const msg of messages) {
-        api.saveTaskMessage(taskId, msg).catch((err) => {
-          console.error('Failed to save arena batch message:', err);
-        });
-      }
-
       set((state) => {
         const cols = [...state.columns] as ArenaColumns;
         const col = { ...cols[idx] };
         if (col.task) {
           col.task = {
             ...col.task,
-            messages: [...col.task.messages, ...messages],
+            messages: mergeMessagesById(col.task.messages, messages),
           };
         }
         cols[idx] = col;
@@ -550,6 +550,9 @@ export const useArenaStore = create<ArenaState>((set, get) => {
         timestamp: new Date().toISOString(),
       };
 
+      // Sole persister for arena finalized streaming messages — taskStore's
+      // finalizePartialMessage only saves for its currentTask (see ownership
+      // note above).
       api.saveTaskMessage(event.taskId, finalMessage).catch((err) => {
         console.error('Failed to save arena finalized message:', err);
       });
@@ -564,7 +567,7 @@ export const useArenaStore = create<ArenaState>((set, get) => {
         if (col.task) {
           col.task = {
             ...col.task,
-            messages: [...col.task.messages, finalMessage],
+            messages: mergeMessagesById(col.task.messages, [finalMessage]),
           };
         }
 
@@ -582,10 +585,6 @@ export const useArenaStore = create<ArenaState>((set, get) => {
         }
         return;
       }
-
-      api.saveTaskStatus(taskId, status).catch((err) => {
-        console.error('Failed to save arena task status:', err);
-      });
 
       set((state) => {
         const cols = [...state.columns] as ArenaColumns;

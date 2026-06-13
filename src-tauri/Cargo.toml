@@ -43,7 +43,7 @@ keyring = "2"
 base64 = "0.22"
 
 # Filesystem watching
-notify = "7"
+notify = "8"
 notify-debouncer-mini = "0.5"
 
 # HTTP client for provider validation

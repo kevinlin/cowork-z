@@ -34,7 +34,7 @@ tokio = { version = "1", features = ["sync"] }
 # Utilities
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-dirs = "5.0"
+dirs = "6.0"
 
 # Secure storage (OS Keychain)
 keyring = "2"

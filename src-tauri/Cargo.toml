@@ -53,7 +53,7 @@ reqwest = { version = "0.12", features = ["json"] }
 trash = "5"
 
 # Checksums for skill install detection
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 
 # Cron scheduling for automations

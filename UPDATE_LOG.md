@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.8.3
+
+- 
+
 ## v0.8.2
 
 - **Fix macOS release pipeline failures** — Two separate failures broke the v0.8.2 macOS release. First, release builds had been failing on both macOS jobs (arm64 and x64) since mid-June: the app compiled, signed, and notarized, then crashed the moment it entered DMG bundling. Root cause was an open-ended pnpm `undici` override added during the v0.8.1 dependency overhaul, which resolved to a version requiring Node 22 while the publish workflow runs Node 20; the override was constrained to keep undici on the Node-20-compatible line. Second, once bundling worked, a later run failed while uploading release assets, and the final `latest.json` dropped the `darwin-aarch64` entry. Root cause was parallel publish matrix jobs uploading to the same draft release and racing as they merged `latest.json`; the matrix was serialized so each platform updates the shared release and updater metadata in order.

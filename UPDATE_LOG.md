@@ -8,376 +8,333 @@
 
 ## v0.8.2
 
-- **Fix macOS release pipeline failures** — Two separate failures broke the v0.8.2 macOS release. First, release builds had been failing on both macOS jobs (arm64 and x64) since mid-June: the app compiled, signed, and notarized, then crashed the moment it entered DMG bundling. Root cause was an open-ended pnpm `undici` override added during the v0.8.1 dependency overhaul, which resolved to a version requiring Node 22 while the publish workflow runs Node 20; the override was constrained to keep undici on the Node-20-compatible line. Second, once bundling worked, a later run failed while uploading release assets, and the final `latest.json` dropped the `darwin-aarch64` entry. Root cause was parallel publish matrix jobs uploading to the same draft release and racing as they merged `latest.json`; the matrix was serialized so each platform updates the shared release and updater metadata in order.
+- **Fix: macOS release pipeline failures** — Two failures broke the v0.8.2 macOS release. Builds compiled, signed, and notarized but crashed on entering DMG bundling, because a dependency override pulled in a version that needed a newer Node than the release workflow ran; the override was constrained to a compatible line. Separately, parallel release jobs raced while uploading assets and merging the auto-update metadata, dropping the Apple Silicon entry; the jobs were serialized so each platform updates the shared release in order.
 
 ## v0.8.1
 
-- **Address findings from the 2026-06-12 technical review** — A second pass of security hardening, reliability fixes, and performance improvements across the app:
-  - Hardened the Content Security Policy: PDF previews load through a scoped per-directory protocol instead of inline base64, embedded plugin content can no longer carry arbitrary payloads, and base/frame restrictions were added.
-  - Task persistence now rejects writes aimed at a task that doesn't exist, so a renderer bug or injected call can't corrupt another task's history or trigger its completion side effects.
-  - Database reads return errors to the caller instead of panicking, and lock acquisition recovers from a poisoned lock, so a storage or locking error no longer crashes the whole app.
-  - Each schema migration step runs in its own transaction, so a failure mid-migration rolls back to the last fully-applied version instead of leaving the database half-migrated.
-  - Streaming responses no longer re-render the whole conversation page or re-parse the message markdown on every delta; rendering is scoped to the message list and parsing is throttled and cached during live streaming.
-  - Finding the last assistant message is done once per render instead of once per row; list virtualization for very long sessions remains deferred.
-  - Arena task events are persisted by a single owner and de-duplicated by message, so they no longer write duplicate rows to the database.
-  - Event listeners that register asynchronously are cancelled if the component unmounts first, so they no longer leak and fire stale callbacks.
-  - The workspace file watcher is now recursive (ignoring noisy directories and coalescing bursts), so changes the agent makes in nested folders refresh the file tree.
-  - Deleting a task frees its todos, artifacts, and in-flight streaming text instead of retaining them for the whole session.
-  - The app writes its OpenCode configuration to its own private directory (cleaning up stale files from older versions) and never modifies the user's global OpenCode config.
-  - A saved Ollama key is now actually passed to the server, so authenticated Ollama setups no longer fail silently.
-  - Server events scoped to a workspace are ignored until a task has scoped the stream to its workspace, preventing events being attributed to the wrong task before any workspace is active.
-  - When a new task supersedes an old one, the old session is aborted on the server before local cleanup, so it stops consuming tokens and running tools.
-  - A failure to deliver a permission reply is surfaced as a task error instead of being only logged, so the agent isn't left blocked on a permission the UI shows as answered.
-  - A message that fails to start a turn surfaces as a task error and aborts the orphaned session, instead of leaving the task looking active forever.
-  - Task commands wait for the sidecar's readiness handshake before being sent, a crashed sidecar is no longer reported as running, and a dead one is respawned on the next task.
-  - Commands sent to the sidecar are processed strictly one at a time, and commands arriving after shutdown starts are dropped, eliminating races over shared server and session state.
-  - The server password is no longer embedded in the model's system prompt; the prompt references an environment variable the agent's shell expands locally, so the secret never leaves the machine as prompt text.
-  - Task payloads carry only a hash fingerprint of the API keys; the actual keys are requested separately and only when the server is (re)started, so they cross the process boundary only when they change.
-  - Streaming logs record only message identifiers and lengths, no longer writing conversation content (which can include secrets read from files) to the persisted log.
-  - Removed the command that handed the full API key to the web layer; the UI now only sees whether a key exists and a masked prefix.
-  - Incoming commands are logged by type only and the credential payload is fully masked, so API keys can no longer slip past log redaction.
-  - Opening or revealing a file goes through validated backend commands restricted to allowed folders, and the broad home-directory open permission was removed from both windows.
-  - Media thumbnails and path-based previews now pass the same path-safety check as chat links, so unsafe or traversal paths can't reach the file layer.
-  - Workspace paths are resolved (following symlinks) and must live under your home folder, the shared folder, or a mounted volume, instead of any path that merely avoided a blocklist.
-  - Skill identifiers must be a single plain path segment wherever they touch the filesystem, and deletion confirms the target sits directly inside the skills directory, preventing path-traversal deletes.
-  - Folder grants are validated against system-path rules and a credential-directory denylist before being saved, and previously-saved bad grants are filtered out on load.
-  - Directory listing passes through the same path guard as file read and trash, so the web layer can't enumerate arbitrary directories.
-  - Tauri packages and their matching Rust crates are pinned to compatible ranges so both halves of the contract upgrade together, and the sidecar bundler is pinned exactly.
-  - Automated weekly dependency scanning and a CI audit step were added, and known-vulnerable dependencies were updated (clearing 46 npm and 8 Rust advisories); environment files are now ignored by git.
-  - The pre-commit hook now formats React component files, which previously bypassed it.
-  - CI now typechecks, runs a production build, and tests on both Linux and macOS.
-  - Restored the CI lint gate by fixing 17 pre-existing violations, with linting and tests as separate gating steps.
+- **Address findings from the 2026-06-12 technical review** — A second security, reliability, and performance pass across the app:
+  - Hardened the Content Security Policy and tightened how previews and embedded plugin content load, so a markup bug can no longer escalate to running arbitrary code.
+  - Storage failures (bad reads, lock errors, mid-migration faults) now surface as errors and roll back cleanly instead of crashing the app or leaving the database half-migrated; writes aimed at a task that doesn't exist are rejected.
+  - Live streaming no longer re-renders or re-parses the whole conversation on every update, so long sessions stay responsive.
+  - Task and session lifecycle is more robust: a superseded session is aborted before cleanup so it stops consuming tokens, failed turns and undelivered permission replies surface as errors instead of hanging, commands wait for the sidecar's readiness handshake and run one at a time, and a crashed sidecar is respawned on the next task.
+  - The file watcher now picks up changes in nested folders, async event listeners are cancelled when their component unmounts, and deleting a task frees its todos, artefacts, and streaming state.
+  - The app keeps its OpenCode configuration in its own private directory (cleaning up stale files from older versions) and never modifies the user's global config; a saved Ollama key is now actually used.
+  - Secrets stay out of prompts and logs: the server password is referenced through an environment variable instead of embedded in the prompt, API keys cross the process boundary only when they change, and logs and the debug panel no longer record key material or conversation content.
+  - Path handling is locked down: opening, revealing, previewing, and listing files all pass the same validation, workspace paths must resolve under approved roots, and skill identifiers can't be used for path traversal.
+  - Dependencies and CI: Tauri packages and Rust crates are pinned to compatible ranges, weekly vulnerability scanning and a CI audit step were added, known-vulnerable dependencies were updated, and CI now typechecks, builds, lints, and tests on Linux and macOS.
 
 ## v0.8.0
 
-- **Workspace convention aligned with `rfp-daily` folder governance** — `Misc/` is now `edit: ask` (was `edit: deny`) so the agent can promote curated supporting scripts and prompt experiments from `Output/` to `Misc/` after user approval, matching the four-tier governance model in `~/dev/ai-sdlc/zapac-agent-skills/rfp-daily/assets/folder_governance.md`. The `<workspace-conventions>` system prompt block now documents `Misc/` as holding both static user assets (icons, logos, brand images, fonts) **and** curated utilities promoted from `Output/`, and describes the dual promotion workflow (`Output/` → `Artefacts/<category>/` for governed deliverables, `Output/` → `Misc/<topic>/` like `Misc/scripts/` or `Misc/prompt-experiments/` for curated utilities). `mkdir -p` first-action still seeds all four folders silently because bash is not gated by the `edit` permission. Config-builder test updated; all 93 sidecar tests pass.
+- **Workspace convention aligned with folder governance** — `Misc/` is now approval-gated for edits (was read-only), so the agent can promote curated scripts and prompt experiments from `Output/` into `Misc/` after the user approves. The conventions shown to the agent now describe `Misc/` as holding both static user assets (icons, logos, brand images, fonts) and curated utilities, with two promotion paths: governed deliverables go to `Artefacts/`, curated utilities go to `Misc/`.
 - **Address findings from technical review** — Security hardening, bug fixes, and performance improvements across the app:
-  - Orphaned `opencode serve` process on app shutdown — Quitting the app could leave `opencode serve` running with API keys in its environment and a live listening port.
-  - Enabled a restrictive Content Security Policy (previously disabled), so markup-injection bugs can no longer escalate to arbitrary script execution.
-  - Narrowed the `asset:` protocol scope from the entire filesystem to exactly the directories previews need (workspaces, granted folders, app-managed dirs), synced at runtime.
-  - Renderer-reachable file read/trash commands now validate paths against registered workspaces and granted folders; file exports go through a Rust-side native save dialog instead of renderer-supplied write paths.
-  - Git personal access tokens are no longer persisted in plaintext to skill-repo `.git/config`; credentials persisted by earlier versions are scrubbed on the next sync.
-  - Removed unused shell permissions from both webview capability files and narrowed the filesystem-wide opener grant to user-accessible locations.
-  - HTML preview sandbox no longer lets agent-generated scripts escape via popups, and the injected base href is HTML-encoded.
-  - MCP secrets, HTTP bodies, and SSE payloads are redacted from sidecar logs by default; full payload logging is now an explicit debug opt-in.
-  - The OpenCode server password is no longer written to logs or the debug panel; the sidecar logger redacts secret-looking values from every entry.
-  - API keys added or rotated mid-session now take effect by restarting the OpenCode server, instead of being silently ignored until app restart.
-  - API-key change detection now compares SHA-256 fingerprints, so no raw key material is retained in memory.
-  - SSE reconnect timers are cleared on disconnect and retries use exponential backoff (capped at 60s) instead of retrying every 5s forever.
-  - The Azure Foundry API key is now stored under the standardized keychain id, reported correctly in Settings, and forwarded to the OpenCode server environment.
-  - Azure Foundry keys stored under the legacy keychain id are migrated to the canonical id at startup (replacing the read-time fallback), so UI deletes can't leave a stale entry behind.
-  - MCP config updates now carry the active workspace directory so they reach the correct OpenCode server instance.
-  - Task completion events are handled by a single global listener, eliminating duplicate DB writes and state updates.
-  - The debug-log panel mounts only when debug mode is on, caps retained logs at 500 entries, and no longer re-renders the whole chat per log line.
-  - `file://` links in chat messages work again (the markdown URL sanitizer now allows them, with path safety still enforced at click time).
-  - Permission approvals covering multiple path patterns no longer drop all but the last folder grant.
-  - Fixed a Rules of Hooks violation in `StreamingText` that could crash the chat view when streaming mode flipped on a mounted instance.
-  - Chat auto-scroll now fires on new and streaming messages (the scroll sentinel was missing its anchor attribute).
+  - Quitting the app no longer leaves the OpenCode server running with API keys in its environment and a live listening port.
+  - Enabled a restrictive Content Security Policy and tightened the HTML preview sandbox and asset-loading scope, so an injection bug can't escalate to running arbitrary scripts or reaching arbitrary files.
+  - File read, trash, and export now validate paths against registered workspaces and granted folders, with exports routed through a native save dialog; unused shell permissions were removed from both windows.
+  - Secrets stay out of storage and logs: Git tokens are no longer written to skill-repo config (and ones saved earlier are scrubbed), MCP secrets and payloads are redacted by default, the server password is never logged, and key-change detection compares fingerprints instead of raw keys.
+  - API keys added or rotated mid-session now take effect by restarting the server instead of being ignored until the next launch; Azure Foundry keys are stored under a standard id (migrating older entries) and forwarded correctly; MCP config updates reach the right server instance.
+  - Reliability and UI fixes: event-stream reconnects use capped exponential backoff, task completion is handled by a single listener (no duplicate writes), the debug log panel mounts only in debug mode and caps its history, `file://` links and chat auto-scroll work again, multi-folder permission grants are no longer dropped, and a crash in the streaming chat view was fixed.
 
 ## v0.7.14
 
-- **Four-folder workspace convention** — Workspaces now have four root-level convention folders: `Input/` (read-only source material), `Output/` (scratchpad with category subfolders), `Misc/` (read-only static assets like icons/images, `edit: deny`), and `Artefacts/` (curated deliverables, typically promoted from `Output/`, gated by `edit: ask` so the user approves each save). The agent auto-creates any missing folders.`
-
-- **Fix: Automation runs list pushed pinned sidebar panels off-screen** — `AutomationRunsPanel` used `h-full` on its root, which in a flex column layout grows with content rather than constraining to the parent's remaining space. With many runs, the panel expanded vertically and pushed the pinned `FoldersPanel` and `Todos` sections below the viewport. The panel now uses `min-h-0 flex-1 flex-col overflow-hidden` (matching `SessionPanel`/`FileTreePanel`), so only the runs list scrolls and the pinned sections stay visible regardless of run count.
+- **Four-folder workspace convention** — Workspaces now have four root-level convention folders: `Input/` (read-only source material), `Output/` (scratchpad with category subfolders), `Misc/` (read-only static assets like icons and images), and `Artefacts/` (curated deliverables promoted from `Output/`, where each save needs user approval). The agent auto-creates any missing folders.
+- **Fix: Automation runs list pushed pinned sidebar panels off-screen** — A long list of automation runs grew the panel vertically and pushed the pinned Folders and Todos sections below the viewport; the runs list now scrolls within its own area so the pinned sections stay visible regardless of run count.
 
 ## v0.7.13
 
-- **`Development` skill category** — Added a new green-badged `Development` category for software-engineering skills (code review, debugging, TDD, refactor, lint, spec-driven development, ADRs, changelog, etc.), which now derive a meaningful colored badge in the Skills Manager grid and Home catalog instead of falling back to `General`.
-- **Always-on "Others" answer for agent questions** — `QuestionDialog` now appends a synthetic `Others` free-text option to every agent question (skipped only when the agent already provides a case-insensitive `Other`/`Others` choice, or supplies no options at all). In multi-select questions the input renders inline so it can coexist with checkbox selections.
-- **Fix: OpenCode 1.14.x SSE stream closing immediately** — Switched the sidecar's event stream from the per-instance `/event` endpoint to `/global/event` (backed by long-lived `GlobalBus`). OpenCode 1.14.x bound `/event`'s wildcard PubSub to per-request Effect scope lifecycle, so its finalizer published `server.instance.disposed` and shut down the stream after the very first `server.connected` frame — no `session.*` / `message.*` events ever reached the frontend. `EventStream` now unwraps the new `{ directory, project, payload }` envelope and filters by `directory` in-process; all downstream `SessionManager` listeners are unchanged.
+- **`Development` skill category** — Added a green-badged `Development` category for software-engineering skills (code review, debugging, TDD, refactor, lint, spec-driven development, and similar), which now show a meaningful colored badge in the Skills Manager and Home catalog instead of falling back to `General`.
+- **Always-on "Others" answer for agent questions** — Agent questions now always include a synthetic free-text "Others" option (skipped only when the agent already offers an "Other" choice or supplies no options). In multi-select questions the input appears inline so it can coexist with checkbox selections.
+- **Fix: OpenCode 1.14.x event stream closing immediately** — On OpenCode 1.14.x the agent's event stream shut down right after connecting, so no messages reached the UI. The sidecar now subscribes to the long-lived global event endpoint and filters events by workspace in process.
 
 ## v0.7.12
 
-- **Open repo site from Skills Manager toolbar** — When a specific repo is selected in the Skills Manager dropdown, a new external-link button appears next to it; clicking opens the repo's GitHub/GitLab page in the default browser. Supports HTTPS and SSH Git URLs; tooltip shows the resolved web URL on hover.
-- **Normalize skill repo URLs** — Removed `.git` suffix from all curated skill repo URLs in the Skills Catalog, and added a DB migration (v8) so previously-registered repos match the updated catalog entries.
-- **Camel case workspace default folders** — Renamed workspace convention folders from `input/` → `Input/` and `output/` → `Output/` for visual consistency; updated system prompt, permission rules, and all documentation references
+- **Open repo site from Skills Manager toolbar** — When a repo is selected in the Skills Manager dropdown, a new external-link button opens that repo's GitHub/GitLab page in the default browser. Supports HTTPS and SSH Git URLs; the resolved web URL shows in a tooltip on hover.
+- **Normalize skill repo URLs** — Removed the `.git` suffix from curated skill repo URLs in the Skills Catalog, and added a migration so previously-registered repos match the updated entries.
+- **Camel case workspace default folders** — Renamed workspace convention folders from `input/` → `Input/` and `output/` → `Output/` for visual consistency; updated the system prompt, permission rules, and all documentation references.
 
 ## v0.7.11
 
-- **Fix: Automations fire in bursts after the app is backgrounded (release builds)** — In macOS release builds, leaving the app in the background caused a automation to silently queue ~one pending run per minute and then dispatch all queued runs back-to-back when the app returned to foreground.
+- **Fix: Automations fire in bursts after the app is backgrounded (release builds)** — In macOS release builds, leaving the app in the background caused an automation to silently queue about one pending run per minute, then dispatch all queued runs back-to-back when the app returned to the foreground.
 
 ## v0.7.10
 
-- **`skills.sh` deep link on Skills Manager cards** — Every `SkillCard` in **Skills Manager** now exposes a `skills.sh` text link next to the existing `View` link, opening the matching public listing on [skills.sh](https://skills.sh/) (`https://skills.sh/<org>/<repo>/<skill-id>`, with `<org>` and `<repo>` lowercased) in the user's default browser. The full URL is shown in a tooltip on hover.
-- **Refactor: shared `fs_utils` module** — Extracted `copy_dir_recursive`, `compute_dir_checksum`, and `collect_files` from `commands/packs.rs` and `commands/skills.rs` into a new `src-tauri/src/fs_utils.rs`, eliminating a duplicated `copy_dir_recursive` implementation.
+- **`skills.sh` deep link on Skills Manager cards** — Every skill card in Skills Manager now shows a `skills.sh` link next to the existing `View` link, opening the matching public listing on [skills.sh](https://skills.sh/) in the default browser. The full URL shows in a tooltip on hover.
+- **Refactor: shared filesystem helpers** — Consolidated duplicated directory-copy and checksum logic shared between packs and skills into one module.
 
 ## v0.7.9
 
-- **Polished card hover interactions** — Curated repo cards in **Skills Catalog**, starter pack cards in **Starter Packs**, and skill cards in **Skills Manager** now share a consistent shadow and lift-on-hover effect, with the `Skills Catalog` "Open" arrow nudging on group hover. `SkillCard` also picks up the missing `bg-card` background so its hover shadow reads correctly against the page.
-- **Full-text tooltips on truncated card content** — `line-clamp`-ed descriptions, truncated skill names, and the `font-mono` `skillPath` row are now wrapped in Radix `Tooltip` (400 ms delay) so hovering reveals the complete text in a popover.
-- **`SkillCard` action row hardening** — The "View / Install / Re-install / Update / Delete" button row now wraps every right-side variant in a single `<div className="ml-auto flex items-center gap-1">` container, so future action states inherit right-alignment automatically instead of each branch remembering its own `ml-auto`.
-- **Standardised search inputs** — `SkillsCatalog` and `StarterPacks` now use the shared `<Input>` shadcn primitive so focus rings, disabled states, and dark-mode handling stay in lockstep with the rest of the app.
+- **Polished card hover interactions** — Curated repo cards, starter pack cards, and skill cards now share a consistent shadow and lift-on-hover effect, with the Skills Catalog "Open" arrow nudging on hover.
+- **Full-text tooltips on truncated card content** — Clamped descriptions, truncated skill names, and skill paths now reveal the complete text in a tooltip (400 ms delay) on hover.
+- **Skill card action row alignment** — The "View / Install / Re-install / Update / Delete" buttons now right-align consistently across every action state.
+- **Standardised search inputs** — Skills Catalog and Starter Packs now use the shared input component, so focus rings, disabled states, and dark-mode handling stay in lockstep with the rest of the app.
 
 ## v0.7.8
 
-- **Smarter Skills Manager category badges** — `SkillCard` and the Skills Manager filter tabs now derive each skill's category from its name (keyword match against the closed `CATEGORY_COLORS` taxonomy), falling back to the source repo's curated categories, then the backend-derived path category, then `General`. Repos that don't follow the `{category}/skills/{name}` convention (e.g. `openai/skills`, `mattpocock/skills`) now show meaningful, color-coded badges that match a selectable filter tab.
+- **Smarter Skills Manager category badges** — Skill categories are now inferred from the skill name (matched against the known category list), falling back to the source repo's categories, then the path-derived category, then `General`. Repos that don't follow the standard folder convention now show meaningful, color-coded badges that line up with the filter tabs.
 
 ## v0.7.7
 
-- **Skills Catalog redesign — Curated repo browser** — The Home tab "Skills Catalog" now lists hand-picked Git skill repositories (Anthropic, OpenAI, Vercel, and others) instead of bundled individual skills. Clicking a card opens the Skills Manager and either selects the repo (if already added) or auto-clones it via `git clone --depth 1`, then filters the toolbar dropdown to it. Bundled `skill-templates/` and the `sync-skills.mjs` ritual have been retired — all skill discovery and install now flows through the Skills Manager.
+- **Skills Catalog redesign — Curated repo browser** — The Home tab "Skills Catalog" now lists hand-picked Git skill repositories (Anthropic, OpenAI, Vercel, and others) instead of bundled individual skills. Clicking a card opens the Skills Manager and either selects the repo (if already added) or clones it, then filters the toolbar dropdown to it. Bundled skill templates and the manual sync script have been retired; all skill discovery and install now flows through the Skills Manager.
 
 ## v0.7.6
 
-- **Fix: All automation runs incorrectly shown as "Has findings"** — The `has_findings` flag now inspects the agent's final response for "no findings" phrases instead of marking every completed run as having findings
-- **Fix: Automation form freezes and pending runs pile up after a run completes** — A bug in the automation scheduler caused a self-deadlock that permanently blocked the worker thread, preventing all subsequent Tauri commands from executing; the form now also disables the Save button while a save is in-flight to prevent duplicate submissions
+- **Fix: All automation runs incorrectly shown as "Has findings"** — The findings indicator now inspects the agent's final response for "no findings" phrases instead of marking every completed run as having findings.
+- **Fix: Automation form freezes and pending runs pile up after a run completes** — A scheduler bug caused a self-deadlock that permanently blocked the worker thread, preventing all later commands from running; the form now also disables the Save button while a save is in flight to prevent duplicate submissions.
 
 ## v0.7.5
 
-- **Fix: Automation schedules firing at UTC instead of local time** — Scheduler now evaluates cron expressions against the system's local timezone
+- **Fix: Automation schedules firing at UTC instead of local time** — The scheduler now evaluates cron expressions against the system's local timezone.
 
 ## v0.7.4
 
-- **Per-automation scheduler threads** — Refactored the automation scheduler from a single shared priority-queue thread to one dedicated thread per active automation; each thread sleeps precisely until its next fire time using a condvar; cancel-on-change semantics instantly stop/restart threads when automations are created, updated, toggled, or deleted; next run times are now computed and served by the Rust backend
-- **Fix: Invalid custom cron expressions silently accepted** — The automation form now validates cron expressions in real-time against the Rust backend's scheduler-identical normalization pipeline, displaying an error message and blocking save on invalid input
+- **Per-automation scheduler threads** — Reworked the automation scheduler from a single shared queue thread to one dedicated thread per active automation, each sleeping precisely until its next fire time. Creating, updating, toggling, or deleting an automation instantly stops or restarts the relevant thread, and next run times are computed by the backend.
+- **Fix: Invalid custom cron expressions silently accepted** — The automation form now validates cron expressions in real time using the same normalization the scheduler uses, showing an error and blocking save on invalid input.
 
 ## v0.7.3
 
-- **Compact automation run items** — Sidebar automation run items now display as a single row (name, status, time) instead of two rows; status text truncates with ellipsis when space is tight
-- **Fix: Automations scheduled on weekdays not triggering** — The `cron` crate (v0.12) interprets numeric day-of-week values differently from standard Unix cron (`1-5` was parsed as Sun–Thu instead of Mon–Fri), causing automations with weekday schedules to never fire on the correct days
+- **Compact automation run items** — Sidebar automation run items now display as a single row (name, status, time) instead of two rows; status text truncates with an ellipsis when space is tight.
+- **Fix: Automations scheduled on weekdays not triggering** — A day-of-week numbering mismatch in the scheduler meant weekday schedules never fired on the correct days.
 
 ## v0.7.2
 
-- **Next run time on automation cards** — Automation cards on the Home tab now display the next scheduled run time; daily automations show just the time (e.g., "9:00 AM"), weekly automations show the weekday and time (e.g., "Monday 9:00 AM"); disabled automations hide the next run indicator
-- **Fix: Custom cron schedules not saved** — Custom cron expressions (e.g., `*/5 * * * *`) were saved as empty strings, causing the scheduler to reject them; the custom cron input now correctly populates `scheduleCron`
-- **Fix: Editing custom-schedule automations defaults to Daily** — Opening the edit form for an automation with a custom cron now correctly detects the frequency and defaults the picker to "Custom" with the cron expression pre-filled
-- **Fix: Scheduled automation tasks never started** — The scheduler's `fire_automation` created an automation run record with "running" status but never created a task record or dispatched `StartTask` to the sidecar, so scheduled runs appeared as "Running..." with no actual execution; the same issue affected `process_pending_runs` for queued runs; both now mirror the `run_automation_now` flow: create task, link run, resolve workspace context, and dispatch to sidecar via a spawned Tokio runtime
-- **Refactor: dedupe automation dispatch** — `run_automation_now` command now uses the same helpers as the scheduler
+- **Next run time on automation cards** — Automation cards on the Home tab now show the next scheduled run time; daily automations show just the time (e.g., "9:00 AM"), weekly automations show the weekday and time (e.g., "Monday 9:00 AM"), and disabled automations hide the indicator.
+- **Fix: Custom cron schedules not saved** — Custom cron expressions (e.g., `*/5 * * * *`) were saved as empty strings, so the scheduler rejected them; the custom cron input now saves correctly.
+- **Fix: Editing custom-schedule automations defaults to Daily** — Opening the edit form for a custom-cron automation now detects the frequency correctly and defaults the picker to "Custom" with the expression pre-filled.
+- **Fix: Scheduled automation tasks never started** — Scheduled and queued automation runs were created with a "running" status but never actually started a task, so they showed "Running..." with no execution; both now create, link, and dispatch the task the same way as a manual run, which now shares one dispatch path.
 
 ## v0.7.1
 
-- **Automation enable/disable toggle** — Automations card now shows an inline toggle switch for quick enable/disable without opening the dropdown menu; disabled automations are not triggered by the scheduler
-- **Fix: Automation run status not updating after task completion** — Automation runs were stuck showing "Running..." after the task completed because `complete_task` never marked the associated automation run as complete
+- **Automation enable/disable toggle** — The Automations card now shows an inline toggle for quick enable/disable without opening the dropdown menu; disabled automations are not triggered by the scheduler.
+- **Fix: Automation run status not updating after task completion** — Automation runs were stuck showing "Running..." after the task completed because completing the task never marked the associated run as complete.
 
 ## v0.7.0
 
-- **Automations** — Scheduled AI automations: creation/management on the Home tab, cron-based scheduling in Rust, a run triage panel in the Sidebar, and filtering of automation-triggered tasks from the regular Sessions tab
+- **Automations** — Scheduled AI automations: creation and management on the Home tab, cron-based scheduling, a run triage panel in the Sidebar, and filtering of automation-triggered tasks out of the regular Sessions tab.
 
 ## v0.6.11
 
-- **Categorized output subfolders** — The system prompt now requires the agent to organize every new file under a category subfolder; the agent reuses existing categories when they fit and picks short, kebab-case names based on the file's nature, so workspace artefacts stay neatly grouped instead of dumped into `Output/` root
-- **Fix: Symlink-installed skills not appearing in slash command autocomplete** — Skills installed via the Skills Manager on macOS/Linux (which use symbolic links) were not recognized by the Skills Catalog's install detection, causing them to be excluded from the `/` slash command autocomplete in TaskInputBar and ChatInput; updated `skills_list_with_status` to detect both copy-based and symlink-based installs
-- **Fix: Custom skills in `~/.config/opencode/skills` not appearing in slash command autocomplete** — User-copied skill folders (and skills from custom repos that don't ship as bundled templates) were missing from the `/` autocomplete popover
+- **Categorized output subfolders** — The system prompt now requires the agent to organize every new file under a category subfolder, reusing existing categories when they fit and picking short, kebab-case names, so workspace artefacts stay grouped instead of dumped into `Output/` root.
+- **Fix: Symlink-installed skills not appearing in slash command autocomplete** — Skills installed via the Skills Manager on macOS/Linux (which use symbolic links) weren't recognized as installed, so they were excluded from the `/` autocomplete; install detection now handles both copy-based and symlink-based installs.
+- **Fix: Custom skills in `~/.config/opencode/skills` not appearing in slash command autocomplete** — User-copied skill folders (and skills from custom repos that don't ship as bundled templates) were missing from the `/` autocomplete popover.
 
 ## v0.6.10
 
-- **File tree item action buttons** — Every row in the file tree shows Open and Delete buttons on hover; folders open in Finder/Explorer, files open with the default app; delete moves both files and folders to system trash with immediate tree refresh
-- **Symbolic link support in file tree** — Symlinks (macOS/Linux) are now detected and displayed with a link overlay badge; symlink folders expand to show the linked directory's contents
-- **Symlink-based skill installation (macOS/Linux)** — Installing skills from repos now creates a symbolic link instead of copying files; installed skills always reflect the latest repo cache after sync; deletion is symlink-aware to prevent accidental cache removal
+- **File tree item action buttons** — Every row in the file tree shows Open and Delete buttons on hover; folders open in Finder/Explorer, files open with the default app, and delete moves both files and folders to the system trash with an immediate tree refresh.
+- **Symbolic link support in file tree** — Symlinks (macOS/Linux) are now detected and shown with a link overlay badge; symlinked folders expand to show the linked directory's contents.
+- **Symlink-based skill installation (macOS/Linux)** — Installing skills from repos now creates a symbolic link instead of copying files, so installed skills always reflect the latest synced cache; deletion is symlink-aware to avoid removing the cache.
 
 ## v0.6.9
 
-- **Expandable arena sessions in sidebar** — Arena entries in the Sessions panel now show a disclosure triangle that expands to reveal the 3 individual chat sessions; clicking a child session opens the standard chat view while clicking the arena row opens the tabbed Arena view
-
+- **Expandable arena sessions in sidebar** — Arena entries in the Sessions panel now show a disclosure triangle that expands to reveal the 3 individual chat sessions; clicking a child session opens the standard chat view, while clicking the arena row opens the tabbed Arena view.
 
 ## v0.6.8
 
-- **Fix: Auto-create target skills folder on switching** — Switching the Skills Manager target folder now creates the destination directory if it does not exist yet.
+- **Fix: Auto-create target skills folder on switching** — Switching the Skills Manager target folder now creates the destination directory if it doesn't exist yet.
 - **Auto-scroll on session resume** — Opening an existing chat now jumps to the bottom of the conversation so the latest messages are visible immediately.
 - **Fix: Arena sidebar status auto-refresh** — Arena session entries in the Sessions panel now update automatically as child tasks change state (running, completed, failed, interrupted) instead of staying stuck in the initial running state.
 
 ## v0.6.7
 
-- **Mandatory workspace context in system prompt** — the agent is always told the current workspace path and instructed to create every new file under `<workspace>/Output/` (including bash-created files like `touch`, `>`, `tee`, `mkdir`), never at the workspace root or in `Input/`.
-- **Cursor-aware slash commands** — Slash-command skill picker now triggers whenever `/` is typed after whitespace (or at text start), not only at the start of input; the filter uses just the characters between `/` and the caret. Selecting a skill removes only the `/query` token and preserves the surrounding prose.
-- **Multi-skills support** - Multiple skills can be referenced per message — each appears as its own pill above the textarea and is prefixed in the composed prompt as `/skill-a /skill-b <your text>`.
+- **Mandatory workspace context in system prompt** — The agent is always told the current workspace path and instructed to create every new file under `<workspace>/Output/` (including files created via bash), never at the workspace root or in `Input/`.
+- **Cursor-aware slash commands** — The slash-command skill picker now triggers whenever `/` is typed after whitespace (or at the start of input), not only at the very start; the filter uses just the text between `/` and the caret, and selecting a skill removes only the `/query` token while preserving the surrounding prose.
+- **Multi-skills support** — Multiple skills can be referenced per message; each appears as its own pill above the textarea and is prefixed in the composed prompt.
 
 ## v0.6.6
 
-- **Clickable skill pill** — Clicking a selected skill's name in the pill opens its SKILL.md definition in the file preview panel; skill file resolution follows OpenCode's discovery order (project-level, global, bundled templates)
-- **Arena slash commands** — ArenaInputBar now supports `/` slash command skill invocation with autocomplete popover, skill pill, and prompt composition (matching TaskInputBar and ChatInput)
+- **Clickable skill pill** — Clicking a selected skill's name in its pill opens its definition in the file preview panel, following OpenCode's skill discovery order (project-level, global, then bundled templates).
+- **Arena slash commands** — The Arena input bar now supports `/` slash-command skill invocation with autocomplete, skill pill, and prompt composition, matching the other input bars.
 
 ## v0.6.5
 
-- **Convention-based workspace permissions** — Workspace `Input/` folder is now read-only (agent cannot edit files there); `Output/` folder is explicitly writable. Permission approvals are now remembered at the workspace level and automatically applied to all future tasks in the same workspace.
-- **Arena completion tracking** — The Rust backend now automatically marks an arena as completed when all 3 child tasks reach a terminal state (completed, failed, or interrupted); `completed_at` timestamp is set on the arena record
+- **Convention-based workspace permissions** — The workspace `Input/` folder is now read-only and `Output/` is explicitly writable. Permission approvals are remembered at the workspace level and applied automatically to future tasks in the same workspace.
+- **Arena completion tracking** — An arena is automatically marked complete when all 3 child tasks reach a terminal state (completed, failed, or interrupted).
 
 ## v0.6.4
 
-- **High-priority todo indicator** — Changed the high-priority badge in the Todos panel from a red `!` (which resembled an error) to an amber `↑` arrow with a softer amber background
-- **Fix: GitLab PAT authentication for skill repos** — Private GitLab repositories (self-hosted or gitlab.com) now authenticate correctly using the `oauth2:{token}@` URL format required by GitLab HTTP auth
-- **Remove skill repo from Skills Manager** — Added a "Remove" button to the Skills Manager toolbar (visible when a repo is selected) to delete a registered skill repository, its cached clone, and stored credentials
+- **High-priority todo indicator** — Changed the high-priority badge in the Todos panel from a red `!` (which looked like an error) to an amber `↑` arrow with a softer amber background.
+- **Fix: GitLab PAT authentication for skill repos** — Private GitLab repositories (self-hosted or gitlab.com) now authenticate correctly using the URL format GitLab HTTP auth requires.
+- **Remove skill repo from Skills Manager** — Added a "Remove" button to the Skills Manager toolbar (visible when a repo is selected) to delete a registered skill repository, its cached clone, and stored credentials.
 
 ## v0.6.3
 
-- **Fix: Arena sidebar visibility** — Arena sessions now appear in the sidebar immediately after creation instead of requiring an app restart
-- **Arena tabbed layout** — Arena columns replaced with a tabbed view; each tab shows the model name and status, displaying one model's output at a time
+- **Fix: Arena sidebar visibility** — Arena sessions now appear in the sidebar immediately after creation instead of requiring an app restart.
+- **Arena tabbed layout** — Arena columns were replaced with a tabbed view; each tab shows a model name and status and displays one model's output at a time.
 
 ## v0.6.2
 
-- **Fix: Arena tool call card spacing** — Consecutive tool call cards in Arena mode now use tight 4px spacing (matching normal chat) instead of the uniform 16px gap that was applied to all messages
-- **Fix: Arena file reference handling** — Arena input bar now supports "Add to Chat" button from the file preview panel and drag-and-drop of files from the sidebar file tree and OS file manager, inserting `@path` references at the cursor position (matching TaskInputBar and ChatInput behavior)
+- **Fix: Arena tool call card spacing** — Consecutive tool call cards in Arena mode now use the same tight spacing as normal chat instead of the wider gap applied to all messages.
+- **Fix: Arena file reference handling** — The Arena input bar now supports the "Add to Chat" button from the file preview panel and drag-and-drop of files from the sidebar file tree and OS file manager, inserting `@path` references at the cursor, matching the other input bars.
 
 ## v0.6.1
 
-- **Fix: Arena question requests** — Agent questions (e.g., asking the user to choose an output folder) are now handled in Arena mode; previously the question was silently dropped and the agent hung waiting for a response
-- **Tool call cards redesign** — Tool call rows restyled with reduced padding, borderless design, and smaller icons; hover reveals copy and expand controls; file-based tools (Read, Write, Edit) show an "Open in file viewer" button on hover
+- **Fix: Arena question requests** — Agent questions (e.g., asking the user to choose an output folder) are now handled in Arena mode; previously the question was silently dropped and the agent hung waiting for a response.
+- **Tool call cards redesign** — Tool call rows were restyled with reduced padding, a borderless design, and smaller icons; hover reveals copy and expand controls, and file-based tools (Read, Write, Edit) show an "Open in file viewer" button on hover.
 
 ## v0.6.0
 
-- **Arena — Side-by-Side Agent Comparison** — Compare 3 AI models on the same prompt simultaneously; pick a model for each column via the full provider settings panel, submit a prompt, and watch all 3 agents stream responses in a 3-column layout; arena sessions appear in the sidebar with a distinct icon and support follow-up messages to all agents at once
-- **Arena - Chat history persistence** — Full chat history from all 3 agents is now retained across follow-ups and persisted to the database for reload
-- **Enhanced MCP Server Settings** — MCP configuration now shows each server as an individual card with real-time status indicators (connected/failed/disabled), per-server enable/disable toggles, expandable tool listings, and add/edit/remove actions; includes a JSON fallback view for power users
-- **Fix infinite compaction loop** - Added compaction loop detection with threshold limit (3)
-- **Improved dialog readability** — Reduced backdrop blur and opacity on question/permission dialogs so main window content stays readable; dialogs are now draggable to reveal covered content
+- **Arena — Side-by-Side Agent Comparison** — Compare 3 AI models on the same prompt at once; pick a model for each column via the full provider settings panel, submit a prompt, and watch all 3 agents stream responses in a 3-column layout. Arena sessions appear in the sidebar with a distinct icon and support follow-up messages to all agents at once.
+- **Arena chat history persistence** — Full chat history from all 3 agents is now retained across follow-ups and persisted to the database for reload.
+- **Enhanced MCP Server Settings** — MCP configuration now shows each server as a card with real-time status indicators (connected/failed/disabled), per-server toggles, expandable tool listings, and add/edit/remove actions, plus a JSON fallback view for power users.
+- **Fix: infinite compaction loop** — Added compaction loop detection with a retry threshold.
+- **Improved dialog readability** — Reduced backdrop blur and opacity on question and permission dialogs so main-window content stays readable; dialogs are now draggable to reveal covered content.
 
 ## v0.5.15
 
-- **Standardized log file naming** — TypeScript sidecar logfile now matches the Rust sidecar format (`YYYY-MM-DD_HH-MM-SS_TS.log`) for consistent sorting and easier correlation
-- **New Starter Packs** - Add new start packs: **Data Visualization** and **Finance Analysis**
+- **Standardized log file naming** — The TypeScript sidecar log file now matches the Rust sidecar's filename format for consistent sorting and easier correlation.
+- **New Starter Packs** — Added Data Visualization and Finance Analysis starter packs.
 
 ## v0.5.14
 
-- **Add find-skills to Skills Catalog** - Helps users discover and install agent skills 
-- **Settings dialog layout** — Aligned Settings dialog width and padding with the Task Launcher for visual consistency across dialog surfaces
-- **Update Skills in Skill Catalog** - Sync the latest changes on skills: `skill-creator` and `brainstorming`
+- **Add find-skills to Skills Catalog** — Helps users discover and install agent skills.
+- **Settings dialog layout** — Aligned the Settings dialog width and padding with the Task Launcher for visual consistency across dialogs.
+- **Update skills in Skills Catalog** — Synced the latest changes to the `skill-creator` and `brainstorming` skills.
 
 ## v0.5.13
 
-- **Fix: Intermediate assistant messages not persisted** — Multi-step agent sessions now correctly save all intermediate assistant messages to the database
-- **Fix: Long-running task false failure** — Conversations running longer than 10 minutes no longer incorrectly show "Failed" status; the `sendMessage` HTTP call is now fire-and-forget since session lifecycle is managed entirely via SSE events
-- **Fix: Tool call card input/output** — Tool call cards now persist and display input and output correctly; tool messages update in-place as they transition from pending to completed; added skill tool display with icon
+- **Fix: Intermediate assistant messages not persisted** — Multi-step agent sessions now correctly save all intermediate assistant messages.
+- **Fix: Long-running task false failure** — Conversations running longer than 10 minutes no longer incorrectly show "Failed"; session lifecycle is now managed entirely through the event stream.
+- **Fix: Tool call card input/output** — Tool call cards now persist and display input and output correctly, update in place as they transition from pending to completed, and show a skill tool display with an icon.
 
 ## v0.5.12
 
-- **Fix: Stop button** — Stop button and Escape key now correctly abort running tasks
-- **Fix: Cross-task message leakage** — Messages from failed or stuck sessions no longer appear in newly started tasks
-- **Fix: Question reply stuck** — Answering agent question prompts no longer causes the task to hang
-- **Fix: Multi-select question dialog** — Fix display and handling of agent questions with multiple-choice answers
-- **Fix: Markdown table rendering** — Tables and other block-level markdown elements in agent responses now render correctly when not preceded by a blank line
-- **Update skills in Skill Catalog** - Sync from latest source repos
+- **Fix: Stop button** — The Stop button and Escape key now correctly abort running tasks.
+- **Fix: Cross-task message leakage** — Messages from failed or stuck sessions no longer appear in newly started tasks.
+- **Fix: Question reply stuck** — Answering an agent question prompt no longer causes the task to hang.
+- **Fix: Multi-select question dialog** — Fixed display and handling of agent questions with multiple-choice answers.
+- **Fix: Markdown table rendering** — Tables and other block-level markdown in agent responses now render correctly even when not preceded by a blank line.
+- **Update skills in Skills Catalog** — Synced from the latest source repos.
 
 ## v0.5.11 (2026-02-24)
 
-- **Fix: Streaming message duplication** — Multi-step agent turns no longer display as repeated message blocks; partial messages are now correctly finalized between steps
+- **Fix: Streaming message duplication** — Multi-step agent turns no longer display as repeated message blocks; partial messages are now finalized correctly between steps.
 
 ## v0.5.10 (2026-02-24)
 
-- **Fix: Handle pre-existing skills repo** — Re-adding a previously removed skill repository no longer fails
-- **New Skills in Skill Catalog** - Add new skills: `planning-with-files` and `skill-creator`
-- **Rename Conversations** — Right-click a conversation in the sidebar to rename it via inline editing
+- **Fix: Handle pre-existing skills repo** — Re-adding a previously removed skill repository no longer fails.
+- **New skills in Skills Catalog** — Added `planning-with-files` and `skill-creator`.
+- **Rename Conversations** — Right-click a conversation in the sidebar to rename it via inline editing.
 
 ## v0.5.9 (2026-02-22)
 
--  Fix image in About Dialog
+- Fixed the image in the About dialog.
 
 ## v0.5.8 (2026-02-22)
 
-- **GitHub Copilot Provider** — Added GitHub Copilot as a provider with OAuth device flow authentication
-- **Expanded Theme Library** — 12 themes (up from 6): replaced Classic Light with Sage Garden as default, added Amber Glow, Ocean Depths, Rose Quartz, Midnight Ember, Sandstone, and Slate Noir; improved color consistency across all themes
+- **GitHub Copilot Provider** — Added GitHub Copilot as a provider with OAuth device flow authentication.
+- **Expanded Theme Library** — 12 themes (up from 6): replaced Classic Light with Sage Garden as the default, added Amber Glow, Ocean Depths, Rose Quartz, Midnight Ember, Sandstone, and Slate Noir, and improved color consistency across all themes.
 
 ## v0.5.7 (2026-02-21)
 
-- **Skills Manager** — Dedicated window for managing Git-based skill repositories; register repos, browse discovered skills, and install/update/delete skills
-- **Fix:** Resolved server startup timeout on Windows
+- **Skills Manager** — A dedicated window for managing Git-based skill repositories: register repos, browse discovered skills, and install/update/delete skills.
+- **Fix:** Resolved server startup timeout on Windows.
 
 ## v0.5.6 (2026-02-20)
 
-- **About button in sidebar** — Added About button to sidebar for easier access on all platforms
-- **Simplified Chinese README** — Added full Simplified Chinese translation with language switcher links
-- **Fix:** Resolved port conflicts on Windows caused by reserved system port ranges
+- **About button in sidebar** — Added an About button to the sidebar for easier access on all platforms.
+- **Simplified Chinese README** — Added a full Simplified Chinese translation with language switcher links.
+- **Fix:** Resolved port conflicts on Windows caused by reserved system port ranges.
 
 ## v0.5.5 (2026-02-20)
 
-- **Keyboard Shortcuts Help** — Press `Shift+?` or use Help > Keyboard Shortcuts to view all shortcuts grouped by category
-- **View Skill** — Added "View" button to skill cards in the Skills Catalog to preview the full skill definition before installing
-- **Improved agent responses** — Assistant messages now display full content without truncation
+- **Keyboard Shortcuts Help** — Press `Shift+?` or use Help > Keyboard Shortcuts to view all shortcuts grouped by category.
+- **View Skill** — Added a "View" button to skill cards in the Skills Catalog to preview the full skill definition before installing.
+- **Improved agent responses** — Assistant messages now display full content without truncation.
 
 ## v0.5.4 (2026-02-19)
 
-- **Renamed sidebar "Tasks" to "Todos"** — The sidebar section showing agent progress items is now labeled "Todos" to avoid confusion with tasks/sessions
+- **Renamed sidebar "Tasks" to "Todos"** — The sidebar section showing agent progress items is now labeled "Todos" to avoid confusion with tasks/sessions.
 
 ## v0.5.3 (2026-02-19)
 
-- **Unified file click behavior** — File links in chat messages and artefact clicks now open the in-app preview panel; added "Open Externally" button to open files with the OS default application
-- **Slash Command Skills** — Type `/` at the start of the input to browse and select installed skills from an autocomplete popover; selected skills appear as a visual pill above the input
-- **New Themes: Nordic Light & Deep Space** — Two new themes: Nordic Light (Scandinavian-inspired light theme) and Deep Space (dark theme with blue-shifted backgrounds)
-- **Fix:** Code preview now uses the correct syntax highlighting for light and dark themes
-- **Fix:** JSON, YAML, TOML, and config files now open with syntax highlighting in the preview panel
+- **Unified file click behavior** — File links in chat messages and artefact clicks now open the in-app preview panel; added an "Open Externally" button to open files with the OS default application.
+- **Slash Command Skills** — Type `/` at the start of the input to browse and select installed skills from an autocomplete popover; selected skills appear as a visual pill above the input.
+- **New Themes: Nordic Light & Deep Space** — A Scandinavian-inspired light theme and a dark theme with blue-shifted backgrounds.
+- **Fix:** Code preview now uses the correct syntax highlighting for light and dark themes.
+- **Fix:** JSON, YAML, TOML, and config files now open with syntax highlighting in the preview panel.
 
 ## v0.5.2 (2026-02-18)
 
-- **Improved file path detection** — File paths in chat messages are now auto-detected on macOS, Linux, and Windows without requiring a `file://` prefix
-- **Install success toasts** — Starter pack and skill installations now show confirmation toasts
-- **Fix:** Starter Packs not found on Windows
-- Reduced spacing between chat message bubbles
+- **Improved file path detection** — File paths in chat messages are now auto-detected on macOS, Linux, and Windows without requiring a `file://` prefix.
+- **Install success toasts** — Starter pack and skill installations now show confirmation toasts.
+- **Fix:** Starter Packs not found on Windows.
+- Reduced spacing between chat message bubbles.
 
 ## v0.5.1
 
-- **Skills Catalog Reorganization** — Skill categories are now consistently named and organized
+- **Skills Catalog Reorganization** — Skill categories are now consistently named and organized.
 
 ## v0.5.0 (2026-02-17)
 
-- **Workspace-as-Folder** — Each workspace is tied to a folder that becomes the AI agent's working directory, scopes sessions, and provides a file tree browser in the sidebar
-- **File Preview Panel** — Resizable right-side panel for previewing code (syntax-highlighted), Markdown, images, video, PDF, HTML, and text files; fullscreen mode; "Add to Chat" button inserts a file reference into chat input
-- **Workspace Starter Packs** — Home screen features a "Starter Packs" browser with guided workspace packs; search/filter packs, install to any folder, and the app auto-creates a workspace and starts a task
-- **Skills Catalog** — Browsable Skills Catalog on the Home screen with category tabs, search, and install/re-install
+- **Workspace-as-Folder** — Each workspace is tied to a folder that becomes the AI agent's working directory, scopes sessions, and provides a file tree browser in the sidebar.
+- **File Preview Panel** — A resizable right-side panel for previewing code (syntax-highlighted), Markdown, images, video, PDF, HTML, and text files, with a fullscreen mode and an "Add to Chat" button that inserts a file reference into chat input.
+- **Workspace Starter Packs** — The Home screen features a "Starter Packs" browser with guided workspace packs; search and filter packs, install to any folder, and the app auto-creates a workspace and starts a task.
+- **Skills Catalog** — A browsable Skills Catalog on the Home screen with category tabs, search, and install/re-install.
 
 ## v0.4.5 (2026-02-17)
 
-- **Tool Call Display** — Tool-use messages now render as collapsible cards showing tool name and summary when collapsed, full details when expanded
-- **Question Handling** — The agent can now ask clarifying questions via a dedicated dialog during task execution
-- **Fix:** Tasks no longer fail while waiting for permission approval
-- **Fix:** Default folder permissions now correctly cover folder contents
-- **Fix:** Multiple concurrent permission requests are now handled properly
-- **Fix:** Tool call cards no longer overflow the chat width
+- **Tool Call Display** — Tool-use messages now render as collapsible cards showing the tool name and a summary when collapsed, and full details when expanded.
+- **Question Handling** — The agent can now ask clarifying questions via a dedicated dialog during task execution.
+- **Fix:** Tasks no longer fail while waiting for permission approval.
+- **Fix:** Default folder permissions now correctly cover folder contents.
+- **Fix:** Multiple concurrent permission requests are now handled properly.
+- **Fix:** Tool call cards no longer overflow the chat width.
 
 ## v0.4.4 (2026-02-16)
 
-- **Fix:** Streaming messages now display correctly in the chat UI
-- **Fix:** Log files are now written to the correct directory on Windows
+- **Fix:** Streaming messages now display correctly in the chat UI.
+- **Fix:** Log files are now written to the correct directory on Windows.
 
 ## v0.4.3 (2026-02-16)
 
-- **Fix:** OpenRouter provider now correctly uses the selected small model instead of falling back to a default
+- **Fix:** The OpenRouter provider now correctly uses the selected small model instead of falling back to a default.
 
 ## v0.4.2 (2026-02-15)
 
-- **OpenRouter Provider** — Added OpenRouter as a provider with dynamic model selection
-- **Dynamic Model Discovery** — Connecting to Anthropic, OpenAI, Google AI, xAI, or DeepSeek now fetches available models from the provider's API instead of using a hardcoded list
-- **Windows compatibility improvements** — Improved log directory handling, PATH resolution, and process management on Windows
+- **OpenRouter Provider** — Added OpenRouter as a provider with dynamic model selection.
+- **Dynamic Model Discovery** — Connecting to Anthropic, OpenAI, Google AI, xAI, or DeepSeek now fetches available models from the provider's API instead of using a hardcoded list.
+- **Windows compatibility improvements** — Improved log directory handling, PATH resolution, and process management on Windows.
 
 ## v0.4.1 (2026-02-13)
 
-- Security hardening for shell environment handling
-- **Fix:** App update downloads now resolve correctly
+- Security hardening for shell environment handling.
+- **Fix:** App update downloads now resolve correctly.
 
 ## v0.4.0 (2026-02-13)
 
-- **Agent Self-Introspection Skill** — Bundled skill giving the agent awareness of its own sessions, todos, skills, and MCP status
-- **Fix:** Export log functionality in debug panel
+- **Agent Self-Introspection Skill** — A bundled skill giving the agent awareness of its own sessions, todos, skills, and MCP status.
+- **Fix:** Export log functionality in the debug panel.
 
 ## v0.3.1 (2026-02-12)
 
-- **Fix:** Resolved app crash on macOS at startup
+- **Fix:** Resolved an app crash on macOS at startup.
 
 ## v0.3.0 (2026-02-12)
 
-- **Permission System** — Granular folder-level access controls (read / read-write); runtime permission prompts when the agent requests access outside approved directories; per-session grants that persist on session resume
-- **User Prompt Customization** — Define a custom system prompt in Settings to guide agent behavior on every message
-- **Agent Skill Support** — Auto-discovery of installed skills; clickable skills folder link in Settings
-- **MCP Server Support** — Configure local and remote MCP servers via Settings with per-server enable/disable toggle
-- **Rich File Display** — File paths in agent messages rendered as clickable links with icons; image and video thumbnails with in-app modal preview
-- **Rich URL Display** — URLs in agent messages rendered as clickable links that open in the default browser
-- **Task Todos Panel** — Sidebar panel showing the agent's task progress with status icons, progress bar, and auto-expand on new items
-- **Artefacts Panel** — Sidebar panel tracking all files the agent creates or modifies; click to open; restored on session resume
-- **Drag-and-Drop in Chat** — Drag files or folders from Finder/Explorer into the chat input to attach them
-- **Multi-Line Text Input** — Auto-resizing textarea with `Shift+Enter` for newlines and `Enter` to submit
-- **Theme Support** — Multiple predefined themes including dark mode; runtime switching without restart; follows OS preference by default
-- **Keyboard Shortcuts** — `Cmd+N` new task, `Cmd+,` settings, `Cmd+Enter` send message, `Escape` cancel task (platform-aware modifier keys)
-- **About Panel** — Version and changelog accessible via Help > About
-- **User Feedback** — In-app bug report and feature request buttons that open pre-filled GitHub Issues
-- **Cross-Platform Support** — macOS (ARM64 + x64), Windows (x64), and Linux (x64 + ARM64) builds
-- **Security** — API keys stored in OS Keychain; server bound to localhost with per-launch authentication
-- **Missing CLI Detection** — Pre-flight check before task execution with install instructions if OpenCode CLI is not found
-- **App Update** — Automatic update check on startup with version info, release notes, and install options
+- **Permission System** — Granular folder-level access controls (read / read-write), runtime permission prompts when the agent requests access outside approved directories, and per-session grants that persist on session resume.
+- **User Prompt Customization** — Define a custom system prompt in Settings to guide agent behavior on every message.
+- **Agent Skill Support** — Auto-discovery of installed skills and a clickable skills folder link in Settings.
+- **MCP Server Support** — Configure local and remote MCP servers via Settings with a per-server enable/disable toggle.
+- **Rich File Display** — File paths in agent messages render as clickable links with icons; image and video thumbnails open in an in-app modal preview.
+- **Rich URL Display** — URLs in agent messages render as clickable links that open in the default browser.
+- **Task Todos Panel** — A sidebar panel showing the agent's task progress with status icons, a progress bar, and auto-expand on new items.
+- **Artefacts Panel** — A sidebar panel tracking all files the agent creates or modifies; click to open, restored on session resume.
+- **Drag-and-Drop in Chat** — Drag files or folders from Finder/Explorer into the chat input to attach them.
+- **Multi-Line Text Input** — An auto-resizing textarea with `Shift+Enter` for newlines and `Enter` to submit.
+- **Theme Support** — Multiple predefined themes including dark mode, with runtime switching (no restart) that follows OS preference by default.
+- **Keyboard Shortcuts** — `Cmd+N` new task, `Cmd+,` settings, `Cmd+Enter` send message, `Escape` cancel task (platform-aware modifier keys).
+- **About Panel** — Version and changelog accessible via Help > About.
+- **User Feedback** — In-app bug report and feature request buttons that open pre-filled GitHub Issues.
+- **Cross-Platform Support** — macOS (ARM64 + x64), Windows (x64), and Linux (x64 + ARM64) builds.
+- **Security** — API keys stored in the OS Keychain; the server is bound to localhost with per-launch authentication.
+- **Missing CLI Detection** — A pre-flight check before task execution with install instructions if the OpenCode CLI is not found.
+- **App Update** — Automatic update check on startup with version info, release notes, and install options.
 
 ## v0.2.0 (2026-02-06)
 
-- **Multi-Provider Support** — 13+ AI providers: Anthropic, OpenAI, Gemini, xAI, DeepSeek, Z.AI, AWS Bedrock, Azure AI Foundry, Ollama, OpenRouter, and LiteLLM; credentials stored in OS Keychain
-- **Session Management** — Task creation, session persistence, and session resumption with restored conversation context and permissions; task history in sidebar
-- **Settings** — Configurable provider/model selection, per-provider API keys, folder permissions, skills folder path, and debug mode
-- **Error Handling** — User-friendly error messages, inline tool execution errors with actionable context, and session restart on unrecoverable errors
+- **Multi-Provider Support** — 13+ AI providers: Anthropic, OpenAI, Gemini, xAI, DeepSeek, Z.AI, AWS Bedrock, Azure AI Foundry, Ollama, OpenRouter, and LiteLLM; credentials stored in the OS Keychain.
+- **Session Management** — Task creation, session persistence, and session resumption with restored conversation context and permissions; task history in the sidebar.
+- **Settings** — Configurable provider/model selection, per-provider API keys, folder permissions, skills folder path, and debug mode.
+- **Error Handling** — User-friendly error messages, inline tool execution errors with actionable context, and session restart on unrecoverable errors.
 
 ## v0.1.0 (2026-02-01)
 
-- Initial release — Tauri desktop app with OpenCode AI agent integration
+- Initial release — Tauri desktop app with OpenCode AI agent integration.

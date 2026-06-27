@@ -255,6 +255,14 @@ export default function ExecutionPage() {
     }
   }, [canFollowUp]);
 
+  const scrollToBottomNow = useCallback(() => {
+    setIsAtBottom(true);
+    requestAnimationFrame(() => {
+      const container = scrollContainerRef.current;
+      if (container) container.scrollTop = container.scrollHeight;
+    });
+  }, []);
+
   const handleFollowUp = async (message: string) => {
     const isE2EMode = await api.isE2EMode();
     if (!isE2EMode) {
@@ -266,6 +274,7 @@ export default function ExecutionPage() {
       }
     }
     await sendFollowUp(message);
+    scrollToBottomNow();
   };
 
   const handleContinue = async () => {
@@ -279,6 +288,7 @@ export default function ExecutionPage() {
       }
     }
     await sendFollowUp('continue');
+    scrollToBottomNow();
   };
 
   // Chat-scoped keyboard shortcuts
@@ -310,6 +320,7 @@ export default function ExecutionPage() {
     if (pendingFollowUp) {
       await sendFollowUp(pendingFollowUp);
       setPendingFollowUp(null);
+      scrollToBottomNow();
     }
   };
 

@@ -106,6 +106,14 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
+      # Tauri's bundle_dmg.sh calls `hdiutil create`, which races with Spotlight
+      # (mds) indexing on GitHub macOS runners and fails fast with "Resource
+      # busy" — the inlined create-dmg retries detach but not create. Disabling
+      # indexing for the job stabilises DMG creation. See tauri-apps/tauri#592.
+      - name: Disable Spotlight indexing (macOS only)
+        if: startsWith(matrix.platform, 'macos')
+        run: sudo mdutil -a -i off || true
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -125,4 +133,6 @@ jobs:
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
+          # --verbose surfaces bundle_dmg.sh / hdiutil output on macOS, which
+          # Tauri otherwise swallows, so DMG failures are diagnosable in CI logs.
+          args: ${{ matrix.args }}${{ startsWith(matrix.platform, 'macos') && ' --verbose' || '' }}

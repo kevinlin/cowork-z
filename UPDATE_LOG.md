@@ -4,7 +4,7 @@
 
 ## v0.8.2
 
-- **Fix macOS release build failure on the new `macos-26` runner** — GitHub migrated the `macos-latest` label to macOS 26 (Tahoe) on 2026-06-15, where Tauri's `bundle_dmg.sh` fails during DMG packaging (an `hdiutil`/`create-dmg` race on freshly-provisioned runners). Pinned the macOS matrix entries to `macos-15` (the previous known-good image) and switched the macOS step conditionals from `matrix.platform == 'macos-latest'` to `startsWith(matrix.platform, 'macos')` so they keep matching the pinned runner.
+- **Fix macOS release DMG bundling failure in CI** — After GitHub migrated the `macos-latest` label to macOS 26 (Tahoe) on 2026-06-15, the release build started failing during DMG packaging on both the arm64 and x64 jobs; the app still built, signed, and notarized correctly — only Tauri's `bundle_dmg.sh` step broke. Pinned the macOS matrix entries to `macos-15` and switched the macOS step conditionals from `matrix.platform == 'macos-latest'` to `startsWith(matrix.platform, 'macos')`; added a macOS pre-build step that disables Spotlight indexing (`mdutil -a -i off`) to remove the indexing contention; and added `--verbose` to the macOS build args so any residual `hdiutil` error surfaces in CI logs (Tauri otherwise swallows the script output).
 
 ## v0.8.1
 

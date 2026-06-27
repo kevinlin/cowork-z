@@ -37,7 +37,7 @@ chrono = { version = "0.4", features = ["serde"] }
 dirs = "5.0"
 
 # Secure storage (OS Keychain)
-keyring = "2"
+keyring = "3"
 
 # Base64 encoding for binary file preview
 base64 = "0.22"

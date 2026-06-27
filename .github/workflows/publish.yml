@@ -14,9 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
+          - platform: 'macos-15' # for Arm based macs (M1 and above).
             args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
+          - platform: 'macos-15' # for Intel based macs.
             args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-24.04'
             args: ''
@@ -49,7 +49,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ startsWith(matrix.platform, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -64,12 +64,12 @@ jobs:
         working-directory: src-tauri/sidecar-opencode
 
       - name: Build sidecar binary (macOS ARM64)
-        if: matrix.platform == 'macos-latest' && contains(matrix.args, 'aarch64')
+        if: startsWith(matrix.platform, 'macos') && contains(matrix.args, 'aarch64')
         run: pnpm build:binary
         working-directory: src-tauri/sidecar-opencode
 
       - name: Build sidecar binary (macOS x64)
-        if: matrix.platform == 'macos-latest' && contains(matrix.args, 'x86_64')
+        if: startsWith(matrix.platform, 'macos') && contains(matrix.args, 'x86_64')
         run: pnpm build:binary:x64
         working-directory: src-tauri/sidecar-opencode
 
@@ -90,7 +90,7 @@ jobs:
 
       # macOS: import cert into a temporary keychain (avoids codesign prompts)
       - name: Import Apple certificate
-        if: matrix.platform == 'macos-latest'
+        if: startsWith(matrix.platform, 'macos')
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}

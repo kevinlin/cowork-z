@@ -4,7 +4,7 @@
 
 ## v0.8.2
 
-- 
+- **Fix macOS release build failure on the new `macos-26` runner** — GitHub migrated the `macos-latest` label to macOS 26 (Tahoe) on 2026-06-15, where Tauri's `bundle_dmg.sh` fails during DMG packaging (an `hdiutil`/`create-dmg` race on freshly-provisioned runners). Pinned the macOS matrix entries to `macos-15` (the previous known-good image) and switched the macOS step conditionals from `matrix.platform == 'macos-latest'` to `startsWith(matrix.platform, 'macos')` so they keep matching the pinned runner.
 
 ## v0.8.1
 

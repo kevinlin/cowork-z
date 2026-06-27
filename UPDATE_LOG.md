@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.8.2
+
+- 
+
 ## v0.8.1
 
 - **Address findings from the 2026-06-12 technical review** — A second pass of security hardening, reliability fixes, and performance improvements across the app:

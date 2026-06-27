@@ -12,6 +12,10 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
+      # Each matrix leg uploads to the same draft release and updates the same
+      # latest.json asset. Keep them sequential so tauri-action can merge
+      # updater metadata without racing another job's delete/re-upload cycle.
+      max-parallel: 1
       matrix:
         include:
           - platform: 'macos-15' # for Arm based macs (M1 and above).

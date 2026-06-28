@@ -4,7 +4,7 @@
 
 ## v0.8.3
 
-- 
+- **Fix: Chat does not autoscroll when sending a follow-up after scrolling up** — When a user scrolled up to re-read earlier messages and then sent a follow-up, the chat stayed at the scrolled position instead of snapping to the bottom; the streaming autoscroll effect was also suppressed because the scroll position was no longer at the bottom. All three send paths (follow-up message, continue, and post-API-key-save pending follow-up) now immediately reset the scroll position to the bottom before streaming begins.
 
 ## v0.8.2 (2026-06-27)
 

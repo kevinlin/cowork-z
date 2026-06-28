@@ -92,6 +92,17 @@ export default function ExecutionPage() {
     setIsAtBottom(atBottom);
   }, []);
 
+  // Re-enable autoscroll and snap to bottom immediately (e.g. after sending a follow-up)
+  const scrollToBottomNow = useCallback(() => {
+    setIsAtBottom(true);
+    requestAnimationFrame(() => {
+      const container = scrollContainerRef.current;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    });
+  }, []);
+
   // Load debug mode setting on mount and subscribe to changes
   useEffect(() => {
     api.getDebugMode().then(setDebugModeEnabled).catch(console.error);
@@ -266,6 +277,7 @@ export default function ExecutionPage() {
       }
     }
     await sendFollowUp(message);
+    scrollToBottomNow();
   };
 
   const handleContinue = async () => {
@@ -279,6 +291,7 @@ export default function ExecutionPage() {
       }
     }
     await sendFollowUp('continue');
+    scrollToBottomNow();
   };
 
   // Chat-scoped keyboard shortcuts
@@ -310,6 +323,7 @@ export default function ExecutionPage() {
     if (pendingFollowUp) {
       await sendFollowUp(pendingFollowUp);
       setPendingFollowUp(null);
+      scrollToBottomNow();
     }
   };
 

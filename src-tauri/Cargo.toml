@@ -47,7 +47,7 @@ notify = "7"
 notify-debouncer-mini = "0.5"
 
 # HTTP client for provider validation
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 
 # Move files to system trash
 trash = "5"

@@ -118,7 +118,7 @@ jobs:
         if: startsWith(matrix.platform, 'macos')
         run: sudo mdutil -a -i off || true
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Tauri updater signing

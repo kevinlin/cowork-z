@@ -3,7 +3,7 @@
 Comprehensive architecture documentation for Cowork-Z, a local-first desktop AI agent built with Tauri 2.x.
 
 **Version:** 0.4.0
-**Last Updated:** 2026-07-03
+**Last Updated:** 2026-07-05
 
 ---
 
@@ -24,59 +24,9 @@ Comprehensive architecture documentation for Cowork-Z, a local-first desktop AI 
 
 Cowork-Z is a local-first desktop application that provides a sandboxed environment for autonomous AI agents. It runs entirely on the user's machine, with no cloud services beyond the AI provider APIs themselves. The system is a Tauri 2.x multi-process architecture: the React frontend talks to the Rust backend over Tauri IPC, the Rust backend manages a Node.js sidecar over stdin/stdout JSON-line, and the sidecar drives an `opencode serve` instance over HTTP/SSE.
 
-<div style="width: 1200px; box-sizing: border-box; position: relative; background: #fafbff; padding: 20px; border-radius: 10px;">
-  <style scoped>
-    .arch-wrapper { display: flex; gap: 12px; }.arch-sidebar { width: 165px; flex-shrink: 0; }.arch-main { flex: 1; min-width: 0; }.arch-title { text-align: center; font-size: 22px; font-weight: bold; color: #1e293b; margin-bottom: 4px; }.arch-subtitle { text-align: center; font-size: 11px; color: #64748b; margin-bottom: 14px; }
-    .arch-layer { margin: 8px 0; padding: 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); }.arch-layer-title { font-size: 13px; font-weight: bold; margin-bottom: 10px; text-align: center; }
-    .arch-grid { display: grid; gap: 8px; }.arch-grid-2 { grid-template-columns: repeat(2, 1fr); }.arch-grid-3 { grid-template-columns: repeat(3, 1fr); }.arch-grid-4 { grid-template-columns: repeat(4, 1fr); }.arch-grid-5 { grid-template-columns: repeat(5, 1fr); }.arch-grid-6 { grid-template-columns: repeat(6, 1fr); }
-    .arch-box { border-radius: 6px; padding: 8px; text-align: center; font-size: 11px; font-weight: 600; line-height: 1.35; color: #1e293b; background: #ffffff; border: 1px solid #e2e8f0; }.arch-box.highlight { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 2px solid #2563eb; }.arch-box.tech { font-size: 10px; color: #475569; background: #f8fafc; }
-    .arch-layer.external { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 2px dashed #94a3b8; }.arch-layer.external .arch-layer-title { color: #64748b; }.arch-layer.user { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 2px solid #3b82f6; }.arch-layer.user .arch-layer-title { color: #1e40af; }.arch-layer.application { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 2px solid #eab308; }.arch-layer.application .arch-layer-title { color: #854d0e; }.arch-layer.ai { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border: 2px solid #22c55e; }.arch-layer.ai .arch-layer-title { color: #15803d; }.arch-layer.data { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); border: 2px solid #ec4899; }.arch-layer.data .arch-layer-title { color: #9d174d; }.arch-layer.infra { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border: 2px solid #6366f1; }.arch-layer.infra .arch-layer-title { color: #4338ca; }
-    .arch-sidebar-panel { border-radius: 8px; padding: 10px; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border: 1px solid #9ca3af; margin-bottom: 8px; }.arch-sidebar-title { font-size: 12px; font-weight: bold; text-align: center; color: #1e293b; margin-bottom: 6px; }.arch-sidebar-item { font-size: 10px; text-align: center; color: #374151; background: #ffffff; padding: 5px; border-radius: 5px; margin: 3px 0; border: 1px solid #e5e7eb; }.arch-sidebar-item.metric { background: #dbeafe; border: 1px solid #3b82f6; color: #1e40af; font-weight: 600; }
-    .arch-subgroup-box { border-radius: 6px; padding: 8px; background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(0, 0, 0, 0.08); margin: 6px 0; }.arch-subgroup-title { font-size: 10px; font-weight: bold; color: #374151; text-align: center; margin-bottom: 6px; }
-    .arch-flow { text-align: center; font-size: 10px; font-weight: 600; color: #64748b; margin: 2px 0; }
-  </style>
-  <div class="arch-title">Cowork-Z — System Architecture</div>
-  <div class="arch-subtitle">Tauri 2.x desktop app · sandboxed autonomous AI agents · OpenCode SDK integration</div>
-  <div class="arch-wrapper">
-    <div class="arch-sidebar">
-      <div class="arch-sidebar-panel"><div class="arch-sidebar-title">App Startup</div><div class="arch-sidebar-item">Skill deploy → ~/.config/opencode/skills</div><div class="arch-sidebar-item">Repo sync (git pull / shallow clone)</div><div class="arch-sidebar-item">Sidecar binary build (beforeDevCommand)</div></div>
-      <div class="arch-sidebar-panel"><div class="arch-sidebar-title">Runtime Events</div><div class="arch-sidebar-item">task:* (started, permission, question, todo)</div><div class="arch-sidebar-item">skills:changed / sync_progress</div><div class="arch-sidebar-item">workspace:fs_changed (300ms debounce)</div><div class="arch-sidebar-item">copilot:oauth_result</div></div>
-      <div class="arch-sidebar-panel"><div class="arch-sidebar-title">Dev Tooling</div><div class="arch-sidebar-item">pnpm tauri dev</div><div class="arch-sidebar-item">Vite 7 HMR · port 1420</div><div class="arch-sidebar-item">tsc + cargo check</div><div class="arch-sidebar-item">Ultracite (Biome)</div></div>
-      <div class="arch-sidebar-panel"><div class="arch-sidebar-title">Testing</div><div class="arch-sidebar-item">Vitest (jsdom)</div><div class="arch-sidebar-item">Jest (sidecar)</div><div class="arch-sidebar-item">cargo test</div></div>
-    </div>
-    <div class="arch-main">
-      <div class="arch-layer user">
-        <div class="arch-layer-title">Frontend — WebView (React 19 · TypeScript 5.8)</div>
-        <div class="arch-grid arch-grid-3"><div class="arch-box">Home.tsx<br><small>Task launcher — /</small></div><div class="arch-box">Execution.tsx<br><small>Task chat — /execution/:id</small></div><div class="arch-box">Skills Manager<br><small>Separate window — /#/skills</small></div><div class="arch-box tech">Zustand stores<br><small>taskStore · workspaceStore · filePreviewStore · skillsStore</small></div><div class="arch-box tech">UI Components<br><small>Radix UI + shadcn/ui · Tailwind CSS 3.4</small></div><div class="arch-box highlight">tauri-api.ts<br><small>Frontend ↔ Rust contract (invoke / listen)</small></div></div>
-      </div>
-      <div class="arch-flow">⇅ Tauri IPC — invoke() commands / emitted events</div>
-      <div class="arch-layer application">
-        <div class="arch-layer-title">Backend — Tauri Rust Core (src-tauri)</div>
-        <div class="arch-grid arch-grid-3"><div class="arch-box">lib.rs<br><small>Entry point · plugins · menu · command registry</small></div><div class="arch-box">commands/<br><small>Handlers by domain: tasks, settings, skills, workspaces…</small></div><div class="arch-box highlight">sidecar.rs<br><small>Process lifecycle · IPC serialization · event routing</small></div><div class="arch-box tech">db/<br><small>SQLite persistence · migrations</small></div><div class="arch-box tech">fs_watcher.rs · git_ops.rs<br><small>FS watch · repo clone/pull</small></div><div class="arch-box tech">secure_storage.rs · workspace_validator.rs<br><small>Keychain wrapper · path validation</small></div></div>
-      </div>
-      <div class="arch-flow">⇅ stdin/stdout JSON-line — SidecarCommand ↓ · SidecarEvent ↑ (snake_case)</div>
-      <div class="arch-layer ai">
-        <div class="arch-layer-title">Agent Runtime — Sidecar + OpenCode Server</div>
-        <div class="arch-subgroup-box"><div class="arch-subgroup-title">Node.js Sidecar (CommonJS · pkg standalone binary)</div><div class="arch-grid arch-grid-4"><div class="arch-box">session-manager.ts<br><small>Session lifecycle</small></div><div class="arch-box">opencode-client.ts<br><small>REST client</small></div><div class="arch-box">event-stream.ts<br><small>SSE client</small></div><div class="arch-box highlight">types.ts<br><small>IPC protocol source of truth</small></div></div></div>
-        <div class="arch-flow">⇅ HTTP REST + SSE — basic auth opencode:&lt;password&gt; · ephemeral port</div>
-        <div class="arch-subgroup-box"><div class="arch-subgroup-title">opencode serve (spawned child process)</div><div class="arch-grid arch-grid-4"><div class="arch-box tech">GET /event<br><small>SSE · ?directory=workspace</small></div><div class="arch-box tech">POST /session/{id}/message<br><small>System prompt injected per call</small></div><div class="arch-box tech">permission / question reply<br><small>POST …/reply</small></div><div class="arch-box tech">PATCH /config<br><small>MCP config updates</small></div></div></div>
-      </div>
-      <div class="arch-layer data">
-        <div class="arch-layer-title">Data &amp; Storage</div>
-        <div class="arch-grid arch-grid-4"><div class="arch-box">SQLite<br><small>rusqlite · WAL · cowork.db / cowork-dev.db</small></div><div class="arch-box highlight">OS Keychain<br><small>keyring crate · provider API keys</small></div><div class="arch-box tech">OPENCODE_DATA_DIR<br><small>opencode.json · config.json</small></div><div class="arch-box tech">Bundled resources/<br><small>Skills · skill templates · workspace packs</small></div></div>
-      </div>
-      <div class="arch-layer external">
-        <div class="arch-layer-title">External Services</div>
-        <div class="arch-grid arch-grid-4"><div class="arch-box tech">AI Providers<br><small>Anthropic · OpenAI · Google · Bedrock · Azure Foundry · OpenRouter · Ollama · LiteLLM</small></div><div class="arch-box tech">GitHub Copilot<br><small>OAuth device flow</small></div><div class="arch-box tech">Skill Repos<br><small>git clone --depth 1 / pull</small></div><div class="arch-box tech">OpenCode CLI<br><small>npm i -g opencode-ai (prerequisite)</small></div></div>
-      </div>
-    </div>
-    <div class="arch-sidebar">
-      <div class="arch-sidebar-panel"><div class="arch-sidebar-title">Security</div><div class="arch-sidebar-item metric">API keys in OS Keychain</div><div class="arch-sidebar-item metric">Random server password per launch</div><div class="arch-sidebar-item">Capabilities: default · desktop · skills</div><div class="arch-sidebar-item">Workspace path validation</div><div class="arch-sidebar-item">apiKeysFingerprint (no key material in IPC)</div></div>
-      <div class="arch-sidebar-panel"><div class="arch-sidebar-title">IPC Protocol</div><div class="arch-sidebar-item">SidecarCommand ↓ start_task, resume_session, abort_session…</div><div class="arch-sidebar-item">SidecarEvent ↑ task_message, permission_request, todo_updated…</div><div class="arch-sidebar-item">request_api_keys ↔ api_keys_response</div></div>
-      <div class="arch-sidebar-panel"><div class="arch-sidebar-title">Platform</div><div class="arch-sidebar-item">macOS ARM64 / x64</div><div class="arch-sidebar-item">Windows x64 (WinNAT port checks)</div><div class="arch-sidebar-item">Linux x64 / ARM64</div><div class="arch-sidebar-item">Login-shell PATH merge (GUI launch)</div></div>
-    </div>
-  </div>
-</div>
+![Cowork-Z System Architecture — layered diagram: React frontend WebView, Tauri Rust core, Node.js sidecar with opencode serve, data & storage, and external services](assets/system-architecture.png)
+
+> Source: [system-architecture.html](assets/system-architecture.html) — rendered in the `frost-clean` style.
 
 ### Reading the Diagram
 
@@ -95,43 +45,9 @@ The frontend is a React 19 + TypeScript single-page app rendered in the system W
 
 ### Frontend Architecture Diagram
 
-<div style="width: 1200px; box-sizing: border-box; position: relative; background: #fafbff; padding: 20px; border-radius: 10px;">
-  <style scoped>
-    .arch-main { min-width: 0; }.arch-title { text-align: center; font-size: 22px; font-weight: bold; color: #1e293b; margin-bottom: 4px; }.arch-subtitle { text-align: center; font-size: 11px; color: #64748b; margin-bottom: 14px; }
-    .arch-layer { margin: 8px 0; padding: 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); }.arch-layer-title { font-size: 13px; font-weight: bold; margin-bottom: 10px; text-align: center; }
-    .arch-grid { display: grid; gap: 8px; }.arch-grid-2 { grid-template-columns: repeat(2, 1fr); }.arch-grid-3 { grid-template-columns: repeat(3, 1fr); }.arch-grid-4 { grid-template-columns: repeat(4, 1fr); }.arch-grid-5 { grid-template-columns: repeat(5, 1fr); }.arch-grid-6 { grid-template-columns: repeat(6, 1fr); }
-    .arch-box { border-radius: 6px; padding: 8px; text-align: center; font-size: 11px; font-weight: 600; line-height: 1.35; color: #1e293b; background: #ffffff; border: 1px solid #e2e8f0; }.arch-box.highlight { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 2px solid #2563eb; }.arch-box.tech { font-size: 10px; color: #475569; background: #f8fafc; }
-    .arch-layer.external { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 2px dashed #94a3b8; }.arch-layer.external .arch-layer-title { color: #64748b; }.arch-layer.user { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 2px solid #3b82f6; }.arch-layer.user .arch-layer-title { color: #1e40af; }.arch-layer.application { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 2px solid #eab308; }.arch-layer.application .arch-layer-title { color: #854d0e; }.arch-layer.ai { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border: 2px solid #22c55e; }.arch-layer.ai .arch-layer-title { color: #15803d; }.arch-layer.infra { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border: 2px solid #6366f1; }.arch-layer.infra .arch-layer-title { color: #4338ca; }
-    .arch-subgroup-box { border-radius: 6px; padding: 8px; background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(0, 0, 0, 0.08); margin: 6px 0; }.arch-subgroup-title { font-size: 10px; font-weight: bold; color: #374151; text-align: center; margin-bottom: 6px; }
-    .arch-flow { text-align: center; font-size: 10px; font-weight: 600; color: #64748b; margin: 2px 0; }
-  </style>
-  <div class="arch-title">Cowork-Z — Frontend Architecture</div>
-  <div class="arch-subtitle">React 19 · TypeScript 5.8 · Vite 7 · Zustand 5 · rendered in the Tauri WebView</div>
-  <div class="arch-main">
-    <div class="arch-layer user">
-      <div class="arch-layer-title">Pages &amp; Windows (react-router-dom · HashRouter)</div>
-      <div class="arch-grid arch-grid-5"><div class="arch-box">App.tsx<br><small>Root: routes · shortcuts · theme · dialogs</small></div><div class="arch-box">Home.tsx<br><small>Task launcher — /</small></div><div class="arch-box">Execution.tsx<br><small>Task chat — /execution/:id</small></div><div class="arch-box">Arena.tsx<br><small>Model arena — /arena/:arenaId</small></div><div class="arch-box">SkillsManager.tsx<br><small>Separate window — /skills</small></div></div>
-    </div>
-    <div class="arch-layer application">
-      <div class="arch-layer-title">Component Library (Radix UI + shadcn/ui · Tailwind CSS 3.4)</div>
-      <div class="arch-grid arch-grid-4"><div class="arch-box">layout/<br><small>Sidebar · SettingsDialog · About / Update dialogs</small></div><div class="arch-box">chat/<br><small>Message list · tool call cards · streaming UI</small></div><div class="arch-box">sidebar/<br><small>FileTree · Todo · Artifacts · Folder panels</small></div><div class="arch-box">landing/<br><small>TaskInputBar · drag-drop integration</small></div><div class="arch-box">settings/<br><small>Provider forms · MCP JSON editor</small></div><div class="arch-box">file-preview/<br><small>Code · Markdown · Media preview</small></div><div class="arch-box">skills-manager/<br><small>Repo management · skill grid</small></div><div class="arch-box">markdown/ · media/<br><small>Rich rendering · thumbnails</small></div><div class="arch-box">TaskLauncher/<br><small>Cmd+K command palette</small></div><div class="arch-box">arena/<br><small>Model comparison UI</small></div><div class="arch-box tech">ui/<br><small>Radix + shadcn/ui primitives</small></div></div>
-    </div>
-    <div class="arch-layer ai">
-      <div class="arch-layer-title">State &amp; Hooks</div>
-      <div class="arch-subgroup-box"><div class="arch-subgroup-title">Zustand Stores (src/stores)</div><div class="arch-grid arch-grid-4"><div class="arch-box highlight">taskStore<br><small>Tasks · permissions · questions · todos · UI state</small></div><div class="arch-box">workspaceStore<br><small>Workspace list · active workspace</small></div><div class="arch-box">filePreviewStore<br><small>Preview panel · fullscreen</small></div><div class="arch-box">skillsStore<br><small>Installed skills · autocomplete</small></div><div class="arch-box">skillsManagerStore<br><small>Repos · repo skills · target folder</small></div><div class="arch-box">arenaStore<br><small>Arena sessions · results</small></div><div class="arch-box">automationStore<br><small>Scheduled automations</small></div></div></div>
-      <div class="arch-subgroup-box"><div class="arch-subgroup-title">Hooks (src/hooks)</div><div class="arch-grid arch-grid-3"><div class="arch-box tech">useKeyboardShortcuts<br><small>Cmd+, · Cmd+N · Cmd+K · Cmd+Enter · Esc</small></div><div class="arch-box tech">useTheme<br><small>Theme persistence · OS dark mode</small></div><div class="arch-box tech">useAppUpdate<br><small>Auto-update lifecycle</small></div><div class="arch-box tech">useFileTree<br><small>Lazy-loading workspace tree</small></div><div class="arch-box tech">useSkillAutocomplete<br><small>Slash-command skills</small></div><div class="arch-box tech">useMcpRuntime<br><small>MCP runtime status</small></div></div></div>
-    </div>
-    <div class="arch-layer infra">
-      <div class="arch-layer-title">API Bridge &amp; Shared</div>
-      <div class="arch-grid arch-grid-4"><div class="arch-box highlight">tauri-api.ts<br><small>All invoke() / listen() calls — frontend ↔ Rust contract</small></div><div class="arch-box">tauri-api-interface.ts<br><small>TauriAPI abstraction</small></div><div class="arch-box tech">shared/types<br><small>task · workspace · provider · permission · opencode</small></div><div class="arch-box tech">lib/ utilities<br><small>animations · themes · analytics · file utils</small></div></div>
-    </div>
-    <div class="arch-flow">⇅ Tauri IPC — invoke() commands / listen() events</div>
-    <div class="arch-layer external">
-      <div class="arch-layer-title">Tauri Rust Backend (native process)</div>
-      <div class="arch-grid arch-grid-3"><div class="arch-box tech">commands/<br><small>invoke() targets by domain</small></div><div class="arch-box tech">Emitted events<br><small>task:* · skills:* · workspace:* · copilot:*</small></div><div class="arch-box tech">Asset protocol<br><small>Local file preview</small></div></div>
-    </div>
-  </div>
-</div>
+![Cowork-Z Frontend Architecture — pages & windows, component library, Zustand stores & hooks, the API bridge, and the Rust backend boundary](assets/frontend-architecture.png)
+
+> Source: [frontend-architecture.html](assets/frontend-architecture.html) — rendered in the `frost-clean` style.
 
 ### Frontend Structure
 
@@ -215,43 +131,9 @@ The backend spans two processes: the **Tauri Rust core** (native process — com
 
 ### Backend Architecture Diagram
 
-<div style="width: 1200px; box-sizing: border-box; position: relative; background: #fafbff; padding: 20px; border-radius: 10px;">
-  <style scoped>
-    .arch-main { min-width: 0; }.arch-title { text-align: center; font-size: 22px; font-weight: bold; color: #1e293b; margin-bottom: 4px; }.arch-subtitle { text-align: center; font-size: 11px; color: #64748b; margin-bottom: 14px; }
-    .arch-layer { margin: 8px 0; padding: 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); }.arch-layer-title { font-size: 13px; font-weight: bold; margin-bottom: 10px; text-align: center; }
-    .arch-grid { display: grid; gap: 8px; }.arch-grid-2 { grid-template-columns: repeat(2, 1fr); }.arch-grid-3 { grid-template-columns: repeat(3, 1fr); }.arch-grid-4 { grid-template-columns: repeat(4, 1fr); }.arch-grid-5 { grid-template-columns: repeat(5, 1fr); }.arch-grid-6 { grid-template-columns: repeat(6, 1fr); }
-    .arch-box { border-radius: 6px; padding: 8px; text-align: center; font-size: 11px; font-weight: 600; line-height: 1.35; color: #1e293b; background: #ffffff; border: 1px solid #e2e8f0; }.arch-box.highlight { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 2px solid #2563eb; }.arch-box.tech { font-size: 10px; color: #475569; background: #f8fafc; }
-    .arch-layer.external { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 2px dashed #94a3b8; }.arch-layer.external .arch-layer-title { color: #64748b; }.arch-layer.user { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 2px solid #3b82f6; }.arch-layer.user .arch-layer-title { color: #1e40af; }.arch-layer.application { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 2px solid #eab308; }.arch-layer.application .arch-layer-title { color: #854d0e; }.arch-layer.ai { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border: 2px solid #22c55e; }.arch-layer.ai .arch-layer-title { color: #15803d; }.arch-layer.data { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); border: 2px solid #ec4899; }.arch-layer.data .arch-layer-title { color: #9d174d; }
-    .arch-flow { text-align: center; font-size: 10px; font-weight: 600; color: #64748b; margin: 2px 0; }
-  </style>
-  <div class="arch-title">Cowork-Z — Backend Architecture</div>
-  <div class="arch-subtitle">Tauri Rust core (native process) + Node.js sidecar (child process) · JSON-line IPC over stdin/stdout</div>
-  <div class="arch-main">
-    <div class="arch-flow">⇅ Tauri IPC — invoke() from React frontend / events emitted back</div>
-    <div class="arch-layer user">
-      <div class="arch-layer-title">Command Layer (src-tauri/src/commands — handlers by domain)</div>
-      <div class="arch-grid arch-grid-4"><div class="arch-box">Tasks &amp; Sessions<br><small>tasks.rs</small></div><div class="arch-box">Settings · Providers · Keys<br><small>settings.rs · providers.rs · api_keys.rs</small></div><div class="arch-box">Workspaces &amp; Files<br><small>workspaces.rs · files.rs · workspace_permissions.rs</small></div><div class="arch-box">Skills &amp; Packs<br><small>skills.rs · skill_repos.rs · packs.rs</small></div><div class="arch-box">Automations &amp; Arena<br><small>automations.rs · arena.rs</small></div><div class="arch-box">Provider Integrations<br><small>ollama · bedrock · azure_foundry · litellm · copilot</small></div><div class="arch-box">MCP &amp; OpenCode CLI<br><small>mcp.rs · opencode_cli.rs</small></div><div class="arch-box">App<br><small>updates.rs · app_info.rs · logging.rs</small></div></div>
-    </div>
-    <div class="arch-layer application">
-      <div class="arch-layer-title">Core Services (src-tauri/src)</div>
-      <div class="arch-grid arch-grid-4"><div class="arch-box">lib.rs<br><small>Entry point · plugins · menu · command registry</small></div><div class="arch-box highlight">sidecar.rs<br><small>Sidecar lifecycle · SidecarCommand enum · event routing</small></div><div class="arch-box">automation_scheduler.rs<br><small>+ automation_dispatch.rs — scheduled runs</small></div><div class="arch-box">fs_watcher.rs<br><small>300ms debounce → workspace:fs_changed</small></div><div class="arch-box">git_ops.rs · skill_discovery.rs<br><small>Repo clone/pull · SKILL.md scan</small></div><div class="arch-box">secure_storage.rs<br><small>OS Keychain (keyring crate)</small></div><div class="arch-box">workspace_validator.rs · path_guard.rs<br><small>Path validation · FS safety</small></div><div class="arch-box tech">types.rs · fs_utils.rs · lock_util.rs<br><small>Shared types · helpers</small></div></div>
-    </div>
-    <div class="arch-layer data">
-      <div class="arch-layer-title">Persistence (src-tauri/src/db)</div>
-      <div class="arch-grid arch-grid-4"><div class="arch-box highlight">SQLite<br><small>rusqlite · WAL · cowork.db / cowork-dev.db</small></div><div class="arch-box">Domain modules<br><small>tasks · settings · providers · workspaces · workspace_permissions · skill_repos · automations · arenas</small></div><div class="arch-box">migrations.rs<br><small>Versioned schema · auto-run on startup</small></div><div class="arch-box highlight">OS Keychain<br><small>com.kevinlin.cowork-z — API keys never in DB</small></div></div>
-    </div>
-    <div class="arch-flow">⇅ stdin/stdout JSON-line — SidecarCommand ↓ · SidecarEvent ↑ (defined in types.ts)</div>
-    <div class="arch-layer ai">
-      <div class="arch-layer-title">Node.js Sidecar (src-tauri/sidecar-opencode — CommonJS · pkg binary)</div>
-      <div class="arch-grid arch-grid-3"><div class="arch-box">index.ts<br><small>Entry point: stdin listener · command dispatch</small></div><div class="arch-box">command-queue.ts<br><small>Serializes inbound commands</small></div><div class="arch-box highlight">types.ts<br><small>IPC + OpenCode API types — source of truth</small></div><div class="arch-box">session-manager.ts<br><small>Session lifecycle · SSE event handling · sessionID → taskId</small></div><div class="arch-box">opencode-client.ts<br><small>REST client: session · message · permission · question · config</small></div><div class="arch-box">event-stream.ts<br><small>SSE client (eventsource) · auto-reconnect</small></div><div class="arch-box">config-builder.ts<br><small>OpenCode config · system prompts</small></div><div class="arch-box">process-manager.ts<br><small>Spawns opencode serve · port · password · PATH · health</small></div><div class="arch-box tech">redact.ts · logger.ts · paths.ts<br><small>Secret redaction · stderr logging · data dirs</small></div></div>
-    </div>
-    <div class="arch-flow">⇅ HTTP REST + SSE — basic auth opencode:&lt;password&gt; · 127.0.0.1 ephemeral port</div>
-    <div class="arch-layer external">
-      <div class="arch-layer-title">opencode serve (spawned child process)</div>
-      <div class="arch-grid arch-grid-4"><div class="arch-box tech">GET /event<br><small>SSE · ?directory=workspace</small></div><div class="arch-box tech">POST /session/{id}/message<br><small>System prompt injected per call</small></div><div class="arch-box tech">permission / question reply<br><small>POST …/reply</small></div><div class="arch-box tech">PATCH /config · GET /global/health<br><small>Config updates · health check</small></div></div>
-    </div>
-  </div>
-</div>
+![Cowork-Z Backend Architecture — command layer, core services, SQLite & keychain persistence, the Node.js sidecar, and the opencode serve process](assets/backend-architecture.png)
+
+> Source: [backend-architecture.html](assets/backend-architecture.html) — rendered in the `frost-clean` style.
 
 ### 3.1 Rust Backend Components
 

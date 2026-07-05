@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cowork-Z — Backend Architecture</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+  .arch-shot { display: inline-block; }
+  .arch-main { min-width: 0; }
+  .arch-title { text-align: center; font-size: 22px; font-weight: 600; color: #1f2937; margin-bottom: 4px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: -0.2px; }
+  .arch-subtitle { text-align: center; font-size: 11px; color: #6b7280; margin-bottom: 14px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  .arch-layer { margin: 8px 0; padding: 14px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); }
+  .arch-layer-title { font-size: 13px; font-weight: bold; margin-bottom: 10px; text-align: center; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  .arch-grid { display: grid; gap: 8px; }
+  .arch-grid-3 { grid-template-columns: repeat(3, 1fr); }.arch-grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .arch-box { border-radius: 4px; padding: 8px; text-align: center; font-size: 11px; font-weight: 600; line-height: 1.35; color: #1f2937; background: #ffffff; border: 1px solid #e5e7eb; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  .arch-box.tech { font-size: 10px; color: #6b7280; background: #f9fafb; font-family: ui-monospace, 'SF Mono', Menlo, 'Courier New', monospace; }
+  .arch-box small { font-family: ui-monospace, 'SF Mono', Menlo, 'Courier New', monospace; font-weight: 500; }
+  .arch-layer.external { background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border: 1px dashed #d1d5db; }.arch-layer.external .arch-layer-title { color: #6b7280; }
+  .arch-layer.user { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; }.arch-layer.user .arch-layer-title { color: #1d4ed8; }
+  .arch-layer.application { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #d97706; }.arch-layer.application .arch-layer-title { color: #92400e; }
+  .arch-layer.ai { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #16a34a; }.arch-layer.ai .arch-layer-title { color: #15803d; }
+  .arch-layer.data { background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); border: 2px solid #db2777; }.arch-layer.data .arch-layer-title { color: #9d174d; }
+  .arch-flow { text-align: center; font-size: 10px; font-weight: 600; color: #6b7280; margin: 2px 0; font-family: ui-monospace, 'SF Mono', Menlo, 'Courier New', monospace; }
+</style>
+</head>
+<body>
+<div class="arch-shot" style="width: 1200px; box-sizing: border-box; background: #fafbfc; padding: 20px; border-radius: 6px; border: 1px solid #e5e7eb;">
+  <div class="arch-title">Cowork-Z — Backend Architecture</div>
+  <div class="arch-subtitle">Tauri Rust core (native process) + Node.js sidecar (child process) · JSON-line IPC over stdin/stdout</div>
+  <div class="arch-main">
+    <div class="arch-flow">⇅ Tauri IPC — invoke() from React frontend / events emitted back</div>
+    <div class="arch-layer user">
+      <div class="arch-layer-title">Command Layer (src-tauri/src/commands — handlers by domain)</div>
+      <div class="arch-grid arch-grid-4"><div class="arch-box">Tasks &amp; Sessions<br><small>tasks.rs</small></div><div class="arch-box">Settings · Providers · Keys<br><small>settings.rs · providers.rs · api_keys.rs</small></div><div class="arch-box">Workspaces &amp; Files<br><small>workspaces.rs · files.rs · workspace_permissions.rs</small></div><div class="arch-box">Skills &amp; Packs<br><small>skills.rs · skill_repos.rs · packs.rs</small></div><div class="arch-box">Automations &amp; Arena<br><small>automations.rs · arena.rs</small></div><div class="arch-box">Provider Integrations<br><small>ollama · bedrock · azure_foundry · litellm · copilot</small></div><div class="arch-box">MCP &amp; OpenCode CLI<br><small>mcp.rs · opencode_cli.rs</small></div><div class="arch-box">App<br><small>updates.rs · app_info.rs · logging.rs</small></div></div>
+    </div>
+    <div class="arch-layer application">
+      <div class="arch-layer-title">Core Services (src-tauri/src)</div>
+      <div class="arch-grid arch-grid-4"><div class="arch-box">lib.rs<br><small>Entry point · plugins · menu · command registry</small></div><div class="arch-box">sidecar.rs<br><small>Sidecar lifecycle · SidecarCommand enum · event routing</small></div><div class="arch-box">automation_scheduler.rs<br><small>+ automation_dispatch.rs — scheduled runs</small></div><div class="arch-box">fs_watcher.rs<br><small>300ms debounce → workspace:fs_changed</small></div><div class="arch-box">git_ops.rs · skill_discovery.rs<br><small>Repo clone/pull · SKILL.md scan</small></div><div class="arch-box">secure_storage.rs<br><small>OS Keychain (keyring crate)</small></div><div class="arch-box">workspace_validator.rs · path_guard.rs<br><small>Path validation · FS safety</small></div><div class="arch-box tech">types.rs · fs_utils.rs · lock_util.rs<br><small>Shared types · helpers</small></div></div>
+    </div>
+    <div class="arch-layer data">
+      <div class="arch-layer-title">Persistence (src-tauri/src/db)</div>
+      <div class="arch-grid arch-grid-4"><div class="arch-box">SQLite<br><small>rusqlite · WAL · cowork.db / cowork-dev.db</small></div><div class="arch-box">Domain modules<br><small>tasks · settings · providers · workspaces · workspace_permissions · skill_repos · automations · arenas</small></div><div class="arch-box">migrations.rs<br><small>Versioned schema · auto-run on startup</small></div><div class="arch-box">OS Keychain<br><small>com.kevinlin.cowork-z — API keys never in DB</small></div></div>
+    </div>
+    <div class="arch-flow">⇅ stdin/stdout JSON-line — SidecarCommand ↓ · SidecarEvent ↑ (defined in types.ts)</div>
+    <div class="arch-layer ai">
+      <div class="arch-layer-title">Node.js Sidecar (src-tauri/sidecar-opencode — CommonJS · pkg binary)</div>
+      <div class="arch-grid arch-grid-3"><div class="arch-box">index.ts<br><small>Entry point: stdin listener · command dispatch</small></div><div class="arch-box">command-queue.ts<br><small>Serializes inbound commands</small></div><div class="arch-box">types.ts<br><small>IPC + OpenCode API types — source of truth</small></div><div class="arch-box">session-manager.ts<br><small>Session lifecycle · SSE event handling · sessionID → taskId</small></div><div class="arch-box">opencode-client.ts<br><small>REST client: session · message · permission · question · config</small></div><div class="arch-box">event-stream.ts<br><small>SSE client (eventsource) · auto-reconnect</small></div><div class="arch-box">config-builder.ts<br><small>OpenCode config · system prompts</small></div><div class="arch-box">process-manager.ts<br><small>Spawns opencode serve · port · password · PATH · health</small></div><div class="arch-box tech">redact.ts · logger.ts · paths.ts<br><small>Secret redaction · stderr logging · data dirs</small></div></div>
+    </div>
+    <div class="arch-flow">⇅ HTTP REST + SSE — basic auth opencode:&lt;password&gt; · 127.0.0.1 ephemeral port</div>
+    <div class="arch-layer external">
+      <div class="arch-layer-title">opencode serve (spawned child process)</div>
+      <div class="arch-grid arch-grid-4"><div class="arch-box tech">GET /event<br><small>SSE · ?directory=workspace</small></div><div class="arch-box tech">POST /session/{id}/message<br><small>System prompt injected per call</small></div><div class="arch-box tech">permission / question reply<br><small>POST …/reply</small></div><div class="arch-box tech">PATCH /config · GET /global/health<br><small>Config updates · health check</small></div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

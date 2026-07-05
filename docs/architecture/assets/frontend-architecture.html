@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cowork-Z — Frontend Architecture</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+  .arch-shot { display: inline-block; }
+  .arch-main { min-width: 0; }
+  .arch-title { text-align: center; font-size: 22px; font-weight: 600; color: #1f2937; margin-bottom: 4px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: -0.2px; }
+  .arch-subtitle { text-align: center; font-size: 11px; color: #6b7280; margin-bottom: 14px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  .arch-layer { margin: 8px 0; padding: 14px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); }
+  .arch-layer-title { font-size: 13px; font-weight: bold; margin-bottom: 10px; text-align: center; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  .arch-grid { display: grid; gap: 8px; }
+  .arch-grid-3 { grid-template-columns: repeat(3, 1fr); }.arch-grid-4 { grid-template-columns: repeat(4, 1fr); }.arch-grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .arch-box { border-radius: 4px; padding: 8px; text-align: center; font-size: 11px; font-weight: 600; line-height: 1.35; color: #1f2937; background: #ffffff; border: 1px solid #e5e7eb; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  .arch-box.tech { font-size: 10px; color: #6b7280; background: #f9fafb; font-family: ui-monospace, 'SF Mono', Menlo, 'Courier New', monospace; }
+  .arch-box small { font-family: ui-monospace, 'SF Mono', Menlo, 'Courier New', monospace; font-weight: 500; }
+  .arch-layer.external { background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border: 1px dashed #d1d5db; }.arch-layer.external .arch-layer-title { color: #6b7280; }
+  .arch-layer.user { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; }.arch-layer.user .arch-layer-title { color: #1d4ed8; }
+  .arch-layer.application { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #d97706; }.arch-layer.application .arch-layer-title { color: #92400e; }
+  .arch-layer.ai { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #16a34a; }.arch-layer.ai .arch-layer-title { color: #15803d; }
+  .arch-layer.infra { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border: 2px solid #6b7280; }.arch-layer.infra .arch-layer-title { color: #374151; }
+  .arch-subgroup-box { border-radius: 6px; padding: 8px; background: #ffffff; border: 1px solid #e5e7eb; margin: 6px 0; }
+  .arch-subgroup-title { font-size: 10px; font-weight: bold; color: #374151; text-align: center; margin-bottom: 6px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  .arch-flow { text-align: center; font-size: 10px; font-weight: 600; color: #6b7280; margin: 2px 0; font-family: ui-monospace, 'SF Mono', Menlo, 'Courier New', monospace; }
+</style>
+</head>
+<body>
+<div class="arch-shot" style="width: 1200px; box-sizing: border-box; background: #fafbfc; padding: 20px; border-radius: 6px; border: 1px solid #e5e7eb;">
+  <div class="arch-title">Cowork-Z — Frontend Architecture</div>
+  <div class="arch-subtitle">React 19 · TypeScript 5.8 · Vite 7 · Zustand 5 · rendered in the Tauri WebView</div>
+  <div class="arch-main">
+    <div class="arch-layer user">
+      <div class="arch-layer-title">Pages &amp; Windows (react-router-dom · HashRouter)</div>
+      <div class="arch-grid arch-grid-5"><div class="arch-box">App.tsx<br><small>Root: routes · shortcuts · theme · dialogs</small></div><div class="arch-box">Home.tsx<br><small>Task launcher — /</small></div><div class="arch-box">Execution.tsx<br><small>Task chat — /execution/:id</small></div><div class="arch-box">Arena.tsx<br><small>Model arena — /arena/:arenaId</small></div><div class="arch-box">SkillsManager.tsx<br><small>Separate window — /skills</small></div></div>
+    </div>
+    <div class="arch-layer application">
+      <div class="arch-layer-title">Component Library (Radix UI + shadcn/ui · Tailwind CSS 3.4)</div>
+      <div class="arch-grid arch-grid-4"><div class="arch-box">layout/<br><small>Sidebar · SettingsDialog · About / Update dialogs</small></div><div class="arch-box">chat/<br><small>Message list · tool call cards · streaming UI</small></div><div class="arch-box">sidebar/<br><small>FileTree · Todo · Artifacts · Folder panels</small></div><div class="arch-box">landing/<br><small>TaskInputBar · drag-drop integration</small></div><div class="arch-box">settings/<br><small>Provider forms · MCP JSON editor</small></div><div class="arch-box">file-preview/<br><small>Code · Markdown · Media preview</small></div><div class="arch-box">skills-manager/<br><small>Repo management · skill grid</small></div><div class="arch-box">markdown/ · media/<br><small>Rich rendering · thumbnails</small></div><div class="arch-box">TaskLauncher/<br><small>Cmd+K command palette</small></div><div class="arch-box">arena/<br><small>Model comparison UI</small></div><div class="arch-box tech">ui/<br><small>Radix + shadcn/ui primitives</small></div></div>
+    </div>
+    <div class="arch-layer ai">
+      <div class="arch-layer-title">State &amp; Hooks</div>
+      <div class="arch-subgroup-box"><div class="arch-subgroup-title">Zustand Stores (src/stores)</div><div class="arch-grid arch-grid-4"><div class="arch-box">taskStore<br><small>Tasks · permissions · questions · todos · UI state</small></div><div class="arch-box">workspaceStore<br><small>Workspace list · active workspace</small></div><div class="arch-box">filePreviewStore<br><small>Preview panel · fullscreen</small></div><div class="arch-box">skillsStore<br><small>Installed skills · autocomplete</small></div><div class="arch-box">skillsManagerStore<br><small>Repos · repo skills · target folder</small></div><div class="arch-box">arenaStore<br><small>Arena sessions · results</small></div><div class="arch-box">automationStore<br><small>Scheduled automations</small></div></div></div>
+      <div class="arch-subgroup-box"><div class="arch-subgroup-title">Hooks (src/hooks)</div><div class="arch-grid arch-grid-3"><div class="arch-box tech">useKeyboardShortcuts<br><small>Cmd+, · Cmd+N · Cmd+K · Cmd+Enter · Esc</small></div><div class="arch-box tech">useTheme<br><small>Theme persistence · OS dark mode</small></div><div class="arch-box tech">useAppUpdate<br><small>Auto-update lifecycle</small></div><div class="arch-box tech">useFileTree<br><small>Lazy-loading workspace tree</small></div><div class="arch-box tech">useSkillAutocomplete<br><small>Slash-command skills</small></div><div class="arch-box tech">useMcpRuntime<br><small>MCP runtime status</small></div></div></div>
+    </div>
+    <div class="arch-layer infra">
+      <div class="arch-layer-title">API Bridge &amp; Shared</div>
+      <div class="arch-grid arch-grid-4"><div class="arch-box">tauri-api.ts<br><small>All invoke() / listen() calls — frontend ↔ Rust contract</small></div><div class="arch-box">tauri-api-interface.ts<br><small>TauriAPI abstraction</small></div><div class="arch-box tech">shared/types<br><small>task · workspace · provider · permission · opencode</small></div><div class="arch-box tech">lib/ utilities<br><small>animations · themes · analytics · file utils</small></div></div>
+    </div>
+    <div class="arch-flow">⇅ Tauri IPC — invoke() commands / listen() events</div>
+    <div class="arch-layer external">
+      <div class="arch-layer-title">Tauri Rust Backend (native process)</div>
+      <div class="arch-grid arch-grid-3"><div class="arch-box tech">commands/<br><small>invoke() targets by domain</small></div><div class="arch-box tech">Emitted events<br><small>task:* · skills:* · workspace:* · copilot:*</small></div><div class="arch-box tech">Asset protocol<br><small>Local file preview</small></div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

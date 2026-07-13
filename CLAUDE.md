@@ -271,6 +271,12 @@ The Skills Manager opens as a separate Tauri window (label `skills`, route `/#/s
 - Provider configuration forms are in `src/components/settings/` (Anthropic, OpenAI, Google, Bedrock, Azure Foundry, Ollama, OpenRouter, LiteLLM)
 - Reference Electron app source preserved at `apps/desktop/` for reference
 
+### Design Context
+
+Strategic and visual design context for any UI work:
+- `PRODUCT.md` — register: product; platform: web (Tauri webview). Primary users: knowledge workers (developers/researchers secondary). Positioning: private, organized, autonomous AI on local files. Principles: approachable power; the workspace disappears into the work; show the agent's hands; privacy you can see. Anti-references: hacker terminal, SaaS gloss, enterprise gray, toy AI novelty.
+- `DESIGN.md` — visual system ("The Helpful Colleague"): DM Sans only, Deep Forest (#213c20) as sole action color, whisper shadows, crisp 6px controls / 24px cards. Read before building or restyling UI.
+
 ### Design Documentation
 
 See `docs/specs/`:

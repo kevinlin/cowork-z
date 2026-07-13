@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-13T00:00:00Z",
+  "title": "Design System: Cowork-Z",
+  "extensions": {
+    "colorMeta": {
+      "deep-forest": {
+        "role": "primary",
+        "displayName": "Deep Forest",
+        "canonical": "hsl(123 30% 20%)",
+        "tonalRamp": ["oklch(15% 0.06 145)", "oklch(25% 0.06 145)", "oklch(35% 0.06 145)", "oklch(45% 0.06 145)", "oklch(58% 0.06 145)", "oklch(70% 0.05 145)", "oklch(84% 0.03 145)", "oklch(95% 0.015 145)"]
+      },
+      "sage-mist": {
+        "role": "secondary",
+        "displayName": "Sage Mist",
+        "canonical": "hsl(120 14% 85%)",
+        "tonalRamp": ["oklch(20% 0.02 145)", "oklch(32% 0.02 145)", "oklch(44% 0.02 145)", "oklch(56% 0.018 145)", "oklch(68% 0.016 145)", "oklch(79% 0.014 145)", "oklch(89% 0.012 145)", "oklch(96% 0.008 145)"]
+      },
+      "forest-ink": {
+        "role": "secondary",
+        "displayName": "Forest Ink",
+        "canonical": "hsl(100 20% 18%)",
+        "tonalRamp": ["oklch(15% 0.05 130)", "oklch(24% 0.05 130)", "oklch(34% 0.05 130)", "oklch(45% 0.05 130)", "oklch(58% 0.045 130)", "oklch(70% 0.035 130)", "oklch(84% 0.02 130)", "oklch(95% 0.01 130)"]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "hsl(0 0% 97.6%)",
+        "tonalRamp": ["oklch(15% 0 0)", "oklch(27% 0 0)", "oklch(39% 0 0)", "oklch(51% 0 0)", "oklch(64% 0 0)", "oklch(77% 0 0)", "oklch(89% 0 0)", "oklch(98% 0 0)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "hsl(0 0% 12.5%)",
+        "tonalRamp": ["oklch(12% 0 0)", "oklch(22% 0 0)", "oklch(34% 0 0)", "oklch(46% 0 0)", "oklch(58% 0 0)", "oklch(72% 0 0)", "oklch(86% 0 0)", "oklch(96% 0 0)"]
+      },
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "hsl(0 0% 39.2%)",
+        "tonalRamp": ["oklch(15% 0 0)", "oklch(26% 0 0)", "oklch(37% 0 0)", "oklch(48% 0 0)", "oklch(60% 0 0)", "oklch(73% 0 0)", "oklch(86% 0 0)", "oklch(95% 0 0)"]
+      },
+      "clay-line": {
+        "role": "neutral",
+        "displayName": "Clay Line",
+        "canonical": "hsl(12 8% 90%)",
+        "tonalRamp": ["oklch(20% 0.01 40)", "oklch(32% 0.01 40)", "oklch(44% 0.01 40)", "oklch(56% 0.01 40)", "oklch(68% 0.009 40)", "oklch(80% 0.008 40)", "oklch(91% 0.008 40)", "oklch(97% 0.005 40)"]
+      },
+      "saddle-ring": {
+        "role": "neutral",
+        "displayName": "Saddle Ring",
+        "canonical": "hsl(20 25% 33%)",
+        "tonalRamp": ["oklch(15% 0.04 40)", "oklch(25% 0.04 40)", "oklch(35% 0.04 40)", "oklch(46% 0.04 40)", "oklch(58% 0.035 40)", "oklch(71% 0.028 40)", "oklch(84% 0.018 40)", "oklch(95% 0.008 40)"]
+      },
+      "tomato-alert": {
+        "role": "semantic",
+        "displayName": "Tomato Alert",
+        "canonical": "hsl(8 78% 54%)",
+        "tonalRamp": ["oklch(18% 0.09 30)", "oklch(30% 0.13 30)", "oklch(42% 0.17 30)", "oklch(54% 0.19 30)", "oklch(62% 0.19 30)", "oklch(72% 0.14 30)", "oklch(85% 0.07 30)", "oklch(95% 0.025 30)"]
+      },
+      "amber-warning": {
+        "role": "semantic",
+        "displayName": "Amber Warning",
+        "canonical": "#ee7909",
+        "tonalRamp": ["oklch(18% 0.06 55)", "oklch(30% 0.09 55)", "oklch(43% 0.12 55)", "oklch(56% 0.15 55)", "oklch(68% 0.18 55)", "oklch(78% 0.13 55)", "oklch(88% 0.07 55)", "oklch(96% 0.025 55)"]
+      },
+      "meadow-success": {
+        "role": "semantic",
+        "displayName": "Meadow Success",
+        "canonical": "#019e55",
+        "tonalRamp": ["oklch(18% 0.06 155)", "oklch(30% 0.09 155)", "oklch(42% 0.12 155)", "oklch(53% 0.14 155)", "oklch(62% 0.16 155)", "oklch(73% 0.12 155)", "oklch(86% 0.07 155)", "oklch(95% 0.03 155)"]
+      }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "Page and panel headings." },
+      "title": { "displayName": "Title", "purpose": "Card titles and section leads." },
+      "body": { "displayName": "Body", "purpose": "Default UI text; chat prose may run at 1rem, 65-75ch measure." },
+      "label": { "displayName": "Label", "purpose": "Buttons, form labels, badges." }
+    },
+    "shadows": [
+      { "name": "resting-card", "value": "0 1px 3px 0 hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10)", "purpose": "Cards and panels at rest." },
+      { "name": "hover-lift", "value": "0 1px 3px 0 hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10)", "purpose": "Interactive cards on hover." },
+      { "name": "overlay", "value": "0 1px 3px 0 hsl(0 0% 0% / 0.25)", "purpose": "Dialogs and dropdowns; the depth ceiling." },
+      { "name": "input-hairline", "value": "0 1px 2px 0 rgba(0, 0, 0, 0.03)", "purpose": "Barely-there lift on inputs and outline buttons." },
+      { "name": "focus-ring", "value": "0 0 0 3px hsl(20 25% 33% / 0.5)", "purpose": "Saddle Ring keyboard focus; the loudest depth cue in the system." }
+    ],
+    "motion": [
+      { "name": "transition-standard", "value": "150ms ease", "purpose": "Default for hover and state changes on controls." },
+      { "name": "fade-in", "value": "fadeIn 0.2s ease-out", "purpose": "Content appearing (messages, panels)." },
+      { "name": "slide-up", "value": "slideUp 0.3s ease-out", "purpose": "Entrance for toasts and surfaced content, 10px rise." },
+      { "name": "shimmer", "value": "shimmer 2s infinite", "purpose": "Skeleton loading states." },
+      { "name": "ease-accomplish", "value": "cubic-bezier(0.64, 0, 0.78, 0)", "purpose": "Task-completion moments." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single call-to-action per view: Deep Forest fill, white label.",
+      "html": "<button class=\"ds-btn-primary\">New Task</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; background: #213c20; color: #ffffff; font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; transition: all 150ms ease; } .ds-btn-primary:hover { background: rgba(33, 60, 32, 0.9); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px hsl(20 25% 33% / 0.5); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Supporting actions: Sage Mist fill with Forest Ink text.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; background: #d8dfd7; color: #2b391e; font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; transition: all 150ms ease; } .ds-btn-secondary:hover { background: rgba(216, 223, 215, 0.8); } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 3px hsl(20 25% 33% / 0.5); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Bordered neutral action on Canvas.",
+      "html": "<button class=\"ds-btn-outline\">Browse…</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; background: #f9f9f9; color: #202020; font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; font-weight: 500; border: 1px solid #eae2e1; border-radius: 6px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03); cursor: pointer; transition: all 150ms ease; } .ds-btn-outline:hover { background: #e8e8e8; } .ds-btn-outline:focus-visible { outline: none; border-color: #644a40; box-shadow: 0 0 0 3px hsl(20 25% 33% / 0.5); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Chrome-level quiet action; surfaces only on hover.",
+      "html": "<button class=\"ds-btn-ghost\">Settings</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; background: transparent; color: #202020; font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; transition: all 150ms ease; } .ds-btn-ghost:hover { background: #e8e8e8; } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 3px hsl(20 25% 33% / 0.5); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Transparent field with Input Gray border; Saddle Ring focus.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Describe your task…\" />",
+      "css": ".ds-input { height: 36px; width: 100%; min-width: 200px; padding: 4px 12px; background: transparent; color: #202020; font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; border: 1px solid #d8d8d8; border-radius: 6px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03); outline: none; transition: color 150ms ease, box-shadow 150ms ease; } .ds-input::placeholder { color: #646464; } .ds-input:focus-visible { border-color: #644a40; box-shadow: 0 0 0 3px hsl(20 25% 33% / 0.5); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Generously rounded (24px) container on Card White with whisper shadow.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Workspace</div><div class=\"ds-card-desc\">One folder, all your files, sessions, and agent history in one place.</div></div>",
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 8px; padding: 24px; background: #fcfcfc; color: #202020; font-family: 'DM Sans', system-ui, sans-serif; border: 1px solid #eae2e1; border-radius: 24px; box-shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10); } .ds-card-title { font-size: 16px; font-weight: 600; line-height: 1.2; } .ds-card-desc { font-size: 14px; color: #646464; line-height: 1.5; }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Compact status marker; Deep Forest default.",
+      "html": "<span class=\"ds-badge\">Running</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #213c20; color: #ffffff; font-family: 'DM Sans', system-ui, sans-serif; font-size: 12px; font-weight: 500; border: 1px solid transparent; border-radius: 6px; white-space: nowrap; }"
+    },
+    {
+      "name": "Skill Pill",
+      "kind": "custom",
+      "refersTo": "skill-pill",
+      "description": "Signature attach-a-skill chip: the one tinted use of Deep Forest, marking agent capability.",
+      "html": "<span class=\"ds-skill-pill\"><button class=\"ds-skill-pill-name\" type=\"button\">code-review</button><button class=\"ds-skill-pill-x\" type=\"button\" aria-label=\"Remove\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></svg></button></span>",
+      "css": ".ds-skill-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(33, 60, 32, 0.1); color: #213c20; font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; border: 1px solid rgba(33, 60, 32, 0.3); border-radius: 6px; } .ds-skill-pill-name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; background: none; border: none; color: inherit; font: inherit; cursor: pointer; padding: 0; } .ds-skill-pill-name:hover { text-decoration: underline; } .ds-skill-pill-x { display: flex; height: 16px; width: 16px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 4px; background: none; border: none; color: rgba(33, 60, 32, 0.6); cursor: pointer; padding: 0; } .ds-skill-pill-x:hover { background: rgba(33, 60, 32, 0.1); color: #213c20; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Helpful Colleague",
+    "overview": "Cowork-Z looks and behaves like a competent co-worker: warm, plain-spoken, and calm while agents do real work on real files. The system is a light, quiet workspace — soft neutral surfaces, one deep green voice for action, and a single friendly typeface doing every job. Nothing performs. Trust comes from legibility: permissions, tool calls, and agent progress are always visible in the same steady visual language. The register is product. Familiarity is a feature; users should recognize every control from tools they already know (Notion's approachable surfaces, Claude Desktop's clean message stream).",
+    "keyCharacteristics": [
+      "Light, soft-neutral canvas with one committed green accent",
+      "Single typeface (DM Sans) across all roles",
+      "Crisp and quiet components: tidy 6px control radii, generous 24px card radii, 150ms transitions",
+      "Whisper-level shadows; the focus ring is the loudest depth cue",
+      "Every state visible: hover, focus, active, disabled, loading, error"
+    ],
+    "rules": [
+      { "name": "The One Green Rule", "body": "Deep Forest speaks only for action and selection. It never decorates: no green section headers, no green icons for flavor, no green backgrounds behind passive content. Rarity is what makes the primary button read instantly.", "section": "colors" },
+      { "name": "The State-Only Semantics Rule", "body": "Tomato, Amber, and Meadow appear exclusively when the interface reports a state. A screen with no errors, warnings, or successes shows none of them.", "section": "colors" },
+      { "name": "The Legacy Blue Ban", "body": "accent.blue (#3397FC) exists for backward compatibility only. Prohibited in new work.", "section": "colors" },
+      { "name": "The One Family Rule", "body": "DM Sans does every job. No display font, no second sans. Monospace appears only inside code blocks and file paths in agent output — never in UI chrome, labels, or navigation.", "section": "typography" },
+      { "name": "The Whisper Rule", "body": "If you notice the shadow, it is too dark. Depth beyond the overlay ceiling (25% alpha) is prohibited.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do route every color through the CSS variables in globals.css; components reference tokens (bg-primary, border-input), never raw hex.",
+      "Do give every interactive element the full state set: default, hover, focus-visible, active, disabled, loading, error.",
+      "Do keep body and muted text at AA contrast: Ink or Graphite on Canvas, nothing lighter than Graphite (#646464).",
+      "Do use skeletons for loading and empty states that teach the interface (empty-state.tsx exists — use it).",
+      "Do respect prefers-reduced-motion with a crossfade or instant alternative for every animation."
+    ],
+    "donts": [
+      "Don't ship the \"hacker terminal aesthetic\" — no dark-mode-only screens, no monospace UI chrome, no matrix green.",
+      "Don't drift into \"enterprise admin gray\" — surfaces without the warm Clay Line borders and green accent become lifeless dashboard sprawl.",
+      "Don't import \"SaaS marketing gloss\" into the app: no gradient heroes, no glassmorphism, no gradient text anywhere.",
+      "Don't add \"toy-like AI novelty\": no sparkle emojis, mascots, or AI-magic theatrics around agent activity. Show the agent's hands instead.",
+      "Don't use the legacy blue (#3397FC) or hardcoded hex in new components.",
+      "Don't improvise dark-mode colors; dark tokens are undefined until they land in globals.css as a full set.",
+      "Don't use colored side-stripe borders (border-left > 1px) on cards, list items, or alerts.",
+      "Don't exceed the overlay shadow ceiling (25% alpha) or stack nested cards."
+    ]
+  }
+}

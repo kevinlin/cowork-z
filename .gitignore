@@ -48,3 +48,6 @@ src-tauri/sidecar-opencode/dist/
 
 # Local git worktrees
 .worktrees/
+
+# Impeccable live
+.impeccable/live/

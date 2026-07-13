@@ -45,3 +45,11 @@ The new critical path is Windows. Its 9 minute 3 second job spends 6 minutes 30 
 ### Standalone pnpm Setup Candidate
 
 The Windows `Install pnpm` step takes 36 seconds because the default action path installs pnpm through npm. `pnpm/action-setup` supports a `standalone` mode that installs the bundled pnpm executable. Test this as a separate candidate because it is a one-line supported setting on the critical path. Keep it only if the complete release remains valid and finishes faster than 9 minutes 3 seconds.
+
+Run `29255117833` completed successfully in 8 minutes 29 seconds overall, 42 seconds faster than the accepted parallel run. The Windows critical-path job fell from 9 minutes 3 seconds to 8 minutes 20 seconds, and its pnpm setup step fell from 36 seconds to 27 seconds. The draft release and updater manifest remained complete, so the candidate is accepted.
+
+## Stop Decision
+
+The remaining critical path spends 6 minutes 6 seconds in the Tauri action. The preceding run showed that 4 minutes 57 seconds of this is optimized Rust compilation, followed by the required MSI and NSIS packaging, signing, and uploads. Other Windows setup steps are each 27 seconds or less. Linux dependency installation varied to 1 minute 31 seconds but did not become the critical path.
+
+Further reductions would require changing compilation, caching, or release packaging architecture for a smaller and less certain gain. Installing only one Rust target in each macOS matrix leg would not affect the Windows critical path. Prebuilding the frontend or replacing Tauri's release publishing would add artifact coordination and duplicate maintained action logic. There is no remaining obvious candidate with a measured critical-path cost and a simple, reliable change.

@@ -1,3 +1,4 @@
+import { MotionConfig } from 'framer-motion';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
@@ -12,8 +13,12 @@ if (!container) {
 const root = createRoot(container);
 root.render(
   <StrictMode>
-    <HashRouter>
-      <App />
-    </HashRouter>
+    {/* Honor the OS "reduce motion" setting app-wide: framer-motion drops
+        transform/layout animation and keeps a plain crossfade instead. */}
+    <MotionConfig reducedMotion="user">
+      <HashRouter>
+        <App />
+      </HashRouter>
+    </MotionConfig>
   </StrictMode>
 );

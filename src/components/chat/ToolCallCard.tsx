@@ -143,60 +143,60 @@ export const ToolCallCard = memo(function ToolCallCard({ message, isLastMessage 
     <div
       className={cn('group/tool w-full min-w-0 rounded-md transition-colors', isExpanded ? 'bg-muted/60' : 'bg-muted/30 hover:bg-muted/50')}
     >
-      <button
-        className={cn('flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left text-sm', hasExpandableContent && 'cursor-pointer')}
-        disabled={!hasExpandableContent}
-        onClick={handleToggle}
-        type="button"
-      >
-        {hasExpandableContent ? (
-          isExpanded ? (
-            <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+      <div className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-sm">
+        <button
+          className={cn('flex min-w-0 flex-1 items-center gap-1.5 text-left', hasExpandableContent ? 'cursor-pointer' : 'cursor-default')}
+          disabled={!hasExpandableContent}
+          onClick={handleToggle}
+          type="button"
+        >
+          {hasExpandableContent ? (
+            isExpanded ? (
+              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+            )
           ) : (
-            <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/60" />
-          )
-        ) : (
-          <span className="w-3" />
-        )}
+            <span className="w-3 shrink-0" />
+          )}
 
-        <ToolIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <ToolIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 
-        <span className="font-medium text-muted-foreground text-xs">{label}</span>
+          <span className="shrink-0 font-medium text-muted-foreground text-xs">{label}</span>
 
-        {summary && <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground/60 text-xs">{summary}</span>}
+          {summary && <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground text-xs">{summary}</span>}
+        </button>
 
-        <span className="ml-auto flex shrink-0 items-center gap-0.5">
-          <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/tool:opacity-100">
+        <span className="flex shrink-0 items-center gap-0.5">
+          <span className="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/tool:opacity-100">
             {filePath && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span
+                  <button
+                    aria-label="Open in file viewer"
                     className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
                     onClick={handleOpenFile}
-                    onKeyDown={(e) => e.key === 'Enter' && handleOpenFile(e as unknown as React.MouseEvent)}
-                    role="button"
-                    tabIndex={0}
+                    type="button"
                   >
                     <ExternalLink className="h-3 w-3" />
-                  </span>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent side="top">Open in file viewer</TooltipContent>
               </Tooltip>
             )}
             <Tooltip>
               <TooltipTrigger asChild>
-                <span
+                <button
+                  aria-label={copied ? 'Copied' : 'Copy'}
                   className={cn(
                     'inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground',
-                    copied && 'text-green-600'
+                    copied && 'text-success'
                   )}
                   onClick={handleCopy}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCopy(e as unknown as React.MouseEvent)}
-                  role="button"
-                  tabIndex={0}
+                  type="button"
                 >
                   {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                </span>
+                </button>
               </TooltipTrigger>
               <TooltipContent side="top">{copied ? 'Copied' : 'Copy'}</TooltipContent>
             </Tooltip>
@@ -205,7 +205,7 @@ export const ToolCallCard = memo(function ToolCallCard({ message, isLastMessage 
             {isActive ? <SpinningIcon className="h-3 w-3" /> : <Check className="h-3 w-3 text-muted-foreground/40" />}
           </span>
         </span>
-      </button>
+      </div>
 
       {isExpanded && (
         <div className="min-w-0 overflow-hidden px-2.5 py-1.5 text-xs">

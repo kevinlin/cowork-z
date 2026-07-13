@@ -124,7 +124,7 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
           dragMomentum={false}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={springs.bouncy}
+          transition={springs.gentle}
         >
           <Card className="mx-4 w-full max-w-lg cursor-grab p-6 active:cursor-grabbing">
             <div className="flex items-start gap-4">

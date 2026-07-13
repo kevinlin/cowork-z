@@ -49,14 +49,14 @@ export function ThinkingIndicator({
                   : 'Thinking...'}
             </span>
             {currentTool && !(currentToolInput as { description?: string })?.description && (
-              <span className="text-muted-foreground/60 text-xs">({currentTool})</span>
+              <span className="text-muted-foreground text-xs">({currentTool})</span>
             )}
             {!currentTool && startupStageTaskId === taskId && startupStage && (
-              <span className="text-muted-foreground/60 text-xs">({elapsedTime}s)</span>
+              <span className="text-muted-foreground text-xs">({elapsedTime}s)</span>
             )}
           </div>
           {!currentTool && startupStageTaskId === taskId && startupStage?.isFirstTask && startupStage.stage === 'browser' && (
-            <span className="ml-6 text-muted-foreground/50 text-xs">First task takes a bit longer...</span>
+            <span className="ml-6 text-muted-foreground text-xs">First task takes a bit longer...</span>
           )}
         </motion.div>
       )}

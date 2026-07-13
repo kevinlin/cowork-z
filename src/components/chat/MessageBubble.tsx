@@ -201,7 +201,7 @@ export const MessageBubble = memo(
           )}
           {isAssistant && mediaPaths.length > 0 && <MediaGallery filePaths={mediaPaths} />}
           <p className={cn('mt-1.5 text-xs', isUser ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-            {new Date(message.timestamp).toLocaleTimeString()}
+            {new Date(message.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
           </p>
           {isAssistant && showContinueButton && onContinue && (
             <Button className="mt-3 gap-1.5" disabled={isLoading} onClick={onContinue} size="sm">
@@ -217,12 +217,12 @@ export const MessageBubble = memo(
               <Button
                 aria-label={'Copy to clipboard'}
                 className={cn(
-                  'relative opacity-0 transition-all duration-200 group-hover:opacity-100',
+                  'relative opacity-0 transition-all duration-200 focus-visible:opacity-100 group-hover:opacity-100',
                   'rounded p-1 hover:bg-accent',
                   'mt-1 shrink-0',
                   isAssistant ? 'self-start' : 'self-end',
                   !copied && 'text-muted-foreground hover:text-foreground',
-                  copied && '!bg-green-500/10 !text-green-600 !hover:bg-green-500/20'
+                  copied && '!bg-success/10 !text-success hover:!bg-success/20'
                 )}
                 data-testid="message-copy-button"
                 onClick={handleCopy}

@@ -360,7 +360,7 @@ export default function ExecutionPage() {
       <div className="flex h-full items-center justify-center p-6">
         <Card className="w-full max-w-md p-6 text-center">
           <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" />
-          <p className="mb-4 text-destructive">{error}</p>
+          <p className="mb-4 text-destructive-emphasis">{error}</p>
           <Button onClick={() => navigate('/')}>Go Home</Button>
         </Card>
       </div>
@@ -379,29 +379,31 @@ export default function ExecutionPage() {
     switch (currentTask.status) {
       case 'queued':
         return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 font-medium text-amber-600 text-xs">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 font-medium text-warning-emphasis text-xs">
             <Clock className="h-3 w-3" />
             Queued
           </span>
         );
       case 'running':
         return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 font-medium text-xs">
-            <span className="animate-shimmer bg-[length:200%_100%] bg-gradient-to-r from-primary via-primary/50 to-primary bg-clip-text text-transparent">
-              Running
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary text-xs">
+            <span aria-hidden="true" className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75 motion-reduce:hidden" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
             </span>
+            Running
           </span>
         );
       case 'completed':
         return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-green-500/10 px-2.5 py-1 font-medium text-green-600 text-xs">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 font-medium text-success-emphasis text-xs">
             <CheckCircle2 className="h-3 w-3" />
             Completed
           </span>
         );
       case 'failed':
         return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 font-medium text-destructive text-xs">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 font-medium text-destructive-emphasis text-xs">
             <XCircle className="h-3 w-3" />
             Failed
           </span>
@@ -415,7 +417,7 @@ export default function ExecutionPage() {
         );
       case 'interrupted':
         return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 font-medium text-amber-600 text-xs">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 font-medium text-warning-emphasis text-xs">
             <Square className="h-3 w-3" />
             Stopped
           </span>
@@ -460,8 +462,8 @@ export default function ExecutionPage() {
             initial={{ opacity: 0, y: 8 }}
             transition={springs.gentle}
           >
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10">
-              <Clock className="h-8 w-8 text-amber-600" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-warning/10">
+              <Clock className="h-8 w-8 text-warning-emphasis" />
             </div>
             <div className="max-w-md text-center">
               <h2 className="mb-2 font-semibold text-foreground text-xl">Waiting for another task</h2>
@@ -486,8 +488,8 @@ export default function ExecutionPage() {
                 initial={{ opacity: 0, y: 8 }}
                 transition={springs.gentle}
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
-                  <Clock className="h-6 w-6 text-amber-600" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning/10">
+                  <Clock className="h-6 w-6 text-warning-emphasis" />
                 </div>
                 <div className="text-center">
                   <p className="font-medium text-foreground text-sm">Waiting for another task</p>

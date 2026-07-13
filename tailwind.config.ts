@@ -40,6 +40,9 @@ const config: Config = {
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
+          // Darker shade of the Tomato hue, AA-readable (≥4.5:1) as small text
+          // on the destructive/10 tint and as a solid button fill under white.
+          emphasis: 'hsl(9 72% 42%)',
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
@@ -62,10 +65,15 @@ const config: Config = {
         warning: {
           DEFAULT: '#EE7909',
           subtle: '#fef4e6',
+          // Darker shade of the Amber hue, AA-readable (≥4.5:1) as small text
+          // and icons on the warning/10 tint. The brand #EE7909 alone fails AA.
+          emphasis: 'hsl(29 92% 32%)',
         },
         success: {
           DEFAULT: '#019E55',
           subtle: '#e6f7ef',
+          // Darker shade of the Meadow hue, AA-readable on the success/10 tint.
+          emphasis: 'hsl(151 98% 22%)',
         },
       },
       boxShadow: {

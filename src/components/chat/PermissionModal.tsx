@@ -11,18 +11,13 @@ import type { PermissionRequest } from '@/shared';
 function getOperationBadgeClasses(operation?: string): string {
   switch (operation) {
     case 'delete':
-      return 'bg-red-500/10 text-red-600 dark:text-red-400';
+      return 'bg-destructive/10 text-destructive-emphasis';
     case 'overwrite':
-      return 'bg-orange-500/10 text-orange-600 dark:text-orange-400';
-    case 'modify':
-      return 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400';
+      return 'bg-warning/10 text-warning-emphasis';
     case 'create':
-      return 'bg-green-500/10 text-green-600 dark:text-green-400';
-    case 'rename':
-    case 'move':
-      return 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
+      return 'bg-success/10 text-success-emphasis';
     default:
-      return 'bg-gray-500/10 text-gray-600 dark:text-gray-400';
+      return 'bg-muted text-muted-foreground';
   }
 }
 
@@ -78,7 +73,7 @@ export function PermissionModal({ request, onRespond }: PermissionModalProps) {
           dragMomentum={false}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={springs.bouncy}
+          transition={springs.gentle}
         >
           <Card className="mx-4 w-full max-w-lg cursor-grab p-6 active:cursor-grabbing">
             <div className="flex items-start gap-4">
@@ -86,26 +81,28 @@ export function PermissionModal({ request, onRespond }: PermissionModalProps) {
                 className={cn(
                   'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
                   isDeleteOperation(request)
-                    ? 'bg-red-500/10'
+                    ? 'bg-destructive/10'
                     : request.type === 'file'
-                      ? 'bg-amber-500/10'
+                      ? 'bg-warning/10'
                       : request.type === 'question'
                         ? 'bg-primary/10'
                         : 'bg-warning/10'
                 )}
               >
                 {isDeleteOperation(request) ? (
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  <AlertTriangle className="h-5 w-5 text-destructive-emphasis" />
                 ) : request.type === 'file' ? (
-                  <File className="h-5 w-5 text-amber-600" />
+                  <File className="h-5 w-5 text-warning-emphasis" />
                 ) : request.type === 'question' ? (
                   <Brain className="h-5 w-5 text-primary" />
                 ) : (
-                  <AlertCircle className="h-5 w-5 text-warning" />
+                  <AlertCircle className="h-5 w-5 text-warning-emphasis" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className={cn('mb-2 font-semibold text-lg', isDeleteOperation(request) ? 'text-red-600' : 'text-foreground')}>
+                <h3
+                  className={cn('mb-2 font-semibold text-lg', isDeleteOperation(request) ? 'text-destructive-emphasis' : 'text-foreground')}
+                >
                   {isDeleteOperation(request)
                     ? 'File Deletion Warning'
                     : request.type === 'file'
@@ -119,8 +116,8 @@ export function PermissionModal({ request, onRespond }: PermissionModalProps) {
                 {request.type === 'file' && (
                   <>
                     {isDeleteOperation(request) && (
-                      <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3">
-                        <p className="text-red-600 text-sm">
+                      <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+                        <p className="text-destructive-emphasis text-sm">
                           {(() => {
                             const paths = getDisplayFilePaths(request);
                             return paths.length > 1
@@ -147,7 +144,7 @@ export function PermissionModal({ request, onRespond }: PermissionModalProps) {
                     <div
                       className={cn(
                         'mb-4 rounded-lg p-3',
-                        isDeleteOperation(request) ? 'border border-red-500/20 bg-red-500/5' : 'bg-muted'
+                        isDeleteOperation(request) ? 'border border-destructive/20 bg-destructive/5' : 'bg-muted'
                       )}
                     >
                       {(() => {
@@ -159,7 +156,7 @@ export function PermissionModal({ request, onRespond }: PermissionModalProps) {
                                 <li
                                   className={cn(
                                     'break-all font-mono text-sm',
-                                    isDeleteOperation(request) ? 'text-red-600' : 'text-foreground'
+                                    isDeleteOperation(request) ? 'text-destructive-emphasis' : 'text-foreground'
                                   )}
                                   key={idx}
                                 >
@@ -170,7 +167,12 @@ export function PermissionModal({ request, onRespond }: PermissionModalProps) {
                           );
                         }
                         return (
-                          <p className={cn('break-all font-mono text-sm', isDeleteOperation(request) ? 'text-red-600' : 'text-foreground')}>
+                          <p
+                            className={cn(
+                              'break-all font-mono text-sm',
+                              isDeleteOperation(request) ? 'text-destructive-emphasis' : 'text-foreground'
+                            )}
+                          >
                             {paths[0]}
                           </p>
                         );
@@ -178,7 +180,9 @@ export function PermissionModal({ request, onRespond }: PermissionModalProps) {
                       {request.targetPath && <p className="mt-1 font-mono text-muted-foreground text-sm">{request.targetPath}</p>}
                     </div>
 
-                    {isDeleteOperation(request) && <p className="mb-4 text-red-600/80 text-sm">This action cannot be undone.</p>}
+                    {isDeleteOperation(request) && (
+                      <p className="mb-4 text-destructive-emphasis/90 text-sm">This action cannot be undone.</p>
+                    )}
 
                     {request.contentPreview && (
                       <details className="mb-4">
@@ -292,7 +296,10 @@ export function PermissionModal({ request, onRespond }: PermissionModalProps) {
                     {request.type === 'question' ? 'Cancel' : 'Deny'}
                   </Button>
                   <Button
-                    className={cn('flex-1', isDeleteOperation(request) && 'bg-red-600 text-white hover:bg-red-700')}
+                    className={cn(
+                      'flex-1',
+                      isDeleteOperation(request) && 'bg-destructive-emphasis text-destructive-foreground hover:bg-destructive-emphasis/90'
+                    )}
                     data-testid="permission-allow-button"
                     disabled={request.type === 'question' && !showCustomInput && request.options && selectedOptions.length === 0}
                     onClick={() => handleResponse(true)}

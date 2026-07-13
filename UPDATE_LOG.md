@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.8.5
+
+- 
+
 ## v0.8.4
 
 - **Homescreen design polish** — Aligned the Home screen with the design system: a calmer launcher card (removed the heavy shadow and glass blur), a cleaner background, consistent button corners, a sliding underline on the tab bar, and reduced-motion support for people who prefer less animation.

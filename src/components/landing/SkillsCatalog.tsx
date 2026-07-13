@@ -81,7 +81,7 @@ export default function SkillsCatalog() {
                     </Tooltip>
                   </div>
                   <button
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs transition-colors hover:bg-primary/90"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs transition-colors hover:bg-primary/90"
                     onClick={() => handleOpen(repo)}
                     type="button"
                   >

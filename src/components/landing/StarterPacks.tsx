@@ -8,13 +8,6 @@ import { pickFolder } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-const COMPLEXITY_COLORS: Record<string, string> = {
-  'Beginner-Intermediate': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  Intermediate: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  'Intermediate-Advanced': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-  Advanced: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-};
-
 interface StarterPacksProps {
   onPromptSeed?: (prompt: string) => void;
 }
@@ -120,7 +113,7 @@ export default function StarterPacks({ onPromptSeed }: StarterPacksProps) {
                     </Tooltip>
                   </div>
                   <button
-                    className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="shrink-0 rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={installingId === pack.id}
                     onClick={() => handleInstall(pack.id)}
                     type="button"
@@ -130,9 +123,7 @@ export default function StarterPacks({ onPromptSeed }: StarterPacksProps) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span
-                    className={`rounded-full px-2 py-0.5 font-medium text-xs ${COMPLEXITY_COLORS[pack.complexity] ?? 'bg-muted text-muted-foreground'}`}
-                  >
+                  <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground text-xs">
                     {pack.complexity}
                   </span>
                   <span className="text-muted-foreground text-xs">{pack.time_estimate}</span>

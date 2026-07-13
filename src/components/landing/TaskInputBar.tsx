@@ -269,7 +269,7 @@ export default function TaskInputBar({
 
         {/* Submit button */}
         <button
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all duration-200 ease-accomplish hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-all duration-200 ease-accomplish hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
           data-testid="task-input-submit"
           disabled={!value.trim() || isDisabled}
           onClick={() => {

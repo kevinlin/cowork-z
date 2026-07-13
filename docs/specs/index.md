@@ -85,6 +85,7 @@ Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#re
 | Missing OpenCode CLI Detection | [`app-ux/plan_missing-opencode-cli-detection.md`](app-ux/plan_missing-opencode-cli-detection.md) | 5.3.3 |
 | Arena — Side-by-Side Agent Comparison | [`app-ux/plan_arena.md`](app-ux/plan_arena.md) | 4.6 |
 | Enhance MCP Server Config UI | [`app-ux/plan_enhance-mcp-server-config-ui.md`](app-ux/plan_enhance-mcp-server-config-ui.md) | 2.3 |
+| Design Overhaul — Homescreen | [`app-ux/plan_design-overhaul.md`](app-ux/plan_design-overhaul.md) | DESIGN.md / PRODUCT.md |
 
 ### workspace-as-folder — Workspace-per-Folder Model
 

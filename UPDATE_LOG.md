@@ -4,7 +4,8 @@
 
 ## v0.8.4
 
-- 
+- **Homescreen design polish** — Aligned the Home screen with the design system: a calmer launcher card (removed the heavy shadow and glass blur), a cleaner background, consistent button corners, a sliding underline on the tab bar, and reduced-motion support for people who prefer less animation.
+- **Chat view design polish** — A thorough pass over the active-task chat. The animated "Running" label is now a calm live indicator; status, permission, and tool-call colors use the brand palette at readable contrast; the copy and open-file buttons on tool-call cards are now keyboard-accessible; message timestamps drop the seconds; the permission and question dialogs no longer bounce; and reduced-motion is honored app-wide.
 
 ## v0.8.3
 

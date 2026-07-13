@@ -990,6 +990,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   // Add or update a partial message (streaming)
   addPartialMessage: (event: PartialMessageEvent) => {
+    if (!event.textSoFar) return;
     set((state) => {
       // Only process if this is for the current task
       if (!state.currentTask || state.currentTask.id !== event.taskId) {

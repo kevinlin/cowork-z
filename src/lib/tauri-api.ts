@@ -926,11 +926,19 @@ function normalizeOpenCodeMessage(message: OpenCodeMessage): TaskMessage | null 
     }
     case 'tool_use': {
       const toolUseMessage = message as OpenCodeMessage & {
-        part?: { tool?: string; state?: { input?: unknown; output?: string; title?: string } };
+        part?: {
+          tool?: string;
+          callID?: string;
+          id?: string;
+          state?: { input?: unknown; output?: string; title?: string; status?: string };
+        };
       };
       const toolOutput = toolUseMessage.part?.state?.output;
+      const callID = toolUseMessage.part?.callID;
+      const partId = toolUseMessage.part?.id;
+      const toolId = callID || partId || buildOpenCodeMessageId(message);
       return {
-        id: buildOpenCodeMessageId(message),
+        id: toolId,
         type: 'tool',
         content: '',
         timestamp: normalizeTimestamp(message.timestamp),

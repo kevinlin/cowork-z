@@ -6,13 +6,13 @@
 
 - 
 
-## v0.8.4
+## v0.8.4 (2026-06-13)
 
 - **Homescreen design polish** — Aligned the Home screen with the design system: a calmer launcher card (removed the heavy shadow and glass blur), a cleaner background, consistent button corners, a sliding underline on the tab bar, and reduced-motion support for people who prefer less animation.
 - **Chat view design polish** — A thorough pass over the active-task chat. The animated "Running" label is now a calm live indicator; status, permission, and tool-call colors use the brand palette at readable contrast; the copy and open-file buttons on tool-call cards are now keyboard-accessible; message timestamps drop the seconds; the permission and question dialogs no longer bounce; and reduced-motion is honored app-wide.
 - **Delight touches at earned moments** — When a task finishes while you watch, the "Completed" badge now draws its checkmark instead of just swapping in, and the sidebar's status check gives a small pop when a background task completes — so a finished task is felt, not just logged. The Home greeting is now time-aware ("What will you accomplish this morning / afternoon / evening / tonight?"). All animations play only on live completion (never when opening an old task) and respect reduced-motion settings.
 
-## v0.8.3
+## v0.8.3 (2026-06-13)
 
 - **Fix: Chat does not autoscroll when sending a follow-up after scrolling up** — When a user scrolled up to re-read earlier messages and then sent a follow-up, the chat stayed at the scrolled position instead of snapping to the bottom; the streaming autoscroll effect was also suppressed because the scroll position was no longer at the bottom. All three send paths (follow-up message, continue, and post-API-key-save pending follow-up) now immediately reset the scroll position to the bottom before streaming begins.
 - **Fix: Tool call bubbles not rendering properly** — Two issues caused tool call bubbles to display incorrectly. First, parallel tool calls in the same assistant turn (e.g. multiple `read` calls) shared a parent `messageID`, so they all mapped to one slot in the message array and only the last one rendered; fixed by using the per-tool-call `callID` as the message identifier. Second, the sidecar emitted streaming partial events with empty text before tool calls, creating orphaned `PartialMessage` entries that were never finalized and rendered as empty bubbles; fixed by skipping partials with no text content.

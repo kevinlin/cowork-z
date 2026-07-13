@@ -12,10 +12,6 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
-      # Each matrix leg uploads to the same draft release and updates the same
-      # latest.json asset. Keep them sequential so tauri-action can merge
-      # updater metadata without racing another job's delete/re-upload cycle.
-      max-parallel: 1
       matrix:
         include:
           - platform: 'macos-15' # for Arm based macs (M1 and above).
@@ -43,6 +39,7 @@ jobs:
         uses: pnpm/action-setup@v6
         with:
           version: 10
+          standalone: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -118,7 +115,7 @@ jobs:
         if: startsWith(matrix.platform, 'macos')
         run: sudo mdutil -a -i off || true
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Tauri updater signing
@@ -137,6 +134,7 @@ jobs:
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
+          retryAttempts: 3
           # --verbose surfaces bundle_dmg.sh / hdiutil output on macOS, which
           # Tauri otherwise swallows, so DMG failures are diagnosable in CI logs.
           args: ${{ matrix.args }}${{ startsWith(matrix.platform, 'macos') && ' --verbose' || '' }}

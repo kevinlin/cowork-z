@@ -1,153 +1,81 @@
-# Release Pipeline Performance Implementation Plan
+# Plan: Release Pipeline Performance
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
-**Goal:** Reduce the release workflow's end-to-end duration while preserving all release artifacts and updater metadata.
+**Goal:** Reduce the release workflow's end-to-end build time without losing any platform artifact or updater entry.
 
 **Architecture:** Keep the existing four-platform Tauri matrix. Upgrade to the official action version that mitigates parallel updater-manifest races, run the matrix concurrently, and evaluate later candidates against the new critical path one at a time.
 
 **Tech Stack:** GitHub Actions, Tauri 2, `tauri-apps/tauri-action`, pnpm, Rust.
 
-## Global Constraints
+## Baseline
 
-- Change one performance hypothesis per GitHub Actions experiment.
-- Revert any candidate that regresses the preceding accepted build.
-- Do not accept a run unless all four platform jobs, release assets, and updater entries are complete.
-- Run `pnpm dlx ultracite fix src/ src-tauri/sidecar-opencode/` after code changes, plus `pnpm typecheck` and `cd src-tauri && cargo check` before completion.
+GitHub Actions run `29251298239` uses one four-leg matrix with `max-parallel: 1`. The jobs therefore run in sequence even when runners are available. The preceding completed release run, `29222933810`, took 37 minutes 49 seconds. Its job durations were 7 minutes 43 seconds for macOS ARM64, 6 minutes 10 seconds for macOS x64, 10 minutes 30 seconds for Linux, and 13 minutes 15 seconds for Windows.
 
----
+Serialization is intentional. Run `28289931502` showed that parallel `tauri-action` v0 jobs can race while replacing the shared `latest.json` release asset. One job failed with a 404 and the updater manifest lost a platform entry.
 
-### Task 1: Restore Safe Matrix Parallelism
+## Approach
 
-**Files:**
-- Modify: `.github/workflows/publish.yml`
-- Test: one-off `yq` assertions against `.github/workflows/publish.yml`
+Use the official `tauri-apps/tauri-action` v1 release, which includes randomized retry delays for the shared `latest.json` update race. Remove matrix serialization and set `retryAttempts: 3`. This keeps the existing build, signing, notarization, packaging, and release upload flow while allowing all four platform jobs to run concurrently.
 
-**Interfaces:**
-- Consumes: Tauri v2 project configuration and the existing four matrix entries.
-- Produces: A parallel release matrix using `tauri-apps/tauri-action@v1` with three retries.
+Run each experiment from `codex/release-pipeline-performance` through `workflow_dispatch`. Compare active workflow and job durations, excluding runner queue time when diagnosing step performance. Keep a candidate only when the workflow succeeds, the release contains every expected platform asset, `latest.json` contains every expected platform key, and the measured time does not regress.
 
-- [ ] **Step 1: Verify the current workflow fails the desired-state assertion**
+## Alternatives Considered
 
-Run:
+1. Split parallel builds from a serialized custom publish job. This removes the race by construction, but duplicates release and updater-manifest logic already maintained by the Tauri action.
+2. Keep serialization and tune setup or cache steps. This is lower risk but cannot remove the roughly 25 minutes spent waiting for earlier matrix legs.
 
-```bash
-yq -e '(.jobs.publish-tauri.strategy | has("max-parallel") | not) and ([.jobs.publish-tauri.steps[] | select(.uses == "tauri-apps/tauri-action@v1")] | length == 1) and (.jobs.publish-tauri.steps[] | select(.uses == "tauri-apps/tauri-action@v1") | .with.retryAttempts == 3)' .github/workflows/publish.yml
-```
+## Implementation Plan
 
-Expected: exit 1 because the workflow is serialized and uses `tauri-action@v0`.
+### Task 1 — Restore Safe Matrix Parallelism
 
-- [ ] **Step 2: Apply the minimal workflow change**
+Removed the `max-parallel: 1` serialization from `.github/workflows/publish.yml` and upgraded from `tauri-apps/tauri-action@v0` to `@v1` with `retryAttempts: 3`, enabling all four platform builds to run concurrently while the action's built-in retry logic handles the shared `latest.json` upload race.
 
-Remove `max-parallel` and its obsolete serialization comment. Change the action step to:
+### Task 2 — Verify Parallelism in GitHub Actions
 
-```yaml
-      - uses: tauri-apps/tauri-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        with:
-          tagName: v__VERSION__
-          releaseName: 'App v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
-          prerelease: false
-          retryAttempts: 3
-          args: ${{ matrix.args }}${{ startsWith(matrix.platform, 'macos') && ' --verbose' || '' }}
-```
+Pushed the workflow change, dispatched a full release build via `workflow_dispatch`, and verified that all four matrix jobs succeeded concurrently, the draft release contained every expected platform bundle and signature, and `latest.json` contained all four updater platform keys. Compared timings against the serialized baseline runs.
 
-- [ ] **Step 3: Verify the desired-state assertion passes**
+### Task 3 — Optimize the New Critical Path
 
-Run the Step 1 command again.
+Inspected the longest job's step durations to identify optimization candidates on the new parallel critical path. The Windows `Install pnpm` step (36 seconds) was the only candidate with a visible critical-path cost and a simple change. Switched to `pnpm/action-setup` standalone mode to install the bundled pnpm executable directly instead of routing through npm.
 
-Expected: exit 0.
+## Verification
 
-- [ ] **Step 4: Validate formatting and repository checks**
+For every accepted candidate:
 
-Run:
+1. Validate the workflow YAML and its required settings locally.
+2. Run the full release workflow through GitHub Actions.
+3. Confirm all four matrix jobs succeed.
+4. Confirm the draft release has macOS ARM64, macOS x64, Linux, and Windows bundles plus signatures.
+5. Download and inspect `latest.json` for `darwin-aarch64`, `darwin-x86_64`, `linux-x86_64`, and `windows-x86_64` updater entries.
+6. Compare end-to-end and critical-path durations with the preceding accepted run.
 
-```bash
-pnpm dlx ultracite fix src/ src-tauri/sidecar-opencode/
-pnpm typecheck
-cd src-tauri && cargo check
-```
+After parallelism is accepted, inspect the longest job. Test only candidates that remove a visible critical-path cost and do not add a custom subsystem for a small gain.
 
-Expected: all commands exit 0.
+## Experiment Results
 
-- [ ] **Step 5: Commit the candidate**
+### Safe Matrix Parallelism
 
-```bash
-git add .github/workflows/publish.yml
-git commit -m "ci: parallelize release builds safely"
-```
+Run `29253318261`, attempt 2, completed successfully in 9 minutes 3 seconds. All four matrix jobs ran concurrently. The draft release contained every expected bundle and signature, and `latest.json` contained all required macOS, Linux, and Windows updater entries. This is a 20 minute 37 second reduction from run `29251298239`, which completed in 29 minutes 40 seconds.
 
-### Task 2: Verify Parallelism in GitHub Actions
+The new critical path is Windows. Its 9 minute 3 second job spends 6 minutes 30 seconds in the Tauri build action, including 4 minutes 57 seconds compiling the optimized Rust application. Most remaining time is therefore required compilation and packaging.
 
-**Files:**
-- Inspect: `.github/workflows/publish.yml`
-- Inspect: GitHub Actions run and draft release for version `0.8.4`
+### Standalone pnpm Setup Candidate
 
-**Interfaces:**
-- Consumes: The committed Task 1 workflow.
-- Produces: Measured timing, four successful platform builds, complete assets, and complete updater metadata.
+The Windows `Install pnpm` step takes 36 seconds because the default action path installs pnpm through npm. `pnpm/action-setup` supports a `standalone` mode that installs the bundled pnpm executable. Test this as a separate candidate because it is a one-line supported setting on the critical path. Keep it only if the complete release remains valid and finishes faster than 9 minutes 3 seconds.
 
-- [ ] **Step 1: Push the experiment branch and dispatch the workflow**
+Run `29255117833` completed successfully in 8 minutes 29 seconds overall, 42 seconds faster than the accepted parallel run. The Windows critical-path job fell from 9 minutes 3 seconds to 8 minutes 20 seconds, and its pnpm setup step fell from 36 seconds to 27 seconds. The draft release and updater manifest remained complete, so the candidate is accepted.
 
-```bash
-git push -u origin codex/release-pipeline-performance
-gh workflow run publish.yml --repo kevinlin/cowork-z --ref codex/release-pipeline-performance
-```
+## Stop Decision
 
-- [ ] **Step 2: Wait for the dispatched run to complete**
+The remaining critical path spends 6 minutes 6 seconds in the Tauri action. The preceding run showed that 4 minutes 57 seconds of this is optimized Rust compilation, followed by the required MSI and NSIS packaging, signing, and uploads. Other Windows setup steps are each 27 seconds or less. Linux dependency installation varied to 1 minute 31 seconds but did not become the critical path.
 
-Use `gh run list` to identify the run, then `gh run watch RUN_ID --repo kevinlin/cowork-z --exit-status`.
+Further reductions would require changing compilation, caching, or release packaging architecture for a smaller and less certain gain. Installing only one Rust target in each macOS matrix leg would not affect the Windows critical path. Prebuilding the frontend or replacing Tauri's release publishing would add artifact coordination and duplicate maintained action logic. There is no remaining obvious candidate with a measured critical-path cost and a simple, reliable change.
 
-Expected: all four matrix jobs succeed.
+## Critical Files — Summary
 
-- [ ] **Step 3: Verify release assets and updater metadata**
+| Path | Role |
+|------|------|
+| `.github/workflows/publish.yml` | Release workflow (matrix strategy, action version, retry config, pnpm setup) |
 
-List draft-release assets with the GitHub API. Download `latest.json` and assert the keys `darwin-aarch64`, `darwin-x86_64`, `linux-x86_64`, and `windows-x86_64` exist.
+## Changelog
 
-Expected: each platform has its bundle and signature, and all four updater keys are present.
-
-- [ ] **Step 4: Compare timings**
-
-Compare workflow active duration and each job's active duration with runs `29251298239` and `29222933810`.
-
-Expected: end-to-end active duration is lower than the serialized baseline. If it regresses or release validation fails, revert Task 1 and commit the revert before considering another candidate.
-
-### Task 3: Optimize the New Critical Path
-
-**Files:**
-- Modify only the workflow file required by an evidence-backed candidate.
-- Inspect the accepted GitHub Actions run logs.
-
-**Interfaces:**
-- Consumes: The accepted parallel workflow and its step timings.
-- Produces: Additional accepted improvements or an evidence-backed stop decision.
-
-- [ ] **Step 1: Rank critical-path steps**
-
-Extract step durations from the longest matrix job. Ignore skipped steps and runner queue time.
-
-- [ ] **Step 2: Select one obvious candidate**
-
-Select only a candidate with a visible critical-path cost and a simple, maintainable change. State the hypothesis and expected saving before editing.
-
-- [ ] **Step 3: Test the candidate locally and in GitHub Actions**
-
-Use a failing `yq` assertion or another focused local check before the edit. Commit, push, dispatch, and validate the release exactly as in Task 2.
-
-- [ ] **Step 4: Keep or revert the candidate**
-
-Keep it only when the GitHub Actions run improves the accepted baseline and all release checks pass. Otherwise revert it before selecting the next candidate.
-
-- [ ] **Step 5: Stop when no obvious candidate remains**
-
-Stop when remaining steps are dominated by compilation, platform packaging, signing, notarization, or small setup costs whose removal would require disproportionate complexity or reduce reliability.
+- 2026-07-14 — **Merged design + plan and compacted post-implementation.** Combined `design_release-pipeline-performance.md` and `plan_release-pipeline-performance.md` into a single plan file. Removed step-by-step implementation tasks, code blocks, file-by-file diffs, and verification command lists now that the feature has shipped. Preserved Goal, Baseline, Approach, Alternatives, Experiment Results, Stop Decision, and Critical Files summary. Original documents are recoverable via git history.

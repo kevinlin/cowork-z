@@ -33,3 +33,15 @@ For every accepted candidate:
 6. Compare end-to-end and critical-path durations with the preceding accepted run.
 
 After parallelism is accepted, inspect the longest job. Test only candidates that remove a visible critical-path cost and do not add a custom subsystem for a small gain.
+
+## Experiment Results
+
+### Safe Matrix Parallelism
+
+Run `29253318261`, attempt 2, completed successfully in 9 minutes 3 seconds. All four matrix jobs ran concurrently. The draft release contained every expected bundle and signature, and `latest.json` contained all required macOS, Linux, and Windows updater entries. This is a 20 minute 37 second reduction from run `29251298239`, which completed in 29 minutes 40 seconds.
+
+The new critical path is Windows. Its 9 minute 3 second job spends 6 minutes 30 seconds in the Tauri build action, including 4 minutes 57 seconds compiling the optimized Rust application. Most remaining time is therefore required compilation and packaging.
+
+### Standalone pnpm Setup Candidate
+
+The Windows `Install pnpm` step takes 36 seconds because the default action path installs pnpm through npm. `pnpm/action-setup` supports a `standalone` mode that installs the bundled pnpm executable. Test this as a separate candidate because it is a one-line supported setting on the critical path. Keep it only if the complete release remains valid and finishes faster than 9 minutes 3 seconds.

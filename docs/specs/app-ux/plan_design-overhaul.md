@@ -168,7 +168,61 @@ Audit against the design system, classify each deviation by root cause (missing 
 - **Modal whole-card drag** — both dialogs make the entire `Card` draggable (`cursor-grab`), so interactive controls inside show a grab cursor. Intentional product behavior; left as-is.
 - **DebugLogPanel** — uses off-token `zinc` / `red` classes. Developer-only surface, arguably deliberately terminal-flavored; out of scope.
 
+## Delight Pass
+
+### Context
+
+Third pass in the "Impeccable" overhaul: adding personality at **earned moments** rather than fixing deviations. Register is product (per [`PRODUCT.md`](../../../PRODUCT.md)), so delight lives at specific moments — completion, first-run, background events — never spread across pages. Constraints: no confetti, no sparkle, no mascots (PRODUCT.md anti-reference: toy-like AI novelty); "The Helpful Colleague" voice; reduced-motion alternative for every animation.
+
+### Approach
+
+Survey the app's natural delight moments (success, empty, loading, error, milestones), pick only the ones the product earns, keep each under ~1s and state-conveying. The core payoff of Cowork-Z — an agent finishing real work — had no moment at all: the "Completed" badge just swapped in. That gap drove the pass.
+
+### Changes
+
+1. Completion moment: checkmark draw + spring pop
+**File:** [src/pages/Execution.tsx](src/pages/Execution.tsx) — `TaskStatusBadge`
+
+- `getStatusBadge()` extracted into a `TaskStatusBadge` component. On a **live** transition (running/starting → completed) the badge springs in (`springs.bouncy`) and the check draws itself via SVG `pathLength` — circle ~300ms, then tick ~250ms.
+- Live-only guard: prev-status tracked via the React "adjust state during render" pattern; component mounted with `key={task.id}` so switching tasks resets tracking. Opening an already-completed task renders the static badge — the celebration can never replay.
+- Reduced motion: static badge, no draw.
+  - Rules: **motion conveys state** (product register); celebrate success at the moment it happens (delight reference).
+
+2. Background completion: sidebar check pop
+**File:** [src/components/ui/task-status-icon.tsx](src/components/ui/task-status-icon.tsx)
+
+- `TaskStatusIcon` pops the check (`scale 0 → 1`, `springs.bouncy`) when a task completes while on screen — makes a background task's "done" visible without a toast. Same prev-status guard: no pop on mount, no pop from `queued`, skipped under reduced motion.
+- Arena list items inherit for free (shared component).
+
+3. Time-aware Home greeting
+**File:** [src/pages/Home.tsx](src/pages/Home.tsx)
+
+- "What will you accomplish today?" → hour-segmented: "this morning" (5–12) / "this afternoon" (12–17) / "this evening" (17–22) / "tonight" (22–5). Computed once per mount (lazy `useState`). Same sentence shape, plain-spoken; the kind of detail that compounds with daily use (daily-driver positioning).
+
+### Files Summary
+
+| File | Action |
+|------|--------|
+| `src/pages/Execution.tsx` | Modify — `getStatusBadge()` → `TaskStatusBadge` component with live-completion checkmark draw |
+| `src/components/ui/task-status-icon.tsx` | Modify — spring pop on live running → completed transition |
+| `src/pages/Home.tsx` | Modify — time-aware greeting |
+| `src/components/ui/__tests__/task-status-icon.test.tsx` | Add — transition-guard tests (pop on live transition; no pop on mount / from queued) |
+
+### Verification
+
+- `pnpm typecheck` — clean.
+- `pnpm dlx ultracite check` on the four files — clean.
+- Full frontend suite — 30 files, 356 tests pass (4 new).
+- No live screenshot (no browser automation in repo; Tauri-gated surface). Transition logic verified by unit tests; badge draw worth one live look in `pnpm tauri dev`.
+
+### Considered and rejected
+
+- **Rotating "thinking" messages** — noise next to existing startup-stage copy; cliched loading copy is an AI tell.
+- **Softer failure copy** — "Task failed" is honest and plain; warmth shouldn't blur state reporting.
+- **Sound** — desktop app, unprompted audio; no.
+
 ## Changelog
 
 - **2026-07-13** — Initial Homescreen design-system alignment pass (this plan).
 - **2026-07-13** — Chat Surface flagship polish pass (Execution view + chat components).
+- **2026-07-13** — Delight pass: completion checkmark draw, sidebar completion pop, time-aware greeting.

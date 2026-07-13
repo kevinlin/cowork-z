@@ -24,12 +24,23 @@ const HOME_TABS: { id: HomeTab; label: string }[] = [
   { id: 'automations', label: 'Automations' },
 ];
 
+// Time-aware greeting: same question, but it knows what time it is —
+// the kind of thing a colleague would get right.
+function timeAwareGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'What will you accomplish this morning?';
+  if (hour >= 12 && hour < 17) return 'What will you accomplish this afternoon?';
+  if (hour >= 17 && hour < 22) return 'What will you accomplish this evening?';
+  return 'What will you accomplish tonight?';
+}
+
 export default function HomePage() {
   const [prompt, setPrompt] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<SkillMeta[]>([]);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<HomeTab>('skills');
+  const [greeting] = useState(timeAwareGreeting);
 
   const { startTask, isLoading, enqueuePermissionRequest } = useTaskStore();
   const navigate = useNavigate();
@@ -124,7 +135,7 @@ export default function HomePage() {
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -20 }}
             transition={springs.gentle}
           >
-            What will you accomplish today?
+            {greeting}
           </motion.h1>
 
           <motion.div

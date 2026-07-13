@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { AlertCircle, ArrowLeft, CheckCircle2, Clock, Square, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -26,6 +26,112 @@ import { useTaskStore } from '../stores/taskStore';
 const SpinningIcon = ({ className }: { className?: string }) => (
   <img alt="" className={cn('animate-spin-ccw', className)} src={loadingSymbol} />
 );
+
+// Status badge for the task header. Mounted with key={task.id} so the
+// prev-status tracking below resets when switching tasks: the completion
+// celebration only plays when a task finishes live in this view, never when
+// loading a task that was already complete.
+function TaskStatusBadge({ status }: { status: string }) {
+  const reduceMotion = useReducedMotion();
+  const [prevStatus, setPrevStatus] = useState(status);
+  const [justCompleted, setJustCompleted] = useState(false);
+
+  if (status !== prevStatus) {
+    setPrevStatus(status);
+    setJustCompleted((prevStatus === 'running' || prevStatus === 'starting') && status === 'completed');
+  }
+
+  switch (status) {
+    case 'queued':
+      return (
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 font-medium text-warning-emphasis text-xs">
+          <Clock className="h-3 w-3" />
+          Queued
+        </span>
+      );
+    case 'running':
+      return (
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary text-xs">
+          <span aria-hidden="true" className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75 motion-reduce:hidden" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+          </span>
+          Running
+        </span>
+      );
+    case 'completed':
+      if (justCompleted && !reduceMotion) {
+        return (
+          <motion.span
+            animate={{ scale: 1, opacity: 1 }}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 font-medium text-success-emphasis text-xs"
+            initial={{ scale: 0.6, opacity: 0 }}
+            transition={springs.bouncy}
+          >
+            <svg
+              aria-hidden="true"
+              className="h-3 w-3"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <motion.circle
+                animate={{ pathLength: 1 }}
+                cx="12"
+                cy="12"
+                initial={{ pathLength: 0 }}
+                r="10"
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+              />
+              <motion.path
+                animate={{ pathLength: 1 }}
+                d="m9 12 2 2 4-4"
+                initial={{ pathLength: 0 }}
+                transition={{ delay: 0.25, duration: 0.25, ease: 'easeOut' }}
+              />
+            </svg>
+            Completed
+          </motion.span>
+        );
+      }
+      return (
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 font-medium text-success-emphasis text-xs">
+          <CheckCircle2 className="h-3 w-3" />
+          Completed
+        </span>
+      );
+    case 'failed':
+      return (
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 font-medium text-destructive-emphasis text-xs">
+          <XCircle className="h-3 w-3" />
+          Failed
+        </span>
+      );
+    case 'cancelled':
+      return (
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 font-medium text-muted-foreground text-xs">
+          <XCircle className="h-3 w-3" />
+          Cancelled
+        </span>
+      );
+    case 'interrupted':
+      return (
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 font-medium text-warning-emphasis text-xs">
+          <Square className="h-3 w-3" />
+          Stopped
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 font-medium text-muted-foreground text-xs">
+          {status}
+        </span>
+      );
+  }
+}
 
 export default function ExecutionPage() {
   const { id } = useParams<{ id: string }>();
@@ -375,62 +481,6 @@ export default function ExecutionPage() {
     );
   }
 
-  const getStatusBadge = () => {
-    switch (currentTask.status) {
-      case 'queued':
-        return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 font-medium text-warning-emphasis text-xs">
-            <Clock className="h-3 w-3" />
-            Queued
-          </span>
-        );
-      case 'running':
-        return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary text-xs">
-            <span aria-hidden="true" className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75 motion-reduce:hidden" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-            </span>
-            Running
-          </span>
-        );
-      case 'completed':
-        return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 font-medium text-success-emphasis text-xs">
-            <CheckCircle2 className="h-3 w-3" />
-            Completed
-          </span>
-        );
-      case 'failed':
-        return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 font-medium text-destructive-emphasis text-xs">
-            <XCircle className="h-3 w-3" />
-            Failed
-          </span>
-        );
-      case 'cancelled':
-        return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 font-medium text-muted-foreground text-xs">
-            <XCircle className="h-3 w-3" />
-            Cancelled
-          </span>
-        );
-      case 'interrupted':
-        return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 font-medium text-warning-emphasis text-xs">
-            <Square className="h-3 w-3" />
-            Stopped
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 font-medium text-muted-foreground text-xs">
-            {currentTask.status}
-          </span>
-        );
-    }
-  };
-
   const sessionId = currentTask.sessionId || currentTask.result?.sessionId;
 
   return (
@@ -448,7 +498,9 @@ export default function ExecutionPage() {
               </Button>
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <h1 className="min-w-0 truncate font-medium text-base text-foreground">{currentTask.prompt}</h1>
-                <span data-testid="execution-status-badge">{getStatusBadge()}</span>
+                <span data-testid="execution-status-badge">
+                  <TaskStatusBadge key={currentTask.id} status={currentTask.status} />
+                </span>
               </div>
             </div>
           </div>

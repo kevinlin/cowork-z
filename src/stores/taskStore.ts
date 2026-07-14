@@ -16,12 +16,6 @@ import type {
   Todo,
 } from '@/shared';
 
-// Batch update event type for performance optimization
-interface TaskUpdateBatchEvent {
-  taskId: string;
-  messages: TaskMessage[];
-}
-
 // Setup progress event type
 interface SetupProgressEvent {
   taskId: string;
@@ -112,10 +106,8 @@ interface TaskState {
   enqueuePermissionRequest: (request: PermissionRequest) => void;
   respondToPermission: (response: PermissionResponse) => Promise<void>;
   addTaskUpdate: (event: TaskUpdateEvent) => void;
-  addTaskUpdateBatch: (event: TaskUpdateBatchEvent) => void;
   addPartialMessage: (event: PartialMessageEvent) => void;
   finalizePartialMessage: (event: CompleteMessageEvent) => void;
-  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   setTaskSummary: (taskId: string, summary: string) => void;
   loadTasks: () => Promise<void>;
   loadAllTasks: () => Promise<void>;
@@ -961,33 +953,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  // Batch update handler for performance - processes multiple messages in single state update
-  addTaskUpdateBatch: (event: TaskUpdateBatchEvent) => {
-    void api.logEvent({
-      level: 'debug',
-      message: 'UI task batch update received',
-      context: { taskId: event.taskId, messageCount: event.messages.length },
-    });
-    set((state) => {
-      if (!state.currentTask || state.currentTask.id !== event.taskId) {
-        return state;
-      }
-
-      // Add all messages in a single state update, de-duplicating by id
-      const existingById = new Map(state.currentTask.messages.map((msg) => [msg.id, msg]));
-      event.messages.forEach((message) => {
-        existingById.set(message.id, message);
-      });
-      const mergedMessages = Array.from(existingById.values());
-      const updatedTask = {
-        ...state.currentTask,
-        messages: mergedMessages,
-      };
-
-      return { currentTask: updatedTask, isLoading: false };
-    });
-  },
-
   // Add or update a partial message (streaming)
   addPartialMessage: (event: PartialMessageEvent) => {
     if (!event.textSoFar) return;
@@ -1064,36 +1029,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           ...state.currentTask,
           messages: updatedMessages,
         },
-      };
-    });
-  },
-
-  // Update task status (e.g., queued -> running)
-  updateTaskStatus: (taskId: string, status: TaskStatus) => {
-    // Persist status to database
-    api.saveTaskStatus(taskId, status).catch((err) => {
-      console.error('Failed to save task status:', err);
-    });
-
-    set((state) => {
-      // Update in tasks list
-      const updatedTasks = state.tasks.map((task) =>
-        task.id === taskId ? { ...task, status, updatedAt: new Date().toISOString() } : task
-      );
-
-      // Update currentTask if it matches
-      const updatedCurrentTask =
-        state.currentTask?.id === taskId
-          ? {
-              ...state.currentTask,
-              status,
-              updatedAt: new Date().toISOString(),
-            }
-          : state.currentTask;
-
-      return {
-        tasks: updatedTasks,
-        currentTask: updatedCurrentTask,
       };
     });
   },
@@ -1237,11 +1172,6 @@ if (typeof window !== 'undefined' && api.isRunningInTauri()) {
       useTaskStore.getState().clearStartupStage(updateEvent.taskId);
     }
     useTaskStore.getState().addTaskUpdate(updateEvent);
-  });
-
-  // Subscribe to task summary updates
-  void api.onTaskSummary((data) => {
-    useTaskStore.getState().setTaskSummary(data.taskId, data.summary);
   });
 
   // Subscribe to partial message updates (streaming). Not logged: an IPC

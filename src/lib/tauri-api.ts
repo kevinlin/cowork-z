@@ -224,10 +224,6 @@ export async function saveTaskMessage(taskId: string, message: TaskMessage): Pro
   return invoke<void>('save_task_message', { taskId, message });
 }
 
-export async function saveTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
-  return invoke<void>('save_task_status', { taskId, status });
-}
-
 export async function saveTaskSession(taskId: string, sessionId: string): Promise<void> {
   return invoke<void>('save_task_session', { taskId, sessionId });
 }
@@ -1077,10 +1073,6 @@ export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): 
   };
 }
 
-export async function onTaskUpdateBatch(callback: (event: { taskId: string; messages: TaskMessage[] }) => void): Promise<UnlistenFn> {
-  return listen<{ taskId: string; messages: TaskMessage[] }>('task:update-batch', (event) => callback(event.payload));
-}
-
 export async function onPermissionRequest(callback: (request: PermissionRequest) => void): Promise<UnlistenFn> {
   return listen<{
     taskId?: string;
@@ -1171,14 +1163,6 @@ export async function onDebugLog(callback: (log: unknown) => void): Promise<Unli
 
 export async function onDebugModeChange(callback: (data: { enabled: boolean }) => void): Promise<UnlistenFn> {
   return listen<{ enabled: boolean }>('debug:mode-change', (event) => callback(event.payload));
-}
-
-export async function onTaskStatusChange(callback: (data: { taskId: string; status: TaskStatus }) => void): Promise<UnlistenFn> {
-  return listen<{ taskId: string; status: TaskStatus }>('task:status-change', (event) => callback(event.payload));
-}
-
-export async function onTaskSummary(callback: (data: { taskId: string; summary: string }) => void): Promise<UnlistenFn> {
-  return listen<{ taskId: string; summary: string }>('task:summary', (event) => callback(event.payload));
 }
 
 export async function onTaskMessagePartial(callback: (event: PartialMessageEvent) => void): Promise<UnlistenFn> {
@@ -1764,14 +1748,11 @@ export function getTauriApi() {
 
     // Event subscriptions
     onTaskUpdate,
-    onTaskUpdateBatch,
     onPermissionRequest,
     onQuestionRequest,
     onTaskProgress,
     onDebugLog,
     onDebugModeChange,
-    onTaskStatusChange,
-    onTaskSummary,
     onTaskMessagePartial,
     onTaskMessageComplete,
 

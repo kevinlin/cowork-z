@@ -15,10 +15,8 @@ export default function ArenaPage() {
     loadArena,
     reset,
     handleTaskUpdate,
-    handleTaskUpdateBatch,
     handlePartialMessage,
     handlePartialMessageComplete,
-    handleStatusChange,
     handlePermissionRequest,
     respondToPermission,
     permissionRequest,
@@ -63,15 +61,6 @@ export default function ArenaPage() {
       })
       .then(track);
 
-    // Batch updates
-    api
-      .onTaskUpdateBatch((event) => {
-        if (event.messages?.length) {
-          handleTaskUpdateBatch(event.taskId, event.messages);
-        }
-      })
-      .then(track);
-
     // Permission requests
     api
       .onPermissionRequest((request) => {
@@ -83,13 +72,6 @@ export default function ArenaPage() {
     api
       .onQuestionRequest((request) => {
         handleQuestionRequest(request);
-      })
-      .then(track);
-
-    // Status changes
-    api
-      .onTaskStatusChange((data) => {
-        handleStatusChange(data.taskId, data.status);
       })
       .then(track);
 
@@ -113,15 +95,7 @@ export default function ArenaPage() {
         unsub();
       }
     };
-  }, [
-    handleTaskUpdate,
-    handleTaskUpdateBatch,
-    handlePermissionRequest,
-    handleQuestionRequest,
-    handleStatusChange,
-    handlePartialMessage,
-    handlePartialMessageComplete,
-  ]);
+  }, [handleTaskUpdate, handlePermissionRequest, handleQuestionRequest, handlePartialMessage, handlePartialMessageComplete]);
 
   const handlePermissionResponse = useCallback(
     async (allowed: boolean, selectedOptions?: string[], customText?: string) => {

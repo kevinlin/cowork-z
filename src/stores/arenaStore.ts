@@ -48,10 +48,8 @@ const createEmptyColumns = (): ArenaColumns => [createEmptyColumn(), createEmpty
  */
 type BufferedEvent =
   | { kind: 'taskUpdate'; event: TaskUpdateEvent }
-  | { kind: 'taskUpdateBatch'; taskId: string; messages: TaskMessage[] }
   | { kind: 'partialMessage'; event: PartialMessageEvent }
-  | { kind: 'partialMessageComplete'; event: CompleteMessageEvent }
-  | { kind: 'statusChange'; taskId: string; status: TaskStatus };
+  | { kind: 'partialMessageComplete'; event: CompleteMessageEvent };
 
 interface ArenaState {
   arenaId: string | null;
@@ -91,10 +89,8 @@ interface ArenaState {
 
   // Event handlers — route by taskId to the correct column
   handleTaskUpdate: (event: TaskUpdateEvent) => void;
-  handleTaskUpdateBatch: (taskId: string, messages: TaskMessage[]) => void;
   handlePartialMessage: (event: PartialMessageEvent) => void;
   handlePartialMessageComplete: (event: CompleteMessageEvent) => void;
-  handleStatusChange: (taskId: string, status: TaskStatus) => void;
   handlePermissionRequest: (request: PermissionRequest) => void;
   respondToPermission: (response: PermissionResponse) => Promise<void>;
   handleQuestionRequest: (request: QuestionRequest) => void;
@@ -301,17 +297,11 @@ export const useArenaStore = create<ArenaState>((set, get) => {
           case 'taskUpdate':
             get().handleTaskUpdate(item.event);
             break;
-          case 'taskUpdateBatch':
-            get().handleTaskUpdateBatch(item.taskId, item.messages);
-            break;
           case 'partialMessage':
             get().handlePartialMessage(item.event);
             break;
           case 'partialMessageComplete':
             get().handlePartialMessageComplete(item.event);
-            break;
-          case 'statusChange':
-            get().handleStatusChange(item.taskId, item.status);
             break;
         }
       }
@@ -427,12 +417,10 @@ export const useArenaStore = create<ArenaState>((set, get) => {
     // PERSISTENCE OWNERSHIP (2026-06-12 review #11): task-update events
     // (saveTaskMessage / completeTask / saveTaskSession) are persisted exactly
     // once by taskStore's module-level onTaskUpdate subscription, which covers
-    // ALL task IDs including arena tasks. Status changes are persisted by
-    // updateTaskStatus via the always-mounted Sidebar's onTaskStatusChange
-    // subscription. These handlers only update arena UI state — do NOT add
-    // persistence calls here. The single exception is finalized streaming
-    // messages (handlePartialMessageComplete): taskStore only persists those
-    // for its currentTask, which is never an arena task.
+    // ALL task IDs including arena tasks. These handlers only update arena UI
+    // state — do NOT add persistence calls here. The single exception is
+    // finalized streaming messages (handlePartialMessageComplete): taskStore
+    // only persists those for its currentTask, which is never an arena task.
 
     handleTaskUpdate: (event) => {
       const { columns, pendingTaskIds } = get();
@@ -480,30 +468,6 @@ export const useArenaStore = create<ArenaState>((set, get) => {
       if (event.type === 'complete' || event.type === 'error' || event.type === 'started') {
         syncArenaListStatus();
       }
-    },
-
-    handleTaskUpdateBatch: (taskId, messages) => {
-      const { columns, pendingTaskIds } = get();
-      const idx = findColumnByTaskId(columns, taskId);
-      if (idx === -1) {
-        if (pendingTaskIds.has(taskId)) {
-          set((s) => ({ eventBuffer: [...s.eventBuffer, { kind: 'taskUpdateBatch', taskId, messages }] }));
-        }
-        return;
-      }
-
-      set((state) => {
-        const cols = [...state.columns] as ArenaColumns;
-        const col = { ...cols[idx] };
-        if (col.task) {
-          col.task = {
-            ...col.task,
-            messages: mergeMessagesById(col.task.messages, messages),
-          };
-        }
-        cols[idx] = col;
-        return { columns: cols };
-      });
     },
 
     handlePartialMessage: (event) => {
@@ -574,29 +538,6 @@ export const useArenaStore = create<ArenaState>((set, get) => {
         cols[idx] = col;
         return { columns: cols };
       });
-    },
-
-    handleStatusChange: (taskId, status) => {
-      const { columns, pendingTaskIds } = get();
-      const idx = findColumnByTaskId(columns, taskId);
-      if (idx === -1) {
-        if (pendingTaskIds.has(taskId)) {
-          set((s) => ({ eventBuffer: [...s.eventBuffer, { kind: 'statusChange', taskId, status }] }));
-        }
-        return;
-      }
-
-      set((state) => {
-        const cols = [...state.columns] as ArenaColumns;
-        const col = { ...cols[idx] };
-        col.status = status;
-        if (col.task) {
-          col.task = { ...col.task, status };
-        }
-        cols[idx] = col;
-        return { columns: cols };
-      });
-      syncArenaListStatus();
     },
 
     handlePermissionRequest: (request) => {

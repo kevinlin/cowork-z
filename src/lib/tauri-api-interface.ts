@@ -17,9 +17,7 @@ import type {
   ProviderSettings,
   Task,
   TaskConfig,
-  TaskMessage,
   TaskProgress,
-  TaskStatus,
   TaskUpdateEvent,
   Workspace,
 } from '@/shared';
@@ -271,13 +269,10 @@ export interface TauriAPI {
 
   // Event subscriptions
   onTaskUpdate(callback: (event: TaskUpdateEvent) => void): () => void;
-  onTaskUpdateBatch?(callback: (event: { taskId: string; messages: TaskMessage[] }) => void): () => void;
   onPermissionRequest(callback: (request: PermissionRequest) => void): () => void;
   onTaskProgress(callback: (progress: TaskProgress) => void): () => void;
   onDebugLog(callback: (log: unknown) => void): () => void;
   onDebugModeChange?(callback: (data: { enabled: boolean }) => void): () => void;
-  onTaskStatusChange?(callback: (data: { taskId: string; status: TaskStatus }) => void): () => void;
-  onTaskSummary?(callback: (data: { taskId: string; summary: string }) => void): () => void;
 
   // Logging
   logEvent(payload: { level?: string; message: string; context?: Record<string, unknown> }): Promise<unknown>;
@@ -362,15 +357,10 @@ export function getTauriAPI(): TauriAPI {
   cachedTauriAPI = {
     ...tauriApi,
     onTaskUpdate: (callback: (event: TaskUpdateEvent) => void) => toSyncUnlisten(tauriApi.onTaskUpdate(callback)),
-    onTaskUpdateBatch: (callback: (event: { taskId: string; messages: TaskMessage[] }) => void) =>
-      toSyncUnlisten(tauriApi.onTaskUpdateBatch(callback)),
     onPermissionRequest: (callback: (request: PermissionRequest) => void) => toSyncUnlisten(tauriApi.onPermissionRequest(callback)),
     onTaskProgress: (callback: (progress: TaskProgress) => void) => toSyncUnlisten(tauriApi.onTaskProgress(callback)),
     onDebugLog: (callback: (log: unknown) => void) => toSyncUnlisten(tauriApi.onDebugLog(callback)),
     onDebugModeChange: (callback: (data: { enabled: boolean }) => void) => toSyncUnlisten(tauriApi.onDebugModeChange(callback)),
-    onTaskStatusChange: (callback: (data: { taskId: string; status: TaskStatus }) => void) =>
-      toSyncUnlisten(tauriApi.onTaskStatusChange(callback)),
-    onTaskSummary: (callback: (data: { taskId: string; summary: string }) => void) => toSyncUnlisten(tauriApi.onTaskSummary(callback)),
     onWorkspaceChanged: (callback: (data: { workspace: Workspace }) => void) => toSyncUnlisten(tauriApi.onWorkspaceChanged(callback)),
     onWorkspaceFsChanged: (callback: (data: { changedPath: string }) => void) => toSyncUnlisten(tauriApi.onWorkspaceFsChanged(callback)),
     onSkillsChanged: (callback: () => void) => toSyncUnlisten(tauriApi.onSkillsChanged(callback)),

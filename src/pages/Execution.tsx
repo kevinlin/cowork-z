@@ -160,8 +160,6 @@ export default function ExecutionPage() {
     loadTaskById,
     isLoading,
     error,
-    addTaskUpdateBatch,
-    updateTaskStatus,
     enqueuePermissionRequest,
     permissionRequest,
     respondToPermission,
@@ -175,8 +173,6 @@ export default function ExecutionPage() {
       loadTaskById: state.loadTaskById,
       isLoading: state.isLoading,
       error: state.error,
-      addTaskUpdateBatch: state.addTaskUpdateBatch,
-      updateTaskStatus: state.updateTaskStatus,
       enqueuePermissionRequest: state.enqueuePermissionRequest,
       permissionRequest: state.permissionRequest,
       respondToPermission: state.respondToPermission,
@@ -291,22 +287,6 @@ export default function ExecutionPage() {
       .then(track);
 
     api
-      .onTaskUpdateBatch((event) => {
-        if (event.messages?.length) {
-          addTaskUpdateBatch(event);
-          const lastToolMsg = [...event.messages].reverse().find((m) => m.type === 'tool');
-          if (lastToolMsg) {
-            const toolName = lastToolMsg.toolName || lastToolMsg.content?.match(/Using tool: (\w+)/)?.[1];
-            if (toolName) {
-              setCurrentTool(toolName);
-              setCurrentToolInput(lastToolMsg.toolInput);
-            }
-          }
-        }
-      })
-      .then(track);
-
-    api
       .onPermissionRequest((request) => {
         enqueuePermissionRequest(request);
       })
@@ -319,20 +299,12 @@ export default function ExecutionPage() {
       })
       .then(track);
 
-    api
-      .onTaskStatusChange((data) => {
-        if (data.taskId === id) {
-          updateTaskStatus(data.taskId, data.status);
-        }
-      })
-      .then(track);
-
     return () => {
       cancelled = true;
       unlisteners.forEach((unsub) => unsub());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, loadTaskById, addTaskUpdateBatch, updateTaskStatus, enqueuePermissionRequest]);
+  }, [id, loadTaskById, enqueuePermissionRequest]);
 
   // On session resume/load, jump to the latest conversation once.
   useEffect(() => {

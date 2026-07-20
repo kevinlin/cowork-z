@@ -16,21 +16,19 @@ import type {
   Todo,
 } from '@/shared';
 
-// Setup progress event type
+// Setup progress event type. `isFirstTask` and `modelName` used to live here
+// but no producer ever set them — the sidecar's TaskProgressPayload carries
+// only `stage` and `message`.
 interface SetupProgressEvent {
   taskId: string;
   stage: string;
   message?: string;
-  isFirstTask?: boolean;
-  modelName?: string;
 }
 
 // Startup stage info for the progress indicator
 export interface StartupStageInfo {
   stage: string;
   message: string;
-  modelName?: string;
-  isFirstTask: boolean;
   startTime: number;
 }
 
@@ -97,7 +95,7 @@ interface TaskState {
 
   // Actions
   startTask: (config: TaskConfig) => Promise<Task | null>;
-  setStartupStage: (taskId: string | null, stage: string | null, message?: string, modelName?: string, isFirstTask?: boolean) => void;
+  setStartupStage: (taskId: string | null, stage: string | null, message?: string) => void;
   clearStartupStage: (taskId: string) => void;
   sendFollowUp: (message: string) => Promise<void>;
   cancelTask: () => Promise<void>;
@@ -390,7 +388,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     });
   },
 
-  setStartupStage: (taskId: string | null, stage: string | null, message?: string, modelName?: string, isFirstTask?: boolean) => {
+  setStartupStage: (taskId: string | null, stage: string | null, message?: string) => {
     if (!(taskId && stage)) {
       set({ startupStage: null, startupStageTaskId: null });
       return;
@@ -405,8 +403,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       startupStage: {
         stage,
         message: message || stage,
-        modelName,
-        isFirstTask: isFirstTask ?? false,
         startTime,
       },
       startupStageTaskId: taskId,
@@ -1137,8 +1133,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   closeLauncher: () => set({ isLauncherOpen: false }),
 }));
 
-// Startup stages that should be tracked (before first tool runs)
-const STARTUP_STAGES = ['starting', 'browser', 'environment', 'loading', 'connecting', 'waiting'];
+// Startup stages that should be tracked (before the agent starts executing).
+// Values come from the sidecar's TaskProgressPayload['stage'] union.
+const STARTUP_STAGES = ['starting', 'configuring', 'connecting'];
 
 // Global subscription to setup progress events (browser download, startup stages, etc.)
 // This runs when the module is loaded to catch early progress events
@@ -1150,12 +1147,12 @@ if (typeof window !== 'undefined' && api.isRunningInTauri()) {
 
     // Handle startup stages
     if (STARTUP_STAGES.includes(event.stage)) {
-      state.setStartupStage(event.taskId, event.stage, event.message, event.modelName, event.isFirstTask);
+      state.setStartupStage(event.taskId, event.stage, event.message);
       return;
     }
 
-    // Handle tool-use stage - clear startup stage since first tool has arrived
-    if (event.stage === 'tool-use') {
+    // The agent has started executing — the startup message has served its purpose
+    if (event.stage === 'executing') {
       state.clearStartupStage(event.taskId);
       return;
     }

@@ -8,9 +8,11 @@
 import type {
   ApiKeyConfig,
   BedrockCredentials,
+  CompleteMessageEvent,
   ConnectedProvider,
   DirectoryEntry,
   McpServersConfig,
+  PartialMessageEvent,
   PermissionRequest,
   PermissionResponse,
   ProviderId,
@@ -19,9 +21,19 @@ import type {
   TaskConfig,
   TaskProgress,
   TaskUpdateEvent,
+  Todo,
   Workspace,
 } from '@/shared';
-import type { InstalledSkill, PackInstallResult, PackMeta, RepoSkill, SkillRepo, SkillWithStatus, SyncProgress } from './tauri-api';
+import type {
+  InstalledSkill,
+  PackInstallResult,
+  PackMeta,
+  QuestionRequestEvent,
+  RepoSkill,
+  SkillRepo,
+  SkillWithStatus,
+  SyncProgress,
+} from './tauri-api';
 import { getTauriApi, isRunningInTauri, toSyncUnlisten } from './tauri-api';
 
 export interface TauriAPI {
@@ -270,7 +282,11 @@ export interface TauriAPI {
   // Event subscriptions
   onTaskUpdate(callback: (event: TaskUpdateEvent) => void): () => void;
   onPermissionRequest(callback: (request: PermissionRequest) => void): () => void;
+  onQuestionRequest(callback: (event: QuestionRequestEvent) => void): () => void;
   onTaskProgress(callback: (progress: TaskProgress) => void): () => void;
+  onTaskMessagePartial(callback: (event: PartialMessageEvent) => void): () => void;
+  onTaskMessageComplete(callback: (event: CompleteMessageEvent) => void): () => void;
+  onTodoUpdated(callback: (event: { taskId: string; todos: Todo[] }) => void): () => void;
   onDebugLog(callback: (log: unknown) => void): () => void;
   onDebugModeChange?(callback: (data: { enabled: boolean }) => void): () => void;
 
@@ -358,7 +374,11 @@ export function getTauriAPI(): TauriAPI {
     ...tauriApi,
     onTaskUpdate: (callback: (event: TaskUpdateEvent) => void) => toSyncUnlisten(tauriApi.onTaskUpdate(callback)),
     onPermissionRequest: (callback: (request: PermissionRequest) => void) => toSyncUnlisten(tauriApi.onPermissionRequest(callback)),
+    onQuestionRequest: (callback: (event: QuestionRequestEvent) => void) => toSyncUnlisten(tauriApi.onQuestionRequest(callback)),
     onTaskProgress: (callback: (progress: TaskProgress) => void) => toSyncUnlisten(tauriApi.onTaskProgress(callback)),
+    onTaskMessagePartial: (callback: (event: PartialMessageEvent) => void) => toSyncUnlisten(tauriApi.onTaskMessagePartial(callback)),
+    onTaskMessageComplete: (callback: (event: CompleteMessageEvent) => void) => toSyncUnlisten(tauriApi.onTaskMessageComplete(callback)),
+    onTodoUpdated: (callback: (event: { taskId: string; todos: Todo[] }) => void) => toSyncUnlisten(tauriApi.onTodoUpdated(callback)),
     onDebugLog: (callback: (log: unknown) => void) => toSyncUnlisten(tauriApi.onDebugLog(callback)),
     onDebugModeChange: (callback: (data: { enabled: boolean }) => void) => toSyncUnlisten(tauriApi.onDebugModeChange(callback)),
     onWorkspaceChanged: (callback: (data: { workspace: Workspace }) => void) => toSyncUnlisten(tauriApi.onWorkspaceChanged(callback)),

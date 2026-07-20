@@ -1,6 +1,6 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { defineConfig } from 'vite';
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -11,8 +11,11 @@ export default defineConfig(async () => ({
 
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
-      "@shared": path.resolve(__dirname, "src/shared"),
+      '@': path.resolve(__dirname, 'src'),
+      '@shared': path.resolve(__dirname, 'src/shared'),
+      // Type-only in practice (`import type` erases the runtime import), but
+      // aliased so an accidental *value* import fails loudly at resolve time.
+      '@sidecar': path.resolve(__dirname, 'src-tauri/sidecar-opencode/src'),
     },
   },
 
@@ -24,17 +27,17 @@ export default defineConfig(async () => ({
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
+    host,
     hmr: host
       ? {
-          protocol: "ws",
+          protocol: 'ws',
           host,
           port: 1421,
         }
       : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      ignored: ['**/src-tauri/**'],
     },
   },
 }));

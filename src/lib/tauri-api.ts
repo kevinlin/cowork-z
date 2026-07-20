@@ -10,7 +10,6 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { homeDir } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
-
 import type {
   ApiKeyConfig,
   Arena,
@@ -38,6 +37,7 @@ import type {
   Todo,
   Workspace,
 } from '@/shared';
+import { onSidecarEvent } from './sidecar-bridge';
 
 /**
  * Convert an async `listen()` registration into a synchronous unsubscribe
@@ -407,8 +407,7 @@ export async function disconnectMcpServer(name: string): Promise<void> {
 export async function onMcpStatus(
   callback: (data: { servers: Record<string, { status: string; error?: string }> }) => void
 ): Promise<UnlistenFn> {
-  return listen<{ payload?: { servers?: Record<string, { status: string; error?: string }> } }>('mcp:status', (event) => {
-    const payload = event.payload?.payload;
+  return onSidecarEvent('mcp_status', ({ payload }) => {
     if (payload?.servers) {
       callback({ servers: payload.servers });
     }
@@ -416,8 +415,7 @@ export async function onMcpStatus(
 }
 
 export async function onMcpTools(callback: (data: { toolIds: string[] }) => void): Promise<UnlistenFn> {
-  return listen<{ payload?: { toolIds?: string[] } }>('mcp:tools', (event) => {
-    const payload = event.payload?.payload;
+  return onSidecarEvent('mcp_tools', ({ payload }) => {
     if (payload?.toolIds) {
       callback({ toolIds: payload.toolIds });
     }
@@ -425,8 +423,7 @@ export async function onMcpTools(callback: (data: { toolIds: string[] }) => void
 }
 
 export async function onMcpToolsChanged(callback: (data: { server: string }) => void): Promise<UnlistenFn> {
-  return listen<{ payload?: { server?: string } }>('mcp:tools_changed', (event) => {
-    const payload = event.payload?.payload;
+  return onSidecarEvent('mcp_tools_changed', ({ payload }) => {
     if (payload?.server) {
       callback({ server: payload.server });
     }
@@ -1000,20 +997,12 @@ export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): 
     unlisteners.push(unlisten);
   };
 
+  // Four sources, not six: `task:update` had no emitter anywhere in the repo,
+  // and the `task:progress` arm read a `progress` key the sidecar never sends.
+  // Startup progress is handled by onTaskProgress instead.
   await Promise.all([
-    listen<TaskUpdateEvent>('task:update', (event) => {
-      if (event.payload?.type === 'message' && event.payload.message) {
-        const normalized = normalizeIncomingMessage(event.payload.message);
-        if (normalized) {
-          callback({ ...event.payload, message: normalized });
-        }
-        return;
-      }
-      callback(event.payload);
-    }).then(track),
-    listen<{ taskId?: string; payload?: { message?: TaskMessage } }>('task:message', (event) => {
-      const taskId = event.payload?.taskId;
-      const message = event.payload?.payload?.message;
+    onSidecarEvent('task_message', ({ taskId, payload }) => {
+      const message = payload?.message;
       if (taskId && message) {
         const normalized = normalizeIncomingMessage(message);
         if (!normalized) {
@@ -1022,46 +1011,23 @@ export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): 
         callback({ taskId, type: 'message', message: normalized });
       }
     }).then(track),
-    listen<{ taskId?: string; payload?: { progress?: TaskProgress } }>('task:progress', (event) => {
-      const taskId = event.payload?.taskId;
-      const progress = event.payload?.payload?.progress;
-      if (taskId && progress) {
-        callback({ taskId, type: 'progress', progress });
-      }
-    }).then(track),
-    listen<{
-      taskId?: string;
-      payload?: {
-        result?: TaskResult;
-        status?: string;
-        sessionId?: string;
-        error?: string;
-      };
-    }>('task:complete', (event) => {
-      const taskId = event.payload?.taskId;
-      const result = normalizeTaskCompletePayload(event.payload?.payload);
+    onSidecarEvent('task_complete', ({ taskId, payload }) => {
+      const result = normalizeTaskCompletePayload(payload);
       if (taskId && result) {
         callback({ taskId, type: 'complete', result });
       }
     }).then(track),
-    listen<{
-      taskId?: string;
-      payload?: { error?: unknown; sessionId?: string };
-    }>('task:error', (event) => {
-      const taskId = event.payload?.taskId;
-      const errorPayload = event.payload?.payload?.error;
-      const sessionId = event.payload?.payload?.sessionId;
+    onSidecarEvent('task_error', ({ taskId, payload }) => {
+      const errorPayload: unknown = payload?.error;
+      const sessionId = payload?.sessionId;
       if (taskId && errorPayload !== undefined) {
+        // The wire stays untrusted regardless of what the types claim.
         const error = typeof errorPayload === 'string' ? errorPayload : JSON.stringify(errorPayload);
         callback({ taskId, type: 'error', error, sessionId });
       }
     }).then(track),
-    listen<{
-      taskId?: string;
-      payload?: { taskId?: string; sessionId?: string };
-    }>('task:started', (event) => {
-      const taskId = event.payload?.taskId;
-      const sessionId = event.payload?.payload?.sessionId;
+    onSidecarEvent('task_started', ({ taskId, payload }) => {
+      const sessionId = payload?.sessionId;
       if (taskId && sessionId) {
         callback({ taskId, type: 'started', sessionId });
       }
@@ -1074,18 +1040,7 @@ export async function onTaskUpdate(callback: (event: TaskUpdateEvent) => void): 
 }
 
 export async function onPermissionRequest(callback: (request: PermissionRequest) => void): Promise<UnlistenFn> {
-  return listen<{
-    taskId?: string;
-    payload?: {
-      id?: string;
-      sessionId?: string;
-      permission?: string;
-      patterns?: string[];
-      metadata?: Record<string, unknown>;
-    };
-  }>('task:permission_request', (event) => {
-    const taskId = event.payload?.taskId;
-    const payload = event.payload?.payload;
+  return onSidecarEvent('permission_request', ({ taskId, payload }) => {
     if (taskId && payload?.id) {
       callback({
         id: payload.id,
@@ -1113,21 +1068,7 @@ export interface QuestionRequestEvent {
 }
 
 export async function onQuestionRequest(callback: (event: QuestionRequestEvent) => void): Promise<UnlistenFn> {
-  return listen<{
-    taskId?: string;
-    payload?: {
-      id?: string;
-      sessionId?: string;
-      questions?: Array<{
-        question: string;
-        header?: string;
-        options?: Array<{ label: string; description?: string }>;
-        multiSelect?: boolean;
-      }>;
-    };
-  }>('task:question_request', (event) => {
-    const taskId = event.payload?.taskId;
-    const payload = event.payload?.payload;
+  return onSidecarEvent('question_request', ({ taskId, payload }) => {
     if (taskId && payload?.id && payload.questions) {
       callback({
         taskId,
@@ -1140,22 +1081,22 @@ export async function onQuestionRequest(callback: (event: QuestionRequestEvent) 
 }
 
 export async function onTaskProgress(callback: (progress: TaskProgress) => void): Promise<UnlistenFn> {
-  return listen<TaskProgress>('task:progress', (event) => callback(event.payload));
+  // `taskId` is a sibling of `payload` on the wire, so rebuild the flat
+  // TaskProgress shape the store expects.
+  return onSidecarEvent('task_progress', ({ taskId, payload }) => {
+    callback({ taskId, stage: payload.stage, message: payload.message });
+  });
 }
 
 export async function onDebugLog(callback: (log: unknown) => void): Promise<UnlistenFn> {
-  // Listen on sidecar:log — Rust maps sidecar "log" events to "sidecar:log"
-  // Payload shape from Rust: { taskId?, payload: { level, message } }
   // Transform to DebugLogEntry shape: { taskId, timestamp, type, message }
-  return listen<{ taskId?: string; payload?: { level?: string; message?: string } }>('sidecar:log', (event) => {
-    const raw = event.payload;
-    const logPayload = raw?.payload;
-    if (logPayload) {
+  return onSidecarEvent('log', ({ payload }) => {
+    if (payload) {
       callback({
-        taskId: raw?.taskId ?? 'system',
+        taskId: 'system',
         timestamp: new Date().toISOString(),
-        type: logPayload.level ?? 'info',
-        message: logPayload.message ?? '',
+        type: payload.level ?? 'info',
+        message: payload.message ?? '',
       });
     }
   });
@@ -1166,12 +1107,9 @@ export async function onDebugModeChange(callback: (data: { enabled: boolean }) =
 }
 
 export async function onTaskMessagePartial(callback: (event: PartialMessageEvent) => void): Promise<UnlistenFn> {
-  return listen<{
-    taskId?: string;
-    payload?: { messageId?: string; textSoFar?: string; isStreaming?: boolean };
-  }>('task:message:partial', (event) => {
-    const taskId = event.payload?.taskId;
-    const payload = event.payload?.payload;
+  // Defensive guards stay in this hot path — the wire is untrusted no matter
+  // what the types promise.
+  return onSidecarEvent('task_message_partial', ({ taskId, payload }) => {
     if (taskId && payload?.messageId && payload.textSoFar !== undefined) {
       callback({
         taskId,
@@ -1184,12 +1122,7 @@ export async function onTaskMessagePartial(callback: (event: PartialMessageEvent
 }
 
 export async function onTaskMessageComplete(callback: (event: CompleteMessageEvent) => void): Promise<UnlistenFn> {
-  return listen<{
-    taskId?: string;
-    payload?: { messageId?: string; text?: string };
-  }>('task:message:complete', (event) => {
-    const taskId = event.payload?.taskId;
-    const payload = event.payload?.payload;
+  return onSidecarEvent('task_message_complete', ({ taskId, payload }) => {
     if (taskId && payload?.messageId && payload.text !== undefined) {
       callback({
         taskId,
@@ -1209,11 +1142,9 @@ export async function getSessionTodos(taskId: string, sessionId: string): Promis
 }
 
 export async function onTodoUpdated(callback: (event: { taskId: string; todos: Todo[] }) => void): Promise<UnlistenFn> {
-  return listen<{ taskId?: string; payload?: { todos?: Todo[] } }>('task:todo_updated', (event) => {
-    const taskId = event.payload?.taskId;
-    const todos = event.payload?.payload?.todos;
-    if (taskId && todos) {
-      callback({ taskId, todos });
+  return onSidecarEvent('todo_updated', ({ taskId, payload }) => {
+    if (taskId && payload?.todos) {
+      callback({ taskId, todos: payload.todos });
     }
   });
 }
@@ -1449,8 +1380,7 @@ export async function copilotDisconnect(): Promise<void> {
 export async function onCopilotOAuthResult(
   callback: (result: { url: string; method: string; instructions: string }) => void
 ): Promise<UnlistenFn> {
-  return listen<{ payload?: { url?: string; method?: string; instructions?: string } }>('copilot:oauth_result', (event) => {
-    const payload = event.payload?.payload;
+  return onSidecarEvent('copilot_oauth_result', ({ payload }) => {
     if (payload?.url && payload.instructions) {
       callback({
         url: payload.url,
@@ -1462,8 +1392,7 @@ export async function onCopilotOAuthResult(
 }
 
 export async function onCopilotOAuthComplete(callback: (result: { connected: boolean; error?: string }) => void): Promise<UnlistenFn> {
-  return listen<{ payload?: { connected?: boolean; error?: string } }>('copilot:oauth_complete', (event) => {
-    const payload = event.payload?.payload;
+  return onSidecarEvent('copilot_oauth_complete', ({ payload }) => {
     if (payload) {
       callback({
         connected: payload.connected ?? false,
@@ -1476,19 +1405,15 @@ export async function onCopilotOAuthComplete(callback: (result: { connected: boo
 export async function onCopilotModelsResult(
   callback: (result: { success: boolean; models?: Array<{ id: string; name: string }>; error?: string }) => void
 ): Promise<UnlistenFn> {
-  return listen<{ payload?: { success?: boolean; models?: Array<{ id: string; name: string }>; error?: string } }>(
-    'copilot:models_result',
-    (event) => {
-      const payload = event.payload?.payload;
-      if (payload) {
-        callback({
-          success: payload.success ?? false,
-          models: payload.models,
-          error: payload.error,
-        });
-      }
+  return onSidecarEvent('copilot_models_result', ({ payload }) => {
+    if (payload) {
+      callback({
+        success: payload.success ?? false,
+        models: payload.models,
+        error: payload.error,
+      });
     }
-  );
+  });
 }
 
 // ============================================================================
@@ -1755,6 +1680,7 @@ export function getTauriApi() {
     onDebugModeChange,
     onTaskMessagePartial,
     onTaskMessageComplete,
+    onTodoUpdated,
 
     // Logging
     logEvent,

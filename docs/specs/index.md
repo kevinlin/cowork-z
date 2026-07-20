@@ -67,8 +67,9 @@ Resolved issues documented in [`design_opencode-integration.md`](opencode-integr
 | Slash Command Skill Invocation | [`chat-ux/plan_slash-command-skill-invocation.md`](chat-ux/plan_slash-command-skill-invocation.md) | 3.8 |
 | Rename Conversation in Sidebar | [`chat-ux/plan_rename-conversation-in-sidebar.md`](chat-ux/plan_rename-conversation-in-sidebar.md) | 3.9 |
 | Tool Call Card Redesign | [`chat-ux/plan_tool-call-card-redesign.md`](chat-ux/plan_tool-call-card-redesign.md) | 3.7.2 |
+| Typed Sidecar Event Bridge | [`chat-ux/plan_typed-sidecar-event-bridge.md`](chat-ux/plan_typed-sidecar-event-bridge.md) | 9.4.3 |
 
-Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#resolved-issues): Stop Button, Long-Running Task False Failure, Streaming Partial Message Duplication, Intermediate Messages Not Persisted, Markdown Table Rendering.
+Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#resolved-issues): Stop Button, Long-Running Task False Failure, Streaming Partial Message Duplication, Intermediate Messages Not Persisted, Markdown Table Rendering, Startup Stage Indicator Never Displayed.
 
 ### app-ux — App Experience
 

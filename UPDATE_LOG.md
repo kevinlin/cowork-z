@@ -4,6 +4,7 @@
 
 ## v0.8.6
 
+- **Typed sidecar event bridge** — Reworked how events travel from the agent process to the UI. Previously each event had to be hand-registered in seven places across three languages, and a missed registration dropped the event silently. Events are now forwarded generically and typed end to end, so a mismatch is a build error instead of a feature that quietly does nothing. Along the way this fixed the startup progress message ("Starting OpenCode server…"), which had never displayed, and removed two dead event listeners. Sidecar output that can't be parsed is now logged instead of discarded.
 - 
 
 ## v0.8.5 (2026-06-14)

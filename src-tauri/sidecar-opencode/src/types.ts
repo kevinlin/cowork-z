@@ -1,4 +1,14 @@
 // ============================================================================
+// Single source of truth for the Rust <-> sidecar IPC protocol.
+//
+// The frontend imports `SidecarEvent` from here via the `@sidecar/*` path alias
+// (tsconfig.json, vite.config.ts, vitest.config.ts) rather than keeping its own
+// copy. Consequence to be aware of: this file is part of the root TypeScript
+// program, so a change here can break `pnpm typecheck` from outside `src/`.
+// Keep it type-only — no imports, no runtime code.
+// ============================================================================
+
+// ============================================================================
 // OpenCode Server API Types (from opencode-api.json)
 // ============================================================================
 

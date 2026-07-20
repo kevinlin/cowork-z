@@ -19,7 +19,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@shared/*": ["src/shared/*"],
-      "@shared": ["src/shared/index.ts"]
+      "@shared": ["src/shared/index.ts"],
+      "@sidecar/*": ["src-tauri/sidecar-opencode/src/*"]
     },
 
     /* Linting */

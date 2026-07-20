@@ -908,7 +908,7 @@ The Skills Catalog is a curated discovery surface for Git-backed skill repositor
 
 1. THE SYSTEM SHALL persist automations in an `automations` table and runs in an `automation_runs` table (status ∈ `pending` / `running` / `completed` / `failed` / `cancelled`); the `tasks` table SHALL include a nullable `automation_run_id` FK to correlate automation-triggered tasks.
 2. WHEN a task triggered by an automation completes, THE SYSTEM SHALL invoke `try_complete_run_if_running` (`UPDATE … WHERE status='running'`) so completion is idempotent — only the first caller to affect the row releases the dispatch slot and drains pending runs.
-3. THE SYSTEM SHALL handle `task_complete` synchronously in the Rust sidecar event handler (`SidecarManager::handle_sidecar_event`), independently of the frontend `complete_task` invoke, so automation completion is robust against macOS release-build WebView throttling.
+3. THE SYSTEM SHALL handle `task_complete` synchronously in the Rust sidecar event handler, via the `SidecarSideEffect` registry in `SidecarManager::handle_sidecar_event`, independently of the frontend `complete_task` invoke, so automation completion is robust against macOS release-build WebView throttling.
 4. THE SYSTEM SHALL drop the `DbState.conn` mutex before calling `process_pending_runs` (the connection mutex is `std::sync::Mutex` and is not reentrant); failure to do so causes a self-deadlock.
 5. WHEN a workspace is deleted, THE SYSTEM SHALL cascade-delete its automations and runs.
 6. ON app quit, THE SYSTEM SHALL cancel all per-automation threads; pending run state SHALL persist in SQLite and resume on next launch.

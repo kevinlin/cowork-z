@@ -125,32 +125,38 @@ Each event is serialized as a single JSON line on stdout via `console.log()`.
 
 ### Layer 3: Rust IPC Bridge
 
-`sidecar.rs` reads stdout line-by-line, parses each as `SidecarEvent { event_type, task_id?, payload? }`, and maps the `event_type` string to a Tauri event name:
+> **Plan:** [Typed sidecar event bridge](plan_typed-sidecar-event-bridge.md)
 
-| Sidecar `type` | Tauri Event Name |
-|---------------|-----------------|
-| `task_message_partial` | `task:message:partial` |
-| `task_message_complete` | `task:message:complete` |
-| `task_message` | `task:message` |
-| `task_started` | `task:started` |
-| `task_complete` | `task:complete` |
-| `task_error` | `task:error` |
-| `task_progress` | `task:progress` |
+`sidecar.rs` reassembles stdout into whole JSON objects (`LineAssembler`), then forwards each one **verbatim** under `sidecar:{type}`. There is no rename table: the Tauri event name is the sidecar's own `type` with a `sidecar:` prefix, so `task_message_partial` becomes `sidecar:task_message_partial`.
 
-The Rust layer does not validate or transform payload fields — `payload` is deserialized as `Option<serde_json::Value>` and forwarded as-is. The emitted Tauri event shape is always `{ taskId?: string, payload: <event-specific object> }`.
+The emitted Tauri event is the original object unchanged — `{ type, taskId?, payload? }` — so the frontend unwraps once rather than twice.
+
+Two events also trigger a Rust-side effect, declared in the `SidecarSideEffect` enum:
+
+| Sidecar `type` | Side effect | Forwarded? |
+|---------------|-------------|-----------|
+| `request_api_keys` | Load keys from the keychain, reply over stdin | No — credentials never reach the frontend |
+| `task_complete` | `handle_task_completion_internal` writes the DB row | Yes |
+
+Any other type decodes to the enum's `#[serde(other)]` catch-all and is still forwarded, so a missing arm can no longer drop an event silently. Stdout that cannot be parsed is logged as `[stdout-drop]` rather than discarded.
+
+**Namespace invariant:** `sidecar:{type}` is always a verbatim sidecar event; `sidecar:process_*` (`process_error`, `process_terminated`) is always Rust-origin, about the child process.
 
 ### Layer 4: Frontend Event Listeners
+
+`src/lib/sidecar-bridge.ts` provides `onSidecarEvent(type, handler)`, keyed off the sidecar's own `SidecarEvent` union imported through the `@sidecar/*` path alias. The union is the single source of truth: adding a member makes it immediately subscribable with a correctly typed payload. Handlers receive the whole event, since `taskId` is a sibling of `payload`, not nested inside it.
 
 Two subscription layers handle incoming Tauri events:
 
 **Module-level subscriptions** (in `taskStore.ts`, execute on import):
-- `task:message:partial` → `store.addPartialMessage(event)` — updates `partialMessages` Map
-- `task:message:complete` → `store.finalizePartialMessage(event)` — moves partial to completed messages
+- `sidecar:task_message_partial` → `store.addPartialMessage(event)` — updates `partialMessages` Map
+- `sidecar:task_message_complete` → `store.finalizePartialMessage(event)` — moves partial to completed messages
+- `sidecar:task_progress` → startup stage indicator
 
 **Component-level subscriptions** (in `Execution.tsx`, wired per task):
-- `task:message` → `store.addTaskUpdate(event)` — handles tool messages and text messages
-- `task:started` → sets `sessionId` and `status: 'running'`
-- `task:complete` / `task:error` → updates task status
+- `sidecar:task_message` → `store.addTaskUpdate(event)` — handles tool messages and text messages
+- `sidecar:task_started` → sets `sessionId` and `status: 'running'`
+- `sidecar:task_complete` / `sidecar:task_error` → updates task status
 
 #### Message Normalization
 
@@ -219,9 +225,9 @@ flowchart TD
     IDX -- "task_message_complete\n{ messageId, text }" --> RS
     IDX -- "task_message\n{ message: { type: tool_use, ... } }" --> RS
 
-    RS -- "task:message:partial" --> API
-    RS -- "task:message:complete" --> API
-    RS -- "task:message" --> API
+    RS -- "sidecar:task_message_partial" --> API
+    RS -- "sidecar:task_message_complete" --> API
+    RS -- "sidecar:task_message" --> API
 
     API --> APM
     API --> FPM
@@ -247,7 +253,7 @@ The `taskStore` maintains two separate data structures for messages:
 
 ### addPartialMessage
 
-Called on every `task:message:partial` event. Processing:
+Called on every `sidecar:task_message_partial` event. Processing:
 
 1. Guards: returns unchanged state if `currentTask` is null or `taskId` doesn't match
 2. Creates a new Map (copy-on-write for Zustand reactivity)
@@ -270,7 +276,7 @@ The key design decision: `event.text` is always used as the final content, even 
 
 ### addTaskUpdate
 
-Called on `task:message` and `task:update` events. Processing:
+Called on `sidecar:task_message` events. Processing:
 
 1. **Deduplication**: Constructs an `eventKey` from `taskId` and message `id`. For tool messages, `normalizedContent` encodes `id:toolInputLength:out:outputLength`, allowing re-entry when tool state changes (e.g., output arrives). Checks against a module-level `lastLoggedEvents` cache.
 2. **Persistence**: Fire-and-forget `saveTaskMessage()` for `'message'` events.
@@ -542,11 +548,14 @@ The indicator selects its label based on four priority levels:
 3. **Startup stage** — Shows `startupStage.message` (e.g., "Starting OpenCode server...")
 4. **Fallback** — Shows "Thinking..."
 
+Priority 3 only began firing once the `task_progress` payload was unwrapped correctly and the stage vocabulary was aligned with the sidecar — see [Resolved: Startup Stage Indicator](#resolved-startup-stage).
+
+Stages come from the sidecar's `TaskProgressPayload['stage']` union: `starting`, `connecting`, `configuring`, `executing`, `completing`. The store tracks `starting | configuring | connecting` as startup stages and clears the indicator on `executing`.
+
 ### Secondary Information
 
 - When displaying a tool label (priority 2), a dim `(toolName)` span shows the raw identifier
 - When in startup stage (priority 3), a dim `(Xs)` elapsed-time counter is shown
-- On the first task with `startupStage === 'browser'`, a hint line "First task takes a bit longer..." appears
 
 ### Animation
 
@@ -586,7 +595,7 @@ Returns `true` on the first match. This drives the display of a "Done, Continue"
 
 > **Plan:** [Chat UI Rewrite](plan_chat-ui-rewrite.md)
 
-When the agent sends a `task:question_request` event, a modal dialog appears with:
+When the agent sends a `sidecar:question_request` event, a modal dialog appears with:
 - Question text
 - Selectable options (single-select by default)
 - ~~Optional~~ **Always-on** free-text input
@@ -658,7 +667,7 @@ Right-clicking a conversation in the sidebar shows a context menu with "Rename" 
 
 ### Stop/Cancel Task
 
-Clicking the Stop button or pressing `Escape` during a running task sends `abort_session` to the sidecar with the session's `directory` parameter. The `task:started` event provides the `sessionId` to the frontend early in the session lifecycle, enabling abort at any point during execution (see [Resolved Issue: Stop Button](#resolved-stop-button)).
+Clicking the Stop button or pressing `Escape` during a running task sends `abort_session` to the sidecar with the session's `directory` parameter. The `sidecar:task_started` event provides the `sessionId` to the frontend early in the session lifecycle, enabling abort at any point during execution (see [Resolved Issue: Stop Button](#resolved-stop-button)).
 
 ### Session Resume Scroll Position
 
@@ -722,6 +731,7 @@ All Tauri event subscriptions are kept in `Execution.tsx` and state is passed to
 | `src/lib/waiting-detection.ts` | "Waiting for user" regex pattern detection |
 | `src/stores/taskStore.ts` | Task state, partial messages, event handling, persistence |
 | `src/lib/tauri-api.ts` | Tauri IPC bridge, event listeners, message normalization |
+| `src/lib/sidecar-bridge.ts` | Typed `onSidecarEvent` subscription helper, keyed off the sidecar's `SidecarEvent` union |
 | `src/shared/types/task.ts` | Type definitions (TaskMessage, PartialMessage, events) |
 | `src/hooks/useSkillAutocomplete.ts` | Slash-command skill autocomplete |
 | `src-tauri/sidecar-opencode/src/session-manager.ts` | Sidecar message handling, text accumulation |
@@ -732,6 +742,21 @@ All Tauri event subscriptions are kept in `Execution.tsx` and state is passed to
 ---
 
 ## Resolved Issues
+
+### Resolved: Startup Stage Indicator Never Displayed {#resolved-startup-stage}
+
+> **Plan:** [Typed sidecar event bridge](plan_typed-sidecar-event-bridge.md)
+
+**Problem:** The startup message ("Starting OpenCode server…") in the ThinkingIndicator had never rendered in production. Priority 3 of the display chain was dead code.
+
+**Root Cause (two independent faults, either alone sufficient):**
+
+1. **Double-wrap mismatch** — `onTaskProgress` typed the event payload as a bare `TaskProgress` and passed `event.payload` straight through. Rust actually emitted `{ taskId, payload: { stage } }`, so `stage`, `taskId` and `message` all read as `undefined`.
+2. **Zero vocabulary overlap** — `STARTUP_STAGES` listed `starting, browser, environment, loading, connecting, waiting`, while the sidecar only ever emits `configuring` and `executing`. Even with the unwrap fixed, no stage would have matched, and the clear-trigger listened for a `tool-use` stage that no producer sends.
+
+**Fix:** `onTaskProgress` unwraps once and rebuilds the flat shape; `StartupStage` and `STARTUP_STAGES` adopt the sidecar's union as the single source of truth; the clear-trigger becomes `executing`.
+
+**Also removed:** `SetupProgressEvent.isFirstTask` and `.modelName` had no producer anywhere and were permanently `undefined`, so the "First task takes a bit longer..." hint (gated on `isFirstTask && stage === 'browser'`) was unreachable and has been deleted.
 
 ### Resolved: Stop Button Does Not Work {#resolved-stop-button}
 

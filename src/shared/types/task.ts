@@ -83,13 +83,18 @@ export interface TaskResult {
 /**
  * Startup stages shown during task initialization (before first tool runs)
  */
+/**
+ * Startup stages, mirroring the sidecar's `TaskProgressPayload['stage']` union
+ * (`src-tauri/sidecar-opencode/src/types.ts`). The sidecar's vocabulary is the
+ * single source of truth — the previous list here shared no values with what
+ * the sidecar actually emits, so the indicator never displayed.
+ */
 export type StartupStage =
   | 'starting' // Task created
-  | 'browser' // Preparing browser (cold start only)
-  | 'environment' // Setting up environment (config + API keys)
-  | 'loading' // Loading agent (CLI spawning)
-  | 'connecting' // Connecting to model (step_start received)
-  | 'waiting'; // Waiting for response (timed transition)
+  | 'connecting' // Connecting to the OpenCode server
+  | 'configuring' // Writing config + resolving API keys
+  | 'executing' // Agent is running — clears the startup message
+  | 'completing'; // Wrapping up
 
 export interface TaskProgress {
   taskId: string;
@@ -98,10 +103,6 @@ export interface TaskProgress {
   toolInput?: unknown;
   percentage?: number;
   message?: string;
-  /** Model display name for 'connecting' stage */
-  modelName?: string;
-  /** Whether this is the first task (cold start) */
-  isFirstTask?: boolean;
 }
 
 export interface TaskUpdateEvent {

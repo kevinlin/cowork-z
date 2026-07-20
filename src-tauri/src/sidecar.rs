@@ -240,15 +240,200 @@ pub struct QuestionAnswer {
     pub custom_text: Option<String>,
 }
 
-/// Events received from the sidecar
+/// Largest partial line held while waiting for the rest of a split JSON object.
+/// Beyond this the carry is abandoned rather than grown without bound.
+const MAX_CARRY_BYTES: usize = 1024 * 1024;
+
+/// How much of an unparseable line is echoed into the diagnostic.
+const DROP_SAMPLE_BYTES: usize = 512;
+
+/// Result of feeding one stdout chunk to [`LineAssembler`].
+#[derive(Debug, PartialEq)]
+enum LineOutcome {
+    /// Held: looks like a JSON object split by a bare `\r`. Await the remainder.
+    Pending,
+    /// A complete JSON value, ready to dispatch.
+    Event(serde_json::Value),
+    /// Not recoverable. Never silent — the caller logs it.
+    Dropped { reason: String, sample: String },
+}
+
+/// Reassembles sidecar stdout into whole JSON events.
+///
+/// `tauri_plugin_shell` already splits on `\n` *or* `\r` (`tauri-utils::io::read_line`),
+/// keeping the terminator. That means a bare `\r` — a progress spinner, or terminal
+/// output from a dependency — can cut a JSON object in half. This holds the fragment
+/// until it parses instead of discarding it.
+#[derive(Debug, Default)]
+struct LineAssembler {
+    carry: String,
+}
+
+impl LineAssembler {
+    /// Feed one stdout chunk as delivered by `CommandEvent::Stdout`.
+    fn push(&mut self, chunk: &str) -> LineOutcome {
+        // A `\n` terminator means the producer considers the line finished, so a
+        // parse failure there is real garbage rather than a split object.
+        let newline_terminated = chunk.ends_with('\n');
+        self.carry.push_str(chunk.trim_end_matches(['\r', '\n']));
+
+        // A blank line carries nothing and is not worth a diagnostic.
+        if self.carry.trim().is_empty() {
+            self.carry.clear();
+            return LineOutcome::Pending;
+        }
+
+        // Every sidecar event is `console.log(JSON.stringify(event))`, so anything
+        // not starting with `{` is foreign stdout. Reject it now — carrying it over
+        // would poison the next line too.
+        if !self.carry.trim_start().starts_with('{') {
+            return self.drop_carry("non-JSON stdout");
+        }
+
+        // Parse before deciding to hold: a `\r`-terminated chunk that already
+        // contains a whole object must dispatch immediately, not wait for more.
+        match serde_json::from_str::<serde_json::Value>(&self.carry) {
+            Ok(value) => {
+                self.carry.clear();
+                LineOutcome::Event(value)
+            }
+            Err(err) => {
+                if newline_terminated {
+                    return self.drop_carry(&format!("invalid JSON: {}", err));
+                }
+                if self.carry.len() > MAX_CARRY_BYTES {
+                    return self.drop_carry("partial line exceeded carry limit");
+                }
+                LineOutcome::Pending
+            }
+        }
+    }
+
+    /// Emit a `Dropped` outcome carrying a truncated sample, and reset the buffer.
+    fn drop_carry(&mut self, reason: &str) -> LineOutcome {
+        let sample = truncate_sample(&self.carry, DROP_SAMPLE_BYTES);
+        self.carry.clear();
+        LineOutcome::Dropped {
+            reason: reason.to_string(),
+            sample,
+        }
+    }
+}
+
+/// Truncate to at most `max_bytes`, respecting char boundaries.
+fn truncate_sample(text: &str, max_bytes: usize) -> String {
+    if text.len() <= max_bytes {
+        return text.to_string();
+    }
+    let end = text
+        .char_indices()
+        .map(|(i, _)| i)
+        .take_while(|i| *i <= max_bytes)
+        .last()
+        .unwrap_or(0);
+    format!("{}…", &text[..end])
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RequestApiKeysPayload {
+    #[serde(default)]
+    request_id: String,
+}
+
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct SidecarEvent {
-    #[serde(rename = "type")]
-    pub event_type: String,
-    #[serde(rename = "taskId")]
-    pub task_id: Option<String>,
-    pub payload: Option<serde_json::Value>,
+#[serde(rename_all = "camelCase")]
+struct TaskCompletePayload {
+    /// Kept as `String`, not an enum, so an unrecognised status falls through
+    /// `map_completion_status`'s catch-all instead of failing the whole decode.
+    #[serde(default)]
+    status: String,
+    #[serde(default)]
+    session_id: Option<String>,
+}
+
+/// The only sidecar events Rust itself acts on. Everything else is forwarded
+/// verbatim and handled in the frontend.
+///
+/// `#[serde(other)]` means a new sidecar event type can never be silently
+/// dropped by a missing match arm — it decodes to `Ignored` and still forwards.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", rename_all_fields = "camelCase")]
+enum SidecarSideEffect {
+    RequestApiKeys {
+        #[serde(default)]
+        payload: RequestApiKeysPayload,
+    },
+    TaskComplete {
+        task_id: String,
+        payload: TaskCompletePayload,
+    },
+    #[serde(other)]
+    Ignored,
+}
+
+/// Map a sidecar completion status onto the DB task status vocabulary.
+///
+/// Note: two other copies of this mapping exist with different vocabularies
+/// (`src/lib/tauri-api.ts`, `src/stores/taskStore.ts`). They disagree; see the
+/// plan's Risks section. This copy is the one that writes the DB row.
+fn map_completion_status(status: &str) -> &'static str {
+    match status {
+        "success" => "completed",
+        "aborted" | "cancelled" | "interrupted" => "interrupted",
+        _ => "failed",
+    }
+}
+
+/// Build the Tauri event name for a sidecar event type.
+///
+/// Returns `None` for names Tauri would reject, so a malformed `type` produces
+/// one diagnostic here rather than an `Error::IllegalEventName` at emit time.
+/// Guard mirrors Tauri's own validation.
+fn tauri_event_name(event_type: &str) -> Option<String> {
+    if event_type.is_empty() {
+        return None;
+    }
+    if !event_type
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return None;
+    }
+    Some(format!("sidecar:{}", event_type))
+}
+
+/// Load API keys from the keychain and send them back over stdin.
+///
+/// Narrow key bridge (2026-06-12 review #5): the sidecar requests credentials
+/// only when it is about to (re)spawn the OpenCode server. Keys never ride
+/// along on task payloads, and this event is never forwarded to the frontend.
+fn spawn_api_keys_response(app: &AppHandle, request_id: String) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let api_keys = match get_all_api_keys() {
+            Ok(keys) => keys,
+            Err(e) => {
+                eprintln!("[sidecar] failed to load API keys for request: {}", e);
+                ApiKeys::default()
+            }
+        };
+        let fingerprint = fingerprint_api_keys(&api_keys);
+        let state = app.state::<SidecarState>();
+        let mut manager = state.manager.lock().await;
+        if let Err(e) = manager
+            .send_command(SidecarCommand::ApiKeysResponse {
+                payload: ApiKeysResponsePayload {
+                    request_id,
+                    api_keys,
+                    fingerprint,
+                },
+            })
+            .await
+        {
+            eprintln!("[sidecar] failed to send api_keys_response: {}", e);
+        }
+    });
 }
 
 /// Creates a log file in ~/.opencode directory
@@ -440,11 +625,15 @@ impl SidecarManager {
 
         // Spawn stdout reader task
         tauri::async_runtime::spawn(async move {
+            // Owned by this single reader task, so no lock is needed.
+            let mut assembler = LineAssembler::default();
             while let Some(event) = rx.recv().await {
                 match event {
                     CommandEvent::Stdout(line) => {
                         let line_str = String::from_utf8_lossy(&line);
-                        // Write to log file
+                        // Write to log file. Stays first and unchanged so the log
+                        // remains a faithful stdout transcript regardless of how
+                        // the assembler groups chunks.
                         if let Ok(mut file) = log_file_clone.lock() {
                             let _ = write!(
                                 file,
@@ -453,12 +642,27 @@ impl SidecarManager {
                                 line_str
                             );
                         }
-                        for json_line in line_str.lines() {
-                            if let Ok(event) = serde_json::from_str::<SidecarEvent>(json_line) {
-                                if event.event_type == "ready" {
+                        match assembler.push(&line_str) {
+                            LineOutcome::Pending => {}
+                            LineOutcome::Event(value) => {
+                                // Set `ready` before dispatch: start() polls this
+                                // flag and must not race the emit.
+                                if value.get("type").and_then(|t| t.as_str()) == Some("ready") {
                                     ready.store(true, Ordering::SeqCst);
                                 }
-                                Self::handle_sidecar_event(&app_handle, event);
+                                Self::handle_sidecar_event(&app_handle, value);
+                            }
+                            LineOutcome::Dropped { reason, sample } => {
+                                eprintln!("[sidecar] dropped stdout ({}): {}", reason, sample);
+                                if let Ok(mut file) = log_file_clone.lock() {
+                                    let _ = writeln!(
+                                        file,
+                                        "[{}] [stdout-drop] {}: {}",
+                                        Local::now().format("%H:%M:%S%.3f"),
+                                        reason,
+                                        sample
+                                    );
+                                }
                             }
                         }
                     }
@@ -486,7 +690,10 @@ impl SidecarManager {
                                 err
                             );
                         }
-                        let _ = app_handle.emit("sidecar:error", &err);
+                        // `sidecar:process_*` is reserved for Rust-origin events about
+                        // the child process; `sidecar:{type}` is always a verbatim
+                        // sidecar event. Keeps this off the sidecar's own `error` type.
+                        let _ = app_handle.emit("sidecar:process_error", &err);
                     }
                     CommandEvent::Terminated(payload) => {
                         exited.store(true, Ordering::SeqCst);
@@ -501,7 +708,7 @@ impl SidecarManager {
                             );
                             let _ = writeln!(file, "=== Sidecar Log Ended: {} ===", Local::now());
                         }
-                        let _ = app_handle.emit("sidecar:terminated", payload.code);
+                        let _ = app_handle.emit("sidecar:process_terminated", payload.code);
                     }
                     _ => {}
                 }
@@ -579,119 +786,57 @@ impl SidecarManager {
     }
 
     /// Handle events from the sidecar and forward to frontend
-    fn handle_sidecar_event(app: &AppHandle, event: SidecarEvent) {
-        // Narrow key bridge (2026-06-12 review #5): the sidecar requests
-        // credentials only when it is about to (re)spawn the OpenCode
-        // server. Keys are loaded from the keychain at that moment and sent
-        // back over stdin; they never ride along on task payloads. Not
-        // forwarded to the frontend.
-        if event.event_type == "request_api_keys" {
-            let request_id = event
-                .payload
-                .as_ref()
-                .and_then(|p| p.get("requestId"))
-                .and_then(|v| v.as_str())
-                .unwrap_or_default()
-                .to_string();
-            let app = app.clone();
-            tauri::async_runtime::spawn(async move {
-                let api_keys = match get_all_api_keys() {
-                    Ok(keys) => keys,
-                    Err(e) => {
-                        eprintln!("[sidecar] failed to load API keys for request: {}", e);
-                        ApiKeys::default()
-                    }
-                };
-                let fingerprint = fingerprint_api_keys(&api_keys);
-                let state = app.state::<SidecarState>();
-                let mut manager = state.manager.lock().await;
-                if let Err(e) = manager
-                    .send_command(SidecarCommand::ApiKeysResponse {
-                        payload: ApiKeysResponsePayload {
-                            request_id,
-                            api_keys,
-                            fingerprint,
-                        },
-                    })
-                    .await
-                {
-                    eprintln!("[sidecar] failed to send api_keys_response: {}", e);
-                }
-            });
+    /// Handle one sidecar event: run any Rust-side side effect, then forward
+    /// the event verbatim to the frontend as `sidecar:{type}`.
+    fn handle_sidecar_event(app: &AppHandle, value: serde_json::Value) {
+        let Some(event_type) = value.get("type").and_then(|t| t.as_str()) else {
+            eprintln!("[sidecar] stdout event has no `type` field, ignoring");
             return;
-        }
-
-        let event_name = match event.event_type.as_str() {
-            "ready" => "sidecar:ready",
-            "pong" => "sidecar:pong",
-            "server_status" => "sidecar:server_status",
-            "task_started" => "task:started",
-            "task_message" => "task:message",
-            "task_message_partial" => "task:message:partial",
-            "task_message_complete" => "task:message:complete",
-            "task_progress" => "task:progress",
-            "permission_request" => "task:permission_request",
-            "question_request" => "task:question_request",
-            "task_complete" => {
-                // Drive completion directly from Rust so that automation lifecycle
-                // (mark_automation_run_complete -> release is_running -> drain pending)
-                // does not depend on the frontend's `task:complete` listener, which
-                // gets throttled by macOS WKWebView when the app is backgrounded
-                // in release builds.
-                if let (Some(task_id), Some(payload)) = (&event.task_id, &event.payload) {
-                    let sidecar_status = payload
-                        .get("status")
-                        .and_then(|s| s.as_str())
-                        .unwrap_or("");
-                    // Keep in sync with the sidecar's TaskCompletePayload status union
-                    // ('success' | 'error' | 'cancelled' | 'aborted') and the frontend
-                    // mapping in src/lib/tauri-api.ts (aborted/cancelled => interrupted).
-                    let mapped_status = match sidecar_status {
-                        "success" => "completed",
-                        "aborted" | "cancelled" | "interrupted" => "interrupted",
-                        _ => "failed",
-                    };
-                    let session_id = payload.get("sessionId").and_then(|s| s.as_str());
-                    if let Err(e) = crate::commands::tasks::handle_task_completion_internal(
-                        app,
-                        task_id,
-                        mapped_status,
-                        session_id,
-                    ) {
-                        eprintln!(
-                            "[sidecar] handle_task_completion_internal failed for {}: {}",
-                            task_id, e
-                        );
-                    }
-                }
-                "task:complete"
-            }
-            "task_error" => "task:error",
-            "todo_updated" => "task:todo_updated",
-            "mcp_status" => "mcp:status",
-            "mcp_tools" => "mcp:tools",
-            "mcp_tools_changed" => "mcp:tools_changed",
-            "copilot_oauth_result" => "copilot:oauth_result",
-            "copilot_oauth_complete" => "copilot:oauth_complete",
-            "copilot_models_result" => "copilot:models_result",
-            "log" => "sidecar:log",
-            "error" => "sidecar:error",
-            _ => {
-                println!("[sidecar] unknown event type: {}", event.event_type);
-                return;
-            }
         };
 
-        // Build the payload to emit
-        let mut emit_payload = serde_json::json!({});
-        if let Some(task_id) = &event.task_id {
-            emit_payload["taskId"] = serde_json::json!(task_id);
-        }
-        if let Some(payload) = event.payload {
-            emit_payload["payload"] = payload;
+        let Some(event_name) = tauri_event_name(event_type) else {
+            eprintln!("[sidecar] illegal event type {:?}, ignoring", event_type);
+            return;
+        };
+
+        // Side effects Rust owns. A type with no arm here decodes to `Ignored`
+        // and is still forwarded — a missing arm can no longer drop an event.
+        match SidecarSideEffect::deserialize(&value) {
+            Ok(SidecarSideEffect::RequestApiKeys { payload }) => {
+                spawn_api_keys_response(app, payload.request_id);
+                // Credentials never travel to the frontend.
+                return;
+            }
+            Ok(SidecarSideEffect::TaskComplete { task_id, payload }) => {
+                // Drive completion directly from Rust so that automation lifecycle
+                // (mark_automation_run_complete -> release is_running -> drain pending)
+                // does not depend on the frontend's `task_complete` listener, which
+                // gets throttled by macOS WKWebView when the app is backgrounded
+                // in release builds.
+                if let Err(e) = crate::commands::tasks::handle_task_completion_internal(
+                    app,
+                    &task_id,
+                    map_completion_status(&payload.status),
+                    payload.session_id.as_deref(),
+                ) {
+                    eprintln!(
+                        "[sidecar] handle_task_completion_internal failed for {}: {}",
+                        task_id, e
+                    );
+                }
+            }
+            Ok(SidecarSideEffect::Ignored) => {}
+            Err(e) => {
+                eprintln!(
+                    "[sidecar] could not decode side effect for {}: {} - forwarding anyway",
+                    event_type, e
+                );
+            }
         }
 
-        if let Err(e) = app.emit(event_name, emit_payload) {
+        // Forward the original event object unchanged. The frontend reads
+        // `event.payload.{type,taskId,payload}` - a single unwrap.
+        if let Err(e) = app.emit(&event_name, &value) {
             eprintln!("[sidecar] Failed to emit event {}: {}", event_name, e);
         }
     }
@@ -859,6 +1004,223 @@ pub fn get_all_api_keys() -> Result<ApiKeys, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // --- A. tauri_event_name ---
+
+    #[test]
+    fn event_name_prefixes_the_sidecar_namespace() {
+        assert_eq!(
+            tauri_event_name("task_message_partial").as_deref(),
+            Some("sidecar:task_message_partial")
+        );
+        assert_eq!(tauri_event_name("log").as_deref(), Some("sidecar:log"));
+        assert_eq!(
+            tauri_event_name("mcp-tools").as_deref(),
+            Some("sidecar:mcp-tools")
+        );
+    }
+
+    #[test]
+    fn event_name_rejects_names_tauri_would_refuse() {
+        for bad in ["", "evil name", "../x", "a:b", "emoji🙂", "a.b"] {
+            assert_eq!(tauri_event_name(bad), None, "expected {:?} to be rejected", bad);
+        }
+    }
+
+    // --- B. map_completion_status ---
+
+    #[test]
+    fn completion_status_mapping_table() {
+        assert_eq!(map_completion_status("success"), "completed");
+        assert_eq!(map_completion_status("aborted"), "interrupted");
+        assert_eq!(map_completion_status("cancelled"), "interrupted");
+        assert_eq!(map_completion_status("interrupted"), "interrupted");
+        assert_eq!(map_completion_status("error"), "failed");
+        assert_eq!(map_completion_status(""), "failed");
+        assert_eq!(map_completion_status("garbage"), "failed");
+    }
+
+    // --- C. SidecarSideEffect decode ---
+
+    fn side_effect(json: serde_json::Value) -> SidecarSideEffect {
+        SidecarSideEffect::deserialize(&json).expect("decode should succeed")
+    }
+
+    #[test]
+    fn decodes_task_complete_with_session_id() {
+        let effect = side_effect(serde_json::json!({
+            "type": "task_complete",
+            "taskId": "t1",
+            "payload": { "status": "success", "sessionId": "s1" }
+        }));
+        match effect {
+            SidecarSideEffect::TaskComplete { task_id, payload } => {
+                assert_eq!(task_id, "t1");
+                assert_eq!(payload.status, "success");
+                assert_eq!(payload.session_id.as_deref(), Some("s1"));
+            }
+            other => panic!("expected TaskComplete, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn decodes_task_complete_without_session_id_as_none_not_error() {
+        let effect = side_effect(serde_json::json!({
+            "type": "task_complete",
+            "taskId": "t1",
+            "payload": { "status": "aborted" }
+        }));
+        match effect {
+            SidecarSideEffect::TaskComplete { payload, .. } => {
+                assert!(payload.session_id.is_none());
+                assert_eq!(map_completion_status(&payload.status), "interrupted");
+            }
+            other => panic!("expected TaskComplete, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn decodes_request_api_keys() {
+        let effect = side_effect(serde_json::json!({
+            "type": "request_api_keys",
+            "payload": { "requestId": "req-1" }
+        }));
+        match effect {
+            SidecarSideEffect::RequestApiKeys { payload } => {
+                assert_eq!(payload.request_id, "req-1");
+            }
+            other => panic!("expected RequestApiKeys, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn forwarded_only_events_decode_as_ignored() {
+        assert!(matches!(
+            side_effect(serde_json::json!({
+                "type": "task_message_partial",
+                "taskId": "t1",
+                "payload": { "text": "hi" }
+            })),
+            SidecarSideEffect::Ignored
+        ));
+    }
+
+    /// The regression test for the architecture review's core complaint: an
+    /// event type Rust has never heard of must not be dropped.
+    #[test]
+    fn unknown_event_type_decodes_as_ignored_not_error() {
+        assert!(matches!(
+            side_effect(serde_json::json!({ "type": "a_brand_new_event" })),
+            SidecarSideEffect::Ignored
+        ));
+    }
+
+    // --- D. LineAssembler ---
+
+    fn expect_event(outcome: LineOutcome) -> serde_json::Value {
+        match outcome {
+            LineOutcome::Event(value) => value,
+            other => panic!("expected Event, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn assembler_dispatches_newline_terminated_object() {
+        let mut a = LineAssembler::default();
+        let value = expect_event(a.push("{\"type\":\"ready\"}\n"));
+        assert_eq!(value["type"], "ready");
+        assert!(a.carry.is_empty());
+    }
+
+    #[test]
+    fn assembler_rejoins_object_split_by_bare_carriage_return() {
+        let mut a = LineAssembler::default();
+        assert_eq!(a.push("{\"type\":\"task_progress\",\r"), LineOutcome::Pending);
+        let value = expect_event(a.push("\"taskId\":\"t1\"}\n"));
+        assert_eq!(value["type"], "task_progress");
+        assert_eq!(value["taskId"], "t1");
+    }
+
+    #[test]
+    fn assembler_dispatches_complete_object_terminated_by_carriage_return() {
+        // A `\r`-terminated chunk that already parses must not be held back.
+        let mut a = LineAssembler::default();
+        let value = expect_event(a.push("{\"type\":\"pong\"}\r"));
+        assert_eq!(value["type"], "pong");
+    }
+
+    #[test]
+    fn assembler_drops_plain_text_and_clears_carry() {
+        let mut a = LineAssembler::default();
+        match a.push("Debugger attached.\n") {
+            LineOutcome::Dropped { reason, .. } => assert_eq!(reason, "non-JSON stdout"),
+            other => panic!("expected Dropped, got {:?}", other),
+        }
+        assert!(a.carry.is_empty());
+    }
+
+    #[test]
+    fn assembler_ignores_blank_lines_without_a_diagnostic() {
+        let mut a = LineAssembler::default();
+        assert_eq!(a.push("\n"), LineOutcome::Pending);
+        assert_eq!(a.push("   \n"), LineOutcome::Pending);
+        // A blank line must not disturb a following event.
+        let value = expect_event(a.push("{\"type\":\"ready\"}\n"));
+        assert_eq!(value["type"], "ready");
+    }
+
+    #[test]
+    fn assembler_blank_line_does_not_discard_a_pending_fragment() {
+        // A bare `\r` inside a held fragment must not be mistaken for a blank line.
+        let mut a = LineAssembler::default();
+        assert_eq!(a.push("{\"type\":\"log\",\r"), LineOutcome::Pending);
+        let value = expect_event(a.push("\"payload\":{}}\n"));
+        assert_eq!(value["type"], "log");
+    }
+
+    #[test]
+    fn assembler_does_not_let_garbage_poison_the_next_event() {
+        let mut a = LineAssembler::default();
+        assert!(matches!(
+            a.push("npm warn deprecated\n"),
+            LineOutcome::Dropped { .. }
+        ));
+        let value = expect_event(a.push("{\"type\":\"ready\"}\n"));
+        assert_eq!(value["type"], "ready");
+    }
+
+    #[test]
+    fn assembler_drops_newline_terminated_invalid_json() {
+        let mut a = LineAssembler::default();
+        match a.push("{\"type\":\"broken\"\n") {
+            LineOutcome::Dropped { reason, .. } => assert!(reason.starts_with("invalid JSON")),
+            other => panic!("expected Dropped, got {:?}", other),
+        }
+        assert!(a.carry.is_empty());
+    }
+
+    #[test]
+    fn assembler_drops_partial_line_over_carry_limit() {
+        let mut a = LineAssembler::default();
+        let huge = format!("{{\"type\":\"log\",\"payload\":\"{}", "x".repeat(MAX_CARRY_BYTES + 1));
+        match a.push(&huge) {
+            LineOutcome::Dropped { reason, sample } => {
+                assert_eq!(reason, "partial line exceeded carry limit");
+                // Sample is truncated, not the whole megabyte.
+                assert!(sample.len() <= DROP_SAMPLE_BYTES + 8);
+            }
+            other => panic!("expected Dropped, got {:?}", other),
+        }
+        assert!(a.carry.is_empty());
+    }
+
+    #[test]
+    fn truncate_sample_respects_char_boundaries() {
+        let text = "é".repeat(400); // 800 bytes
+        let sample = truncate_sample(&text, 16);
+        assert!(sample.len() <= 24);
+        assert!(sample.ends_with('…'));
+    }
 
     #[test]
     fn fingerprint_is_stable_and_ignores_empty_strings() {

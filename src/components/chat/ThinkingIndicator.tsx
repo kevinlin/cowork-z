@@ -55,9 +55,6 @@ export function ThinkingIndicator({
               <span className="text-muted-foreground text-xs">({elapsedTime}s)</span>
             )}
           </div>
-          {!currentTool && startupStageTaskId === taskId && startupStage?.isFirstTask && startupStage.stage === 'browser' && (
-            <span className="ml-6 text-muted-foreground text-xs">First task takes a bit longer...</span>
-          )}
         </motion.div>
       )}
     </AnimatePresence>

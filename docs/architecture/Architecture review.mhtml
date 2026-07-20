@@ -1,0 +1,2578 @@
+From: <Saved by Blink>
+Snapshot-Content-Location: file:///private/var/folders/q9/90x2_90s73z9sz5qgxzhnbc40000gq/T/architecture-review-20260720-101536.html
+Subject: =?utf-8?Q?Architecture=20review=20=E2=80=94=20cowork-z?=
+Date: Mon, 20 Jul 2026 10:21:41 +0800
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="text/html";
+	boundary="----MultipartBoundary--Sh34gOWDL2KtINDYB7KmhkELMQLzGB24MXAoS4Dq8H----"
+
+
+------MultipartBoundary--Sh34gOWDL2KtINDYB7KmhkELMQLzGB24MXAoS4Dq8H----
+Content-Type: text/html
+Content-ID: <frame-D161BD2037C6A9F3226EF3C0AA33692D@mhtml.blink>
+Content-Transfer-Encoding: quoted-printable
+Content-Location: file:///private/var/folders/q9/90x2_90s73z9sz5qgxzhnbc40000gq/T/architecture-review-20260720-101536.html
+
+<!DOCTYPE html><html lang=3D"en"><head><meta http-equiv=3D"Content-Type" co=
+ntent=3D"text/html; charset=3DUTF-8"><link rel=3D"stylesheet" type=3D"text/=
+css" href=3D"cid:css-66b48e3c-8176-4ff6-953a-852d02771995@mhtml.blink" /><l=
+ink rel=3D"stylesheet" type=3D"text/css" href=3D"cid:css-c6b217e8-4f8a-4dc0=
+-ba28-52dc7a38b97a@mhtml.blink" />
+   =20
+    <title>Architecture review =E2=80=94 cowork-z</title>
+   =20
+   =20
+   =20
+  </head>
+  <body class=3D"bg-stone-50 text-slate-900 font-sans">
+    <main class=3D"max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <header class=3D"space-y-3">
+        <h1 class=3D"text-3xl font-serif font-semibold">Architecture review=
+ =E2=80=94 cowork-z</h1>
+        <p class=3D"text-sm text-slate-500">2026-07-20 =C2=B7 scoped to the=
+ git hot spots: automations, the task/IPC pipeline, skills management</p>
+        <div class=3D"flex flex-wrap gap-4 text-xs text-slate-600 pt-1">
+          <span class=3D"flex items-center gap-1.5"><span class=3D"inline-b=
+lock w-4 h-3 border border-slate-400 bg-white"></span> module</span>
+          <span class=3D"flex items-center gap-1.5"><span class=3D"inline-b=
+lock w-4 border-t-2 border-dashed border-slate-400"></span> seam</span>
+          <span class=3D"flex items-center gap-1.5"><span class=3D"inline-b=
+lock w-4 border-t-2 border-red-600"></span> leak</span>
+          <span class=3D"flex items-center gap-1.5"><span class=3D"inline-b=
+lock w-4 h-3 deep rounded-sm"></span> deep module</span>
+        </div>
+      </header>
+
+      <section id=3D"candidates" class=3D"space-y-10">
+
+        <!-- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D CANDIDATE 1 =3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D -->
+        <article id=3D"c1" class=3D"bg-white rounded-xl border border-slate=
+-200 p-8 space-y-5">
+          <div class=3D"flex items-start justify-between gap-4 flex-wrap">
+            <h2 class=3D"text-xl font-serif font-semibold">1 =C2=B7 Collaps=
+e the sidecar event relay into a typed bridge</h2>
+            <div class=3D"flex gap-2">
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-emerald-100 text-emerald-800">Strong</span>
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-slate-100 text-slate-600">ports &amp; adapters</span>
+            </div>
+          </div>
+          <p class=3D"font-mono text-sm text-slate-600 leading-relaxed">
+            sidecar-opencode/src/types.ts:351-456 =C2=B7 session-manager.ts=
+:76-287 =C2=B7 index.ts:180-302<br>
+            src-tauri/src/sidecar.rs:244-252, 624-692 =C2=B7 src/lib/tauri-=
+api.ts:1003-1219 =C2=B7 src/stores/taskStore.ts:1145-1198
+          </p>
+
+          <div class=3D"grid md:grid-cols-2 gap-6">
+            <div class=3D"rounded-lg border border-slate-200 bg-stone-50 p-=
+4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-3">Before =E2=80=94 one event, six re-declarations</p>
+              <div class=3D"space-y-1">
+                <div class=3D"band h-9 border-l-4 border-slate-300 bg-white=
+ text-xs"><span class=3D"font-mono">types.ts</span>&nbsp;=C2=B7 declare pay=
+load + union member</div>
+                <div class=3D"band h-9 border-l-4 border-slate-300 bg-white=
+ text-xs"><span class=3D"font-mono">session-manager.ts</span>&nbsp;=C2=B7 S=
+SE .on() =E2=86=92 re-emit</div>
+                <div class=3D"band h-9 border-l-4 border-slate-300 bg-white=
+ text-xs"><span class=3D"font-mono">index.ts</span>&nbsp;=C2=B7 re-wrap {ty=
+pe, taskId, payload}</div>
+                <div class=3D"band h-9 border-l-4 border-red-500 bg-red-50 =
+text-xs"><span class=3D"font-mono">sidecar.rs:624</span>&nbsp;=C2=B7 string=
+ rename table =C2=B7 missing arm =3D <b>silent drop</b></div>
+                <div class=3D"band h-9 border-l-4 border-slate-300 bg-white=
+ text-xs"><span class=3D"font-mono">tauri-api.ts</span>&nbsp;=C2=B7 unwrap =
+payload.payload, re-declare shape</div>
+                <div class=3D"band h-9 border-l-4 border-slate-300 bg-white=
+ text-xs"><span class=3D"font-mono">taskStore.ts</span>&nbsp;=C2=B7 subscri=
+be + handler</div>
+              </div>
+              <p class=3D"text-xs text-slate-500 mt-3">Six thin modules; ea=
+ch interface as wide as its implementation. 7 files per new event.</p>
+            </div>
+            <div class=3D"rounded-lg border border-slate-200 bg-stone-50 p-=
+4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-3">After =E2=80=94 one deep bridge</p>
+              <div class=3D"space-y-1">
+                <div class=3D"band h-9 border-l-4 border-slate-300 bg-white=
+ text-xs"><span class=3D"font-mono">types.ts</span>&nbsp;=C2=B7 declare pay=
+load (single source)</div>
+                <div class=3D"band h-[7.5rem] deep text-white rounded-sm">
+                  <div class=3D"text-xs leading-relaxed px-1">
+                    <span class=3D"uppercase tracking-wider text-slate-300"=
+>typed event bridge</span><br>
+                    <span class=3D"text-slate-300">generic forward <span cl=
+ass=3D"font-mono">sidecar:{type}</span> =C2=B7 one unwrap =C2=B7<br>side-ef=
+fect registry (task_complete only)</span>
+                  </div>
+                </div>
+                <div class=3D"band h-9 border-l-4 border-slate-300 bg-white=
+ text-xs"><span class=3D"font-mono">taskStore.ts</span>&nbsp;=C2=B7 one typ=
+ed subscription + handler</div>
+              </div>
+              <p class=3D"text-xs text-slate-500 mt-3">New event =3D types.=
+ts + one handler. The rename table and the <span class=3D"font-mono">Sideca=
+rEvent</span> re-wrap are deleted.</p>
+            </div>
+          </div>
+
+          <p><b>Problem.</b> The relay from sidecar to UI is a shallow pass=
+-through chain: every module re-declares the event shape it just received, =
+then forwards it. The Rust arm (<span class=3D"font-mono text-sm">sidecar.r=
+s:624-683</span>) is stringly-typed: a forgotten match arm drops the event =
+with a <span class=3D"font-mono text-sm">println!</span>, no compile error.=
+ <span class=3D"font-mono text-sm">tauri-api.ts:1004</span> still listens f=
+or <span class=3D"font-mono text-sm">task:update</span>, which nothing emit=
+s: an adapter with no behaviour behind it.</p>
+          <p><b>Solution.</b> Replace the per-event match with a generic fo=
+rwarder (<span class=3D"font-mono text-sm">sidecar:{type}</span>) plus one =
+typed side-effect registry for the few events that carry Rust logic (<span =
+class=3D"font-mono text-sm">task_complete</span> =E2=86=92 automation compl=
+etion). Frontend consumes one typed subscription keyed off the sidecar's <s=
+pan class=3D"font-mono text-sm">types.ts</span> union.</p>
+          <ul class=3D"text-sm space-y-1 list-disc list-inside text-slate-7=
+00">
+            <li>Leverage: one interface, every event type</li>
+            <li>Locality: new event =3D two edits</li>
+            <li>Silent-drop seam becomes type-checked</li>
+            <li>Deletes the vestigial <span class=3D"font-mono">task:update=
+</span> adapter</li>
+            <li>Deletion test passes: rename table adds nothing</li>
+          </ul>
+        </article>
+
+        <!-- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D CANDIDATE 2 =3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D -->
+        <article id=3D"c2" class=3D"bg-white rounded-xl border border-slate=
+-200 p-8 space-y-5">
+          <div class=3D"flex items-start justify-between gap-4 flex-wrap">
+            <h2 class=3D"text-xl font-serif font-semibold">2 =C2=B7 Give th=
+e automation dispatch slot one home</h2>
+            <div class=3D"flex gap-2">
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-emerald-100 text-emerald-800">Strong</span>
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-slate-100 text-slate-600">in-process</span>
+            </div>
+          </div>
+          <p class=3D"font-mono text-sm text-slate-600 leading-relaxed">
+            src-tauri/src/automation_scheduler.rs:300-529 =C2=B7 commands/a=
+utomations.rs:248-310 =C2=B7 commands/tasks.rs:508-529
+          </p>
+
+          <div class=3D"grid md:grid-cols-2 gap-6">
+            <div class=3D"rounded-lg border border-slate-200 bg-white p-4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-2">Before =E2=80=94 invariant smeared across four files</p>
+              <pre class=3D"mermaid" data-processed=3D"true"><svg id=3D"mer=
+maid-1784514016645" width=3D"100%" xmlns=3D"http://www.w3.org/2000/svg" xml=
+ns:xlink=3D"http://www.w3.org/1999/xlink" class=3D"flowchart" style=3D"max-=
+width: 1076.5859375px;" viewBox=3D"0 0 1076.5859375 374" role=3D"graphics-d=
+ocument document" aria-roledescription=3D"flowchart-v2"><style>#mermaid-178=
+4514016645{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16=
+px;fill:#000000;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}=
+}@keyframes dash{to{stroke-dashoffset:0;}}#mermaid-1784514016645 .edge-anim=
+ation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:d=
+ash 50s linear infinite;stroke-linecap:round;}#mermaid-1784514016645 .edge-=
+animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animati=
+on:dash 20s linear infinite;stroke-linecap:round;}#mermaid-1784514016645 .e=
+rror-icon{fill:#552222;}#mermaid-1784514016645 .error-text{fill:#552222;str=
+oke:#552222;}#mermaid-1784514016645 .edge-thickness-normal{stroke-width:1px=
+;}#mermaid-1784514016645 .edge-thickness-thick{stroke-width:3.5px;}#mermaid=
+-1784514016645 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-17845140166=
+45 .edge-thickness-invisible{stroke-width:0;fill:none;}#mermaid-17845140166=
+45 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-1784514016645 .edge-pa=
+ttern-dotted{stroke-dasharray:2;}#mermaid-1784514016645 .marker{fill:#666;s=
+troke:#666;}#mermaid-1784514016645 .marker.cross{stroke:#666;}#mermaid-1784=
+514016645 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size=
+:16px;}#mermaid-1784514016645 p{margin:0;}#mermaid-1784514016645 .label{fon=
+t-family:"trebuchet ms",verdana,arial,sans-serif;color:#000000;}#mermaid-17=
+84514016645 .cluster-label text{fill:#333;}#mermaid-1784514016645 .cluster-=
+label span{color:#333;}#mermaid-1784514016645 .cluster-label span p{backgro=
+und-color:transparent;}#mermaid-1784514016645 .label text,#mermaid-17845140=
+16645 span{fill:#000000;color:#000000;}#mermaid-1784514016645 .node rect,#m=
+ermaid-1784514016645 .node circle,#mermaid-1784514016645 .node ellipse,#mer=
+maid-1784514016645 .node polygon,#mermaid-1784514016645 .node path{fill:#ee=
+e;stroke:#999;stroke-width:1px;}#mermaid-1784514016645 .rough-node .label t=
+ext,#mermaid-1784514016645 .node .label text,#mermaid-1784514016645 .image-=
+shape .label,#mermaid-1784514016645 .icon-shape .label{text-anchor:middle;}=
+#mermaid-1784514016645 .node .katex path{fill:#000;stroke:#000;stroke-width=
+:1px;}#mermaid-1784514016645 .rough-node .label,#mermaid-1784514016645 .nod=
+e .label,#mermaid-1784514016645 .image-shape .label,#mermaid-1784514016645 =
+.icon-shape .label{text-align:center;}#mermaid-1784514016645 .node.clickabl=
+e{cursor:pointer;}#mermaid-1784514016645 .root .anchor path{fill:#666!impor=
+tant;stroke-width:0;stroke:#666;}#mermaid-1784514016645 .arrowheadPath{fill=
+:#333333;}#mermaid-1784514016645 .edgePath .path{stroke:#666;stroke-width:1=
+px;}#mermaid-1784514016645 .flowchart-link{stroke:#666;fill:none;}#mermaid-=
+1784514016645 .edgeLabel{background-color:white;text-align:center;}#mermaid=
+-1784514016645 .edgeLabel p{background-color:white;}#mermaid-1784514016645 =
+.edgeLabel rect{opacity:0.5;background-color:white;fill:white;}#mermaid-178=
+4514016645 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#mermaid-17=
+84514016645 .cluster rect{fill:hsl(0, 0%, 98.9215686275%);stroke:#707070;st=
+roke-width:1px;}#mermaid-1784514016645 .cluster text{fill:#333;}#mermaid-17=
+84514016645 .cluster span{color:#333;}#mermaid-1784514016645 div.mermaidToo=
+ltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-f=
+amily:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl=
+(-160, 0%, 93.3333333333%);border:1px solid #707070;border-radius:2px;point=
+er-events:none;z-index:100;}#mermaid-1784514016645 .flowchartTitleText{text=
+-anchor:middle;font-size:18px;fill:#000000;}#mermaid-1784514016645 rect.tex=
+t{fill:none;stroke-width:0;}#mermaid-1784514016645 .icon-shape,#mermaid-178=
+4514016645 .image-shape{background-color:white;text-align:center;}#mermaid-=
+1784514016645 .icon-shape p,#mermaid-1784514016645 .image-shape p{backgroun=
+d-color:white;padding:2px;}#mermaid-1784514016645 .icon-shape .label rect,#=
+mermaid-1784514016645 .image-shape .label rect{opacity:0.5;background-color=
+:white;fill:white;}#mermaid-1784514016645 .label-icon{display:inline-block;=
+height:1em;overflow:visible;vertical-align:-0.125em;}#mermaid-1784514016645=
+ .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert=
+;}#mermaid-1784514016645 .node .neo-node{stroke:#999;}#mermaid-178451401664=
+5 [data-look=3D"neo"].node rect,#mermaid-1784514016645 [data-look=3D"neo"].=
+cluster rect,#mermaid-1784514016645 [data-look=3D"neo"].node polygon{stroke=
+:url(#mermaid-1784514016645-gradient);filter:drop-shadow( 1px 2px 2px rgba(=
+185,185,185,1));}#mermaid-1784514016645 [data-look=3D"neo"].swimlane.cluste=
+r rect{filter:none;}#mermaid-1784514016645 [data-look=3D"neo"].node path{st=
+roke:url(#mermaid-1784514016645-gradient);stroke-width:1px;}#mermaid-178451=
+4016645 [data-look=3D"neo"].node .outer-path{filter:drop-shadow( 1px 2px 2p=
+x rgba(185,185,185,1));}#mermaid-1784514016645 [data-look=3D"neo"].node .ne=
+o-line path{stroke:#999;filter:none;}#mermaid-1784514016645 [data-look=3D"n=
+eo"].node circle{stroke:url(#mermaid-1784514016645-gradient);filter:drop-sh=
+adow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1784514016645 [data-look=
+=3D"neo"].node circle .state-start{fill:#000000;}#mermaid-1784514016645 [da=
+ta-look=3D"neo"].icon-shape .icon{fill:url(#mermaid-1784514016645-gradient)=
+;filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-17845140166=
+45 [data-look=3D"neo"].icon-shape .icon-neo path{stroke:url(#mermaid-178451=
+4016645-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#me=
+rmaid-1784514016645 :root{--mermaid-font-family:"trebuchet ms",verdana,aria=
+l,sans-serif;}#mermaid-1784514016645 .leak&gt;*{stroke:rgb(220, 38, 38)!imp=
+ortant;stroke-width:2px!important;}#mermaid-1784514016645 .leak span{stroke=
+:rgb(220, 38, 38)!important;stroke-width:2px!important;}</style><g><marker =
+id=3D"mermaid-1784514016645_flowchart-v2-pointEnd" class=3D"marker flowchar=
+t-v2" viewBox=3D"0 0 10 10" refX=3D"5" refY=3D"5" markerUnits=3D"userSpaceO=
+nUse" markerWidth=3D"8" markerHeight=3D"8" orient=3D"auto"><path d=3D"M 0 0=
+ L 10 5 L 0 10 z" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; strok=
+e-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784514016645_flo=
+wchart-v2-pointStart" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" r=
+efX=3D"4.5" refY=3D"5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"8" mar=
+kerHeight=3D"8" orient=3D"auto"><path d=3D"M 0 5 L 10 10 L 10 0 z" class=3D=
+"arrowMarkerPath" style=3D"stroke-width: 1; stroke-dasharray: 1, 0;"></path=
+></marker><marker id=3D"mermaid-1784514016645_flowchart-v2-pointEnd-margin"=
+ class=3D"marker flowchart-v2" viewBox=3D"0 0 11.5 14" refX=3D"11.5" refY=
+=3D"7" markerUnits=3D"userSpaceOnUse" markerWidth=3D"10.5" markerHeight=3D"=
+14" orient=3D"auto"><path d=3D"M 0 0 L 11.5 7 L 0 14 z" class=3D"arrowMarke=
+rPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><=
+marker id=3D"mermaid-1784514016645_flowchart-v2-pointStart-margin" class=3D=
+"marker flowchart-v2" viewBox=3D"0 0 11.5 14" refX=3D"1" refY=3D"7" markerU=
+nits=3D"userSpaceOnUse" markerWidth=3D"11.5" markerHeight=3D"14" orient=3D"=
+auto"><polygon points=3D"0,7 11.5,14 11.5,0" class=3D"arrowMarkerPath" styl=
+e=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker i=
+d=3D"mermaid-1784514016645_flowchart-v2-circleEnd" class=3D"marker flowchar=
+t-v2" viewBox=3D"0 0 10 10" refX=3D"11" refY=3D"5" markerUnits=3D"userSpace=
+OnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><circle cx=3D=
+"5" cy=3D"5" r=3D"5" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; st=
+roke-dasharray: 1, 0;"></circle></marker><marker id=3D"mermaid-178451401664=
+5_flowchart-v2-circleStart" class=3D"marker flowchart-v2" viewBox=3D"0 0 10=
+ 10" refX=3D"-1" refY=3D"5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"1=
+1" markerHeight=3D"11" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" cl=
+ass=3D"arrowMarkerPath" style=3D"stroke-width: 1; stroke-dasharray: 1, 0;">=
+</circle></marker><marker id=3D"mermaid-1784514016645_flowchart-v2-circleEn=
+d-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" refY=3D"5" re=
+fX=3D"12.25" markerUnits=3D"userSpaceOnUse" markerWidth=3D"14" markerHeight=
+=3D"14" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMar=
+kerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></circle></mark=
+er><marker id=3D"mermaid-1784514016645_flowchart-v2-circleStart-margin" cla=
+ss=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"-2" refY=3D"5" mar=
+kerUnits=3D"userSpaceOnUse" markerWidth=3D"14" markerHeight=3D"14" orient=
+=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMarkerPath" style=
+=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id=
+=3D"mermaid-1784514016645_flowchart-v2-crossEnd" class=3D"marker cross flow=
+chart-v2" viewBox=3D"0 0 11 11" refX=3D"12" refY=3D"5.2" markerUnits=3D"use=
+rSpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><path d=
+=3D"M 1,1 l 9,9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=3D"stroke-wi=
+dth: 2; stroke-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784=
+514016645_flowchart-v2-crossStart" class=3D"marker cross flowchart-v2" view=
+Box=3D"0 0 11 11" refX=3D"-1" refY=3D"5.2" markerUnits=3D"userSpaceOnUse" m=
+arkerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><path d=3D"M 1,1 l 9,=
+9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=3D"stroke-width: 2; stroke=
+-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784514016645_flow=
+chart-v2-crossEnd-margin" class=3D"marker cross flowchart-v2" viewBox=3D"0 =
+0 15 15" refX=3D"17.7" refY=3D"7.5" markerUnits=3D"userSpaceOnUse" markerWi=
+dth=3D"12" markerHeight=3D"12" orient=3D"auto"><path d=3D"M 1,1 L 14,14 M 1=
+,14 L 14,1" class=3D"arrowMarkerPath" style=3D"stroke-width: 2.5;"></path><=
+/marker><marker id=3D"mermaid-1784514016645_flowchart-v2-crossStart-margin"=
+ class=3D"marker cross flowchart-v2" viewBox=3D"0 0 15 15" refX=3D"-3.5" re=
+fY=3D"7.5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"12" markerHeight=
+=3D"12" orient=3D"auto"><path d=3D"M 1,1 L 14,14 M 1,14 L 14,1" class=3D"ar=
+rowMarkerPath" style=3D"stroke-width: 2.5; stroke-dasharray: 1, 0;"></path>=
+</marker><g class=3D"root"><g class=3D"clusters"></g><g class=3D"edgePaths"=
+><path d=3D"M88.117,238L88.117,244.167C88.117,250.333,88.117,262.667,123.36=
+3,275.775C158.609,288.883,229.101,302.767,264.347,309.709L299.593,316.65" i=
+d=3D"mermaid-1784514016645-L_F_A_0" class=3D" edge-thickness-normal edge-pa=
+ttern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=
+=3D";" data-edge=3D"true" data-et=3D"edge" data-id=3D"L_F_A_0" data-points=
+=3D"W3sieCI6ODguMTE3MTg3NSwieSI6MjM4fSx7IngiOjg4LjExNzE4NzUsInkiOjI3NX0seyJ=
+4IjozMDMuNTE3NTc4MTI1LCJ5IjozMTcuNDIzMTcxNDcyMDE4MzR9XQ=3D=3D" data-look=3D=
+"classic" marker-end=3D"url(#mermaid-1784514016645_flowchart-v2-pointEnd)">=
+</path><path d=3D"M298.352,238L298.352,244.167C298.352,250.333,298.352,262.=
+667,308.823,274.675C319.295,286.684,340.238,298.367,350.71,304.209L361.181,=
+310.051" id=3D"mermaid-1784514016645-L_D_A_0" class=3D" edge-thickness-norm=
+al edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-li=
+nk" style=3D";" data-edge=3D"true" data-et=3D"edge" data-id=3D"L_D_A_0" dat=
+a-points=3D"W3sieCI6Mjk4LjM1MTU2MjUsInkiOjIzOH0seyJ4IjoyOTguMzUxNTYyNSwieSI=
+6Mjc1fSx7IngiOjM2NC42NzQ0Njg5OTQxNDA2LCJ5IjozMTJ9XQ=3D=3D" data-look=3D"cla=
+ssic" marker-end=3D"url(#mermaid-1784514016645_flowchart-v2-pointEnd)"></pa=
+th><path d=3D"M527.793,238L527.793,244.167C527.793,250.333,527.793,262.667,=
+517.321,274.675C506.85,286.684,485.906,298.367,475.435,304.209L464.963,310.=
+051" id=3D"mermaid-1784514016645-L_E_A_0" class=3D" edge-thickness-normal e=
+dge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" =
+style=3D";" data-edge=3D"true" data-et=3D"edge" data-id=3D"L_E_A_0" data-po=
+ints=3D"W3sieCI6NTI3Ljc5Mjk2ODc1LCJ5IjoyMzh9LHsieCI6NTI3Ljc5Mjk2ODc1LCJ5Ijo=
+yNzV9LHsieCI6NDYxLjQ3MDA2MjI1NTg1OTQsInkiOjMxMn1d" data-look=3D"classic" ma=
+rker-end=3D"url(#mermaid-1784514016645_flowchart-v2-pointEnd)"></path><path=
+ d=3D"M828.888,86L819.932,92.167C810.977,98.333,793.067,110.667,784.111,124=
+.333C775.156,138,775.156,153,775.156,160.5L775.156,168" id=3D"mermaid-17845=
+14016645-L_R_S_0" class=3D" edge-thickness-normal edge-pattern-dotted edge-=
+thickness-normal edge-pattern-solid flowchart-link" style=3D";" data-edge=
+=3D"true" data-et=3D"edge" data-id=3D"L_R_S_0" data-points=3D"W3sieCI6ODI4L=
+jg4NzY0MzkxNDQ3MzYsInkiOjg2fSx7IngiOjc3NS4xNTYyNSwieSI6MTIzfSx7IngiOjc3NS4x=
+NTYyNSwieSI6MTcyfV0=3D" data-look=3D"classic" marker-end=3D"url(#mermaid-17=
+84514016645_flowchart-v2-pointEnd)"></path><path d=3D"M995.891,238L995.891,=
+244.167C995.891,250.333,995.891,262.667,917.676,277.422C839.461,292.178,683=
+.032,309.355,604.818,317.944L526.603,326.533" id=3D"mermaid-1784514016645-L=
+_C_A_0" class=3D" edge-thickness-normal edge-pattern-solid edge-thickness-n=
+ormal edge-pattern-solid flowchart-link" style=3D";" data-edge=3D"true" dat=
+a-et=3D"edge" data-id=3D"L_C_A_0" data-points=3D"W3sieCI6OTk1Ljg5MDYyNSwieS=
+I6MjM4fSx7IngiOjk5NS44OTA2MjUsInkiOjI3NX0seyJ4Ijo1MjIuNjI2OTUzMTI1LCJ5IjozM=
+jYuOTY5NjY1MTg0MzMxMjN9XQ=3D=3D" data-look=3D"classic" marker-end=3D"url(#m=
+ermaid-1784514016645_flowchart-v2-pointEnd)"></path><path d=3D"M942.159,86L=
+951.114,92.167C960.07,98.333,977.98,110.667,986.935,122.333C995.891,134,995=
+.891,145,995.891,150.5L995.891,156" id=3D"mermaid-1784514016645-L_R_C_0" cl=
+ass=3D" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge=
+-pattern-solid flowchart-link" style=3D";" data-edge=3D"true" data-et=3D"ed=
+ge" data-id=3D"L_R_C_0" data-points=3D"W3sieCI6OTQyLjE1OTIzMTA4NTUyNjQsInki=
+Ojg2fSx7IngiOjk5NS44OTA2MjUsInkiOjEyM30seyJ4Ijo5OTUuODkwNjI1LCJ5IjoxNjB9XQ=
+=3D=3D" data-look=3D"classic" marker-end=3D"url(#mermaid-1784514016645_flow=
+chart-v2-pointEnd)"></path></g><g class=3D"edgeLabels"><g class=3D"edgeLabe=
+l" transform=3D"translate(88.1171875, 275)"><g class=3D"label" data-id=3D"L=
+_F_A_0" transform=3D"translate(-42.5078125, -12)"><foreignObject width=3D"8=
+5.015625" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=
+=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap; line-heigh=
+t: 1.5; max-width: 200px; text-align: center;"><span class=3D"edgeLabel "><=
+p>CAS acquire</p></span></div></foreignObject></g></g><g class=3D"edgeLabel=
+" transform=3D"translate(298.3515625, 275)"><g class=3D"label" data-id=3D"L=
+_D_A_0" transform=3D"translate(-42.5078125, -12)"><foreignObject width=3D"8=
+5.015625" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=
+=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap; line-heigh=
+t: 1.5; max-width: 200px; text-align: center;"><span class=3D"edgeLabel "><=
+p>CAS acquire</p></span></div></foreignObject></g></g><g class=3D"edgeLabel=
+" transform=3D"translate(527.79296875, 275)"><g class=3D"label" data-id=3D"=
+L_E_A_0" transform=3D"translate(-56.61328125, -12)"><foreignObject width=3D=
+"113.2265625" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtml" cla=
+ss=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap; line-hei=
+ght: 1.5; max-width: 200px; text-align: center;"><span class=3D"edgeLabel "=
+><p>hand release =C3=974</p></span></div></foreignObject></g></g><g class=
+=3D"edgeLabel" transform=3D"translate(775.15625, 123)"><g class=3D"label" d=
+ata-id=3D"L_R_S_0" transform=3D"translate(-52.51953125, -12)"><foreignObjec=
+t width=3D"105.0390625" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/=
+xhtml" class=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap=
+; line-height: 1.5; max-width: 200px; text-align: center;"><span class=3D"e=
+dgeLabel "><p>never acquires</p></span></div></foreignObject></g></g><g cla=
+ss=3D"edgeLabel" transform=3D"translate(995.890625, 275)"><g class=3D"label=
+" data-id=3D"L_C_A_0" transform=3D"translate(-41.171875, -12)"><foreignObje=
+ct width=3D"82.34375" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xh=
+tml" class=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap; =
+line-height: 1.5; max-width: 200px; text-align: center;"><span class=3D"edg=
+eLabel "><p>store(false)</p></span></div></foreignObject></g></g><g class=
+=3D"edgeLabel"><g class=3D"label" data-id=3D"L_R_C_0" transform=3D"translat=
+e(0, 0)"><foreignObject width=3D"0" height=3D"0"><div xmlns=3D"http://www.w=
+3.org/1999/xhtml" class=3D"labelBkg" style=3D"display: table-cell; white-sp=
+ace: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span=
+ class=3D"edgeLabel "></span></div></foreignObject></g></g></g><g class=3D"=
+nodes"><g class=3D"node default  " id=3D"mermaid-1784514016645-flowchart-F-=
+0" data-look=3D"classic" transform=3D"translate(88.1171875, 199)"><rect cla=
+ss=3D"basic label-container" style=3D"" x=3D"-80.1171875" y=3D"-39" width=
+=3D"160.234375" height=3D"78"></rect><g class=3D"label" style=3D"" transfor=
+m=3D"translate(-50.1171875, -24)"><rect></rect><foreignObject width=3D"100.=
+234375" height=3D"48"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"=
+display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200p=
+x; text-align: center;"><span class=3D"nodeLabel "><p>fire path<br>schedule=
+r:330</p></span></div></foreignObject></g></g><g class=3D"node default" id=
+=3D"mermaid-1784514016645-flowchart-A-1" data-look=3D"classic" transform=3D=
+"translate(413.072265625, 339)"><rect class=3D"basic label-container" style=
+=3D"" x=3D"-109.5546875" y=3D"-27" width=3D"219.109375" height=3D"54"></rec=
+t><g class=3D"label" style=3D"" transform=3D"translate(-79.5546875, -12)"><=
+rect></rect><foreignObject width=3D"159.109375" height=3D"24"><div xmlns=3D=
+"http://www.w3.org/1999/xhtml" style=3D"display: table-cell; white-space: n=
+owrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class=
+=3D"nodeLabel "><p>AtomicBool is_running</p></span></div></foreignObject></=
+g></g><g class=3D"node default  " id=3D"mermaid-1784514016645-flowchart-D-2=
+" data-look=3D"classic" transform=3D"translate(298.3515625, 199)"><rect cla=
+ss=3D"basic label-container" style=3D"" x=3D"-80.1171875" y=3D"-39" width=
+=3D"160.234375" height=3D"78"></rect><g class=3D"label" style=3D"" transfor=
+m=3D"translate(-50.1171875, -24)"><rect></rect><foreignObject width=3D"100.=
+234375" height=3D"48"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"=
+display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200p=
+x; text-align: center;"><span class=3D"nodeLabel "><p>pending drain<br>sche=
+duler:416</p></span></div></foreignObject></g></g><g class=3D"node default"=
+ id=3D"mermaid-1784514016645-flowchart-E-4" data-look=3D"classic" transform=
+=3D"translate(527.79296875, 199)"><rect class=3D"basic label-container" sty=
+le=3D"" x=3D"-99.32421875" y=3D"-39" width=3D"198.6484375" height=3D"78"></=
+rect><g class=3D"label" style=3D"" transform=3D"translate(-69.32421875, -24=
+)"><rect></rect><foreignObject width=3D"138.6484375" height=3D"48"><div xml=
+ns=3D"http://www.w3.org/1999/xhtml" style=3D"display: table-cell; white-spa=
+ce: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span =
+class=3D"nodeLabel "><p>early returns<br>:474 :507 :429 :437</p></span></di=
+v></foreignObject></g></g><g class=3D"node default leak " id=3D"mermaid-178=
+4514016645-flowchart-R-6" data-look=3D"classic" transform=3D"translate(885.=
+5234375, 47)"><rect class=3D"basic label-container" style=3D"stroke:#dc2626=
+ !important;stroke-width:2px !important" x=3D"-99.046875" y=3D"-39" width=
+=3D"198.09375" height=3D"78"></rect><g class=3D"label" style=3D"" transform=
+=3D"translate(-69.046875, -24)"><rect></rect><foreignObject width=3D"138.09=
+375" height=3D"48"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"dis=
+play: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; =
+text-align: center;"><span class=3D"nodeLabel "><p>Run Now<br>automations.r=
+s:248</p></span></div></foreignObject></g></g><g class=3D"node default" id=
+=3D"mermaid-1784514016645-flowchart-S-7" data-look=3D"classic" transform=3D=
+"translate(775.15625, 199)"><rect class=3D"basic label-container" style=3D"=
+" x=3D"-98.0390625" y=3D"-27" width=3D"196.078125" height=3D"54"></rect><g =
+class=3D"label" style=3D"" transform=3D"translate(-68.0390625, -12)"><rect>=
+</rect><foreignObject width=3D"136.078125" height=3D"24"><div xmlns=3D"http=
+://www.w3.org/1999/xhtml" style=3D"display: table-cell; white-space: nowrap=
+; line-height: 1.5; max-width: 200px; text-align: center;"><span class=3D"n=
+odeLabel "><p>dispatch to sidecar</p></span></div></foreignObject></g></g><=
+g class=3D"node default leak " id=3D"mermaid-1784514016645-flowchart-C-8" d=
+ata-look=3D"classic" transform=3D"translate(995.890625, 199)"><rect class=
+=3D"basic label-container" style=3D"stroke:#dc2626 !important;stroke-width:=
+2px !important" x=3D"-72.6953125" y=3D"-39" width=3D"145.390625" height=3D"=
+78"></rect><g class=3D"label" style=3D"" transform=3D"translate(-42.6953125=
+, -24)"><rect></rect><foreignObject width=3D"85.390625" height=3D"48"><div =
+xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"display: table-cell; white-=
+space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><sp=
+an class=3D"nodeLabel "><p>completion<br>tasks.rs:508</p></span></div></for=
+eignObject></g></g></g></g></g><defs><filter id=3D"mermaid-1784514016645-dr=
+op-shadow" height=3D"130%" width=3D"130%"><feDropShadow dx=3D"4" dy=3D"4" s=
+tdDeviation=3D"0" flood-opacity=3D"0.06" flood-color=3D"#000000"></feDropSh=
+adow></filter></defs><defs><filter id=3D"mermaid-1784514016645-drop-shadow-=
+small" height=3D"150%" width=3D"150%"><feDropShadow dx=3D"2" dy=3D"2" stdDe=
+viation=3D"0" flood-opacity=3D"0.06" flood-color=3D"#000000"></feDropShadow=
+></filter></defs><linearGradient id=3D"mermaid-1784514016645-gradient" grad=
+ientUnits=3D"objectBoundingBox" x1=3D"0%" y1=3D"0%" x2=3D"100%" y2=3D"0%"><=
+stop offset=3D"0%" stop-color=3D"hsl(0, 0%, 83.3333333333%)" stop-opacity=
+=3D"1"></stop><stop offset=3D"100%" stop-color=3D"hsl(0, 0%, 88.9215686275%=
+)" stop-opacity=3D"1"></stop></linearGradient></svg></pre>
+            </div>
+            <div class=3D"rounded-lg border border-slate-200 bg-white p-4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-2">After =E2=80=94 one deep module, RAII release</p>
+              <pre class=3D"mermaid" data-processed=3D"true"><svg id=3D"mer=
+maid-1784514016741" width=3D"100%" xmlns=3D"http://www.w3.org/2000/svg" xml=
+ns:xlink=3D"http://www.w3.org/1999/xlink" class=3D"flowchart" style=3D"max-=
+width: 555.5859375px;" viewBox=3D"0 0 555.5859375 524" role=3D"graphics-doc=
+ument document" aria-roledescription=3D"flowchart-v2"><style>#mermaid-17845=
+14016741{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px=
+;fill:#000000;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@=
+keyframes dash{to{stroke-dashoffset:0;}}#mermaid-1784514016741 .edge-animat=
+ion-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:das=
+h 50s linear infinite;stroke-linecap:round;}#mermaid-1784514016741 .edge-an=
+imation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation=
+:dash 20s linear infinite;stroke-linecap:round;}#mermaid-1784514016741 .err=
+or-icon{fill:#552222;}#mermaid-1784514016741 .error-text{fill:#552222;strok=
+e:#552222;}#mermaid-1784514016741 .edge-thickness-normal{stroke-width:1px;}=
+#mermaid-1784514016741 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-1=
+784514016741 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-1784514016741=
+ .edge-thickness-invisible{stroke-width:0;fill:none;}#mermaid-1784514016741=
+ .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-1784514016741 .edge-patt=
+ern-dotted{stroke-dasharray:2;}#mermaid-1784514016741 .marker{fill:#666;str=
+oke:#666;}#mermaid-1784514016741 .marker.cross{stroke:#666;}#mermaid-178451=
+4016741 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:1=
+6px;}#mermaid-1784514016741 p{margin:0;}#mermaid-1784514016741 .label{font-=
+family:"trebuchet ms",verdana,arial,sans-serif;color:#000000;}#mermaid-1784=
+514016741 .cluster-label text{fill:#333;}#mermaid-1784514016741 .cluster-la=
+bel span{color:#333;}#mermaid-1784514016741 .cluster-label span p{backgroun=
+d-color:transparent;}#mermaid-1784514016741 .label text,#mermaid-1784514016=
+741 span{fill:#000000;color:#000000;}#mermaid-1784514016741 .node rect,#mer=
+maid-1784514016741 .node circle,#mermaid-1784514016741 .node ellipse,#merma=
+id-1784514016741 .node polygon,#mermaid-1784514016741 .node path{fill:#eee;=
+stroke:#999;stroke-width:1px;}#mermaid-1784514016741 .rough-node .label tex=
+t,#mermaid-1784514016741 .node .label text,#mermaid-1784514016741 .image-sh=
+ape .label,#mermaid-1784514016741 .icon-shape .label{text-anchor:middle;}#m=
+ermaid-1784514016741 .node .katex path{fill:#000;stroke:#000;stroke-width:1=
+px;}#mermaid-1784514016741 .rough-node .label,#mermaid-1784514016741 .node =
+.label,#mermaid-1784514016741 .image-shape .label,#mermaid-1784514016741 .i=
+con-shape .label{text-align:center;}#mermaid-1784514016741 .node.clickable{=
+cursor:pointer;}#mermaid-1784514016741 .root .anchor path{fill:#666!importa=
+nt;stroke-width:0;stroke:#666;}#mermaid-1784514016741 .arrowheadPath{fill:#=
+333333;}#mermaid-1784514016741 .edgePath .path{stroke:#666;stroke-width:1px=
+;}#mermaid-1784514016741 .flowchart-link{stroke:#666;fill:none;}#mermaid-17=
+84514016741 .edgeLabel{background-color:white;text-align:center;}#mermaid-1=
+784514016741 .edgeLabel p{background-color:white;}#mermaid-1784514016741 .e=
+dgeLabel rect{opacity:0.5;background-color:white;fill:white;}#mermaid-17845=
+14016741 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#mermaid-1784=
+514016741 .cluster rect{fill:hsl(0, 0%, 98.9215686275%);stroke:#707070;stro=
+ke-width:1px;}#mermaid-1784514016741 .cluster text{fill:#333;}#mermaid-1784=
+514016741 .cluster span{color:#333;}#mermaid-1784514016741 div.mermaidToolt=
+ip{position:absolute;text-align:center;max-width:200px;padding:2px;font-fam=
+ily:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(-=
+160, 0%, 93.3333333333%);border:1px solid #707070;border-radius:2px;pointer=
+-events:none;z-index:100;}#mermaid-1784514016741 .flowchartTitleText{text-a=
+nchor:middle;font-size:18px;fill:#000000;}#mermaid-1784514016741 rect.text{=
+fill:none;stroke-width:0;}#mermaid-1784514016741 .icon-shape,#mermaid-17845=
+14016741 .image-shape{background-color:white;text-align:center;}#mermaid-17=
+84514016741 .icon-shape p,#mermaid-1784514016741 .image-shape p{background-=
+color:white;padding:2px;}#mermaid-1784514016741 .icon-shape .label rect,#me=
+rmaid-1784514016741 .image-shape .label rect{opacity:0.5;background-color:w=
+hite;fill:white;}#mermaid-1784514016741 .label-icon{display:inline-block;he=
+ight:1em;overflow:visible;vertical-align:-0.125em;}#mermaid-1784514016741 .=
+node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}=
+#mermaid-1784514016741 .node .neo-node{stroke:#999;}#mermaid-1784514016741 =
+[data-look=3D"neo"].node rect,#mermaid-1784514016741 [data-look=3D"neo"].cl=
+uster rect,#mermaid-1784514016741 [data-look=3D"neo"].node polygon{stroke:u=
+rl(#mermaid-1784514016741-gradient);filter:drop-shadow( 1px 2px 2px rgba(18=
+5,185,185,1));}#mermaid-1784514016741 [data-look=3D"neo"].swimlane.cluster =
+rect{filter:none;}#mermaid-1784514016741 [data-look=3D"neo"].node path{stro=
+ke:url(#mermaid-1784514016741-gradient);stroke-width:1px;}#mermaid-17845140=
+16741 [data-look=3D"neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px =
+rgba(185,185,185,1));}#mermaid-1784514016741 [data-look=3D"neo"].node .neo-=
+line path{stroke:#999;filter:none;}#mermaid-1784514016741 [data-look=3D"neo=
+"].node circle{stroke:url(#mermaid-1784514016741-gradient);filter:drop-shad=
+ow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1784514016741 [data-look=3D"=
+neo"].node circle .state-start{fill:#000000;}#mermaid-1784514016741 [data-l=
+ook=3D"neo"].icon-shape .icon{fill:url(#mermaid-1784514016741-gradient);fil=
+ter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1784514016741 [=
+data-look=3D"neo"].icon-shape .icon-neo path{stroke:url(#mermaid-1784514016=
+741-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermai=
+d-1784514016741 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sa=
+ns-serif;}</style><g><marker id=3D"mermaid-1784514016741_flowchart-v2-point=
+End" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"5" refY=3D=
+"5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"8" markerHeight=3D"8" ori=
+ent=3D"auto"><path d=3D"M 0 0 L 10 5 L 0 10 z" class=3D"arrowMarkerPath" st=
+yle=3D"stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id=
+=3D"mermaid-1784514016741_flowchart-v2-pointStart" class=3D"marker flowchar=
+t-v2" viewBox=3D"0 0 10 10" refX=3D"4.5" refY=3D"5" markerUnits=3D"userSpac=
+eOnUse" markerWidth=3D"8" markerHeight=3D"8" orient=3D"auto"><path d=3D"M 0=
+ 5 L 10 10 L 10 0 z" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; st=
+roke-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784514016741_=
+flowchart-v2-pointEnd-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 =
+11.5 14" refX=3D"11.5" refY=3D"7" markerUnits=3D"userSpaceOnUse" markerWidt=
+h=3D"10.5" markerHeight=3D"14" orient=3D"auto"><path d=3D"M 0 0 L 11.5 7 L =
+0 14 z" class=3D"arrowMarkerPath" style=3D"stroke-width: 0; stroke-dasharra=
+y: 1, 0;"></path></marker><marker id=3D"mermaid-1784514016741_flowchart-v2-=
+pointStart-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 11.5 14" re=
+fX=3D"1" refY=3D"7" markerUnits=3D"userSpaceOnUse" markerWidth=3D"11.5" mar=
+kerHeight=3D"14" orient=3D"auto"><polygon points=3D"0,7 11.5,14 11.5,0" cla=
+ss=3D"arrowMarkerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"><=
+/polygon></marker><marker id=3D"mermaid-1784514016741_flowchart-v2-circleEn=
+d" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"11" refY=3D"=
+5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" or=
+ient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMarkerPath" s=
+tyle=3D"stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker=
+ id=3D"mermaid-1784514016741_flowchart-v2-circleStart" class=3D"marker flow=
+chart-v2" viewBox=3D"0 0 10 10" refX=3D"-1" refY=3D"5" markerUnits=3D"userS=
+paceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><circle c=
+x=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMarkerPath" style=3D"stroke-width: 1=
+; stroke-dasharray: 1, 0;"></circle></marker><marker id=3D"mermaid-17845140=
+16741_flowchart-v2-circleEnd-margin" class=3D"marker flowchart-v2" viewBox=
+=3D"0 0 10 10" refY=3D"5" refX=3D"12.25" markerUnits=3D"userSpaceOnUse" mar=
+kerWidth=3D"14" markerHeight=3D"14" orient=3D"auto"><circle cx=3D"5" cy=3D"=
+5" r=3D"5" class=3D"arrowMarkerPath" style=3D"stroke-width: 0; stroke-dasha=
+rray: 1, 0;"></circle></marker><marker id=3D"mermaid-1784514016741_flowchar=
+t-v2-circleStart-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10=
+" refX=3D"-2" refY=3D"5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"14" =
+markerHeight=3D"14" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=
+=3D"arrowMarkerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></c=
+ircle></marker><marker id=3D"mermaid-1784514016741_flowchart-v2-crossEnd" c=
+lass=3D"marker cross flowchart-v2" viewBox=3D"0 0 11 11" refX=3D"12" refY=
+=3D"5.2" markerUnits=3D"userSpaceOnUse" markerWidth=3D"11" markerHeight=3D"=
+11" orient=3D"auto"><path d=3D"M 1,1 l 9,9 M 10,1 l -9,9" class=3D"arrowMar=
+kerPath" style=3D"stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker=
+><marker id=3D"mermaid-1784514016741_flowchart-v2-crossStart" class=3D"mark=
+er cross flowchart-v2" viewBox=3D"0 0 11 11" refX=3D"-1" refY=3D"5.2" marke=
+rUnits=3D"userSpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"=
+auto"><path d=3D"M 1,1 l 9,9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=
+=3D"stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id=3D=
+"mermaid-1784514016741_flowchart-v2-crossEnd-margin" class=3D"marker cross =
+flowchart-v2" viewBox=3D"0 0 15 15" refX=3D"17.7" refY=3D"7.5" markerUnits=
+=3D"userSpaceOnUse" markerWidth=3D"12" markerHeight=3D"12" orient=3D"auto">=
+<path d=3D"M 1,1 L 14,14 M 1,14 L 14,1" class=3D"arrowMarkerPath" style=3D"=
+stroke-width: 2.5;"></path></marker><marker id=3D"mermaid-1784514016741_flo=
+wchart-v2-crossStart-margin" class=3D"marker cross flowchart-v2" viewBox=3D=
+"0 0 15 15" refX=3D"-3.5" refY=3D"7.5" markerUnits=3D"userSpaceOnUse" marke=
+rWidth=3D"12" markerHeight=3D"12" orient=3D"auto"><path d=3D"M 1,1 L 14,14 =
+M 1,14 L 14,1" class=3D"arrowMarkerPath" style=3D"stroke-width: 2.5; stroke=
+-dasharray: 1, 0;"></path></marker><g class=3D"root"><g class=3D"clusters">=
+</g><g class=3D"edgePaths"><path d=3D"M87.715,62L87.715,66.167C87.715,70.33=
+3,87.715,78.667,96.749,88.846C105.783,99.025,123.852,111.049,132.886,117.06=
+2L141.92,123.074" id=3D"mermaid-1784514016741-L_F_DS_0" class=3D" edge-thic=
+kness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid fl=
+owchart-link" style=3D";" data-edge=3D"true" data-et=3D"edge" data-id=3D"L_=
+F_DS_0" data-points=3D"W3sieCI6ODcuNzE0ODQzNzUsInkiOjYyfSx7IngiOjg3LjcxNDg0=
+Mzc1LCJ5Ijo4N30seyJ4IjoxNDUuMjUsInkiOjEyNS4yOTAwNTU5MjAyNTI4NX1d" data-look=
+=3D"classic" marker-end=3D"url(#mermaid-1784514016741_flowchart-v2-pointEnd=
+)"></path><path d=3D"M296.578,62L296.578,66.167C296.578,70.333,296.578,78.6=
+67,296.578,86.333C296.578,94,296.578,101,296.578,104.5L296.578,108" id=3D"m=
+ermaid-1784514016741-L_D_DS_0" class=3D" edge-thickness-normal edge-pattern=
+-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=3D";"=
+ data-edge=3D"true" data-et=3D"edge" data-id=3D"L_D_DS_0" data-points=3D"W3=
+sieCI6Mjk2LjU3ODEyNSwieSI6NjJ9LHsieCI6Mjk2LjU3ODEyNSwieSI6ODd9LHsieCI6Mjk2L=
+jU3ODEyNSwieSI6MTEyfV0=3D" data-look=3D"classic" marker-end=3D"url(#mermaid=
+-1784514016741_flowchart-v2-pointEnd)"></path><path d=3D"M486.656,62L486.65=
+6,66.167C486.656,70.333,486.656,78.667,480.736,87.163C474.816,95.659,462.97=
+5,104.317,457.055,108.647L451.135,112.976" id=3D"mermaid-1784514016741-L_R_=
+DS_0" class=3D" edge-thickness-normal edge-pattern-solid edge-thickness-nor=
+mal edge-pattern-solid flowchart-link" style=3D";" data-edge=3D"true" data-=
+et=3D"edge" data-id=3D"L_R_DS_0" data-points=3D"W3sieCI6NDg2LjY1NjI1LCJ5Ijo=
+2Mn0seyJ4Ijo0ODYuNjU2MjUsInkiOjg3fSx7IngiOjQ0Ny45MDYyNSwieSI6MTE1LjMzNzAzMj=
+Q3MDIwMTR9XQ=3D=3D" data-look=3D"classic" marker-end=3D"url(#mermaid-178451=
+4016741_flowchart-v2-pointEnd)"></path><path d=3D"M296.578,340L296.578,344.=
+167C296.578,348.333,296.578,356.667,296.578,364.333C296.578,372,296.578,379=
+,296.578,382.5L296.578,386" id=3D"mermaid-1784514016741-L_DS_P_0" class=3D"=
+ edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-patter=
+n-solid flowchart-link" style=3D";" data-edge=3D"true" data-et=3D"edge" dat=
+a-id=3D"L_DS_P_0" data-points=3D"W3sieCI6Mjk2LjU3ODEyNSwieSI6MzQwfSx7IngiOj=
+I5Ni41NzgxMjUsInkiOjM2NX0seyJ4IjoyOTYuNTc4MTI1LCJ5IjozOTB9XQ=3D=3D" data-lo=
+ok=3D"classic" marker-end=3D"url(#mermaid-1784514016741_flowchart-v2-pointE=
+nd)"></path></g><g class=3D"edgeLabels"><g class=3D"edgeLabel"><g class=3D"=
+label" data-id=3D"L_F_DS_0" transform=3D"translate(0, 0)"><foreignObject wi=
+dth=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=3D=
+"labelBkg" style=3D"display: table-cell; white-space: nowrap; line-height: =
+1.5; max-width: 200px; text-align: center;"><span class=3D"edgeLabel "></sp=
+an></div></foreignObject></g></g><g class=3D"edgeLabel"><g class=3D"label" =
+data-id=3D"L_D_DS_0" transform=3D"translate(0, 0)"><foreignObject width=3D"=
+0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=3D"labelB=
+kg" style=3D"display: table-cell; white-space: nowrap; line-height: 1.5; ma=
+x-width: 200px; text-align: center;"><span class=3D"edgeLabel "></span></di=
+v></foreignObject></g></g><g class=3D"edgeLabel"><g class=3D"label" data-id=
+=3D"L_R_DS_0" transform=3D"translate(0, 0)"><foreignObject width=3D"0" heig=
+ht=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=3D"labelBkg" sty=
+le=3D"display: table-cell; white-space: nowrap; line-height: 1.5; max-width=
+: 200px; text-align: center;"><span class=3D"edgeLabel "></span></div></for=
+eignObject></g></g><g class=3D"edgeLabel"><g class=3D"label" data-id=3D"L_D=
+S_P_0" transform=3D"translate(0, 0)"><foreignObject width=3D"0" height=3D"0=
+"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=3D"labelBkg" style=3D"d=
+isplay: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px=
+; text-align: center;"><span class=3D"edgeLabel "></span></div></foreignObj=
+ect></g></g></g><g class=3D"nodes"><g class=3D"root" transform=3D"translate=
+(137.25, 104)"><g class=3D"clusters"><g class=3D"cluster " id=3D"mermaid-17=
+84514016741-DS" data-look=3D"classic"><rect style=3D"fill:#0f172a !importan=
+t;stroke:#0f172a !important" x=3D"8" y=3D"8" width=3D"302.65625" height=3D"=
+228"></rect><g class=3D"cluster-label " transform=3D"translate(29.92578125,=
+ 8)"><foreignObject width=3D"258.8046875" height=3D"24"><div xmlns=3D"http:=
+//www.w3.org/1999/xhtml" style=3D"display: table-cell; white-space: nowrap;=
+ line-height: 1.5;"><span class=3D"nodeLabel " style=3D"color:#fff !importa=
+nt"><p>DispatchSlot  (~30 lines, unit-tested)</p></span></div></foreignObje=
+ct></g></g></g><g class=3D"edgePaths"></g><g class=3D"edgeLabels"></g><g cl=
+ass=3D"nodes"><g class=3D"node default  " id=3D"mermaid-1784514016741-flowc=
+hart-T-6" data-look=3D"classic" transform=3D"translate(159.328125, 70)"><re=
+ct class=3D"basic label-container" style=3D"" x=3D"-113.828125" y=3D"-27" w=
+idth=3D"227.65625" height=3D"54"></rect><g class=3D"label" style=3D"" trans=
+form=3D"translate(-83.828125, -12)"><rect></rect><foreignObject width=3D"16=
+7.65625" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D=
+"display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200=
+px; text-align: center;"><span class=3D"nodeLabel "><p>try_acquire() =E2=86=
+=92 Option</p></span></div></foreignObject></g></g><g class=3D"node default=
+  " id=3D"mermaid-1784514016741-flowchart-G-7" data-look=3D"classic" transf=
+orm=3D"translate(159.328125, 174)"><rect class=3D"basic label-container" st=
+yle=3D"" x=3D"-105.29296875" y=3D"-27" width=3D"210.5859375" height=3D"54">=
+</rect><g class=3D"label" style=3D"" transform=3D"translate(-75.29296875, -=
+12)"><rect></rect><foreignObject width=3D"150.5859375" height=3D"24"><div x=
+mlns=3D"http://www.w3.org/1999/xhtml" style=3D"display: table-cell; white-s=
+pace: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><spa=
+n class=3D"nodeLabel "><p>Guard drop =3D release</p></span></div></foreignO=
+bject></g></g></g></g><g class=3D"node default  " id=3D"mermaid-17845140167=
+41-flowchart-F-0" data-look=3D"classic" transform=3D"translate(87.71484375,=
+ 35)"><rect class=3D"basic label-container" style=3D"" x=3D"-79.71484375" y=
+=3D"-27" width=3D"159.4296875" height=3D"54"></rect><g class=3D"label" styl=
+e=3D"" transform=3D"translate(-49.71484375, -12)"><rect></rect><foreignObje=
+ct width=3D"99.4296875" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/=
+xhtml" style=3D"display: table-cell; white-space: nowrap; line-height: 1.5;=
+ max-width: 200px; text-align: center;"><span class=3D"nodeLabel "><p>sched=
+uler fire</p></span></div></foreignObject></g></g><g class=3D"node default =
+ " id=3D"mermaid-1784514016741-flowchart-D-2" data-look=3D"classic" transfo=
+rm=3D"translate(296.578125, 35)"><rect class=3D"basic label-container" styl=
+e=3D"" x=3D"-79.1484375" y=3D"-27" width=3D"158.296875" height=3D"54"></rec=
+t><g class=3D"label" style=3D"" transform=3D"translate(-49.1484375, -12)"><=
+rect></rect><foreignObject width=3D"98.296875" height=3D"24"><div xmlns=3D"=
+http://www.w3.org/1999/xhtml" style=3D"display: table-cell; white-space: no=
+wrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class=
+=3D"nodeLabel "><p>pending drain</p></span></div></foreignObject></g></g><g=
+ class=3D"node default  " id=3D"mermaid-1784514016741-flowchart-R-4" data-l=
+ook=3D"classic" transform=3D"translate(486.65625, 35)"><rect class=3D"basic=
+ label-container" style=3D"" x=3D"-60.9296875" y=3D"-27" width=3D"121.85937=
+5" height=3D"54"></rect><g class=3D"label" style=3D"" transform=3D"translat=
+e(-30.9296875, -12)"><rect></rect><foreignObject width=3D"61.859375" height=
+=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"display: table=
+-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align:=
+ center;"><span class=3D"nodeLabel "><p>Run Now</p></span></div></foreignOb=
+ject></g></g><g class=3D"node default  " id=3D"mermaid-1784514016741-flowch=
+art-P-9" data-look=3D"classic" transform=3D"translate(296.578125, 453)"><re=
+ct class=3D"basic label-container" style=3D"" x=3D"-130" y=3D"-63" width=3D=
+"260" height=3D"126"></rect><g class=3D"label" style=3D"" transform=3D"tran=
+slate(-100, -48)"><rect></rect><foreignObject width=3D"200" height=3D"96"><=
+div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"display: table; white-s=
+pace: break-spaces; line-height: 1.5; max-width: 200px; text-align: center;=
+ width: 200px;"><span class=3D"nodeLabel "><p>single dispatch_automation_ru=
+n<br>(create task =C2=B7 run row =C2=B7 assign =C2=B7 dispatch)</p></span><=
+/div></foreignObject></g></g></g></g></g><defs><filter id=3D"mermaid-178451=
+4016741-drop-shadow" height=3D"130%" width=3D"130%"><feDropShadow dx=3D"4" =
+dy=3D"4" stdDeviation=3D"0" flood-opacity=3D"0.06" flood-color=3D"#000000">=
+</feDropShadow></filter></defs><defs><filter id=3D"mermaid-1784514016741-dr=
+op-shadow-small" height=3D"150%" width=3D"150%"><feDropShadow dx=3D"2" dy=
+=3D"2" stdDeviation=3D"0" flood-opacity=3D"0.06" flood-color=3D"#000000"></=
+feDropShadow></filter></defs><linearGradient id=3D"mermaid-1784514016741-gr=
+adient" gradientUnits=3D"objectBoundingBox" x1=3D"0%" y1=3D"0%" x2=3D"100%"=
+ y2=3D"0%"><stop offset=3D"0%" stop-color=3D"hsl(0, 0%, 83.3333333333%)" st=
+op-opacity=3D"1"></stop><stop offset=3D"100%" stop-color=3D"hsl(0, 0%, 88.9=
+215686275%)" stop-opacity=3D"1"></stop></linearGradient></svg></pre>
+            </div>
+          </div>
+
+          <p><b>Problem.</b> The "one automation run at a time" invariant i=
+s a raw <span class=3D"font-mono text-sm">AtomicBool</span> acquired in two=
+ places, released in one, and hand-released on four early-return paths. It =
+leaks today: <span class=3D"font-mono text-sm">run_automation_now</span> di=
+spatches without acquiring the slot, yet its completion path calls <span cl=
+ass=3D"font-mono text-sm">mark_automation_run_complete</span>, which uncond=
+itionally releases (<span class=3D"font-mono text-sm">scheduler:397</span>)=
+, so a manual run can free the slot while a scheduled run is mid-flight. Th=
+e create-task/create-run/assign/dispatch sequence is also copied verbatim i=
+n two files, and the copies have already diverged.</p>
+          <p><b>Solution.</b> A <span class=3D"font-mono text-sm">DispatchS=
+lot</span> module with <span class=3D"font-mono text-sm">try_acquire() =E2=
+=86=92 Option&lt;Guard&gt;</span>; the Guard releases on drop. Fold both di=
+spatch sequences into one <span class=3D"font-mono text-sm">dispatch_automa=
+tion_run</span> that owns slot handling, so Run Now crosses the same seam.<=
+/p>
+          <ul class=3D"text-sm space-y-1 list-disc list-inside text-slate-7=
+00">
+            <li>Locality: concurrency contract in one module</li>
+            <li>Release-leak becomes structurally impossible</li>
+            <li>Leverage: two callers, one implementation</li>
+            <li>Slot testable without threads or DB</li>
+            <li>Closes a live correctness bug</li>
+          </ul>
+        </article>
+
+        <!-- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D CANDIDATE 3 =3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D -->
+        <article id=3D"c3" class=3D"bg-white rounded-xl border border-slate=
+-200 p-8 space-y-5">
+          <div class=3D"flex items-start justify-between gap-4 flex-wrap">
+            <h2 class=3D"text-xl font-serif font-semibold">3 =C2=B7 Free th=
+e cron logic from the scheduler registry</h2>
+            <div class=3D"flex gap-2">
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-emerald-100 text-emerald-800">Strong</span>
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-slate-100 text-slate-600">in-process</span>
+            </div>
+          </div>
+          <p class=3D"font-mono text-sm text-slate-600 leading-relaxed">
+            src-tauri/src/automation_scheduler.rs:36-141 =C2=B7 commands/au=
+tomations.rs:13 =C2=B7 src/lib/cron-utils.ts =C2=B7 src/components/landing/=
+AutomationCard.tsx:16-31
+          </p>
+
+          <div class=3D"grid md:grid-cols-2 gap-6">
+            <div class=3D"rounded-lg border border-slate-200 bg-stone-50 p-=
+4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-3">Before =E2=80=94 pure functions trapped, interface as wide as the logi=
+c</p>
+              <div class=3D"flex gap-4 items-end">
+                <div class=3D"flex-1">
+                  <div class=3D"border border-slate-400 bg-amber-50 h-24 p-=
+2 text-xs">
+                    <span class=3D"uppercase tracking-wider text-slate-500"=
+>interface</span><br>
+                    <span class=3D"font-mono">&amp;self</span> registry met=
+hods =C2=B7 <span class=3D"font-mono">normalize_cron_public</span> escape h=
+atch =C2=B7 frontend must re-derive
+                  </div>
+                  <div class=3D"border border-slate-400 border-t-0 bg-white=
+ h-28 p-2 text-xs">
+                    <span class=3D"uppercase tracking-wider text-slate-500"=
+>implementation</span><br>
+                    dow remapping (1-indexed vs 0-indexed) =C2=B7 next-fire=
+ =C2=B7 normalize =C2=B7 <b class=3D"text-red-600">0 tests</b>
+                  </div>
+                  <p class=3D"text-[11px] text-slate-500 mt-1 text-center">=
+scheduler registry</p>
+                </div>
+                <div class=3D"flex-1">
+                  <div class=3D"border border-red-400 bg-red-50 h-52 p-2 te=
+xt-xs">
+                    <span class=3D"uppercase tracking-wider text-red-500">r=
+e-derivations (frontend)</span><br>
+                    <span class=3D"font-mono">buildCron</span> =C2=B7 <span=
+ class=3D"font-mono">detectFrequencyFromCron</span> =C2=B7 <span class=3D"f=
+ont-mono">AutomationCard</span> re-parses <span class=3D"font-mono">cron[4]=
+</span> =C2=B7 <b>0 tests</b>, weekday encodings agree by convention only
+                  </div>
+                  <p class=3D"text-[11px] text-slate-500 mt-1 text-center">=
+three more copies</p>
+                </div>
+              </div>
+            </div>
+            <div class=3D"rounded-lg border border-slate-200 bg-stone-50 p-=
+4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-3">After =E2=80=94 small interface, deep implementation</p>
+              <div class=3D"flex gap-4 items-end justify-center">
+                <div class=3D"w-2/3">
+                  <div class=3D"border border-slate-700 bg-emerald-50 h-10 =
+p-2 text-xs">
+                    <span class=3D"font-mono">cron::normalize =C2=B7 next_f=
+ire =C2=B7 describe</span>
+                  </div>
+                  <div class=3D"deep text-white h-44 p-2 text-xs rounded-b-=
+sm">
+                    <span class=3D"uppercase tracking-wider text-slate-300"=
+>implementation</span><br>
+                    <span class=3D"text-slate-300">dow invariants =C2=B7 tz=
+ math =C2=B7 table-driven tests. Registry, validate_cron, and (via describe=
+d display strings) the card all call this one module.</span>
+                  </div>
+                  <p class=3D"text-[11px] text-slate-500 mt-1 text-center">=
+cron module</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p><b>Problem.</b> <span class=3D"font-mono text-sm">normalize_cr=
+on</span>, the day-of-week remapping (the <span class=3D"font-mono text-sm"=
+>cron</span> crate is 1-indexed Sunday-first; Unix is 0-indexed) and <span =
+class=3D"font-mono text-sm">compute_next_fire</span> are pure, yet live as =
+private methods on <span class=3D"font-mono text-sm">AutomationSchedulerReg=
+istry</span>. The <span class=3D"font-mono text-sm">normalize_cron_public</=
+span> escape hatch exists only because <span class=3D"font-mono text-sm">va=
+lidate_cron</span> wanted the behaviour without the registry: the tell that=
+ the interface is wrong. Zero tests on either side of the seam, and the fro=
+ntend re-derives the encoding three separate ways.</p>
+          <p><b>Solution.</b> A pure <span class=3D"font-mono text-sm">cron=
+</span> module (<span class=3D"font-mono text-sm">normalize</span>, <span c=
+lass=3D"font-mono text-sm">next_fire</span>, <span class=3D"font-mono text-=
+sm">describe</span>) with table-driven tests. Registry and <span class=3D"f=
+ont-mono text-sm">validate_cron</span> call it; <span class=3D"font-mono te=
+xt-sm">AutomationCard</span> stops parsing <span class=3D"font-mono text-sm=
+">cron[4]</span> and renders a described schedule instead. <span class=3D"f=
+ont-mono text-sm">cron-utils.ts</span> keeps building the expression (it is=
+ the input source) but gains its own tests.</p>
+          <ul class=3D"text-sm space-y-1 list-disc list-inside text-slate-7=
+00">
+            <li>Interface shrinks: callers want cron, not a scheduler</li>
+            <li>Timezone/dow math becomes table-testable</li>
+            <li>Deletion test: complexity concentrates in one module</li>
+            <li>Frontend weekday re-parse deleted</li>
+          </ul>
+        </article>
+
+        <!-- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D CANDIDATE 4 =3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D -->
+        <article id=3D"c4" class=3D"bg-white rounded-xl border border-slate=
+-200 p-8 space-y-5">
+          <div class=3D"flex items-start justify-between gap-4 flex-wrap">
+            <h2 class=3D"text-xl font-serif font-semibold">4 =C2=B7 One <sp=
+an class=3D"font-mono">sync_repo</span> module behind the skills sync seam<=
+/h2>
+            <div class=3D"flex gap-2">
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-emerald-100 text-emerald-800">Strong</span>
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-slate-100 text-slate-600">local-substitutable</span>
+            </div>
+          </div>
+          <p class=3D"font-mono text-sm text-slate-600 leading-relaxed">
+            src-tauri/src/lib.rs:112-217 =C2=B7 commands/skill_repos.rs:259=
+-349 =C2=B7 git_ops.rs =C2=B7 skill_discovery.rs
+          </p>
+
+          <div class=3D"grid md:grid-cols-2 gap-6">
+            <div class=3D"rounded-lg border border-slate-200 bg-white p-4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-2">Before =E2=80=94 the same chain, twice</p>
+              <pre class=3D"mermaid" data-processed=3D"true"><svg id=3D"mer=
+maid-1784514016793" width=3D"100%" xmlns=3D"http://www.w3.org/2000/svg" xml=
+ns:xlink=3D"http://www.w3.org/1999/xlink" class=3D"flowchart" style=3D"max-=
+width: 722.54296875px;" viewBox=3D"0 0 722.54296875 198" role=3D"graphics-d=
+ocument document" aria-roledescription=3D"flowchart-v2"><style>#mermaid-178=
+4514016793{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16=
+px;fill:#000000;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}=
+}@keyframes dash{to{stroke-dashoffset:0;}}#mermaid-1784514016793 .edge-anim=
+ation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:d=
+ash 50s linear infinite;stroke-linecap:round;}#mermaid-1784514016793 .edge-=
+animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animati=
+on:dash 20s linear infinite;stroke-linecap:round;}#mermaid-1784514016793 .e=
+rror-icon{fill:#552222;}#mermaid-1784514016793 .error-text{fill:#552222;str=
+oke:#552222;}#mermaid-1784514016793 .edge-thickness-normal{stroke-width:1px=
+;}#mermaid-1784514016793 .edge-thickness-thick{stroke-width:3.5px;}#mermaid=
+-1784514016793 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-17845140167=
+93 .edge-thickness-invisible{stroke-width:0;fill:none;}#mermaid-17845140167=
+93 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-1784514016793 .edge-pa=
+ttern-dotted{stroke-dasharray:2;}#mermaid-1784514016793 .marker{fill:#666;s=
+troke:#666;}#mermaid-1784514016793 .marker.cross{stroke:#666;}#mermaid-1784=
+514016793 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size=
+:16px;}#mermaid-1784514016793 p{margin:0;}#mermaid-1784514016793 .label{fon=
+t-family:"trebuchet ms",verdana,arial,sans-serif;color:#000000;}#mermaid-17=
+84514016793 .cluster-label text{fill:#333;}#mermaid-1784514016793 .cluster-=
+label span{color:#333;}#mermaid-1784514016793 .cluster-label span p{backgro=
+und-color:transparent;}#mermaid-1784514016793 .label text,#mermaid-17845140=
+16793 span{fill:#000000;color:#000000;}#mermaid-1784514016793 .node rect,#m=
+ermaid-1784514016793 .node circle,#mermaid-1784514016793 .node ellipse,#mer=
+maid-1784514016793 .node polygon,#mermaid-1784514016793 .node path{fill:#ee=
+e;stroke:#999;stroke-width:1px;}#mermaid-1784514016793 .rough-node .label t=
+ext,#mermaid-1784514016793 .node .label text,#mermaid-1784514016793 .image-=
+shape .label,#mermaid-1784514016793 .icon-shape .label{text-anchor:middle;}=
+#mermaid-1784514016793 .node .katex path{fill:#000;stroke:#000;stroke-width=
+:1px;}#mermaid-1784514016793 .rough-node .label,#mermaid-1784514016793 .nod=
+e .label,#mermaid-1784514016793 .image-shape .label,#mermaid-1784514016793 =
+.icon-shape .label{text-align:center;}#mermaid-1784514016793 .node.clickabl=
+e{cursor:pointer;}#mermaid-1784514016793 .root .anchor path{fill:#666!impor=
+tant;stroke-width:0;stroke:#666;}#mermaid-1784514016793 .arrowheadPath{fill=
+:#333333;}#mermaid-1784514016793 .edgePath .path{stroke:#666;stroke-width:1=
+px;}#mermaid-1784514016793 .flowchart-link{stroke:#666;fill:none;}#mermaid-=
+1784514016793 .edgeLabel{background-color:white;text-align:center;}#mermaid=
+-1784514016793 .edgeLabel p{background-color:white;}#mermaid-1784514016793 =
+.edgeLabel rect{opacity:0.5;background-color:white;fill:white;}#mermaid-178=
+4514016793 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#mermaid-17=
+84514016793 .cluster rect{fill:hsl(0, 0%, 98.9215686275%);stroke:#707070;st=
+roke-width:1px;}#mermaid-1784514016793 .cluster text{fill:#333;}#mermaid-17=
+84514016793 .cluster span{color:#333;}#mermaid-1784514016793 div.mermaidToo=
+ltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-f=
+amily:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl=
+(-160, 0%, 93.3333333333%);border:1px solid #707070;border-radius:2px;point=
+er-events:none;z-index:100;}#mermaid-1784514016793 .flowchartTitleText{text=
+-anchor:middle;font-size:18px;fill:#000000;}#mermaid-1784514016793 rect.tex=
+t{fill:none;stroke-width:0;}#mermaid-1784514016793 .icon-shape,#mermaid-178=
+4514016793 .image-shape{background-color:white;text-align:center;}#mermaid-=
+1784514016793 .icon-shape p,#mermaid-1784514016793 .image-shape p{backgroun=
+d-color:white;padding:2px;}#mermaid-1784514016793 .icon-shape .label rect,#=
+mermaid-1784514016793 .image-shape .label rect{opacity:0.5;background-color=
+:white;fill:white;}#mermaid-1784514016793 .label-icon{display:inline-block;=
+height:1em;overflow:visible;vertical-align:-0.125em;}#mermaid-1784514016793=
+ .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert=
+;}#mermaid-1784514016793 .node .neo-node{stroke:#999;}#mermaid-178451401679=
+3 [data-look=3D"neo"].node rect,#mermaid-1784514016793 [data-look=3D"neo"].=
+cluster rect,#mermaid-1784514016793 [data-look=3D"neo"].node polygon{stroke=
+:url(#mermaid-1784514016793-gradient);filter:drop-shadow( 1px 2px 2px rgba(=
+185,185,185,1));}#mermaid-1784514016793 [data-look=3D"neo"].swimlane.cluste=
+r rect{filter:none;}#mermaid-1784514016793 [data-look=3D"neo"].node path{st=
+roke:url(#mermaid-1784514016793-gradient);stroke-width:1px;}#mermaid-178451=
+4016793 [data-look=3D"neo"].node .outer-path{filter:drop-shadow( 1px 2px 2p=
+x rgba(185,185,185,1));}#mermaid-1784514016793 [data-look=3D"neo"].node .ne=
+o-line path{stroke:#999;filter:none;}#mermaid-1784514016793 [data-look=3D"n=
+eo"].node circle{stroke:url(#mermaid-1784514016793-gradient);filter:drop-sh=
+adow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1784514016793 [data-look=
+=3D"neo"].node circle .state-start{fill:#000000;}#mermaid-1784514016793 [da=
+ta-look=3D"neo"].icon-shape .icon{fill:url(#mermaid-1784514016793-gradient)=
+;filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-17845140167=
+93 [data-look=3D"neo"].icon-shape .icon-neo path{stroke:url(#mermaid-178451=
+4016793-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#me=
+rmaid-1784514016793 :root{--mermaid-font-family:"trebuchet ms",verdana,aria=
+l,sans-serif;}#mermaid-1784514016793 .leak&gt;*{stroke:rgb(220, 38, 38)!imp=
+ortant;stroke-width:2px!important;}#mermaid-1784514016793 .leak span{stroke=
+:rgb(220, 38, 38)!important;stroke-width:2px!important;}</style><g><marker =
+id=3D"mermaid-1784514016793_flowchart-v2-pointEnd" class=3D"marker flowchar=
+t-v2" viewBox=3D"0 0 10 10" refX=3D"5" refY=3D"5" markerUnits=3D"userSpaceO=
+nUse" markerWidth=3D"8" markerHeight=3D"8" orient=3D"auto"><path d=3D"M 0 0=
+ L 10 5 L 0 10 z" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; strok=
+e-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784514016793_flo=
+wchart-v2-pointStart" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" r=
+efX=3D"4.5" refY=3D"5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"8" mar=
+kerHeight=3D"8" orient=3D"auto"><path d=3D"M 0 5 L 10 10 L 10 0 z" class=3D=
+"arrowMarkerPath" style=3D"stroke-width: 1; stroke-dasharray: 1, 0;"></path=
+></marker><marker id=3D"mermaid-1784514016793_flowchart-v2-pointEnd-margin"=
+ class=3D"marker flowchart-v2" viewBox=3D"0 0 11.5 14" refX=3D"11.5" refY=
+=3D"7" markerUnits=3D"userSpaceOnUse" markerWidth=3D"10.5" markerHeight=3D"=
+14" orient=3D"auto"><path d=3D"M 0 0 L 11.5 7 L 0 14 z" class=3D"arrowMarke=
+rPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><=
+marker id=3D"mermaid-1784514016793_flowchart-v2-pointStart-margin" class=3D=
+"marker flowchart-v2" viewBox=3D"0 0 11.5 14" refX=3D"1" refY=3D"7" markerU=
+nits=3D"userSpaceOnUse" markerWidth=3D"11.5" markerHeight=3D"14" orient=3D"=
+auto"><polygon points=3D"0,7 11.5,14 11.5,0" class=3D"arrowMarkerPath" styl=
+e=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker i=
+d=3D"mermaid-1784514016793_flowchart-v2-circleEnd" class=3D"marker flowchar=
+t-v2" viewBox=3D"0 0 10 10" refX=3D"11" refY=3D"5" markerUnits=3D"userSpace=
+OnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><circle cx=3D=
+"5" cy=3D"5" r=3D"5" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; st=
+roke-dasharray: 1, 0;"></circle></marker><marker id=3D"mermaid-178451401679=
+3_flowchart-v2-circleStart" class=3D"marker flowchart-v2" viewBox=3D"0 0 10=
+ 10" refX=3D"-1" refY=3D"5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"1=
+1" markerHeight=3D"11" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" cl=
+ass=3D"arrowMarkerPath" style=3D"stroke-width: 1; stroke-dasharray: 1, 0;">=
+</circle></marker><marker id=3D"mermaid-1784514016793_flowchart-v2-circleEn=
+d-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" refY=3D"5" re=
+fX=3D"12.25" markerUnits=3D"userSpaceOnUse" markerWidth=3D"14" markerHeight=
+=3D"14" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMar=
+kerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></circle></mark=
+er><marker id=3D"mermaid-1784514016793_flowchart-v2-circleStart-margin" cla=
+ss=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"-2" refY=3D"5" mar=
+kerUnits=3D"userSpaceOnUse" markerWidth=3D"14" markerHeight=3D"14" orient=
+=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMarkerPath" style=
+=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id=
+=3D"mermaid-1784514016793_flowchart-v2-crossEnd" class=3D"marker cross flow=
+chart-v2" viewBox=3D"0 0 11 11" refX=3D"12" refY=3D"5.2" markerUnits=3D"use=
+rSpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><path d=
+=3D"M 1,1 l 9,9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=3D"stroke-wi=
+dth: 2; stroke-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784=
+514016793_flowchart-v2-crossStart" class=3D"marker cross flowchart-v2" view=
+Box=3D"0 0 11 11" refX=3D"-1" refY=3D"5.2" markerUnits=3D"userSpaceOnUse" m=
+arkerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><path d=3D"M 1,1 l 9,=
+9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=3D"stroke-width: 2; stroke=
+-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784514016793_flow=
+chart-v2-crossEnd-margin" class=3D"marker cross flowchart-v2" viewBox=3D"0 =
+0 15 15" refX=3D"17.7" refY=3D"7.5" markerUnits=3D"userSpaceOnUse" markerWi=
+dth=3D"12" markerHeight=3D"12" orient=3D"auto"><path d=3D"M 1,1 L 14,14 M 1=
+,14 L 14,1" class=3D"arrowMarkerPath" style=3D"stroke-width: 2.5;"></path><=
+/marker><marker id=3D"mermaid-1784514016793_flowchart-v2-crossStart-margin"=
+ class=3D"marker cross flowchart-v2" viewBox=3D"0 0 15 15" refX=3D"-3.5" re=
+fY=3D"7.5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"12" markerHeight=
+=3D"12" orient=3D"auto"><path d=3D"M 1,1 L 14,14 M 1,14 L 14,1" class=3D"ar=
+rowMarkerPath" style=3D"stroke-width: 2.5; stroke-dasharray: 1, 0;"></path>=
+</marker><g class=3D"root"><g class=3D"clusters"></g><g class=3D"edgePaths"=
+><path d=3D"M147.371,86L138.673,90.167C129.976,94.333,112.581,102.667,104.4=
+2,110.341C96.26,118.015,97.335,125.031,97.873,128.538L98.41,132.046" id=3D"=
+mermaid-1784514016793-L_L_G1_0" class=3D" edge-thickness-normal edge-patter=
+n-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=3D";=
+" data-edge=3D"true" data-et=3D"edge" data-id=3D"L_L_G1_0" data-points=3D"W=
+3sieCI6MTQ3LjM3MDYwNTQ2ODc1LCJ5Ijo4Nn0seyJ4Ijo5NS4xODU1NDY4NzUsInkiOjExMX0s=
+eyJ4Ijo5OS4wMTU3Mzc2ODAyODg0NywieSI6MTM2fV0=3D" data-look=3D"classic" marke=
+r-end=3D"url(#mermaid-1784514016793_flowchart-v2-pointEnd)"></path><path d=
+=3D"M228.779,86L228.779,90.167C228.779,94.333,228.779,102.667,238.937,110.7=
+6C249.094,118.853,269.409,126.705,279.567,130.632L289.724,134.558" id=3D"me=
+rmaid-1784514016793-L_L_D1_0" class=3D" edge-thickness-normal edge-pattern-=
+solid edge-thickness-normal edge-pattern-solid flowchart-link" style=3D";" =
+data-edge=3D"true" data-et=3D"edge" data-id=3D"L_L_D1_0" data-points=3D"W3s=
+ieCI6MjI4Ljc3OTI5Njg3NSwieSI6ODZ9LHsieCI6MjI4Ljc3OTI5Njg3NSwieSI6MTExfSx7In=
+giOjI5My40NTQ5NjU0NDQ3MTE1NSwieSI6MTM2fV0=3D" data-look=3D"classic" marker-=
+end=3D"url(#mermaid-1784514016793_flowchart-v2-pointEnd)"></path><path d=3D=
+"M327.279,68.657L359.377,75.714C391.474,82.771,455.669,96.886,495.471,107.8=
+1C535.273,118.735,550.683,126.47,558.388,130.338L566.093,134.206" id=3D"mer=
+maid-1784514016793-L_L_B1_0" class=3D" edge-thickness-normal edge-pattern-s=
+olid edge-thickness-normal edge-pattern-solid flowchart-link" style=3D";" d=
+ata-edge=3D"true" data-et=3D"edge" data-id=3D"L_L_B1_0" data-points=3D"W3si=
+eCI6MzI3LjI3OTI5Njg3NSwieSI6NjguNjU2OTc5OTA0MDQ5Mzh9LHsieCI6NTE5Ljg2MzI4MTI=
+1LCJ5IjoxMTF9LHsieCI6NTY5LjY2Nzk2ODc1LCJ5IjoxMzZ9XQ=3D=3D" data-look=3D"cla=
+ssic" marker-end=3D"url(#mermaid-1784514016793_flowchart-v2-pointEnd)"></pa=
+th><path d=3D"M377.279,74.209L349.196,80.341C321.113,86.473,264.946,98.736,=
+228.997,108.74C193.048,118.744,177.317,126.489,169.451,130.361L161.586,134.=
+233" id=3D"mermaid-1784514016793-L_S_G1_0" class=3D" edge-thickness-normal =
+edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"=
+ style=3D";" data-edge=3D"true" data-et=3D"edge" data-id=3D"L_S_G1_0" data-=
+points=3D"W3sieCI6Mzc3LjI3OTI5Njg3NSwieSI6NzQuMjA5MjUzOTc3OTg0NDl9LHsieCI6M=
+jA4Ljc3OTI5Njg3NSwieSI6MTExfSx7IngiOjE1Ny45OTcxMDc4NzI1OTYxNiwieSI6MTM2fV0=
+=3D" data-look=3D"classic" marker-end=3D"url(#mermaid-1784514016793_flowcha=
+rt-v2-pointEnd)"></path><path d=3D"M500.658,86L500.525,90.167C500.393,94.33=
+3,500.128,102.667,489.676,110.763C479.225,118.859,458.587,126.718,448.267,1=
+30.647L437.948,134.577" id=3D"mermaid-1784514016793-L_S_D1_0" class=3D" edg=
+e-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-so=
+lid flowchart-link" style=3D";" data-edge=3D"true" data-et=3D"edge" data-id=
+=3D"L_S_D1_0" data-points=3D"W3sieCI6NTAwLjY1NzUwMTIyMDcwMzEsInkiOjg2fSx7In=
+giOjQ5OS44NjMyODEyNSwieSI6MTExfSx7IngiOjQzNC4yMTAxMTExNzc4ODQ2NCwieSI6MTM2f=
+V0=3D" data-look=3D"classic" marker-end=3D"url(#mermaid-1784514016793_flowc=
+hart-v2-pointEnd)"></path><path d=3D"M580.827,86L589.26,90.167C597.693,94.3=
+33,614.558,102.667,622.454,110.341C630.349,118.015,629.274,125.031,628.737,=
+128.538L628.199,132.046" id=3D"mermaid-1784514016793-L_S_B1_0" class=3D" ed=
+ge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-s=
+olid flowchart-link" style=3D";" data-edge=3D"true" data-et=3D"edge" data-i=
+d=3D"L_S_B1_0" data-points=3D"W3sieCI6NTgwLjgyNzIwOTQ3MjY1NjIsInkiOjg2fSx7I=
+ngiOjYzMS40MjM4MjgxMjUsInkiOjExMX0seyJ4Ijo2MjcuNTkzNjM3MzE5NzExNSwieSI6MTM2=
+fV0=3D" data-look=3D"classic" marker-end=3D"url(#mermaid-1784514016793_flow=
+chart-v2-pointEnd)"></path></g><g class=3D"edgeLabels"><g class=3D"edgeLabe=
+l"><g class=3D"label" data-id=3D"L_L_G1_0" transform=3D"translate(0, 0)"><f=
+oreignObject width=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999/=
+xhtml" class=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap=
+; line-height: 1.5; max-width: 200px; text-align: center;"><span class=3D"e=
+dgeLabel "></span></div></foreignObject></g></g><g class=3D"edgeLabel"><g c=
+lass=3D"label" data-id=3D"L_L_D1_0" transform=3D"translate(0, 0)"><foreignO=
+bject width=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" =
+class=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap; line-=
+height: 1.5; max-width: 200px; text-align: center;"><span class=3D"edgeLabe=
+l "></span></div></foreignObject></g></g><g class=3D"edgeLabel"><g class=3D=
+"label" data-id=3D"L_L_B1_0" transform=3D"translate(0, 0)"><foreignObject w=
+idth=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=
+=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap; line-heigh=
+t: 1.5; max-width: 200px; text-align: center;"><span class=3D"edgeLabel "><=
+/span></div></foreignObject></g></g><g class=3D"edgeLabel"><g class=3D"labe=
+l" data-id=3D"L_S_G1_0" transform=3D"translate(0, 0)"><foreignObject width=
+=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=3D"la=
+belBkg" style=3D"display: table-cell; white-space: nowrap; line-height: 1.5=
+; max-width: 200px; text-align: center;"><span class=3D"edgeLabel "></span>=
+</div></foreignObject></g></g><g class=3D"edgeLabel"><g class=3D"label" dat=
+a-id=3D"L_S_D1_0" transform=3D"translate(0, 0)"><foreignObject width=3D"0" =
+height=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=3D"labelBkg"=
+ style=3D"display: table-cell; white-space: nowrap; line-height: 1.5; max-w=
+idth: 200px; text-align: center;"><span class=3D"edgeLabel "></span></div><=
+/foreignObject></g></g><g class=3D"edgeLabel"><g class=3D"label" data-id=3D=
+"L_S_B1_0" transform=3D"translate(0, 0)"><foreignObject width=3D"0" height=
+=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=3D"labelBkg" style=
+=3D"display: table-cell; white-space: nowrap; line-height: 1.5; max-width: =
+200px; text-align: center;"><span class=3D"edgeLabel "></span></div></forei=
+gnObject></g></g></g><g class=3D"nodes"><g class=3D"node default leak " id=
+=3D"mermaid-1784514016793-flowchart-L-0" data-look=3D"classic" transform=3D=
+"translate(228.779296875, 47)"><rect class=3D"basic label-container" style=
+=3D"stroke:#dc2626 !important;stroke-width:2px !important" x=3D"-98.5" y=3D=
+"-39" width=3D"197" height=3D"78"></rect><g class=3D"label" style=3D"" tran=
+sform=3D"translate(-68.5, -24)"><rect></rect><foreignObject width=3D"137" h=
+eight=3D"48"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"display: =
+table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-a=
+lign: center;"><span class=3D"nodeLabel "><p>lib.rs setup closure<br>~105 l=
+ines, 0 tests</p></span></div></foreignObject></g></g><g class=3D"node defa=
+ult  " id=3D"mermaid-1784514016793-flowchart-G1-1" data-look=3D"classic" tr=
+ansform=3D"translate(103.15234375, 163)"><rect class=3D"basic label-contain=
+er" style=3D"" x=3D"-95.15234375" y=3D"-27" width=3D"190.3046875" height=3D=
+"54"></rect><g class=3D"label" style=3D"" transform=3D"translate(-65.152343=
+75, -12)"><rect></rect><foreignObject width=3D"130.3046875" height=3D"24"><=
+div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"display: table-cell; wh=
+ite-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"=
+><span class=3D"nodeLabel "><p>git_ops pull/clone</p></span></div></foreign=
+Object></g></g><g class=3D"node default  " id=3D"mermaid-1784514016793-flow=
+chart-D1-3" data-look=3D"classic" transform=3D"translate(363.3046875, 163)"=
+><rect class=3D"basic label-container" style=3D"" x=3D"-82.03515625" y=3D"-=
+27" width=3D"164.0703125" height=3D"54"></rect><g class=3D"label" style=3D"=
+" transform=3D"translate(-52.03515625, -12)"><rect></rect><foreignObject wi=
+dth=3D"104.0703125" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtm=
+l" style=3D"display: table-cell; white-space: nowrap; line-height: 1.5; max=
+-width: 200px; text-align: center;"><span class=3D"nodeLabel "><p>skill_dis=
+covery</p></span></div></foreignObject></g></g><g class=3D"node default  " =
+id=3D"mermaid-1784514016793-flowchart-B1-5" data-look=3D"classic" transform=
+=3D"translate(623.45703125, 163)"><rect class=3D"basic label-container" sty=
+le=3D"" x=3D"-91.0859375" y=3D"-27" width=3D"182.171875" height=3D"54"></re=
+ct><g class=3D"label" style=3D"" transform=3D"translate(-61.0859375, -12)">=
+<rect></rect><foreignObject width=3D"122.171875" height=3D"24"><div xmlns=
+=3D"http://www.w3.org/1999/xhtml" style=3D"display: table-cell; white-space=
+: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span cl=
+ass=3D"nodeLabel "><p>db update + save</p></span></div></foreignObject></g>=
+</g><g class=3D"node default  " id=3D"mermaid-1784514016793-flowchart-S-6" =
+data-look=3D"classic" transform=3D"translate(501.896484375, 47)"><rect clas=
+s=3D"basic label-container" style=3D"" x=3D"-124.6171875" y=3D"-39" width=
+=3D"249.234375" height=3D"78"></rect><g class=3D"label" style=3D"" transfor=
+m=3D"translate(-94.6171875, -24)"><rect></rect><foreignObject width=3D"189.=
+234375" height=3D"48"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"=
+display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200p=
+x; text-align: center;"><span class=3D"nodeLabel "><p>skill_repos_sync comm=
+and<br>0 tests</p></span></div></foreignObject></g></g></g></g></g><defs><f=
+ilter id=3D"mermaid-1784514016793-drop-shadow" height=3D"130%" width=3D"130=
+%"><feDropShadow dx=3D"4" dy=3D"4" stdDeviation=3D"0" flood-opacity=3D"0.06=
+" flood-color=3D"#000000"></feDropShadow></filter></defs><defs><filter id=
+=3D"mermaid-1784514016793-drop-shadow-small" height=3D"150%" width=3D"150%"=
+><feDropShadow dx=3D"2" dy=3D"2" stdDeviation=3D"0" flood-opacity=3D"0.06" =
+flood-color=3D"#000000"></feDropShadow></filter></defs><linearGradient id=
+=3D"mermaid-1784514016793-gradient" gradientUnits=3D"objectBoundingBox" x1=
+=3D"0%" y1=3D"0%" x2=3D"100%" y2=3D"0%"><stop offset=3D"0%" stop-color=3D"h=
+sl(0, 0%, 83.3333333333%)" stop-opacity=3D"1"></stop><stop offset=3D"100%" =
+stop-color=3D"hsl(0, 0%, 88.9215686275%)" stop-opacity=3D"1"></stop></linea=
+rGradient></svg></pre>
+            </div>
+            <div class=3D"rounded-lg border border-slate-200 bg-white p-4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-2">After =E2=80=94 two callers, one implementation</p>
+              <pre class=3D"mermaid" data-processed=3D"true"><svg id=3D"mer=
+maid-1784514016817" width=3D"100%" xmlns=3D"http://www.w3.org/2000/svg" xml=
+ns:xlink=3D"http://www.w3.org/1999/xlink" class=3D"flowchart" style=3D"max-=
+width: 586px;" viewBox=3D"0 0 586 396" role=3D"graphics-document document" =
+aria-roledescription=3D"flowchart-v2"><style>#mermaid-1784514016817{font-fa=
+mily:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#000000;}@=
+keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{t=
+o{stroke-dashoffset:0;}}#mermaid-1784514016817 .edge-animation-slow{stroke-=
+dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear inf=
+inite;stroke-linecap:round;}#mermaid-1784514016817 .edge-animation-fast{str=
+oke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear=
+ infinite;stroke-linecap:round;}#mermaid-1784514016817 .error-icon{fill:#55=
+2222;}#mermaid-1784514016817 .error-text{fill:#552222;stroke:#552222;}#merm=
+aid-1784514016817 .edge-thickness-normal{stroke-width:1px;}#mermaid-1784514=
+016817 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-1784514016817 .ed=
+ge-pattern-solid{stroke-dasharray:0;}#mermaid-1784514016817 .edge-thickness=
+-invisible{stroke-width:0;fill:none;}#mermaid-1784514016817 .edge-pattern-d=
+ashed{stroke-dasharray:3;}#mermaid-1784514016817 .edge-pattern-dotted{strok=
+e-dasharray:2;}#mermaid-1784514016817 .marker{fill:#666;stroke:#666;}#merma=
+id-1784514016817 .marker.cross{stroke:#666;}#mermaid-1784514016817 svg{font=
+-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-17=
+84514016817 p{margin:0;}#mermaid-1784514016817 .label{font-family:"trebuche=
+t ms",verdana,arial,sans-serif;color:#000000;}#mermaid-1784514016817 .clust=
+er-label text{fill:#333;}#mermaid-1784514016817 .cluster-label span{color:#=
+333;}#mermaid-1784514016817 .cluster-label span p{background-color:transpar=
+ent;}#mermaid-1784514016817 .label text,#mermaid-1784514016817 span{fill:#0=
+00000;color:#000000;}#mermaid-1784514016817 .node rect,#mermaid-17845140168=
+17 .node circle,#mermaid-1784514016817 .node ellipse,#mermaid-1784514016817=
+ .node polygon,#mermaid-1784514016817 .node path{fill:#eee;stroke:#999;stro=
+ke-width:1px;}#mermaid-1784514016817 .rough-node .label text,#mermaid-17845=
+14016817 .node .label text,#mermaid-1784514016817 .image-shape .label,#merm=
+aid-1784514016817 .icon-shape .label{text-anchor:middle;}#mermaid-178451401=
+6817 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mermaid-178=
+4514016817 .rough-node .label,#mermaid-1784514016817 .node .label,#mermaid-=
+1784514016817 .image-shape .label,#mermaid-1784514016817 .icon-shape .label=
+{text-align:center;}#mermaid-1784514016817 .node.clickable{cursor:pointer;}=
+#mermaid-1784514016817 .root .anchor path{fill:#666!important;stroke-width:=
+0;stroke:#666;}#mermaid-1784514016817 .arrowheadPath{fill:#333333;}#mermaid=
+-1784514016817 .edgePath .path{stroke:#666;stroke-width:1px;}#mermaid-17845=
+14016817 .flowchart-link{stroke:#666;fill:none;}#mermaid-1784514016817 .edg=
+eLabel{background-color:white;text-align:center;}#mermaid-1784514016817 .ed=
+geLabel p{background-color:white;}#mermaid-1784514016817 .edgeLabel rect{op=
+acity:0.5;background-color:white;fill:white;}#mermaid-1784514016817 .labelB=
+kg{background-color:rgba(255, 255, 255, 0.5);}#mermaid-1784514016817 .clust=
+er rect{fill:hsl(0, 0%, 98.9215686275%);stroke:#707070;stroke-width:1px;}#m=
+ermaid-1784514016817 .cluster text{fill:#333;}#mermaid-1784514016817 .clust=
+er span{color:#333;}#mermaid-1784514016817 div.mermaidTooltip{position:abso=
+lute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet m=
+s",verdana,arial,sans-serif;font-size:12px;background:hsl(-160, 0%, 93.3333=
+333333%);border:1px solid #707070;border-radius:2px;pointer-events:none;z-i=
+ndex:100;}#mermaid-1784514016817 .flowchartTitleText{text-anchor:middle;fon=
+t-size:18px;fill:#000000;}#mermaid-1784514016817 rect.text{fill:none;stroke=
+-width:0;}#mermaid-1784514016817 .icon-shape,#mermaid-1784514016817 .image-=
+shape{background-color:white;text-align:center;}#mermaid-1784514016817 .ico=
+n-shape p,#mermaid-1784514016817 .image-shape p{background-color:white;padd=
+ing:2px;}#mermaid-1784514016817 .icon-shape .label rect,#mermaid-1784514016=
+817 .image-shape .label rect{opacity:0.5;background-color:white;fill:white;=
+}#mermaid-1784514016817 .label-icon{display:inline-block;height:1em;overflo=
+w:visible;vertical-align:-0.125em;}#mermaid-1784514016817 .node .label-icon=
+ path{fill:currentColor;stroke:revert;stroke-width:revert;}#mermaid-1784514=
+016817 .node .neo-node{stroke:#999;}#mermaid-1784514016817 [data-look=3D"ne=
+o"].node rect,#mermaid-1784514016817 [data-look=3D"neo"].cluster rect,#merm=
+aid-1784514016817 [data-look=3D"neo"].node polygon{stroke:url(#mermaid-1784=
+514016817-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#=
+mermaid-1784514016817 [data-look=3D"neo"].swimlane.cluster rect{filter:none=
+;}#mermaid-1784514016817 [data-look=3D"neo"].node path{stroke:url(#mermaid-=
+1784514016817-gradient);stroke-width:1px;}#mermaid-1784514016817 [data-look=
+=3D"neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185=
+,1));}#mermaid-1784514016817 [data-look=3D"neo"].node .neo-line path{stroke=
+:#999;filter:none;}#mermaid-1784514016817 [data-look=3D"neo"].node circle{s=
+troke:url(#mermaid-1784514016817-gradient);filter:drop-shadow( 1px 2px 2px =
+rgba(185,185,185,1));}#mermaid-1784514016817 [data-look=3D"neo"].node circl=
+e .state-start{fill:#000000;}#mermaid-1784514016817 [data-look=3D"neo"].ico=
+n-shape .icon{fill:url(#mermaid-1784514016817-gradient);filter:drop-shadow(=
+ 1px 2px 2px rgba(185,185,185,1));}#mermaid-1784514016817 [data-look=3D"neo=
+"].icon-shape .icon-neo path{stroke:url(#mermaid-1784514016817-gradient);fi=
+lter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1784514016817 =
+:root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</styl=
+e><g><marker id=3D"mermaid-1784514016817_flowchart-v2-pointEnd" class=3D"ma=
+rker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"5" refY=3D"5" markerUnits=
+=3D"userSpaceOnUse" markerWidth=3D"8" markerHeight=3D"8" orient=3D"auto"><p=
+ath d=3D"M 0 0 L 10 5 L 0 10 z" class=3D"arrowMarkerPath" style=3D"stroke-w=
+idth: 1; stroke-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-178=
+4514016817_flowchart-v2-pointStart" class=3D"marker flowchart-v2" viewBox=
+=3D"0 0 10 10" refX=3D"4.5" refY=3D"5" markerUnits=3D"userSpaceOnUse" marke=
+rWidth=3D"8" markerHeight=3D"8" orient=3D"auto"><path d=3D"M 0 5 L 10 10 L =
+10 0 z" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; stroke-dasharra=
+y: 1, 0;"></path></marker><marker id=3D"mermaid-1784514016817_flowchart-v2-=
+pointEnd-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 11.5 14" refX=
+=3D"11.5" refY=3D"7" markerUnits=3D"userSpaceOnUse" markerWidth=3D"10.5" ma=
+rkerHeight=3D"14" orient=3D"auto"><path d=3D"M 0 0 L 11.5 7 L 0 14 z" class=
+=3D"arrowMarkerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></p=
+ath></marker><marker id=3D"mermaid-1784514016817_flowchart-v2-pointStart-ma=
+rgin" class=3D"marker flowchart-v2" viewBox=3D"0 0 11.5 14" refX=3D"1" refY=
+=3D"7" markerUnits=3D"userSpaceOnUse" markerWidth=3D"11.5" markerHeight=3D"=
+14" orient=3D"auto"><polygon points=3D"0,7 11.5,14 11.5,0" class=3D"arrowMa=
+rkerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></ma=
+rker><marker id=3D"mermaid-1784514016817_flowchart-v2-circleEnd" class=3D"m=
+arker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"11" refY=3D"5" markerUnit=
+s=3D"userSpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"=
+><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMarkerPath" style=3D"strok=
+e-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id=3D"mermai=
+d-1784514016817_flowchart-v2-circleStart" class=3D"marker flowchart-v2" vie=
+wBox=3D"0 0 10 10" refX=3D"-1" refY=3D"5" markerUnits=3D"userSpaceOnUse" ma=
+rkerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><circle cx=3D"5" cy=3D=
+"5" r=3D"5" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; stroke-dash=
+array: 1, 0;"></circle></marker><marker id=3D"mermaid-1784514016817_flowcha=
+rt-v2-circleEnd-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10"=
+ refY=3D"5" refX=3D"12.25" markerUnits=3D"userSpaceOnUse" markerWidth=3D"14=
+" markerHeight=3D"14" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" cla=
+ss=3D"arrowMarkerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"><=
+/circle></marker><marker id=3D"mermaid-1784514016817_flowchart-v2-circleSta=
+rt-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"-2" =
+refY=3D"5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"14" markerHeight=
+=3D"14" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMar=
+kerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></circle></mark=
+er><marker id=3D"mermaid-1784514016817_flowchart-v2-crossEnd" class=3D"mark=
+er cross flowchart-v2" viewBox=3D"0 0 11 11" refX=3D"12" refY=3D"5.2" marke=
+rUnits=3D"userSpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"=
+auto"><path d=3D"M 1,1 l 9,9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=
+=3D"stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id=3D=
+"mermaid-1784514016817_flowchart-v2-crossStart" class=3D"marker cross flowc=
+hart-v2" viewBox=3D"0 0 11 11" refX=3D"-1" refY=3D"5.2" markerUnits=3D"user=
+SpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><path d=
+=3D"M 1,1 l 9,9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=3D"stroke-wi=
+dth: 2; stroke-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784=
+514016817_flowchart-v2-crossEnd-margin" class=3D"marker cross flowchart-v2"=
+ viewBox=3D"0 0 15 15" refX=3D"17.7" refY=3D"7.5" markerUnits=3D"userSpaceO=
+nUse" markerWidth=3D"12" markerHeight=3D"12" orient=3D"auto"><path d=3D"M 1=
+,1 L 14,14 M 1,14 L 14,1" class=3D"arrowMarkerPath" style=3D"stroke-width: =
+2.5;"></path></marker><marker id=3D"mermaid-1784514016817_flowchart-v2-cros=
+sStart-margin" class=3D"marker cross flowchart-v2" viewBox=3D"0 0 15 15" re=
+fX=3D"-3.5" refY=3D"7.5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"12" =
+markerHeight=3D"12" orient=3D"auto"><path d=3D"M 1,1 L 14,14 M 1,14 L 14,1"=
+ class=3D"arrowMarkerPath" style=3D"stroke-width: 2.5; stroke-dasharray: 1,=
+ 0;"></path></marker><g class=3D"root"><g class=3D"clusters"></g><g class=
+=3D"edgePaths"><path d=3D"M138,86L138,90.167C138,94.333,138,102.667,144.306=
+,110.654C150.611,118.642,163.223,126.285,169.528,130.106L175.834,133.927" i=
+d=3D"mermaid-1784514016817-L_L_SR_0" class=3D" edge-thickness-normal edge-p=
+attern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=
+=3D";" data-edge=3D"true" data-et=3D"edge" data-id=3D"L_L_SR_0" data-points=
+=3D"W3sieCI6MTM4LCJ5Ijo4Nn0seyJ4IjoxMzgsInkiOjExMX0seyJ4IjoxNzkuMjU0ODMzNDk=
+xMTYxNiwieSI6MTM2fV0=3D" data-look=3D"classic" marker-end=3D"url(#mermaid-1=
+784514016817_flowchart-v2-pointEnd)"></path><path d=3D"M448,86L448,90.167C4=
+48,94.333,448,102.667,442.381,110.627C436.762,118.587,425.525,126.174,419.9=
+06,129.968L414.287,133.762" id=3D"mermaid-1784514016817-L_S_SR_0" class=3D"=
+ edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-patter=
+n-solid flowchart-link" style=3D";" data-edge=3D"true" data-et=3D"edge" dat=
+a-id=3D"L_S_SR_0" data-points=3D"W3sieCI6NDQ4LCJ5Ijo4Nn0seyJ4Ijo0NDgsInkiOj=
+ExMX0seyJ4Ijo0MTAuOTcyMDA1MjA4MzMzMywieSI6MTM2fV0=3D" data-look=3D"classic"=
+ marker-end=3D"url(#mermaid-1784514016817_flowchart-v2-pointEnd)"></path><p=
+ath d=3D"M161.077,284L153.178,288.167C145.279,292.333,129.48,300.667,121.58=
+1,308.333C113.682,316,113.682,323,113.682,326.5L113.682,330" id=3D"mermaid-=
+1784514016817-L_SR_G1_0" class=3D" edge-thickness-normal edge-pattern-solid=
+ edge-thickness-normal edge-pattern-solid flowchart-link" style=3D";" data-=
+edge=3D"true" data-et=3D"edge" data-id=3D"L_SR_G1_0" data-points=3D"W3sieCI=
+6MTYxLjA3NzQ3Mzk1ODMzMzM0LCJ5IjoyODR9LHsieCI6MTEzLjY4MTY0MDYyNSwieSI6MzA5fS=
+x7IngiOjExMy42ODE2NDA2MjUsInkiOjMzNH1d" data-look=3D"classic" marker-end=3D=
+"url(#mermaid-1784514016817_flowchart-v2-pointEnd)"></path><path d=3D"M301.=
+369,284L301.369,288.167C301.369,292.333,301.369,300.667,301.369,308.333C301=
+.369,316,301.369,323,301.369,326.5L301.369,330" id=3D"mermaid-1784514016817=
+-L_SR_D1_0" class=3D" edge-thickness-normal edge-pattern-solid edge-thickne=
+ss-normal edge-pattern-solid flowchart-link" style=3D";" data-edge=3D"true"=
+ data-et=3D"edge" data-id=3D"L_SR_D1_0" data-points=3D"W3sieCI6MzAxLjM2OTE0=
+MDYyNSwieSI6Mjg0fSx7IngiOjMwMS4zNjkxNDA2MjUsInkiOjMwOX0seyJ4IjozMDEuMzY5MTQ=
+wNjI1LCJ5IjozMzR9XQ=3D=3D" data-look=3D"classic" marker-end=3D"url(#mermaid=
+-1784514016817_flowchart-v2-pointEnd)"></path><path d=3D"M429.149,284L436.3=
+44,288.167C443.539,292.333,457.929,300.667,465.124,308.333C472.318,316,472.=
+318,323,472.318,326.5L472.318,330" id=3D"mermaid-1784514016817-L_SR_B1_0" c=
+lass=3D" edge-thickness-normal edge-pattern-solid edge-thickness-normal edg=
+e-pattern-solid flowchart-link" style=3D";" data-edge=3D"true" data-et=3D"e=
+dge" data-id=3D"L_SR_B1_0" data-points=3D"W3sieCI6NDI5LjE0OTM2NDc0MTE2MTYsI=
+nkiOjI4NH0seyJ4Ijo0NzIuMzE4MzU5Mzc1LCJ5IjozMDl9LHsieCI6NDcyLjMxODM1OTM3NSwi=
+eSI6MzM0fV0=3D" data-look=3D"classic" marker-end=3D"url(#mermaid-1784514016=
+817_flowchart-v2-pointEnd)"></path></g><g class=3D"edgeLabels"><g class=3D"=
+edgeLabel"><g class=3D"label" data-id=3D"L_L_SR_0" transform=3D"translate(0=
+, 0)"><foreignObject width=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.o=
+rg/1999/xhtml" class=3D"labelBkg" style=3D"display: table-cell; white-space=
+: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span cl=
+ass=3D"edgeLabel "></span></div></foreignObject></g></g><g class=3D"edgeLab=
+el"><g class=3D"label" data-id=3D"L_S_SR_0" transform=3D"translate(0, 0)"><=
+foreignObject width=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999=
+/xhtml" class=3D"labelBkg" style=3D"display: table-cell; white-space: nowra=
+p; line-height: 1.5; max-width: 200px; text-align: center;"><span class=3D"=
+edgeLabel "></span></div></foreignObject></g></g><g class=3D"edgeLabel"><g =
+class=3D"label" data-id=3D"L_SR_G1_0" transform=3D"translate(0, 0)"><foreig=
+nObject width=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml=
+" class=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap; lin=
+e-height: 1.5; max-width: 200px; text-align: center;"><span class=3D"edgeLa=
+bel "></span></div></foreignObject></g></g><g class=3D"edgeLabel"><g class=
+=3D"label" data-id=3D"L_SR_D1_0" transform=3D"translate(0, 0)"><foreignObje=
+ct width=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" cla=
+ss=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap; line-hei=
+ght: 1.5; max-width: 200px; text-align: center;"><span class=3D"edgeLabel "=
+></span></div></foreignObject></g></g><g class=3D"edgeLabel"><g class=3D"la=
+bel" data-id=3D"L_SR_B1_0" transform=3D"translate(0, 0)"><foreignObject wid=
+th=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=3D"=
+labelBkg" style=3D"display: table-cell; white-space: nowrap; line-height: 1=
+.5; max-width: 200px; text-align: center;"><span class=3D"edgeLabel "></spa=
+n></div></foreignObject></g></g></g><g class=3D"nodes"><g class=3D"root" tr=
+ansform=3D"translate(125.869140625, 128)"><g class=3D"clusters"><g class=3D=
+"cluster " id=3D"mermaid-1784514016817-SR" data-look=3D"classic"><rect styl=
+e=3D"fill:#0f172a !important;stroke:#0f172a !important" x=3D"8" y=3D"8" wid=
+th=3D"335" height=3D"148"></rect><g class=3D"cluster-label " transform=3D"t=
+ranslate(30.43359375, 8)"><foreignObject width=3D"290.1328125" height=3D"24=
+"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"display: table-cell;=
+ white-space: nowrap; line-height: 1.5;"><span class=3D"nodeLabel " style=
+=3D"color:#fff !important"><p>sync_repo(conn, cache_dir, repo, token)</p></=
+span></div></foreignObject></g></g></g><g class=3D"edgePaths"></g><g class=
+=3D"edgeLabels"></g><g class=3D"nodes"><g class=3D"node default  " id=3D"me=
+rmaid-1784514016817-flowchart-X-4" data-look=3D"classic" transform=3D"trans=
+late(175.5, 82)"><rect class=3D"basic label-container" style=3D"" x=3D"-130=
+" y=3D"-39" width=3D"260" height=3D"78"></rect><g class=3D"label" style=3D"=
+" transform=3D"translate(-100, -24)"><rect></rect><foreignObject width=3D"2=
+00" height=3D"48"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"disp=
+lay: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; =
+text-align: center; width: 200px;"><span class=3D"nodeLabel "><p>pull/clone=
+ =E2=86=92 discover =E2=86=92 persist</p></span></div></foreignObject></g><=
+/g></g></g><g class=3D"node default  " id=3D"mermaid-1784514016817-flowchar=
+t-L-0" data-look=3D"classic" transform=3D"translate(138, 47)"><rect class=
+=3D"basic label-container" style=3D"" x=3D"-130" y=3D"-39" width=3D"260" he=
+ight=3D"78"></rect><g class=3D"label" style=3D"" transform=3D"translate(-10=
+0, -24)"><rect></rect><foreignObject width=3D"200" height=3D"48"><div xmlns=
+=3D"http://www.w3.org/1999/xhtml" style=3D"display: table; white-space: bre=
+ak-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 2=
+00px;"><span class=3D"nodeLabel "><p>startup sync (thread + emit)</p></span=
+></div></foreignObject></g></g><g class=3D"node default  " id=3D"mermaid-17=
+84514016817-flowchart-S-2" data-look=3D"classic" transform=3D"translate(448=
+, 47)"><rect class=3D"basic label-container" style=3D"" x=3D"-130" y=3D"-39=
+" width=3D"260" height=3D"78"></rect><g class=3D"label" style=3D"" transfor=
+m=3D"translate(-100, -24)"><rect></rect><foreignObject width=3D"200" height=
+=3D"48"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"display: table=
+; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align=
+: center; width: 200px;"><span class=3D"nodeLabel "><p>skill_repos_sync com=
+mand (emit)</p></span></div></foreignObject></g></g><g class=3D"node defaul=
+t  " id=3D"mermaid-1784514016817-flowchart-G1-6" data-look=3D"classic" tran=
+sform=3D"translate(113.681640625, 361)"><rect class=3D"basic label-containe=
+r" style=3D"" x=3D"-55.65234375" y=3D"-27" width=3D"111.3046875" height=3D"=
+54"></rect><g class=3D"label" style=3D"" transform=3D"translate(-25.6523437=
+5, -12)"><rect></rect><foreignObject width=3D"51.3046875" height=3D"24"><di=
+v xmlns=3D"http://www.w3.org/1999/xhtml" style=3D"display: table-cell; whit=
+e-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><=
+span class=3D"nodeLabel "><p>git_ops</p></span></div></foreignObject></g></=
+g><g class=3D"node default  " id=3D"mermaid-1784514016817-flowchart-D1-8" d=
+ata-look=3D"classic" transform=3D"translate(301.369140625, 361)"><rect clas=
+s=3D"basic label-container" style=3D"" x=3D"-82.03515625" y=3D"-27" width=
+=3D"164.0703125" height=3D"54"></rect><g class=3D"label" style=3D"" transfo=
+rm=3D"translate(-52.03515625, -12)"><rect></rect><foreignObject width=3D"10=
+4.0703125" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtml" style=
+=3D"display: table-cell; white-space: nowrap; line-height: 1.5; max-width: =
+200px; text-align: center;"><span class=3D"nodeLabel "><p>skill_discovery</=
+p></span></div></foreignObject></g></g><g class=3D"node default  " id=3D"me=
+rmaid-1784514016817-flowchart-B1-10" data-look=3D"classic" transform=3D"tra=
+nslate(472.318359375, 361)"><rect class=3D"basic label-container" style=3D"=
+" x=3D"-38.9140625" y=3D"-27" width=3D"77.828125" height=3D"54"></rect><g c=
+lass=3D"label" style=3D"" transform=3D"translate(-8.9140625, -12)"><rect></=
+rect><foreignObject width=3D"17.828125" height=3D"24"><div xmlns=3D"http://=
+www.w3.org/1999/xhtml" style=3D"display: table-cell; white-space: nowrap; l=
+ine-height: 1.5; max-width: 200px; text-align: center;"><span class=3D"node=
+Label "><p>db</p></span></div></foreignObject></g></g></g></g></g><defs><fi=
+lter id=3D"mermaid-1784514016817-drop-shadow" height=3D"130%" width=3D"130%=
+"><feDropShadow dx=3D"4" dy=3D"4" stdDeviation=3D"0" flood-opacity=3D"0.06"=
+ flood-color=3D"#000000"></feDropShadow></filter></defs><defs><filter id=3D=
+"mermaid-1784514016817-drop-shadow-small" height=3D"150%" width=3D"150%"><f=
+eDropShadow dx=3D"2" dy=3D"2" stdDeviation=3D"0" flood-opacity=3D"0.06" flo=
+od-color=3D"#000000"></feDropShadow></filter></defs><linearGradient id=3D"m=
+ermaid-1784514016817-gradient" gradientUnits=3D"objectBoundingBox" x1=3D"0%=
+" y1=3D"0%" x2=3D"100%" y2=3D"0%"><stop offset=3D"0%" stop-color=3D"hsl(0, =
+0%, 83.3333333333%)" stop-opacity=3D"1"></stop><stop offset=3D"100%" stop-c=
+olor=3D"hsl(0, 0%, 88.9215686275%)" stop-opacity=3D"1"></stop></linearGradi=
+ent></svg></pre>
+            </div>
+          </div>
+
+          <p><b>Problem.</b> Startup repo sync is ~105 lines inline in the =
+<span class=3D"font-mono text-sm">.setup()</span> closure, a near-verbatim =
+copy of the <span class=3D"font-mono text-sm">skill_repos_sync</span> comma=
+nd, differing only in lock recovery. The leaf modules underneath (<span cla=
+ss=3D"font-mono text-sm">git_ops</span>: 12 tests) are deep; the orchestrat=
+ion above them has no function boundary, needs an <span class=3D"font-mono =
+text-sm">AppHandle</span>, and has zero tests. Deletion test fails for the =
+pair: removing the <span class=3D"font-mono text-sm">lib.rs</span> block le=
+aves the command fully working: proof they are copy-paste, not one module.<=
+/p>
+          <p><b>Solution.</b> Extract <span class=3D"font-mono text-sm">fn =
+sync_repo(conn, cache_dir, repo, token) =E2=86=92 Result&lt;Vec&lt;StoredRe=
+poSkill&gt;&gt;</span>. Both callers invoke it; <span class=3D"font-mono te=
+xt-sm">AppHandle</span> and event emission stay at the edges. Unit-test wit=
+h a tempdir and a local git origin.</p>
+          <ul class=3D"text-sm space-y-1 list-disc list-inside text-slate-7=
+00">
+            <li>Deletes ~100 duplicated lines</li>
+            <li>Sync algorithm becomes unit-testable</li>
+            <li>Locality: one place for sync bugs</li>
+            <li>Deep leaves gain a deep orchestrator</li>
+          </ul>
+        </article>
+
+        <!-- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D CANDIDATE 5 =3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D -->
+        <article id=3D"c5" class=3D"bg-white rounded-xl border border-slate=
+-200 p-8 space-y-5">
+          <div class=3D"flex items-start justify-between gap-4 flex-wrap">
+            <h2 class=3D"text-xl font-serif font-semibold">5 =C2=B7 Carve a=
+ request-queue module out of the task store</h2>
+            <div class=3D"flex gap-2">
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-amber-100 text-amber-800">Worth exploring</span>
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-slate-100 text-slate-600">in-process</span>
+            </div>
+          </div>
+          <p class=3D"font-mono text-sm text-slate-600 leading-relaxed">
+            src/stores/taskStore.ts (1198 lines; queue at :647-772, artifac=
+ts at :127-291) =C2=B7 src/pages/Execution.tsx:144, 298, 427-433 =C2=B7 Are=
+na.tsx:73 =C2=B7 taskStore.test.ts:9-121
+          </p>
+
+          <div class=3D"grid md:grid-cols-2 gap-6">
+            <div class=3D"rounded-lg border border-slate-200 bg-stone-50 p-=
+4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-3">Before =E2=80=94 one store, eight jobs; questions bypass it</p>
+              <div class=3D"border border-slate-400 bg-white p-2">
+                <p class=3D"text-[11px] uppercase tracking-wider text-slate=
+-500 mb-1">taskStore.ts</p>
+                <div class=3D"grid grid-cols-2 gap-1 text-[11px]">
+                  <div class=3D"border border-slate-200 p-1">task lifecycle=
+</div>
+                  <div class=3D"border border-amber-400 bg-amber-50 p-1">pe=
+rmission queue + auto-approve (deep, buried)</div>
+                  <div class=3D"border border-slate-200 p-1">stream assembl=
+y</div>
+                  <div class=3D"border border-slate-200 p-1">artifact regex=
+ fns (un-exported)</div>
+                  <div class=3D"border border-slate-200 p-1">event dedup ca=
+che</div>
+                  <div class=3D"border border-slate-200 p-1">dialog boolean=
+s</div>
+                  <div class=3D"border border-slate-200 p-1">folder-perm CR=
+UD</div>
+                  <div class=3D"border border-slate-200 p-1">todos/artifact=
+s maps</div>
+                </div>
+              </div>
+              <div class=3D"mt-2 border border-red-400 bg-red-50 p-2 text-[=
+11px]">
+                questions: per-page <span class=3D"font-mono">useState</spa=
+n> in Execution.tsx and Arena.tsx =C2=B7 same flow, different seam
+              </div>
+              <div class=3D"mt-2 border border-red-400 bg-red-50 p-2 text-[=
+11px]">
+                tests exercise <b>copy-pasted duplicates</b> of the un-expo=
+rted artifact functions (taskStore.test.ts:9-121); the real call site (:946=
+-953) is untested
+              </div>
+            </div>
+            <div class=3D"rounded-lg border border-slate-200 bg-stone-50 p-=
+4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-3">After =E2=80=94 one queue, both flows; real code is the tested code</p=
+>
+              <div class=3D"deep text-white p-3 rounded-sm text-xs">
+                <span class=3D"uppercase tracking-wider text-slate-300">Req=
+uestQueue module</span><br>
+                <span class=3D"text-slate-300">enqueue =C2=B7 dedup by id =
+=C2=B7 auto-approve policy =C2=B7 respond =E2=80=94 serves permissions <i>a=
+nd</i> questions</span>
+              </div>
+              <div class=3D"mt-2 border border-slate-400 bg-white p-2 text-=
+[11px]">
+                <span class=3D"font-mono">artifact-extraction.ts</span> =C2=
+=B7 exported pure module; store imports it, tests import the same code
+              </div>
+              <div class=3D"mt-2 border border-slate-400 bg-white p-2 text-=
+[11px]">
+                taskStore.ts =C2=B7 lifecycle + stream assembly + UI state,=
+ ~half the size
+              </div>
+            </div>
+          </div>
+
+          <p><b>Problem.</b> The store holds eight responsibilities, so no =
+change to any of them is local. The permission queue (dedup, pattern-set au=
+to-approval, folder-grant derivation) is the one deep piece and it is burie=
+d among dialog booleans. Questions, a near-identical request/reply flow, by=
+pass the store entirely and live in per-page <span class=3D"font-mono text-=
+sm">useState</span>. And the pure artifact functions are un-exported, so th=
+eir tests run on drift-prone copies.</p>
+          <p><b>Solution.</b> One request-queue module serving permissions =
+and questions through the same interface (two request kinds, one adapter ea=
+ch side of the seam). Export the artifact functions as their own module and=
+ test the call-site wiring, which is where the staleness bugs live.</p>
+          <ul class=3D"text-sm space-y-1 list-disc list-inside text-slate-7=
+00">
+            <li>Two flows, one adapter</li>
+            <li>Tested code is the shipped code</li>
+            <li>Locality: queue changes stop dragging the whole store</li>
+            <li>Store shrinks toward lifecycle + assembly</li>
+          </ul>
+        </article>
+
+        <!-- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D CANDIDATE 6 =3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D -->
+        <article id=3D"c6" class=3D"bg-white rounded-xl border border-slate=
+-200 p-8 space-y-5">
+          <div class=3D"flex items-start justify-between gap-4 flex-wrap">
+            <h2 class=3D"text-xl font-serif font-semibold">6 =C2=B7 One own=
+er for skill category inference</h2>
+            <div class=3D"flex gap-2">
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-amber-100 text-amber-800">Worth exploring</span>
+              <span class=3D"text-xs font-medium px-2.5 py-1 rounded-full b=
+g-slate-100 text-slate-600">in-process</span>
+            </div>
+          </div>
+          <p class=3D"font-mono text-sm text-slate-600 leading-relaxed">
+            src-tauri/src/commands/skills.rs:34-69 =C2=B7 src/lib/skill-cat=
+egories.ts:54-108 =C2=B7 src/components/.../RepoSkillsGrid.tsx:24
+          </p>
+
+          <div class=3D"grid md:grid-cols-2 gap-6">
+            <div class=3D"rounded-lg border border-slate-200 bg-white p-4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-2">Before =E2=80=94 two algorithms, agree by luck</p>
+              <pre class=3D"mermaid" data-processed=3D"true"><svg id=3D"mer=
+maid-1784514016846" width=3D"100%" xmlns=3D"http://www.w3.org/2000/svg" xml=
+ns:xlink=3D"http://www.w3.org/1999/xlink" class=3D"flowchart" style=3D"max-=
+width: 550.7265625px;" viewBox=3D"0 0 550.7265625 446" role=3D"graphics-doc=
+ument document" aria-roledescription=3D"flowchart-v2"><style>#mermaid-17845=
+14016846{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px=
+;fill:#000000;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@=
+keyframes dash{to{stroke-dashoffset:0;}}#mermaid-1784514016846 .edge-animat=
+ion-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:das=
+h 50s linear infinite;stroke-linecap:round;}#mermaid-1784514016846 .edge-an=
+imation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation=
+:dash 20s linear infinite;stroke-linecap:round;}#mermaid-1784514016846 .err=
+or-icon{fill:#552222;}#mermaid-1784514016846 .error-text{fill:#552222;strok=
+e:#552222;}#mermaid-1784514016846 .edge-thickness-normal{stroke-width:1px;}=
+#mermaid-1784514016846 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-1=
+784514016846 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-1784514016846=
+ .edge-thickness-invisible{stroke-width:0;fill:none;}#mermaid-1784514016846=
+ .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-1784514016846 .edge-patt=
+ern-dotted{stroke-dasharray:2;}#mermaid-1784514016846 .marker{fill:#666;str=
+oke:#666;}#mermaid-1784514016846 .marker.cross{stroke:#666;}#mermaid-178451=
+4016846 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:1=
+6px;}#mermaid-1784514016846 p{margin:0;}#mermaid-1784514016846 .label{font-=
+family:"trebuchet ms",verdana,arial,sans-serif;color:#000000;}#mermaid-1784=
+514016846 .cluster-label text{fill:#333;}#mermaid-1784514016846 .cluster-la=
+bel span{color:#333;}#mermaid-1784514016846 .cluster-label span p{backgroun=
+d-color:transparent;}#mermaid-1784514016846 .label text,#mermaid-1784514016=
+846 span{fill:#000000;color:#000000;}#mermaid-1784514016846 .node rect,#mer=
+maid-1784514016846 .node circle,#mermaid-1784514016846 .node ellipse,#merma=
+id-1784514016846 .node polygon,#mermaid-1784514016846 .node path{fill:#eee;=
+stroke:#999;stroke-width:1px;}#mermaid-1784514016846 .rough-node .label tex=
+t,#mermaid-1784514016846 .node .label text,#mermaid-1784514016846 .image-sh=
+ape .label,#mermaid-1784514016846 .icon-shape .label{text-anchor:middle;}#m=
+ermaid-1784514016846 .node .katex path{fill:#000;stroke:#000;stroke-width:1=
+px;}#mermaid-1784514016846 .rough-node .label,#mermaid-1784514016846 .node =
+.label,#mermaid-1784514016846 .image-shape .label,#mermaid-1784514016846 .i=
+con-shape .label{text-align:center;}#mermaid-1784514016846 .node.clickable{=
+cursor:pointer;}#mermaid-1784514016846 .root .anchor path{fill:#666!importa=
+nt;stroke-width:0;stroke:#666;}#mermaid-1784514016846 .arrowheadPath{fill:#=
+333333;}#mermaid-1784514016846 .edgePath .path{stroke:#666;stroke-width:1px=
+;}#mermaid-1784514016846 .flowchart-link{stroke:#666;fill:none;}#mermaid-17=
+84514016846 .edgeLabel{background-color:white;text-align:center;}#mermaid-1=
+784514016846 .edgeLabel p{background-color:white;}#mermaid-1784514016846 .e=
+dgeLabel rect{opacity:0.5;background-color:white;fill:white;}#mermaid-17845=
+14016846 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#mermaid-1784=
+514016846 .cluster rect{fill:hsl(0, 0%, 98.9215686275%);stroke:#707070;stro=
+ke-width:1px;}#mermaid-1784514016846 .cluster text{fill:#333;}#mermaid-1784=
+514016846 .cluster span{color:#333;}#mermaid-1784514016846 div.mermaidToolt=
+ip{position:absolute;text-align:center;max-width:200px;padding:2px;font-fam=
+ily:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(-=
+160, 0%, 93.3333333333%);border:1px solid #707070;border-radius:2px;pointer=
+-events:none;z-index:100;}#mermaid-1784514016846 .flowchartTitleText{text-a=
+nchor:middle;font-size:18px;fill:#000000;}#mermaid-1784514016846 rect.text{=
+fill:none;stroke-width:0;}#mermaid-1784514016846 .icon-shape,#mermaid-17845=
+14016846 .image-shape{background-color:white;text-align:center;}#mermaid-17=
+84514016846 .icon-shape p,#mermaid-1784514016846 .image-shape p{background-=
+color:white;padding:2px;}#mermaid-1784514016846 .icon-shape .label rect,#me=
+rmaid-1784514016846 .image-shape .label rect{opacity:0.5;background-color:w=
+hite;fill:white;}#mermaid-1784514016846 .label-icon{display:inline-block;he=
+ight:1em;overflow:visible;vertical-align:-0.125em;}#mermaid-1784514016846 .=
+node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}=
+#mermaid-1784514016846 .node .neo-node{stroke:#999;}#mermaid-1784514016846 =
+[data-look=3D"neo"].node rect,#mermaid-1784514016846 [data-look=3D"neo"].cl=
+uster rect,#mermaid-1784514016846 [data-look=3D"neo"].node polygon{stroke:u=
+rl(#mermaid-1784514016846-gradient);filter:drop-shadow( 1px 2px 2px rgba(18=
+5,185,185,1));}#mermaid-1784514016846 [data-look=3D"neo"].swimlane.cluster =
+rect{filter:none;}#mermaid-1784514016846 [data-look=3D"neo"].node path{stro=
+ke:url(#mermaid-1784514016846-gradient);stroke-width:1px;}#mermaid-17845140=
+16846 [data-look=3D"neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px =
+rgba(185,185,185,1));}#mermaid-1784514016846 [data-look=3D"neo"].node .neo-=
+line path{stroke:#999;filter:none;}#mermaid-1784514016846 [data-look=3D"neo=
+"].node circle{stroke:url(#mermaid-1784514016846-gradient);filter:drop-shad=
+ow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1784514016846 [data-look=3D"=
+neo"].node circle .state-start{fill:#000000;}#mermaid-1784514016846 [data-l=
+ook=3D"neo"].icon-shape .icon{fill:url(#mermaid-1784514016846-gradient);fil=
+ter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1784514016846 [=
+data-look=3D"neo"].icon-shape .icon-neo path{stroke:url(#mermaid-1784514016=
+846-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermai=
+d-1784514016846 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sa=
+ns-serif;}#mermaid-1784514016846 .leak&gt;*{stroke:rgb(220, 38, 38)!importa=
+nt;stroke-width:2px!important;}#mermaid-1784514016846 .leak span{stroke:rgb=
+(220, 38, 38)!important;stroke-width:2px!important;}</style><g><marker id=
+=3D"mermaid-1784514016846_flowchart-v2-pointEnd" class=3D"marker flowchart-=
+v2" viewBox=3D"0 0 10 10" refX=3D"5" refY=3D"5" markerUnits=3D"userSpaceOnU=
+se" markerWidth=3D"8" markerHeight=3D"8" orient=3D"auto"><path d=3D"M 0 0 L=
+ 10 5 L 0 10 z" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; stroke-=
+dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784514016846_flowc=
+hart-v2-pointStart" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" ref=
+X=3D"4.5" refY=3D"5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"8" marke=
+rHeight=3D"8" orient=3D"auto"><path d=3D"M 0 5 L 10 10 L 10 0 z" class=3D"a=
+rrowMarkerPath" style=3D"stroke-width: 1; stroke-dasharray: 1, 0;"></path><=
+/marker><marker id=3D"mermaid-1784514016846_flowchart-v2-pointEnd-margin" c=
+lass=3D"marker flowchart-v2" viewBox=3D"0 0 11.5 14" refX=3D"11.5" refY=3D"=
+7" markerUnits=3D"userSpaceOnUse" markerWidth=3D"10.5" markerHeight=3D"14" =
+orient=3D"auto"><path d=3D"M 0 0 L 11.5 7 L 0 14 z" class=3D"arrowMarkerPat=
+h" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><mark=
+er id=3D"mermaid-1784514016846_flowchart-v2-pointStart-margin" class=3D"mar=
+ker flowchart-v2" viewBox=3D"0 0 11.5 14" refX=3D"1" refY=3D"7" markerUnits=
+=3D"userSpaceOnUse" markerWidth=3D"11.5" markerHeight=3D"14" orient=3D"auto=
+"><polygon points=3D"0,7 11.5,14 11.5,0" class=3D"arrowMarkerPath" style=3D=
+"stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id=3D=
+"mermaid-1784514016846_flowchart-v2-circleEnd" class=3D"marker flowchart-v2=
+" viewBox=3D"0 0 10 10" refX=3D"11" refY=3D"5" markerUnits=3D"userSpaceOnUs=
+e" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><circle cx=3D"5" =
+cy=3D"5" r=3D"5" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; stroke=
+-dasharray: 1, 0;"></circle></marker><marker id=3D"mermaid-1784514016846_fl=
+owchart-v2-circleStart" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10"=
+ refX=3D"-1" refY=3D"5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"11" m=
+arkerHeight=3D"11" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=
+=3D"arrowMarkerPath" style=3D"stroke-width: 1; stroke-dasharray: 1, 0;"></c=
+ircle></marker><marker id=3D"mermaid-1784514016846_flowchart-v2-circleEnd-m=
+argin" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" refY=3D"5" refX=
+=3D"12.25" markerUnits=3D"userSpaceOnUse" markerWidth=3D"14" markerHeight=
+=3D"14" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMar=
+kerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></circle></mark=
+er><marker id=3D"mermaid-1784514016846_flowchart-v2-circleStart-margin" cla=
+ss=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"-2" refY=3D"5" mar=
+kerUnits=3D"userSpaceOnUse" markerWidth=3D"14" markerHeight=3D"14" orient=
+=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMarkerPath" style=
+=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id=
+=3D"mermaid-1784514016846_flowchart-v2-crossEnd" class=3D"marker cross flow=
+chart-v2" viewBox=3D"0 0 11 11" refX=3D"12" refY=3D"5.2" markerUnits=3D"use=
+rSpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><path d=
+=3D"M 1,1 l 9,9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=3D"stroke-wi=
+dth: 2; stroke-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784=
+514016846_flowchart-v2-crossStart" class=3D"marker cross flowchart-v2" view=
+Box=3D"0 0 11 11" refX=3D"-1" refY=3D"5.2" markerUnits=3D"userSpaceOnUse" m=
+arkerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><path d=3D"M 1,1 l 9,=
+9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=3D"stroke-width: 2; stroke=
+-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784514016846_flow=
+chart-v2-crossEnd-margin" class=3D"marker cross flowchart-v2" viewBox=3D"0 =
+0 15 15" refX=3D"17.7" refY=3D"7.5" markerUnits=3D"userSpaceOnUse" markerWi=
+dth=3D"12" markerHeight=3D"12" orient=3D"auto"><path d=3D"M 1,1 L 14,14 M 1=
+,14 L 14,1" class=3D"arrowMarkerPath" style=3D"stroke-width: 2.5;"></path><=
+/marker><marker id=3D"mermaid-1784514016846_flowchart-v2-crossStart-margin"=
+ class=3D"marker cross flowchart-v2" viewBox=3D"0 0 15 15" refX=3D"-3.5" re=
+fY=3D"7.5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"12" markerHeight=
+=3D"12" orient=3D"auto"><path d=3D"M 1,1 L 14,14 M 1,14 L 14,1" class=3D"ar=
+rowMarkerPath" style=3D"stroke-width: 2.5; stroke-dasharray: 1, 0;"></path>=
+</marker><g class=3D"root"><g class=3D"clusters"></g><g class=3D"edgePaths"=
+><path d=3D"M412.727,110L412.727,116.167C412.727,122.333,412.727,134.667,41=
+2.727,152.333C412.727,170,412.727,193,412.727,204.5L412.727,216" id=3D"merm=
+aid-1784514016846-L_A_P_0" class=3D" edge-thickness-normal edge-pattern-sol=
+id edge-thickness-normal edge-pattern-solid flowchart-link" style=3D";" dat=
+a-edge=3D"true" data-et=3D"edge" data-id=3D"L_A_P_0" data-points=3D"W3sieCI=
+6NDEyLjcyNjU2MjUsInkiOjExMH0seyJ4Ijo0MTIuNzI2NTYyNSwieSI6MTQ3fSx7IngiOjQxMi=
+43MjY1NjI1LCJ5IjoyMjB9XQ=3D=3D" data-look=3D"classic" marker-end=3D"url(#me=
+rmaid-1784514016846_flowchart-v2-pointEnd)"></path><path d=3D"M138,310L138,=
+316.167C138,322.333,138,334.667,150.631,346.718C163.262,358.77,188.525,370.=
+54,201.156,376.426L213.787,382.311" id=3D"mermaid-1784514016846-L_B_BADGE_0=
+" class=3D" edge-thickness-normal edge-pattern-solid edge-thickness-normal =
+edge-pattern-solid flowchart-link" style=3D";" data-edge=3D"true" data-et=
+=3D"edge" data-id=3D"L_B_BADGE_0" data-points=3D"W3sieCI6MTM4LCJ5IjozMTB9LH=
+sieCI6MTM4LCJ5IjozNDd9LHsieCI6MjE3LjQxMzE0Njk3MjY1NjI1LCJ5IjozODR9XQ=3D=3D"=
+ data-look=3D"classic" marker-end=3D"url(#mermaid-1784514016846_flowchart-v=
+2-pointEnd)"></path><path d=3D"M412.727,274L412.727,286.167C412.727,298.333=
+,412.727,322.667,400.095,340.718C387.464,358.77,362.202,370.54,349.57,376.4=
+26L336.939,382.311" id=3D"mermaid-1784514016846-L_P_BADGE_0" class=3D" edge=
+-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-sol=
+id flowchart-link" style=3D";" data-edge=3D"true" data-et=3D"edge" data-id=
+=3D"L_P_BADGE_0" data-points=3D"W3sieCI6NDEyLjcyNjU2MjUsInkiOjI3NH0seyJ4Ijo=
+0MTIuNzI2NTYyNSwieSI6MzQ3fSx7IngiOjMzMy4zMTM0MTU1MjczNDM3NSwieSI6Mzg0fV0=3D=
+" data-look=3D"classic" marker-end=3D"url(#mermaid-1784514016846_flowchart-=
+v2-pointEnd)"></path></g><g class=3D"edgeLabels"><g class=3D"edgeLabel" tra=
+nsform=3D"translate(412.7265625, 147)"><g class=3D"label" data-id=3D"L_A_P_=
+0" transform=3D"translate(-85.3515625, -12)"><foreignObject width=3D"170.70=
+3125" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=3D"la=
+belBkg" style=3D"display: table-cell; white-space: nowrap; line-height: 1.5=
+; max-width: 200px; text-align: center;"><span class=3D"edgeLabel "><p>pers=
+isted, shipped to UI</p></span></div></foreignObject></g></g><g class=3D"ed=
+geLabel" transform=3D"translate(138, 347)"><g class=3D"label" data-id=3D"L_=
+B_BADGE_0" transform=3D"translate(-15.84375, -12)"><foreignObject width=3D"=
+31.6875" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtml" class=3D=
+"labelBkg" style=3D"display: table-cell; white-space: nowrap; line-height: =
+1.5; max-width: 200px; text-align: center;"><span class=3D"edgeLabel "><p>w=
+ins</p></span></div></foreignObject></g></g><g class=3D"edgeLabel"><g class=
+=3D"label" data-id=3D"L_P_BADGE_0" transform=3D"translate(0, 0)"><foreignOb=
+ject width=3D"0" height=3D"0"><div xmlns=3D"http://www.w3.org/1999/xhtml" c=
+lass=3D"labelBkg" style=3D"display: table-cell; white-space: nowrap; line-h=
+eight: 1.5; max-width: 200px; text-align: center;"><span class=3D"edgeLabel=
+ "></span></div></foreignObject></g></g></g><g class=3D"nodes"><g class=3D"=
+node default leak " id=3D"mermaid-1784514016846-flowchart-A-0" data-look=3D=
+"classic" transform=3D"translate(412.7265625, 59)"><rect class=3D"basic lab=
+el-container" style=3D"stroke:#dc2626 !important;stroke-width:2px !importan=
+t" x=3D"-130" y=3D"-51" width=3D"260" height=3D"102"></rect><g class=3D"lab=
+el" style=3D"" transform=3D"translate(-100, -36)"><rect></rect><foreignObje=
+ct width=3D"200" height=3D"72"><div xmlns=3D"http://www.w3.org/1999/xhtml" =
+style=3D"display: table; white-space: break-spaces; line-height: 1.5; max-w=
+idth: 200px; text-align: center; width: 200px;"><span class=3D"nodeLabel ">=
+<p>Rust derive_category<br>prefix match on id =C2=B7 12 categories</p></spa=
+n></div></foreignObject></g></g><g class=3D"node default leak " id=3D"merma=
+id-1784514016846-flowchart-P-1" data-look=3D"classic" transform=3D"translat=
+e(412.7265625, 247)"><rect class=3D"basic label-container" style=3D"stroke:=
+#dc2626 !important;stroke-width:2px !important" x=3D"-94.7265625" y=3D"-27"=
+ width=3D"189.453125" height=3D"54"></rect><g class=3D"label" style=3D"" tr=
+ansform=3D"translate(-64.7265625, -12)"><rect></rect><foreignObject width=
+=3D"129.453125" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtml" s=
+tyle=3D"display: table-cell; white-space: nowrap; line-height: 1.5; max-wid=
+th: 200px; text-align: center;"><span class=3D"nodeLabel "><p>priority-3 fa=
+llback</p></span></div></foreignObject></g></g><g class=3D"node default  " =
+id=3D"mermaid-1784514016846-flowchart-B-2" data-look=3D"classic" transform=
+=3D"translate(138, 247)"><rect class=3D"basic label-container" style=3D"" x=
+=3D"-130" y=3D"-63" width=3D"260" height=3D"126"></rect><g class=3D"label" =
+style=3D"" transform=3D"translate(-100, -48)"><rect></rect><foreignObject w=
+idth=3D"200" height=3D"96"><div xmlns=3D"http://www.w3.org/1999/xhtml" styl=
+e=3D"display: table; white-space: break-spaces; line-height: 1.5; max-width=
+: 200px; text-align: center; width: 200px;"><span class=3D"nodeLabel "><p>T=
+S deriveCategoryFromName<br>keyword match on name =C2=B7 13 categories</p><=
+/span></div></foreignObject></g></g><g class=3D"node default  " id=3D"merma=
+id-1784514016846-flowchart-BADGE-3" data-look=3D"classic" transform=3D"tran=
+slate(275.36328125, 411)"><rect class=3D"basic label-container" style=3D"" =
+x=3D"-84.96875" y=3D"-27" width=3D"169.9375" height=3D"54"></rect><g class=
+=3D"label" style=3D"" transform=3D"translate(-54.96875, -12)"><rect></rect>=
+<foreignObject width=3D"109.9375" height=3D"24"><div xmlns=3D"http://www.w3=
+.org/1999/xhtml" style=3D"display: table-cell; white-space: nowrap; line-he=
+ight: 1.5; max-width: 200px; text-align: center;"><span class=3D"nodeLabel =
+"><p>category badge</p></span></div></foreignObject></g></g></g></g></g><de=
+fs><filter id=3D"mermaid-1784514016846-drop-shadow" height=3D"130%" width=
+=3D"130%"><feDropShadow dx=3D"4" dy=3D"4" stdDeviation=3D"0" flood-opacity=
+=3D"0.06" flood-color=3D"#000000"></feDropShadow></filter></defs><defs><fil=
+ter id=3D"mermaid-1784514016846-drop-shadow-small" height=3D"150%" width=3D=
+"150%"><feDropShadow dx=3D"2" dy=3D"2" stdDeviation=3D"0" flood-opacity=3D"=
+0.06" flood-color=3D"#000000"></feDropShadow></filter></defs><linearGradien=
+t id=3D"mermaid-1784514016846-gradient" gradientUnits=3D"objectBoundingBox"=
+ x1=3D"0%" y1=3D"0%" x2=3D"100%" y2=3D"0%"><stop offset=3D"0%" stop-color=
+=3D"hsl(0, 0%, 83.3333333333%)" stop-opacity=3D"1"></stop><stop offset=3D"1=
+00%" stop-color=3D"hsl(0, 0%, 88.9215686275%)" stop-opacity=3D"1"></stop></=
+linearGradient></svg></pre>
+            </div>
+            <div class=3D"rounded-lg border border-slate-200 bg-white p-4">
+              <p class=3D"text-xs uppercase tracking-wider text-slate-400 m=
+b-2">After =E2=80=94 one taxonomy, one algorithm</p>
+              <pre class=3D"mermaid" data-processed=3D"true"><svg id=3D"mer=
+maid-1784514016867" width=3D"100%" xmlns=3D"http://www.w3.org/2000/svg" xml=
+ns:xlink=3D"http://www.w3.org/1999/xlink" class=3D"flowchart" style=3D"max-=
+width: 351px;" viewBox=3D"0 0 351 372" role=3D"graphics-document document" =
+aria-roledescription=3D"flowchart-v2"><style>#mermaid-1784514016867{font-fa=
+mily:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#000000;}@=
+keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{t=
+o{stroke-dashoffset:0;}}#mermaid-1784514016867 .edge-animation-slow{stroke-=
+dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear inf=
+inite;stroke-linecap:round;}#mermaid-1784514016867 .edge-animation-fast{str=
+oke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear=
+ infinite;stroke-linecap:round;}#mermaid-1784514016867 .error-icon{fill:#55=
+2222;}#mermaid-1784514016867 .error-text{fill:#552222;stroke:#552222;}#merm=
+aid-1784514016867 .edge-thickness-normal{stroke-width:1px;}#mermaid-1784514=
+016867 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-1784514016867 .ed=
+ge-pattern-solid{stroke-dasharray:0;}#mermaid-1784514016867 .edge-thickness=
+-invisible{stroke-width:0;fill:none;}#mermaid-1784514016867 .edge-pattern-d=
+ashed{stroke-dasharray:3;}#mermaid-1784514016867 .edge-pattern-dotted{strok=
+e-dasharray:2;}#mermaid-1784514016867 .marker{fill:#666;stroke:#666;}#merma=
+id-1784514016867 .marker.cross{stroke:#666;}#mermaid-1784514016867 svg{font=
+-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-17=
+84514016867 p{margin:0;}#mermaid-1784514016867 .label{font-family:"trebuche=
+t ms",verdana,arial,sans-serif;color:#000000;}#mermaid-1784514016867 .clust=
+er-label text{fill:#333;}#mermaid-1784514016867 .cluster-label span{color:#=
+333;}#mermaid-1784514016867 .cluster-label span p{background-color:transpar=
+ent;}#mermaid-1784514016867 .label text,#mermaid-1784514016867 span{fill:#0=
+00000;color:#000000;}#mermaid-1784514016867 .node rect,#mermaid-17845140168=
+67 .node circle,#mermaid-1784514016867 .node ellipse,#mermaid-1784514016867=
+ .node polygon,#mermaid-1784514016867 .node path{fill:#eee;stroke:#999;stro=
+ke-width:1px;}#mermaid-1784514016867 .rough-node .label text,#mermaid-17845=
+14016867 .node .label text,#mermaid-1784514016867 .image-shape .label,#merm=
+aid-1784514016867 .icon-shape .label{text-anchor:middle;}#mermaid-178451401=
+6867 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mermaid-178=
+4514016867 .rough-node .label,#mermaid-1784514016867 .node .label,#mermaid-=
+1784514016867 .image-shape .label,#mermaid-1784514016867 .icon-shape .label=
+{text-align:center;}#mermaid-1784514016867 .node.clickable{cursor:pointer;}=
+#mermaid-1784514016867 .root .anchor path{fill:#666!important;stroke-width:=
+0;stroke:#666;}#mermaid-1784514016867 .arrowheadPath{fill:#333333;}#mermaid=
+-1784514016867 .edgePath .path{stroke:#666;stroke-width:1px;}#mermaid-17845=
+14016867 .flowchart-link{stroke:#666;fill:none;}#mermaid-1784514016867 .edg=
+eLabel{background-color:white;text-align:center;}#mermaid-1784514016867 .ed=
+geLabel p{background-color:white;}#mermaid-1784514016867 .edgeLabel rect{op=
+acity:0.5;background-color:white;fill:white;}#mermaid-1784514016867 .labelB=
+kg{background-color:rgba(255, 255, 255, 0.5);}#mermaid-1784514016867 .clust=
+er rect{fill:hsl(0, 0%, 98.9215686275%);stroke:#707070;stroke-width:1px;}#m=
+ermaid-1784514016867 .cluster text{fill:#333;}#mermaid-1784514016867 .clust=
+er span{color:#333;}#mermaid-1784514016867 div.mermaidTooltip{position:abso=
+lute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet m=
+s",verdana,arial,sans-serif;font-size:12px;background:hsl(-160, 0%, 93.3333=
+333333%);border:1px solid #707070;border-radius:2px;pointer-events:none;z-i=
+ndex:100;}#mermaid-1784514016867 .flowchartTitleText{text-anchor:middle;fon=
+t-size:18px;fill:#000000;}#mermaid-1784514016867 rect.text{fill:none;stroke=
+-width:0;}#mermaid-1784514016867 .icon-shape,#mermaid-1784514016867 .image-=
+shape{background-color:white;text-align:center;}#mermaid-1784514016867 .ico=
+n-shape p,#mermaid-1784514016867 .image-shape p{background-color:white;padd=
+ing:2px;}#mermaid-1784514016867 .icon-shape .label rect,#mermaid-1784514016=
+867 .image-shape .label rect{opacity:0.5;background-color:white;fill:white;=
+}#mermaid-1784514016867 .label-icon{display:inline-block;height:1em;overflo=
+w:visible;vertical-align:-0.125em;}#mermaid-1784514016867 .node .label-icon=
+ path{fill:currentColor;stroke:revert;stroke-width:revert;}#mermaid-1784514=
+016867 .node .neo-node{stroke:#999;}#mermaid-1784514016867 [data-look=3D"ne=
+o"].node rect,#mermaid-1784514016867 [data-look=3D"neo"].cluster rect,#merm=
+aid-1784514016867 [data-look=3D"neo"].node polygon{stroke:url(#mermaid-1784=
+514016867-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#=
+mermaid-1784514016867 [data-look=3D"neo"].swimlane.cluster rect{filter:none=
+;}#mermaid-1784514016867 [data-look=3D"neo"].node path{stroke:url(#mermaid-=
+1784514016867-gradient);stroke-width:1px;}#mermaid-1784514016867 [data-look=
+=3D"neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185=
+,1));}#mermaid-1784514016867 [data-look=3D"neo"].node .neo-line path{stroke=
+:#999;filter:none;}#mermaid-1784514016867 [data-look=3D"neo"].node circle{s=
+troke:url(#mermaid-1784514016867-gradient);filter:drop-shadow( 1px 2px 2px =
+rgba(185,185,185,1));}#mermaid-1784514016867 [data-look=3D"neo"].node circl=
+e .state-start{fill:#000000;}#mermaid-1784514016867 [data-look=3D"neo"].ico=
+n-shape .icon{fill:url(#mermaid-1784514016867-gradient);filter:drop-shadow(=
+ 1px 2px 2px rgba(185,185,185,1));}#mermaid-1784514016867 [data-look=3D"neo=
+"].icon-shape .icon-neo path{stroke:url(#mermaid-1784514016867-gradient);fi=
+lter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1784514016867 =
+:root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</styl=
+e><g><marker id=3D"mermaid-1784514016867_flowchart-v2-pointEnd" class=3D"ma=
+rker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"5" refY=3D"5" markerUnits=
+=3D"userSpaceOnUse" markerWidth=3D"8" markerHeight=3D"8" orient=3D"auto"><p=
+ath d=3D"M 0 0 L 10 5 L 0 10 z" class=3D"arrowMarkerPath" style=3D"stroke-w=
+idth: 1; stroke-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-178=
+4514016867_flowchart-v2-pointStart" class=3D"marker flowchart-v2" viewBox=
+=3D"0 0 10 10" refX=3D"4.5" refY=3D"5" markerUnits=3D"userSpaceOnUse" marke=
+rWidth=3D"8" markerHeight=3D"8" orient=3D"auto"><path d=3D"M 0 5 L 10 10 L =
+10 0 z" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; stroke-dasharra=
+y: 1, 0;"></path></marker><marker id=3D"mermaid-1784514016867_flowchart-v2-=
+pointEnd-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 11.5 14" refX=
+=3D"11.5" refY=3D"7" markerUnits=3D"userSpaceOnUse" markerWidth=3D"10.5" ma=
+rkerHeight=3D"14" orient=3D"auto"><path d=3D"M 0 0 L 11.5 7 L 0 14 z" class=
+=3D"arrowMarkerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></p=
+ath></marker><marker id=3D"mermaid-1784514016867_flowchart-v2-pointStart-ma=
+rgin" class=3D"marker flowchart-v2" viewBox=3D"0 0 11.5 14" refX=3D"1" refY=
+=3D"7" markerUnits=3D"userSpaceOnUse" markerWidth=3D"11.5" markerHeight=3D"=
+14" orient=3D"auto"><polygon points=3D"0,7 11.5,14 11.5,0" class=3D"arrowMa=
+rkerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></ma=
+rker><marker id=3D"mermaid-1784514016867_flowchart-v2-circleEnd" class=3D"m=
+arker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"11" refY=3D"5" markerUnit=
+s=3D"userSpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"=
+><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMarkerPath" style=3D"strok=
+e-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id=3D"mermai=
+d-1784514016867_flowchart-v2-circleStart" class=3D"marker flowchart-v2" vie=
+wBox=3D"0 0 10 10" refX=3D"-1" refY=3D"5" markerUnits=3D"userSpaceOnUse" ma=
+rkerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><circle cx=3D"5" cy=3D=
+"5" r=3D"5" class=3D"arrowMarkerPath" style=3D"stroke-width: 1; stroke-dash=
+array: 1, 0;"></circle></marker><marker id=3D"mermaid-1784514016867_flowcha=
+rt-v2-circleEnd-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10"=
+ refY=3D"5" refX=3D"12.25" markerUnits=3D"userSpaceOnUse" markerWidth=3D"14=
+" markerHeight=3D"14" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" cla=
+ss=3D"arrowMarkerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"><=
+/circle></marker><marker id=3D"mermaid-1784514016867_flowchart-v2-circleSta=
+rt-margin" class=3D"marker flowchart-v2" viewBox=3D"0 0 10 10" refX=3D"-2" =
+refY=3D"5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"14" markerHeight=
+=3D"14" orient=3D"auto"><circle cx=3D"5" cy=3D"5" r=3D"5" class=3D"arrowMar=
+kerPath" style=3D"stroke-width: 0; stroke-dasharray: 1, 0;"></circle></mark=
+er><marker id=3D"mermaid-1784514016867_flowchart-v2-crossEnd" class=3D"mark=
+er cross flowchart-v2" viewBox=3D"0 0 11 11" refX=3D"12" refY=3D"5.2" marke=
+rUnits=3D"userSpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"=
+auto"><path d=3D"M 1,1 l 9,9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=
+=3D"stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id=3D=
+"mermaid-1784514016867_flowchart-v2-crossStart" class=3D"marker cross flowc=
+hart-v2" viewBox=3D"0 0 11 11" refX=3D"-1" refY=3D"5.2" markerUnits=3D"user=
+SpaceOnUse" markerWidth=3D"11" markerHeight=3D"11" orient=3D"auto"><path d=
+=3D"M 1,1 l 9,9 M 10,1 l -9,9" class=3D"arrowMarkerPath" style=3D"stroke-wi=
+dth: 2; stroke-dasharray: 1, 0;"></path></marker><marker id=3D"mermaid-1784=
+514016867_flowchart-v2-crossEnd-margin" class=3D"marker cross flowchart-v2"=
+ viewBox=3D"0 0 15 15" refX=3D"17.7" refY=3D"7.5" markerUnits=3D"userSpaceO=
+nUse" markerWidth=3D"12" markerHeight=3D"12" orient=3D"auto"><path d=3D"M 1=
+,1 L 14,14 M 1,14 L 14,1" class=3D"arrowMarkerPath" style=3D"stroke-width: =
+2.5;"></path></marker><marker id=3D"mermaid-1784514016867_flowchart-v2-cros=
+sStart-margin" class=3D"marker cross flowchart-v2" viewBox=3D"0 0 15 15" re=
+fX=3D"-3.5" refY=3D"7.5" markerUnits=3D"userSpaceOnUse" markerWidth=3D"12" =
+markerHeight=3D"12" orient=3D"auto"><path d=3D"M 1,1 L 14,14 M 1,14 L 14,1"=
+ class=3D"arrowMarkerPath" style=3D"stroke-width: 2.5; stroke-dasharray: 1,=
+ 0;"></path></marker><g class=3D"root"><g class=3D"clusters"></g><g class=
+=3D"edgePaths"><path d=3D"M175.5,62L175.5,66.167C175.5,70.333,175.5,78.667,=
+175.5,86.333C175.5,94,175.5,101,175.5,104.5L175.5,108" id=3D"mermaid-178451=
+4016867-L_RAW_OWNER_0" class=3D" edge-thickness-normal edge-pattern-solid e=
+dge-thickness-normal edge-pattern-solid flowchart-link" style=3D";" data-ed=
+ge=3D"true" data-et=3D"edge" data-id=3D"L_RAW_OWNER_0" data-points=3D"W3sie=
+CI6MTc1LjUsInkiOjYyfSx7IngiOjE3NS41LCJ5Ijo4N30seyJ4IjoxNzUuNSwieSI6MTEyfV0=
+=3D" data-look=3D"classic" marker-end=3D"url(#mermaid-1784514016867_flowcha=
+rt-v2-pointEnd)"></path><path d=3D"M175.5,260L175.5,264.167C175.5,268.333,1=
+75.5,276.667,175.5,284.333C175.5,292,175.5,299,175.5,302.5L175.5,306" id=3D=
+"mermaid-1784514016867-L_OWNER_BADGE_0" class=3D" edge-thickness-normal edg=
+e-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" st=
+yle=3D";" data-edge=3D"true" data-et=3D"edge" data-id=3D"L_OWNER_BADGE_0" d=
+ata-points=3D"W3sieCI6MTc1LjUsInkiOjI2MH0seyJ4IjoxNzUuNSwieSI6Mjg1fSx7IngiO=
+jE3NS41LCJ5IjozMTB9XQ=3D=3D" data-look=3D"classic" marker-end=3D"url(#merma=
+id-1784514016867_flowchart-v2-pointEnd)"></path></g><g class=3D"edgeLabels"=
+><g class=3D"edgeLabel"><g class=3D"label" data-id=3D"L_RAW_OWNER_0" transf=
+orm=3D"translate(0, 0)"><foreignObject width=3D"0" height=3D"0"><div xmlns=
+=3D"http://www.w3.org/1999/xhtml" class=3D"labelBkg" style=3D"display: tabl=
+e-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align=
+: center;"><span class=3D"edgeLabel "></span></div></foreignObject></g></g>=
+<g class=3D"edgeLabel"><g class=3D"label" data-id=3D"L_OWNER_BADGE_0" trans=
+form=3D"translate(0, 0)"><foreignObject width=3D"0" height=3D"0"><div xmlns=
+=3D"http://www.w3.org/1999/xhtml" class=3D"labelBkg" style=3D"display: tabl=
+e-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align=
+: center;"><span class=3D"edgeLabel "></span></div></foreignObject></g></g>=
+</g><g class=3D"nodes"><g class=3D"root" transform=3D"translate(0, 104)"><g=
+ class=3D"clusters"><g class=3D"cluster " id=3D"mermaid-1784514016867-OWNER=
+" data-look=3D"classic"><rect style=3D"fill:#0f172a !important;stroke:#0f17=
+2a !important" x=3D"8" y=3D"8" width=3D"335" height=3D"148"></rect><g class=
+=3D"cluster-label " transform=3D"translate(62.12890625, 8)"><foreignObject =
+width=3D"226.7421875" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xh=
+tml" style=3D"display: table-cell; white-space: nowrap; line-height: 1.5;">=
+<span class=3D"nodeLabel " style=3D"color:#fff !important"><p>category modu=
+le (single owner)</p></span></div></foreignObject></g></g></g><g class=3D"e=
+dgePaths"></g><g class=3D"edgeLabels"></g><g class=3D"nodes"><g class=3D"no=
+de default  " id=3D"mermaid-1784514016867-flowchart-T-2" data-look=3D"class=
+ic" transform=3D"translate(175.5, 82)"><rect class=3D"basic label-container=
+" style=3D"" x=3D"-130" y=3D"-39" width=3D"260" height=3D"78"></rect><g cla=
+ss=3D"label" style=3D"" transform=3D"translate(-100, -24)"><rect></rect><fo=
+reignObject width=3D"200" height=3D"48"><div xmlns=3D"http://www.w3.org/199=
+9/xhtml" style=3D"display: table; white-space: break-spaces; line-height: 1=
+.5; max-width: 200px; text-align: center; width: 200px;"><span class=3D"nod=
+eLabel "><p>one taxonomy =C2=B7 one match rule</p></span></div></foreignObj=
+ect></g></g></g></g><g class=3D"node default  " id=3D"mermaid-1784514016867=
+-flowchart-RAW-0" data-look=3D"classic" transform=3D"translate(175.5, 35)">=
+<rect class=3D"basic label-container" style=3D"" x=3D"-81.0078125" y=3D"-27=
+" width=3D"162.015625" height=3D"54"></rect><g class=3D"label" style=3D"" t=
+ransform=3D"translate(-51.0078125, -12)"><rect></rect><foreignObject width=
+=3D"102.015625" height=3D"24"><div xmlns=3D"http://www.w3.org/1999/xhtml" s=
+tyle=3D"display: table-cell; white-space: nowrap; line-height: 1.5; max-wid=
+th: 200px; text-align: center;"><span class=3D"nodeLabel "><p>raw id + name=
+</p></span></div></foreignObject></g></g><g class=3D"node default  " id=3D"=
+mermaid-1784514016867-flowchart-BADGE-4" data-look=3D"classic" transform=3D=
+"translate(175.5, 337)"><rect class=3D"basic label-container" style=3D"" x=
+=3D"-84.96875" y=3D"-27" width=3D"169.9375" height=3D"54"></rect><g class=
+=3D"label" style=3D"" transform=3D"translate(-54.96875, -12)"><rect></rect>=
+<foreignObject width=3D"109.9375" height=3D"24"><div xmlns=3D"http://www.w3=
+.org/1999/xhtml" style=3D"display: table-cell; white-space: nowrap; line-he=
+ight: 1.5; max-width: 200px; text-align: center;"><span class=3D"nodeLabel =
+"><p>category badge</p></span></div></foreignObject></g></g></g></g></g><de=
+fs><filter id=3D"mermaid-1784514016867-drop-shadow" height=3D"130%" width=
+=3D"130%"><feDropShadow dx=3D"4" dy=3D"4" stdDeviation=3D"0" flood-opacity=
+=3D"0.06" flood-color=3D"#000000"></feDropShadow></filter></defs><defs><fil=
+ter id=3D"mermaid-1784514016867-drop-shadow-small" height=3D"150%" width=3D=
+"150%"><feDropShadow dx=3D"2" dy=3D"2" stdDeviation=3D"0" flood-opacity=3D"=
+0.06" flood-color=3D"#000000"></feDropShadow></filter></defs><linearGradien=
+t id=3D"mermaid-1784514016867-gradient" gradientUnits=3D"objectBoundingBox"=
+ x1=3D"0%" y1=3D"0%" x2=3D"100%" y2=3D"0%"><stop offset=3D"0%" stop-color=
+=3D"hsl(0, 0%, 83.3333333333%)" stop-opacity=3D"1"></stop><stop offset=3D"1=
+00%" stop-color=3D"hsl(0, 0%, 88.9215686275%)" stop-opacity=3D"1"></stop></=
+linearGradient></svg></pre>
+            </div>
+          </div>
+
+          <p><b>Problem.</b> Rust infers a category by prefix-matching the =
+skill id, persists it, ships it to the UI, where the grid re-derives by key=
+word-matching the skill name and uses the Rust value only as a third-priori=
+ty fallback. Two taxonomies (12 vs 13 categories, <span class=3D"font-mono =
+text-sm">Development</span> exists only in TS). Deletion test: stub the Rus=
+t branches to <span class=3D"font-mono text-sm">"General"</span> and the gr=
+id barely changes: the Rust computation carries almost no leverage, yet eve=
+ry scan path pays for it.</p>
+          <p><b>Solution.</b> Pick one owner. Simplest: ship raw <span clas=
+s=3D"font-mono text-sm">id</span> + <span class=3D"font-mono text-sm">name<=
+/span> and let the TS taxonomy decide; delete the Rust inference. (Or move =
+the keyword rule into Rust and have the UI trust <span class=3D"font-mono t=
+ext-sm">skill.category</span>.)</p>
+          <ul class=3D"text-sm space-y-1 list-disc list-inside text-slate-7=
+00">
+            <li>Badge predictable from one interface</li>
+            <li>One taxonomy to extend</li>
+            <li>Deletes a no-leverage computation</li>
+          </ul>
+        </article>
+
+        <!-- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D SMALLER CUTS =3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D -->
+        <article class=3D"bg-white rounded-xl border border-slate-200 p-8 s=
+pace-y-4">
+          <h2 class=3D"text-xl font-serif font-semibold">Smaller cuts</h2>
+          <p class=3D"text-sm text-slate-600">Cheap moves that fall out of =
+the same exploration. Each is an afternoon, not a project.</p>
+          <div class=3D"grid md:grid-cols-2 gap-4 text-sm">
+            <div class=3D"border border-slate-200 rounded-lg p-4 space-y-1"=
+>
+              <div class=3D"flex justify-between items-start gap-2"><b>Extr=
+act <span class=3D"font-mono">classify_findings(text)</span></b><span class=
+=3D"text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-80=
+0 shrink-0">Worth exploring</span></div>
+              <p class=3D"font-mono text-xs text-slate-500">db/automations.=
+rs:374-403</p>
+              <p class=3D"text-slate-600">An 11-phrase English heuristic hi=
+des behind a DB interface that demands a live connection. Split into a pure=
+ function; the DB module goes back to data access. Note: <span class=3D"fon=
+t-mono">AutomationRunItem.tsx:20-27</span> re-derives the same policy on th=
+e frontend.</p>
+            </div>
+            <div class=3D"border border-slate-200 rounded-lg p-4 space-y-1"=
+>
+              <div class=3D"flex justify-between items-start gap-2"><b>Test=
+ the sidecar wire format</b><span class=3D"text-xs font-medium px-2 py-0.5 =
+rounded-full bg-amber-100 text-amber-800 shrink-0">Worth exploring</span></=
+div>
+              <p class=3D"font-mono text-xs text-slate-500">sidecar-opencod=
+e/src/index.ts:180-302</p>
+              <p class=3D"text-slate-600">session-manager tests stop one ho=
+p short of the seam: the final cast to <span class=3D"font-mono">SidecarEve=
+nt</span> (hardcoded <span class=3D"font-mono">partId</span>, status casts)=
+ has no test. Superseded by candidate 1 if that lands first.</p>
+            </div>
+            <div class=3D"border border-slate-200 rounded-lg p-4 space-y-1"=
+>
+              <div class=3D"flex justify-between items-start gap-2"><b>Own =
+<span class=3D"font-mono">skills:changed</span> in one place</b><span class=
+=3D"text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-80=
+0 shrink-0">Worth exploring</span></div>
+              <p class=3D"font-mono text-xs text-slate-500">SkillsManager.t=
+sx:36 =C2=B7 SkillsSidebar.tsx:45 =C2=B7 useSkillAutocomplete.ts:58</p>
+              <p class=3D"text-slate-600">The subscription is copy-pasted i=
+nto two components and missing from the main window, so <span class=3D"font=
+-mono">@skill</span> autocomplete goes stale after install/delete. Move the=
+ subscription into the store so every consumer refreshes.</p>
+            </div>
+            <div class=3D"border border-slate-200 rounded-lg p-4 space-y-1"=
+>
+              <div class=3D"flex justify-between items-start gap-2"><b>One =
+skill-locations table</b><span class=3D"text-xs font-medium px-2 py-0.5 rou=
+nded-full bg-slate-200 text-slate-700 shrink-0">Speculative</span></div>
+              <p class=3D"font-mono text-xs text-slate-500">skill_repos.rs:=
+72-80 =C2=B7 skills.rs:217-229 =C2=B7 SkillsSidebar.tsx:30-34</p>
+              <p class=3D"text-slate-600">The opencode/claude/agents instal=
+l-folder ladder is hardcoded in three files across two languages. Adding a =
+target means three edits. Hoist to one definition; poor locality today, but=
+ low churn.</p>
+            </div>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D TOP RECOMMENDATION =3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D -->
+      <section id=3D"top-recommendation" class=3D"deep text-white rounded-x=
+l p-8 space-y-3">
+        <p class=3D"text-xs uppercase tracking-wider text-slate-400">Top re=
+commendation</p>
+        <h2 class=3D"text-2xl font-serif font-semibold"><a href=3D"file:///=
+private/var/folders/q9/90x2_90s73z9sz5qgxzhnbc40000gq/T/architecture-review=
+-20260720-101536.html#c2" class=3D"underline decoration-slate-500 underline=
+-offset-4">Start with the dispatch slot (candidate 2)</a></h2>
+        <p class=3D"text-slate-300 max-w-3xl">It is the only candidate hidi=
+ng a live correctness bug: a manual Run Now can release the sequential-exec=
+ution slot while a scheduled run is mid-flight. The fix is a ~30-line RAII =
+module, small enough to land in a day, and consolidating the two dispatch p=
+aths behind it pulls candidates 3 and the <span class=3D"font-mono">classif=
+y_findings</span> cut along naturally. Candidate 1 buys the most leverage o=
+verall, but it spans three runtimes; better tackled once the automations se=
+ams are firm.</p>
+      </section>
+
+      <footer class=3D"text-xs text-slate-400 pb-8">
+        Generated 2026-07-20 =C2=B7 explorers ran over src-tauri/src, src-t=
+auri/sidecar-opencode/src, src/stores, src/lib, src/components =C2=B7 no CO=
+NTEXT.md or ADRs found in repo
+      </footer>
+
+    </main>
+ =20
+
+<div class=3D"mermaidTooltip" style=3D"opacity: 0; position: absolute; text=
+-align: center; max-width: 200px; padding: 2px; font-size: 12px; background=
+: rgb(255, 255, 222); border: 1px solid rgb(51, 51, 51); border-radius: 2px=
+; pointer-events: none; z-index: 100;"></div></body></html>
+------MultipartBoundary--Sh34gOWDL2KtINDYB7KmhkELMQLzGB24MXAoS4Dq8H----
+Content-Type: text/css
+Content-Transfer-Encoding: quoted-printable
+Content-Location: cid:css-c6b217e8-4f8a-4dc0-ba28-52dc7a38b97a@mhtml.blink
+
+@charset "utf-8";
+
+*, ::before, ::after { --tw-border-spacing-x: 0; --tw-border-spacing-y: 0; =
+--tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; -=
+-tw-skew-y: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan-y: =
+; --tw-pinch-zoom: ; --tw-scroll-snap-strictness: proximity; --tw-gradient-=
+from-position: ; --tw-gradient-via-position: ; --tw-gradient-to-position: ;=
+ --tw-ordinal: ; --tw-slashed-zero: ; --tw-numeric-figure: ; --tw-numeric-s=
+pacing: ; --tw-numeric-fraction: ; --tw-ring-inset: ; --tw-ring-offset-widt=
+h: 0px; --tw-ring-offset-color: #fff; --tw-ring-color: rgb(59 130 246 / 0.5=
+); --tw-ring-offset-shadow: 0 0 #0000; --tw-ring-shadow: 0 0 #0000; --tw-sh=
+adow: 0 0 #0000; --tw-shadow-colored: 0 0 #0000; --tw-blur: ; --tw-brightne=
+ss: ; --tw-contrast: ; --tw-grayscale: ; --tw-hue-rotate: ; --tw-invert: ; =
+--tw-saturate: ; --tw-sepia: ; --tw-drop-shadow: ; --tw-backdrop-blur: ; --=
+tw-backdrop-brightness: ; --tw-backdrop-contrast: ; --tw-backdrop-grayscale=
+: ; --tw-backdrop-hue-rotate: ; --tw-backdrop-invert: ; --tw-backdrop-opaci=
+ty: ; --tw-backdrop-saturate: ; --tw-backdrop-sepia: ; --tw-contain-size: ;=
+ --tw-contain-layout: ; --tw-contain-paint: ; --tw-contain-style: ; }
+
+::backdrop { --tw-border-spacing-x: 0; --tw-border-spacing-y: 0; --tw-trans=
+late-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; --tw-skew-y=
+: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan-y: ; --tw-pin=
+ch-zoom: ; --tw-scroll-snap-strictness: proximity; --tw-gradient-from-posit=
+ion: ; --tw-gradient-via-position: ; --tw-gradient-to-position: ; --tw-ordi=
+nal: ; --tw-slashed-zero: ; --tw-numeric-figure: ; --tw-numeric-spacing: ; =
+--tw-numeric-fraction: ; --tw-ring-inset: ; --tw-ring-offset-width: 0px; --=
+tw-ring-offset-color: #fff; --tw-ring-color: rgb(59 130 246 / 0.5); --tw-ri=
+ng-offset-shadow: 0 0 #0000; --tw-ring-shadow: 0 0 #0000; --tw-shadow: 0 0 =
+#0000; --tw-shadow-colored: 0 0 #0000; --tw-blur: ; --tw-brightness: ; --tw=
+-contrast: ; --tw-grayscale: ; --tw-hue-rotate: ; --tw-invert: ; --tw-satur=
+ate: ; --tw-sepia: ; --tw-drop-shadow: ; --tw-backdrop-blur: ; --tw-backdro=
+p-brightness: ; --tw-backdrop-contrast: ; --tw-backdrop-grayscale: ; --tw-b=
+ackdrop-hue-rotate: ; --tw-backdrop-invert: ; --tw-backdrop-opacity: ; --tw=
+-backdrop-saturate: ; --tw-backdrop-sepia: ; --tw-contain-size: ; --tw-cont=
+ain-layout: ; --tw-contain-paint: ; --tw-contain-style: ; }
+
+*, ::after, ::before { box-sizing: border-box; border-width: 0px; border-st=
+yle: solid; border-color: rgb(229, 231, 235); }
+
+::after, ::before { --tw-content: ''; }
+
+:host, html { line-height: 1.5; text-size-adjust: 100%; tab-size: 4; font-f=
+amily: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI=
+ Emoji", "Segoe UI Symbol", "Noto Color Emoji"; font-feature-settings: norm=
+al; font-variation-settings: normal; -webkit-tap-highlight-color: transpare=
+nt; }
+
+body { margin: 0px; line-height: inherit; }
+
+hr { height: 0px; color: inherit; border-top-width: 1px; }
+
+abbr:where([title]) { text-decoration: underline dotted; }
+
+h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit; }
+
+a { color: inherit; text-decoration: inherit; }
+
+b, strong { font-weight: bolder; }
+
+code, kbd, pre, samp { font-family: ui-monospace, SFMono-Regular, Menlo, Mo=
+naco, Consolas, "Liberation Mono", "Courier New", monospace; font-feature-s=
+ettings: normal; font-variation-settings: normal; font-size: 1em; }
+
+small { font-size: 80%; }
+
+sub, sup { font-size: 75%; line-height: 0; position: relative; vertical-ali=
+gn: baseline; }
+
+sub { bottom: -0.25em; }
+
+sup { top: -0.5em; }
+
+table { text-indent: 0px; border-color: inherit; border-collapse: collapse;=
+ }
+
+button, input, optgroup, select, textarea { font-family: inherit; font-feat=
+ure-settings: inherit; font-variation-settings: inherit; font-size: 100%; f=
+ont-weight: inherit; line-height: inherit; letter-spacing: inherit; color: =
+inherit; margin: 0px; padding: 0px; }
+
+button, select { text-transform: none; }
+
+button, input:where([type=3D"button"]), input:where([type=3D"reset"]), inpu=
+t:where([type=3D"submit"]) { appearance: button; background-color: transpar=
+ent; background-image: none; }
+
+progress { vertical-align: baseline; }
+
+::-webkit-inner-spin-button, ::-webkit-outer-spin-button { height: auto; }
+
+[type=3D"search"] { appearance: textfield; outline-offset: -2px; }
+
+::-webkit-search-decoration { appearance: none; }
+
+::-webkit-file-upload-button { appearance: button; font: inherit; }
+
+summary { display: list-item; }
+
+blockquote, dd, dl, figure, h1, h2, h3, h4, h5, h6, hr, p, pre { margin: 0p=
+x; }
+
+fieldset { margin: 0px; padding: 0px; }
+
+legend { padding: 0px; }
+
+menu, ol, ul { list-style: none; margin: 0px; padding: 0px; }
+
+dialog { padding: 0px; }
+
+textarea { resize: vertical; }
+
+input::placeholder, textarea::placeholder { opacity: 1; color: rgb(156, 163=
+, 175); }
+
+[role=3D"button"], button { cursor: pointer; }
+
+:disabled { cursor: default; }
+
+audio, canvas, embed, iframe, img, object, svg, video { display: block; ver=
+tical-align: middle; }
+
+img, video { max-width: 100%; height: auto; }
+
+[hidden]:where(:not([hidden=3D"until-found"])) { display: none; }
+
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+.mb-1 { margin-bottom: 0.25rem; }
+
+.mb-2 { margin-bottom: 0.5rem; }
+
+.mb-3 { margin-bottom: 0.75rem; }
+
+.mt-1 { margin-top: 0.25rem; }
+
+.mt-2 { margin-top: 0.5rem; }
+
+.mt-3 { margin-top: 0.75rem; }
+
+.inline-block { display: inline-block; }
+
+.flex { display: flex; }
+
+.grid { display: grid; }
+
+.h-10 { height: 2.5rem; }
+
+.h-24 { height: 6rem; }
+
+.h-28 { height: 7rem; }
+
+.h-3 { height: 0.75rem; }
+
+.h-44 { height: 11rem; }
+
+.h-52 { height: 13rem; }
+
+.h-9 { height: 2.25rem; }
+
+.h-\[7\.5rem\] { height: 7.5rem; }
+
+.w-2\/3 { width: 66.6667%; }
+
+.w-4 { width: 1rem; }
+
+.max-w-3xl { max-width: 48rem; }
+
+.max-w-5xl { max-width: 64rem; }
+
+.flex-1 { flex: 1 1 0%; }
+
+.shrink-0 { flex-shrink: 0; }
+
+.list-inside { list-style-position: inside; }
+
+.list-disc { list-style-type: disc; }
+
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0px, 1fr)); }
+
+.flex-wrap { flex-wrap: wrap; }
+
+.items-start { align-items: flex-start; }
+
+.items-end { align-items: flex-end; }
+
+.items-center { align-items: center; }
+
+.justify-center { justify-content: center; }
+
+.justify-between { justify-content: space-between; }
+
+.gap-1 { gap: 0.25rem; }
+
+.gap-1\.5 { gap: 0.375rem; }
+
+.gap-2 { gap: 0.5rem; }
+
+.gap-4 { gap: 1rem; }
+
+.gap-6 { gap: 1.5rem; }
+
+.space-y-1 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; mar=
+gin-top: calc(0.25rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom=
+: calc(0.25rem * var(--tw-space-y-reverse)); }
+
+.space-y-10 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; ma=
+rgin-top: calc(2.5rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom=
+: calc(2.5rem * var(--tw-space-y-reverse)); }
+
+.space-y-12 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; ma=
+rgin-top: calc(3rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom: =
+calc(3rem * var(--tw-space-y-reverse)); }
+
+.space-y-3 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; mar=
+gin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom=
+: calc(0.75rem * var(--tw-space-y-reverse)); }
+
+.space-y-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; mar=
+gin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom: c=
+alc(1rem * var(--tw-space-y-reverse)); }
+
+.space-y-5 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; mar=
+gin-top: calc(1.25rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom=
+: calc(1.25rem * var(--tw-space-y-reverse)); }
+
+.rounded-full { border-radius: 9999px; }
+
+.rounded-lg { border-radius: 0.5rem; }
+
+.rounded-sm { border-radius: 0.125rem; }
+
+.rounded-xl { border-radius: 0.75rem; }
+
+.rounded-b-sm { border-bottom-right-radius: 0.125rem; border-bottom-left-ra=
+dius: 0.125rem; }
+
+.border { border-width: 1px; }
+
+.border-l-4 { border-left-width: 4px; }
+
+.border-t-0 { border-top-width: 0px; }
+
+.border-t-2 { border-top-width: 2px; }
+
+.border-dashed { border-style: dashed; }
+
+.border-amber-400 { --tw-border-opacity: 1; border-color: rgb(251 191 36 / =
+var(--tw-border-opacity, 1)); }
+
+.border-red-400 { --tw-border-opacity: 1; border-color: rgb(248 113 113 / v=
+ar(--tw-border-opacity, 1)); }
+
+.border-red-500 { --tw-border-opacity: 1; border-color: rgb(239 68 68 / var=
+(--tw-border-opacity, 1)); }
+
+.border-red-600 { --tw-border-opacity: 1; border-color: rgb(220 38 38 / var=
+(--tw-border-opacity, 1)); }
+
+.border-slate-200 { --tw-border-opacity: 1; border-color: rgb(226 232 240 /=
+ var(--tw-border-opacity, 1)); }
+
+.border-slate-300 { --tw-border-opacity: 1; border-color: rgb(203 213 225 /=
+ var(--tw-border-opacity, 1)); }
+
+.border-slate-400 { --tw-border-opacity: 1; border-color: rgb(148 163 184 /=
+ var(--tw-border-opacity, 1)); }
+
+.border-slate-700 { --tw-border-opacity: 1; border-color: rgb(51 65 85 / va=
+r(--tw-border-opacity, 1)); }
+
+.bg-amber-100 { --tw-bg-opacity: 1; background-color: rgb(254 243 199 / var=
+(--tw-bg-opacity, 1)); }
+
+.bg-amber-50 { --tw-bg-opacity: 1; background-color: rgb(255 251 235 / var(=
+--tw-bg-opacity, 1)); }
+
+.bg-emerald-100 { --tw-bg-opacity: 1; background-color: rgb(209 250 229 / v=
+ar(--tw-bg-opacity, 1)); }
+
+.bg-emerald-50 { --tw-bg-opacity: 1; background-color: rgb(236 253 245 / va=
+r(--tw-bg-opacity, 1)); }
+
+.bg-red-50 { --tw-bg-opacity: 1; background-color: rgb(254 242 242 / var(--=
+tw-bg-opacity, 1)); }
+
+.bg-slate-100 { --tw-bg-opacity: 1; background-color: rgb(241 245 249 / var=
+(--tw-bg-opacity, 1)); }
+
+.bg-slate-200 { --tw-bg-opacity: 1; background-color: rgb(226 232 240 / var=
+(--tw-bg-opacity, 1)); }
+
+.bg-stone-50 { --tw-bg-opacity: 1; background-color: rgb(250 250 249 / var(=
+--tw-bg-opacity, 1)); }
+
+.bg-white { --tw-bg-opacity: 1; background-color: rgb(255 255 255 / var(--t=
+w-bg-opacity, 1)); }
+
+.p-1 { padding: 0.25rem; }
+
+.p-2 { padding: 0.5rem; }
+
+.p-3 { padding: 0.75rem; }
+
+.p-4 { padding: 1rem; }
+
+.p-8 { padding: 2rem; }
+
+.px-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
+
+.px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+
+.px-2\.5 { padding-left: 0.625rem; padding-right: 0.625rem; }
+
+.px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+
+.py-0\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+
+.py-12 { padding-top: 3rem; padding-bottom: 3rem; }
+
+.pb-8 { padding-bottom: 2rem; }
+
+.pt-1 { padding-top: 0.25rem; }
+
+.text-center { text-align: center; }
+
+.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Cons=
+olas, "Liberation Mono", "Courier New", monospace; }
+
+.font-sans { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Colo=
+r Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+
+.font-serif { font-family: ui-serif, Georgia, Cambria, "Times New Roman", T=
+imes, serif; }
+
+.text-2xl { font-size: 1.5rem; line-height: 2rem; }
+
+.text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+
+.text-\[11px\] { font-size: 11px; }
+
+.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+
+.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+
+.text-xs { font-size: 0.75rem; line-height: 1rem; }
+
+.font-medium { font-weight: 500; }
+
+.font-semibold { font-weight: 600; }
+
+.uppercase { text-transform: uppercase; }
+
+.leading-relaxed { line-height: 1.625; }
+
+.tracking-wider { letter-spacing: 0.05em; }
+
+.text-amber-800 { --tw-text-opacity: 1; color: rgb(146 64 14 / var(--tw-tex=
+t-opacity, 1)); }
+
+.text-emerald-800 { --tw-text-opacity: 1; color: rgb(6 95 70 / var(--tw-tex=
+t-opacity, 1)); }
+
+.text-red-500 { --tw-text-opacity: 1; color: rgb(239 68 68 / var(--tw-text-=
+opacity, 1)); }
+
+.text-red-600 { --tw-text-opacity: 1; color: rgb(220 38 38 / var(--tw-text-=
+opacity, 1)); }
+
+.text-slate-300 { --tw-text-opacity: 1; color: rgb(203 213 225 / var(--tw-t=
+ext-opacity, 1)); }
+
+.text-slate-400 { --tw-text-opacity: 1; color: rgb(148 163 184 / var(--tw-t=
+ext-opacity, 1)); }
+
+.text-slate-500 { --tw-text-opacity: 1; color: rgb(100 116 139 / var(--tw-t=
+ext-opacity, 1)); }
+
+.text-slate-600 { --tw-text-opacity: 1; color: rgb(71 85 105 / var(--tw-tex=
+t-opacity, 1)); }
+
+.text-slate-700 { --tw-text-opacity: 1; color: rgb(51 65 85 / var(--tw-text=
+-opacity, 1)); }
+
+.text-slate-900 { --tw-text-opacity: 1; color: rgb(15 23 42 / var(--tw-text=
+-opacity, 1)); }
+
+.text-white { --tw-text-opacity: 1; color: rgb(255 255 255 / var(--tw-text-=
+opacity, 1)); }
+
+.underline { text-decoration-line: underline; }
+
+.decoration-slate-500 { text-decoration-color: rgb(100, 116, 139); }
+
+.underline-offset-4 { text-underline-offset: 4px; }
+
+@media (min-width: 768px) {
+  .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0px, 1fr)); }
+}
+------MultipartBoundary--Sh34gOWDL2KtINDYB7KmhkELMQLzGB24MXAoS4Dq8H----
+Content-Type: text/css
+Content-Transfer-Encoding: quoted-printable
+Content-Location: cid:css-66b48e3c-8176-4ff6-953a-852d02771995@mhtml.blink
+
+@charset "utf-8";
+
+.seam { border-style: dashed; }
+
+.deep { background: linear-gradient(135deg, rgb(15, 23, 42), rgb(30, 41, 59=
+)); }
+
+.band { display: flex; align-items: center; padding: 0px 0.75rem; }
+------MultipartBoundary--Sh34gOWDL2KtINDYB7KmhkELMQLzGB24MXAoS4Dq8H------

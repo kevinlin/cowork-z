@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.8.6
+
+- 
+
 ## v0.8.5 (2026-06-14)
 
 - **Dead event-listener cleanup** — Removed frontend listeners for events the backend never emits (`task:status-change`, `task:update-batch`, `task:summary`), along with the store actions and arena buffering paths only they fed. Found while investigating why the delight animations appeared missing: the animations were fine — the installed release app was an older build published under a reused v0.8.4 tag.

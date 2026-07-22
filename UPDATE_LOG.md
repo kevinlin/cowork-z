@@ -2,6 +2,11 @@
 
 # UPDATE LOG
 
+## v0.8.7
+
+- **Fix: manual "Run Now" could disrupt a scheduled automation mid-run** — A manual run finishing released the shared single-run execution slot even though it never claimed it, so it could free the slot while a scheduled automation was still running and start draining queued runs on top of it. Manual runs now claim the same slot as scheduled ones and cleanly decline with a message when an automation is already in progress.
+- **Refactor: automation dispatch slot + cron logic** — The sequential-execution slot is now an RAII guard (released on drop, keyed to the owning run) so the one-run-at-a-time invariant can't leak on any code path. The cron normalization and next-fire math moved into a standalone, table-tested Rust module shared by the scheduler and validation, and the frontend's redundant cron re-parse in the automation card was removed.
+
 ## v0.8.6
 
 - **Typed sidecar event bridge** — Reworked how events travel from the agent process to the UI. Previously each event had to be hand-registered in seven places across three languages, and a missed registration dropped the event silently. Events are now forwarded generically and typed end to end, so a mismatch is a build error instead of a feature that quietly does nothing. Along the way this fixed the startup progress message ("Starting OpenCode server…"), which had never displayed, and removed two dead event listeners. Sidecar output that can't be parsed is now logged instead of discarded.

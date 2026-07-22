@@ -3,14 +3,13 @@ use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, State};
 use uuid::Uuid;
 
-use crate::automation_dispatch::{build_dispatch_context, dispatch_start_task};
-use crate::automation_scheduler::AutomationSchedulerRegistry;
-use crate::db::{self, automations as db_automations, DbState};
+use crate::automation_scheduler::{AutomationSchedulerRegistry, AutomationSchedulerState};
+use crate::db::{automations as db_automations, DbState};
 use crate::lock_util::lock_or_recover;
 
 #[tauri::command]
 pub async fn validate_cron(cron_expression: String) -> Result<bool, String> {
-    let normalized = AutomationSchedulerRegistry::normalize_cron_public(&cron_expression);
+    let normalized = crate::cron_schedule::normalize(&cron_expression);
     match normalized.parse::<cron::Schedule>() {
         Ok(_) => Ok(true),
         Err(e) => Err(format!("Invalid cron expression: {}", e)),
@@ -251,59 +250,28 @@ pub async fn run_automation_now(
     db: State<'_, DbState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let (run_id, task_id, dispatch) = {
-        let conn = lock_or_recover(&db.conn, "db (automations)");
-        let automation = db_automations::get_automation(&conn, &automation_id)?
-            .ok_or_else(|| format!("Automation not found: {}", automation_id))?;
+    let scheduler_state = app.state::<AutomationSchedulerState>();
 
-        let now = chrono::Utc::now().to_rfc3339();
-        let task_id = format!("task_{}", Uuid::new_v4());
-        let run_id = Uuid::new_v4().to_string();
-
-        db::tasks::save_task(
-            &conn,
-            &db::tasks::TaskInput {
-                id: task_id.clone(),
-                prompt: automation.prompt.clone(),
-                status: "starting".to_string(),
-                session_id: None,
-                summary: None,
-                messages: vec![],
-                created_at: now.clone(),
-                started_at: Some(now.clone()),
-                completed_at: None,
-            },
-        )?;
-
-        let run = db_automations::StoredAutomationRun {
-            id: run_id.clone(),
-            automation_id: automation_id.clone(),
-            task_id: Some(task_id.clone()),
-            status: "running".to_string(),
-            has_findings: false,
-            is_read: false,
-            started_at: Some(now),
-            completed_at: None,
-        };
-        db_automations::create_automation_run(&conn, &run)?;
-
-        let _ =
-            db::workspaces::assign_task_to_workspace(&conn, &automation.workspace_id, &task_id);
-
-        let dispatch = build_dispatch_context(&conn, &automation, task_id.clone())?;
-
-        (run_id, task_id, dispatch)
+    // Manual runs cross the same dispatch seam as scheduled ones: claim the
+    // sequential slot or decline. Early `?` returns drop the guard -> released.
+    let Some(guard) = scheduler_state.slot.try_acquire() else {
+        return Err("An automation run is already in progress".to_string());
     };
 
-    dispatch_start_task(&app, dispatch).await?;
+    let conn = lock_or_recover(&db.conn, "db (automations)");
+    let automation = db_automations::get_automation(&conn, &automation_id)?
+        .ok_or_else(|| format!("Automation not found: {}", automation_id))?;
 
-    let _ = app.emit(
-        "automation:run_started",
-        serde_json::json!({
-            "automationId": automation_id,
-            "runId": run_id,
-            "taskId": task_id,
-        }),
+    let run_id = Uuid::new_v4().to_string();
+
+    crate::automation_scheduler::dispatch_automation_run(
+        &app,
+        &conn,
+        &scheduler_state,
+        &automation,
+        &run_id,
+        true,
+        guard,
     );
 
     Ok(())

@@ -809,7 +809,7 @@ impl SidecarManager {
             }
             Ok(SidecarSideEffect::TaskComplete { task_id, payload }) => {
                 // Drive completion directly from Rust so that automation lifecycle
-                // (mark_automation_run_complete -> release is_running -> drain pending)
+                // (mark_automation_run_complete -> release dispatch slot -> drain pending)
                 // does not depend on the frontend's `task_complete` listener, which
                 // gets throttled by macOS WKWebView when the app is backgrounded
                 // in release builds.

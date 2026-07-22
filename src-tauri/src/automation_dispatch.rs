@@ -80,15 +80,6 @@ pub(crate) fn spawn_start_task_dispatch(app: &AppHandle, dispatch: StartTaskDisp
     });
 }
 
-/// Send `StartTask` to the sidecar with error propagation.
-/// Spawns the sidecar if not already running. Used by `run_automation_now`.
-pub(crate) async fn dispatch_start_task(
-    app: &AppHandle,
-    dispatch: StartTaskDispatch,
-) -> Result<(), String> {
-    dispatch_start_task_inner(app, dispatch).await
-}
-
 async fn dispatch_start_task_inner(
     app: &AppHandle,
     dispatch: StartTaskDispatch,

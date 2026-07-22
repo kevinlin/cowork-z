@@ -2,14 +2,13 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
-use chrono::{DateTime, Local, Utc};
-use cron::Schedule;
-use std::str::FromStr;
+use chrono::Utc;
 use tauri::{AppHandle, Emitter, Manager};
 use uuid::Uuid;
 
 use crate::automation_dispatch::{build_dispatch_context, spawn_start_task_dispatch};
 use crate::db::{automations as db_automations, DbState};
+use crate::dispatch_slot::{DispatchSlot, SlotGuard};
 use crate::lock_util::lock_or_recover;
 
 struct ScheduledThread {
@@ -31,10 +30,6 @@ impl AutomationSchedulerRegistry {
             threads: Arc::new(Mutex::new(HashMap::new())),
             next_runs: Arc::new(Mutex::new(HashMap::new())),
         }
-    }
-
-    pub fn normalize_cron_public(expr: &str) -> String {
-        Self::normalize_cron(expr)
     }
 
     pub fn get_next_runs(
@@ -63,7 +58,7 @@ impl AutomationSchedulerRegistry {
             let conn = lock_or_recover(&db_state.conn, "db (scheduler next_runs)");
             for id in &missing {
                 let next = match db_automations::get_automation(&conn, id) {
-                    Ok(Some(a)) if a.enabled => Self::compute_next_fire(&a.schedule_cron)
+                    Ok(Some(a)) if a.enabled => crate::cron_schedule::next_fire(&a.schedule_cron)
                         .map(|t| t.to_rfc3339()),
                     _ => None,
                 };
@@ -74,72 +69,6 @@ impl AutomationSchedulerRegistry {
         result
     }
 
-    /// Normalize a cron expression for the `cron` crate which requires 6-7 fields
-    /// (sec min hour dom month dow [year]). Standard 5-field Unix cron (min hour dom month dow)
-    /// is converted by prepending "0" for seconds.
-    ///
-    /// The `cron` crate interprets numeric day-of-week as 1-indexed Sunday-first
-    /// (1=Sun … 7=Sat), whereas standard Unix cron uses 0-indexed (0=Sun … 6=Sat).
-    /// To avoid mismatches we replace the dow field with named abbreviations.
-    fn normalize_cron(expr: &str) -> String {
-        let fields: Vec<&str> = expr.split_whitespace().collect();
-        if fields.len() == 5 {
-            let dow_converted = Self::convert_dow_to_named(fields[4]);
-            format!(
-                "0 {} {} {} {} {}",
-                fields[0], fields[1], fields[2], fields[3], dow_converted
-            )
-        } else {
-            expr.to_string()
-        }
-    }
-
-    fn convert_dow_to_named(field: &str) -> String {
-        const NAMES: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-        if field == "*" {
-            return field.to_string();
-        }
-
-        let mut parts: Vec<String> = Vec::new();
-        for segment in field.split(',') {
-            if let Some(slash_pos) = segment.find('/') {
-                let (base, step) = segment.split_at(slash_pos);
-                let converted_base = Self::convert_dow_segment(base, &NAMES);
-                parts.push(format!("{}{}", converted_base, step));
-            } else {
-                parts.push(Self::convert_dow_segment(segment, &NAMES));
-            }
-        }
-        parts.join(",")
-    }
-
-    fn convert_dow_segment(segment: &str, names: &[&str; 7]) -> String {
-        if segment == "*" {
-            return segment.to_string();
-        }
-        if let Some((start_s, end_s)) = segment.split_once('-') {
-            let start = Self::dow_to_name(start_s, names);
-            let end = Self::dow_to_name(end_s, names);
-            format!("{}-{}", start, end)
-        } else {
-            Self::dow_to_name(segment, names)
-        }
-    }
-
-    fn dow_to_name(value: &str, names: &[&str; 7]) -> String {
-        match value.parse::<u8>() {
-            Ok(n) => names[(n % 7) as usize].to_string(),
-            Err(_) => value.to_string(),
-        }
-    }
-
-    fn compute_next_fire(cron_expr: &str) -> Option<DateTime<Utc>> {
-        let normalized = Self::normalize_cron(cron_expr);
-        let schedule = Schedule::from_str(&normalized).ok()?;
-        schedule.upcoming(Local).next().map(|t| t.with_timezone(&Utc))
-    }
-
     fn start_automation(
         &self,
         app: &AppHandle,
@@ -147,7 +76,7 @@ impl AutomationSchedulerRegistry {
     ) {
         self.stop_automation(&automation.id);
 
-        let next_fire = match Self::compute_next_fire(&automation.schedule_cron) {
+        let next_fire = match crate::cron_schedule::next_fire(&automation.schedule_cron) {
             Some(t) => t,
             None => {
                 eprintln!(
@@ -206,7 +135,7 @@ impl AutomationSchedulerRegistry {
                 if Utc::now() >= next {
                     Self::fire_automation_on_thread(&app_clone, &auto_id);
 
-                    match Self::compute_next_fire(&cron_expr) {
+                    match crate::cron_schedule::next_fire(&cron_expr) {
                         Some(t) => {
                             next = t;
                             let mut map = lock_or_recover(&next_runs, "scheduler next_runs");
@@ -313,12 +242,7 @@ impl AutomationSchedulerRegistry {
 
         // Atomically claim the dispatch slot. If another path (process_pending_runs
         // or a concurrent fire) already holds it, queue this fire as pending instead.
-        let won_dispatch = scheduler_state
-            .is_running
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok();
-
-        if !won_dispatch {
+        let Some(guard) = scheduler_state.slot.try_acquire() else {
             let run = db_automations::StoredAutomationRun {
                 id: run_id,
                 automation_id: automation_id.to_string(),
@@ -335,9 +259,9 @@ impl AutomationSchedulerRegistry {
                 automation.name
             );
             return;
-        }
+        };
 
-        dispatch_automation_run(app, &conn, &scheduler_state, &automation, &run_id, true);
+        dispatch_automation_run(app, &conn, &scheduler_state, &automation, &run_id, true, guard);
     }
 }
 
@@ -350,13 +274,34 @@ impl Default for AutomationSchedulerRegistry {
 /// Shared state for tracking whether an automation run is currently executing.
 /// This prevents concurrent automation runs (v1 sequential model).
 pub struct AutomationSchedulerState {
-    pub is_running: AtomicBool,
+    pub slot: DispatchSlot,
+    /// The guard for the currently-dispatched run, parked until completion,
+    /// keyed by run_id so only the owning run's completion releases it.
+    active: Mutex<Option<(String, SlotGuard)>>,
 }
 
 impl AutomationSchedulerState {
     pub fn new() -> Self {
         Self {
-            is_running: AtomicBool::new(false),
+            slot: DispatchSlot::new(),
+            active: Mutex::new(None),
+        }
+    }
+
+    /// Park the slot guard for a dispatched run until its completion.
+    fn park(&self, run_id: &str, guard: SlotGuard) {
+        let mut active = lock_or_recover(&self.active, "scheduler active guard");
+        *active = Some((run_id.to_string(), guard));
+    }
+
+    /// Release the slot iff `run_id` matches the parked holder. A completion
+    /// whose run_id doesn't match releases nothing — this is what prevents a
+    /// foreign completion (e.g. a stale caller) from freeing a slot it never
+    /// acquired.
+    fn release(&self, run_id: &str) {
+        let mut active = lock_or_recover(&self.active, "scheduler active guard");
+        if matches!(active.as_ref(), Some((held, _)) if held == run_id) {
+            *active = None; // drops the guard -> slot auto-released
         }
     }
 }
@@ -380,7 +325,7 @@ pub fn mark_automation_run_complete(app: &AppHandle, run_id: &str, has_findings:
     let did_transition = match transition_result {
         Ok(t) => t,
         Err(e) => {
-            // Row state is unknown; bail without releasing is_running so we don't
+            // Row state is unknown; bail without releasing the slot so we don't
             // dispatch the next run on top of a still-'running' DB row.
             eprintln!("[AutomationScheduler] {}", e);
             return;
@@ -389,12 +334,12 @@ pub fn mark_automation_run_complete(app: &AppHandle, run_id: &str, has_findings:
 
     if !did_transition {
         // Another caller (Rust sidecar event handler vs. frontend invoke) already
-        // marked this run completed; do not double-release is_running or re-drain.
+        // marked this run completed; do not double-release the slot or re-drain.
         return;
     }
 
     let scheduler_state = app.state::<AutomationSchedulerState>();
-    scheduler_state.is_running.store(false, Ordering::SeqCst);
+    scheduler_state.release(run_id);
 
     let _ = app.emit(
         "automation:run_completed",
@@ -413,49 +358,45 @@ fn process_pending_runs(app: &AppHandle) {
 
     // Atomically claim the dispatch slot. Prevents a race with the scheduler
     // thread also trying to fire at the same instant.
-    if scheduler_state
-        .is_running
-        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .is_err()
-    {
+    let Some(guard) = scheduler_state.slot.try_acquire() else {
         return;
-    }
+    };
 
     let db_state = app.state::<DbState>();
     let conn = lock_or_recover(&db_state.conn, "db (pending runs)");
     let pending = db_automations::get_pending_runs(&conn);
 
+    // Early returns below drop `guard`, auto-releasing the slot.
     let Some(run) = pending.first() else {
-        scheduler_state.is_running.store(false, Ordering::SeqCst);
         return;
     };
 
     let automation = match db_automations::get_automation(&conn, &run.automation_id) {
         Ok(Some(a)) => a,
-        _ => {
-            scheduler_state.is_running.store(false, Ordering::SeqCst);
-            return;
-        }
+        _ => return,
     };
 
-    dispatch_automation_run(app, &conn, &scheduler_state, &automation, &run.id, false);
+    dispatch_automation_run(app, &conn, &scheduler_state, &automation, &run.id, false, guard);
 }
 
 /// Creates a task, links it to the run, builds dispatch context, and sends to sidecar.
 /// When `create_run` is true, inserts a new run row; when false, updates the existing one.
-fn dispatch_automation_run(
+///
+/// The caller passes the `SlotGuard` it acquired. Early-error returns drop the
+/// guard (auto-releasing the slot); on successful dispatch the guard is parked
+/// in `AutomationSchedulerState` until the run completes.
+pub(crate) fn dispatch_automation_run(
     app: &AppHandle,
     conn: &rusqlite::Connection,
     scheduler_state: &AutomationSchedulerState,
     automation: &db_automations::StoredAutomation,
     run_id: &str,
     create_run: bool,
+    guard: SlotGuard,
 ) {
     let now = Utc::now().to_rfc3339();
     let task_id = format!("task_{}", Uuid::new_v4());
 
-    // Caller has already won the dispatch slot via compare_exchange on `is_running`.
-    // We are responsible for releasing it on any failure path that aborts dispatch.
     if let Err(e) = crate::db::tasks::save_task(
         conn,
         &crate::db::tasks::TaskInput {
@@ -471,7 +412,6 @@ fn dispatch_automation_run(
         },
     ) {
         eprintln!("[AutomationScheduler] Failed to create task: {}", e);
-        scheduler_state.is_running.store(false, Ordering::SeqCst);
         return;
     }
 
@@ -504,7 +444,6 @@ fn dispatch_automation_run(
         Ok(d) => d,
         Err(e) => {
             eprintln!("[AutomationScheduler] {}", e);
-            scheduler_state.is_running.store(false, Ordering::SeqCst);
             return;
         }
     };
@@ -512,6 +451,9 @@ fn dispatch_automation_run(
     let automation_id = automation.id.clone();
 
     spawn_start_task_dispatch(app, dispatch);
+
+    // Dispatch succeeded — park the guard until the run's completion releases it.
+    scheduler_state.park(run_id, guard);
 
     let _ = app.emit(
         "automation:run_started",

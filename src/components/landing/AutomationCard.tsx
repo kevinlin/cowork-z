@@ -1,7 +1,7 @@
 import { Clock, MoreVertical, Pause, Play, Trash2, Zap } from 'lucide-react';
 import { useMemo } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { WEEKDAY_NAMES } from '@/lib/cron-utils';
+import { detectFrequencyFromCron, WEEKDAY_NAMES } from '@/lib/cron-utils';
 import type { Automation } from '@/shared';
 
 interface AutomationCardProps {
@@ -19,11 +19,7 @@ function formatNextRun(isoTimestamp: string, cron: string): string {
 
   const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s+/g, ' ');
 
-  const fields = cron.trim().split(/\s+/);
-  const dowField = fields[4];
-  const isSpecificDay = dowField !== '*' && !/[-,]/.test(dowField);
-
-  if (isSpecificDay) {
+  if (detectFrequencyFromCron(cron).frequency === 'Weekly') {
     return `${WEEKDAY_NAMES[date.getDay()]} ${timeStr}`;
   }
 

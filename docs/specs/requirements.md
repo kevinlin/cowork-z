@@ -889,9 +889,9 @@ The Skills Catalog is a curated discovery surface for Git-backed skill repositor
 4. THE SYSTEM SHALL expose next-fire times to the frontend via the `get_automation_next_runs(automation_ids)` Tauri command; the frontend SHALL NOT compute cron expressions client-side.
 5. WHEN an automation is created, updated, deleted, or its `enabled` flag is toggled, THE SYSTEM SHALL cancel the existing per-automation thread (via `AtomicBool` + condvar signal) and SHALL spawn a new thread if the automation remains enabled.
 6. ON app startup, THE SYSTEM SHALL invoke `reload_all()` to spawn one thread for each enabled automation.
-7. THE SYSTEM SHALL execute automation runs sequentially through the existing `start_task` sidecar pipeline; concurrency is enforced by an atomic `is_running` flag claimed via `compare_exchange(false, true, SeqCst, SeqCst)`.
+7. THE SYSTEM SHALL execute automation runs sequentially through the existing `start_task` sidecar pipeline; concurrency is enforced by a `DispatchSlot` RAII guard (`try_acquire()` returns a `SlotGuard` that releases on drop, parked per run_id until completion).
 8. WHERE the dispatch slot is unavailable (CAS fails), THE SYSTEM SHALL queue the fire as `pending` and SHALL drain pending runs FIFO when the slot is released.
-9. THE SYSTEM SHALL provide a `run_automation_now` Tauri command that creates a task + run and dispatches `StartTask` to the sidecar immediately, bypassing the pending queue.
+9. THE SYSTEM SHALL provide a `run_automation_now` Tauri command that creates a task + run and dispatches `StartTask` to the sidecar immediately, bypassing the pending queue; WHEN an automation run is already in progress, the command SHALL return a busy error instead of dispatching concurrently.
 
 #### 9.3 Run Triage ✅
 

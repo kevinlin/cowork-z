@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { create } from 'zustand';
 import * as api from '@/lib/tauri-api';
 import type { Automation, AutomationRun, CreateAutomationInput, UpdateAutomationInput } from '@/shared';
@@ -99,7 +100,12 @@ export const useAutomationStore = create<AutomationState>((set, get) => ({
   },
 
   runNow: async (automationId: string) => {
-    await api.runAutomationNow(automationId);
+    try {
+      await api.runAutomationNow(automationId);
+    } catch (e) {
+      // e.g. "An automation run is already in progress" — slot busy
+      toast.error(typeof e === 'string' ? e : 'Failed to start automation run');
+    }
   },
 
   markRunRead: async (runId: string) => {

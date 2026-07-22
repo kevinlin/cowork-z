@@ -120,7 +120,7 @@ When `toggle_automation_enabled(id, false)` or `update_automation(id, ...)` is c
 
 - Automation created/updated/deleted → command handler calls `registry.on_changed()` (stop + restart thread)
 - Automation deleted → `registry.stop_automation()` (thread cancelled, next_run removed)
-- Task complete → Rust sidecar event handler calls `mark_automation_run_complete` (transitions `running` → `completed`, releases dispatch slot, drains pending runs, emits `automation:run_completed`). Frontend `complete_task` is idempotent — a no-op if Rust already completed the run.
+- Task complete → Rust sidecar event handler calls `mark_automation_run_complete` (transitions `running` → `completed`, releases the dispatch slot via `state.release(run_id)`, drains pending runs, emits `automation:run_completed`). Frontend `complete_task` is idempotent — a no-op if Rust already completed the run.
 - App quit → threads are cancelled; pending run states persist in DB and resume on next launch
 
 ### Rust-side completion (release-build robustness)
@@ -129,18 +129,21 @@ Automation completion must not depend on the frontend WebView. macOS release bui
 
 1. `SidecarManager::handle_sidecar_event` intercepts `task_complete` and synchronously calls `handle_task_completion_internal(app, task_id, status, session_id)` — shared helper containing full completion logic
 2. The `complete_task` Tauri command delegates to the same helper
-3. `mark_automation_run_complete` is idempotent via `try_complete_run_if_running` (`UPDATE … WHERE status='running'`); only the first caller to affect a row releases `is_running` and drains pending runs
+3. `mark_automation_run_complete` is idempotent via `try_complete_run_if_running` (`UPDATE … WHERE status='running'`); only the first caller to affect a row releases the parked slot guard (`state.release(run_id)`) and drains pending runs
 
 ### Concurrency model (v1)
 
-Each automation thread independently determines when to fire. Both the cron thread (`fire_automation_on_thread`) and queue drainer (`process_pending_runs`) claim the dispatch slot via `is_running.compare_exchange(false, true, SeqCst, SeqCst)`:
+The "one automation run at a time" invariant is owned by the `dispatch_slot` module (`DispatchSlot` + `SlotGuard`, RAII). `DispatchSlot::try_acquire()` returns `Some(SlotGuard)` iff the slot was free; the guard releases the slot on drop, so every early-error return releases automatically. There is no manual release call to forget.
 
-- CAS succeeds → proceed to `dispatch_automation_run` (create task, link run, send `StartTask` to sidecar)
-- CAS fails → cron thread queues fire as `pending`; queue drainer returns
+Three callers cross the same seam. When acquire fails:
 
-`dispatch_automation_run` assumes the caller already won the CAS but releases the slot (`store(false)`) on any early-error path.
+- Cron thread (`fire_automation_on_thread`): queues the fire as `pending`
+- Queue drainer (`process_pending_runs`): returns
+- Manual `run_automation_now`: returns a busy error ("An automation run is already in progress"); the frontend surfaces it as a toast
 
-When a task completes, `mark_automation_run_complete` releases the slot and calls `process_pending_runs` (FIFO). **Important:** the DB connection must be dropped before calling `process_pending_runs` — `DbState.conn` uses `std::sync::Mutex` (not reentrant), so holding it across both calls causes a self-deadlock.
+On successful dispatch, `dispatch_automation_run` parks the guard in `AutomationSchedulerState`, keyed by `run_id`. Completion calls `state.release(run_id)`, which drops the guard only if the run_id matches the parked holder. A foreign completion releases nothing.
+
+When a task completes, `mark_automation_run_complete` releases the slot (via `release(run_id)`) and calls `process_pending_runs` (FIFO). **Important:** the DB connection must be dropped before calling `process_pending_runs` — `DbState.conn` uses `std::sync::Mutex` (not reentrant), so holding it across both calls causes a self-deadlock.
 
 ### Determining `has_findings`
 
@@ -162,11 +165,13 @@ The grid layout adapts based on frequency:
 
 Once a schedule is configured, the computed 5-field Unix cron expression is displayed below the pickers in a read-only monospace field for user verification.
 
-**Cron normalization:** The Rust `cron` crate (v0.12) requires 6-7 field expressions (`sec min hour dom month dow [year]`). The scheduler's `normalize_cron()` method automatically prepends `"0 "` (seconds = 0) to 5-field expressions before parsing. This allows the frontend and DB to store standard Unix cron while the scheduler handles the conversion internally.
+**Cron normalization:** The Rust `cron` crate (v0.12) requires 6-7 field expressions (`sec min hour dom month dow [year]`). The pure `cron_schedule` module (`src-tauri/src/cron_schedule.rs`) owns `normalize()`, which prepends `"0 "` (seconds = 0) to 5-field expressions and remaps numeric day-of-week to named abbreviations, and `next_fire()`, which evaluates the normalized expression. Both are free functions with table-driven unit tests; the scheduler registry calls them but owns no cron math itself. This allows the frontend and DB to store standard Unix cron while Rust handles the conversion internally.
 
 **Timezone handling:** Schedule times are interpreted in the system's local timezone (e.g., if the user picks "9:00 AM" and the system is in `America/New_York`, the automation fires at 9:00 AM ET). The scheduler evaluates cron expressions against `chrono::Local` and converts the resulting fire times to UTC for internal storage and IPC. The frontend time picker displays local times directly — no timezone conversion is needed on the frontend side.
 
-**Cron validation:** The `validate_cron` Tauri command validates a cron expression using the same `normalize_cron()` + `cron::Schedule::from_str()` pipeline as the scheduler. The frontend calls this on every cron change (debounced 400ms for Custom mode, immediate for structured pickers). Invalid expressions display an error below the cron preview and prevent form submission. This ensures only scheduler-parseable expressions are saved to the database.
+**Cron validation:** The `validate_cron` Tauri command validates a cron expression by calling `cron_schedule::normalize()` + `cron::Schedule::from_str()`, the same pipeline the scheduler uses (the former `normalize_cron_public` escape hatch on the registry is gone). The frontend calls this on every cron change (debounced 400ms for Custom mode, immediate for structured pickers). Invalid expressions display an error below the cron preview and prevent form submission. This ensures only scheduler-parseable expressions are saved to the database.
+
+**Cron logic ownership:** Rust (`cron_schedule`) owns cron *interpretation*: `normalize()` and `next_fire()`. The frontend (`src/lib/cron-utils.ts`) owns cron *construction* (`buildCron`) and *display* (`buildDisplay`, `scheduleDisplay`, `detectFrequencyFromCron`). UI components never parse cron fields directly; `AutomationCard` gates its weekday prefix on `detectFrequencyFromCron`, not on an inline field read.
 
 **Model ID format:** The `model_id` field stores the full provider-qualified identifier (e.g., `github-copilot/claude-sonnet-4.6`). The `provider_id` field stores just the provider key (e.g., `github-copilot`) for filtering/display purposes. When dispatching to the sidecar, `model_id` is used directly without additional prefixing.
 
@@ -299,7 +304,7 @@ This ensures the `AutomationRunsPanel` always reflects fresh run status without 
 3. Multiple pending → sequential FIFO execution
 
 ### "Run Now" execution
-"Run Now" directly dispatches the task to the sidecar — it does **not** enter the scheduler's pending queue. It creates a task record, an automation run linked to that task, resolves workspace permissions and API keys, then sends `StartTask` to the sidecar immediately. This mirrors the behavior of a user-initiated task from the Home page, using the automation's configured model and workspace context.
+"Run Now" does **not** enter the scheduler's pending queue, but it does claim the shared dispatch slot: if an automation run is already in progress, the command returns a busy error ("An automation run is already in progress") and the frontend shows a toast. It never dispatches concurrently. When the slot is free, it crosses the same `dispatch_automation_run` seam as scheduled fires: creates a task record (with `tasks.automation_run_id` set), an automation run linked to that task, resolves workspace permissions and API keys, then sends `StartTask` to the sidecar, using the automation's configured model and workspace context.
 
 ### Workspace context
 - The Home tab Automations list is filtered to the currently active workspace

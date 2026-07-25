@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in */.env|*/.env.*|*/src-tauri/gen/*|*/Cargo.lock|*/pnpm-lock.yaml|*/src-tauri/capabilities/*.json) echo \"BLOCKED: $f is a protected path (secret, generated artifact, lockfile, or Tauri capability grant). Ask the user to edit it manually.\" >&2; exit 2 ;; esac"
+          }
+        ]
+      }
+    ]
+  }
+}

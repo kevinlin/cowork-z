@@ -34,8 +34,8 @@ coverage/
 .history/
 .vscode/
 
-# Claude Code
-.claude/
+# Claude Code settings
+.claude/settings.local.json
 
 # Build binaries (no trailing slash: also matches a symlinked path)
 src-tauri/binaries
@@ -51,3 +51,6 @@ src-tauri/sidecar-opencode/dist/
 
 # Impeccable live
 .impeccable/live/
+
+# AGENTS.md
+AGENTS.md

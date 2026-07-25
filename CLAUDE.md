@@ -6,12 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cowork-Z is a cross-platform desktop application built with Tauri 2.x that provides a sandboxed environment for autonomous AI agents. It integrates with the OpenCode SDK to enable users to interact with AI agents that can execute code, manipulate files, and perform multi-step workflows.
 
-**Quick reference — key commands:**
-- Frontend: `pnpm build` / `pnpm test`
-- Rust: `cd src-tauri && cargo build` / `cd src-tauri && cargo check`
-- Sidecar: `cd src-tauri/sidecar-opencode && pnpm build` / `pnpm test`
-- Full app: `pnpm tauri dev`
-
 ### Technology Stack
 
 - **Desktop Framework:** Tauri 2.x (Rust backend + React/TypeScript frontend)
@@ -47,20 +41,19 @@ cd src-tauri && cargo check
 cd src-tauri && cargo test
 
 # Sidecar (separate pnpm workspace)
-cd src-tauri/sidecar-opencode && pnpm install
 cd src-tauri/sidecar-opencode && pnpm build          # TypeScript compile
 cd src-tauri/sidecar-opencode && pnpm test           # Jest tests
-cd src-tauri/sidecar-opencode && pnpm test:watch     # Watch mode
 cd src-tauri/sidecar-opencode && pnpm build:binary   # macOS ARM64 standalone binary
 
 # Testing
 pnpm test                     # Vitest (frontend, watch mode)
 pnpm test --run               # Vitest (CI mode, single run)
+pnpm test path/to/file        # Single test file
 pnpm test:coverage            # Vitest with coverage
 
 # Linting & formatting (Ultracite / Biome)
-pnpm ultracite:fix                # or: pnpm dlx ultracite fix src/ src-tauri/sidecar-opencode/
-pnpm ultracite:check              # or: pnpm dlx ultracite check src/ src-tauri/sidecar-opencode/
+pnpm ultracite:fix
+pnpm ultracite:check
 
 # Production build
 pnpm tauri build
@@ -74,38 +67,11 @@ After making TypeScript edits, always run `pnpm typecheck` (or `tsc --noEmit`) b
 
 ### Testing
 
-#### Frontend (Vitest)
+Three independent suites — a change to the IPC protocol usually needs all three run.
 
-- **Test runner:** Vitest with jsdom environment
-- **Location:** `src/**/__tests__/*.{test,spec}.{ts,tsx}` — tests live in `__tests__/` subdirectories within their component directory
-- **Setup file:** `src/test/setup.ts` — mocks `matchMedia` and `ResizeObserver` for jsdom
-- **Libraries:** @testing-library/react, @testing-library/jest-dom, @testing-library/user-event
-
-```bash
-pnpm test                # Watch mode (default)
-pnpm test --run          # Single run (CI mode)
-pnpm test:coverage       # Coverage report
-pnpm test path/to/file   # Run specific test file
-```
-
-#### Sidecar (Jest)
-
-```bash
-cd src-tauri/sidecar-opencode
-pnpm test               # Single run
-pnpm test:watch         # Watch mode
-pnpm test:coverage      # Coverage report
-```
-
-#### Rust
-
-```bash
-cd src-tauri && cargo test
-```
-
-### Expected Build Warnings
-
-**pnpm esbuild build script warning**: This is a security feature, not a bug. The warning appears because pnpm prevents automatic execution of build scripts to protect against supply chain attacks. The esbuild binary is already installed and functional — everything works correctly. This warning can be safely ignored. If you prefer to suppress it, run `pnpm approve-builds` in the sidecar directory.
+- **Frontend (Vitest + jsdom):** tests live in `__tests__/` subdirectories next to the code they cover, as `*.{test,spec}.{ts,tsx}`. `src/test/setup.ts` mocks `matchMedia` and `ResizeObserver` for jsdom. Uses @testing-library/react, jest-dom, user-event.
+- **Sidecar (Jest):** `cd src-tauri/sidecar-opencode && pnpm test`
+- **Rust:** `cd src-tauri && cargo test`
 
 ## Architecture
 
@@ -125,15 +91,12 @@ OpenCode server endpoints used by sidecar: `GET /event` (SSE), `POST /session/{i
 
 Rust serializes `SidecarCommand` to JSON-line on sidecar stdin. Sidecar emits `SidecarEvent` as JSON-line on stdout. Both use `snake_case` type discriminants.
 
-**Rust → Sidecar:** `start_task`, `resume_session`, `cancel_task`, `abort_session`, `send_permission_reply`, `send_question_reply`, `get_session_todos`, `update_mcp_config`, `copilot_oauth_authorize`, `copilot_get_models`, `copilot_disconnect`, `api_keys_response`, `ping`, `check_server`, `shutdown`
+`src-tauri/sidecar-opencode/src/types.ts` is the source of truth for the message set; `src-tauri/src/sidecar.rs` mirrors it as Rust enums. **Adding or renaming a message means editing both files** — the compiler catches neither side of the drift.
 
-**Sidecar → Rust:** `ready`, `pong`, `server_status`, `task_started`, `task_message`, `task_message_partial`, `task_message_complete`, `task_progress`, `task_complete`, `task_error`, `permission_request`, `question_request`, `todo_updated`, `copilot_oauth_result`, `copilot_oauth_complete`, `copilot_models_result`, `request_api_keys`, `log`, `error`
+- Task payloads carry an `apiKeysFingerprint` (no key material). The sidecar pulls actual provider keys via `request_api_keys` → `api_keys_response` only when it (re)spawns the OpenCode server.
+- `cancel_task` is a no-op in server mode — use `abort_session` instead.
 
-Note: task payloads carry an `apiKeysFingerprint` (no key material). The sidecar pulls actual provider keys via `request_api_keys` → `api_keys_response` only when it (re)spawns the OpenCode server.
-
-Note: `cancel_task` is a no-op in server mode — use `abort_session` instead.
-
-Rust emits Tauri events (e.g., `task:started`, `task:permission_request`, `task:question_request`, `task:todo_updated`, `copilot:oauth_result`) that the frontend listens to via `tauri-api.ts`.
+Rust re-emits sidecar events as Tauri events (`task:started`, `task:permission_request`, `task:question_request`, `task:todo_updated`, `copilot:oauth_result`, …) that the frontend subscribes to via `tauri-api.ts`.
 
 ### Sidecar
 
@@ -164,25 +127,36 @@ pnpm build:binary:linux-arm64  # Linux ARM64
 
 ### Frontend Structure
 
-#### Pages (react-router-dom)
+#### Routes (react-router-dom, hash router)
 
 - `/` — `src/pages/Home.tsx` — Task launcher and empty state
-- `/task/:taskId` — `src/pages/Execution.tsx` — Active task chat view
+- `/execution/:id` — `src/pages/Execution.tsx` — Active task chat view
+- `/arena/:arenaId` — `src/pages/Arena.tsx` — Side-by-side agent comparison
+
+`/skills` is **not** a `<Route>`. `App.tsx` short-circuits on `location.pathname === '/skills'` and renders `SkillsManager.tsx` standalone, before the sidebar shell — the Skills Manager runs in its own window and must not inherit the app chrome.
 
 #### State Management (Zustand)
 
-Stores live in `src/stores/`. The primary store is `taskStore.ts` (tasks, permissions, questions, active task, UI state). Other stores: `workspaceStore.ts`, `filePreviewStore.ts`, `skillsStore.ts`, `skillsManagerStore.ts`.
+Stores live in `src/stores/`. The primary store is `taskStore.ts` (tasks, permissions, questions, active task, UI state). Also: `workspaceStore.ts`, `arenaStore.ts`, `automationStore.ts`, `filePreviewStore.ts`, `skillsStore.ts`, `skillsManagerStore.ts`.
 
 #### Key Source Locations
 
 - **`src/lib/tauri-api.ts`** — Centralized frontend API bridge. All Tauri `invoke()` calls and `listen()` event subscriptions go through here. This is the contract between frontend and Rust.
 - **`src-tauri/src/lib.rs`** — App entry point (`run()`), plugin registration, menu setup, and `invoke_handler` command registration.
-- **`src-tauri/src/commands/`** — Tauri command handlers, organized by domain (one file per domain).
+- **`src-tauri/src/commands/`** — Tauri command handlers, one file per domain.
 - **`src-tauri/src/db/`** — SQLite persistence layer. Dev builds use `cowork-dev.db`, release builds use `cowork.db`. WAL mode and foreign keys enabled.
 - **`src-tauri/src/sidecar.rs`** — Sidecar process lifecycle, IPC serialization (`SidecarCommand` enum), and event routing.
-- **`src-tauri/sidecar-opencode/src/types.ts`** — Single source of truth for the IPC protocol between Rust and sidecar.
+- **`src-tauri/src/path_guard.rs`** — The sandbox boundary. Every filesystem command reachable from the renderer canonicalizes its target (resolving symlinks and `..`) and checks it against the allowed roots: registered workspace folders plus granted permission folders. Historical grants are re-validated at load time so a bad past grant (`/`, `~/.ssh`) cannot re-open the sandbox. Route new fs-touching commands through this.
 
 ## Conventions & Patterns
+
+### Ultracite / Biome
+
+Ultracite (Biome preset) owns formatting and linting. The husky pre-commit hook auto-formats staged `.ts`/`.tsx`. Project rules on top of the preset:
+
+- **React 19+:** Use ref as a prop instead of `React.forwardRef`
+- **No barrel files:** Avoid index files that re-export everything
+- **No `.only`/`.skip`:** Don't commit focused or skipped tests
 
 ### Settings UI
 
@@ -206,9 +180,12 @@ See `src/components/sidebar/FileTreePanel.tsx` (drag source) and `src/components
 
 ### Keyboard Shortcuts
 
-Implemented via `src/hooks/useKeyboardShortcuts.ts`:
-- **App-level:** `Cmd+,` (settings), `Cmd+N` (new task), `Cmd+K` (launcher)
-- **Chat-level:** `Cmd+Enter` (send), `Escape` (cancel)
+App-level shortcuts live in `src/hooks/useKeyboardShortcuts.ts`. The modifier is `metaKey || ctrlKey`, so bindings work unchanged on Windows/Linux:
+
+- `Cmd/Ctrl+,` settings · `Cmd/Ctrl+N` new task · `Cmd/Ctrl+K` launcher
+- `Shift+?` keyboard shortcuts help — no modifier, and suppressed when the event target is editable
+
+Chat send is plain `Enter`; `Shift+Enter` inserts a newline. Handled locally in `ChatInput.tsx` and `TaskInputBar.tsx`, not in the shortcuts hook.
 
 ### Containing `<pre>` and `<div>` Width in Flex Layouts
 
@@ -246,7 +223,17 @@ On launch, `lib.rs` performs two actions:
 
 Workspaces scope each AI session to a directory. The OpenCode sidecar receives `?directory=<workspace_path>` on the `GET /event` SSE subscription and on `POST /permission/{id}/reply` — the directory must match for events to be routed correctly.
 
-Switching workspaces triggers SSE reconnection (same mechanism as `PATCH /config`). The `workspaceStore` manages this lifecycle; `useFileTree` drives the sidebar file tree with lazy-loading and hidden-file filtering (`isHiddenEntry()` blocks dotfiles and platform system entries like `.DS_Store`, `$RECYCLE.BIN`).
+Switching workspaces triggers SSE reconnection (same mechanism as `PATCH /config`). The `workspaceStore` manages this lifecycle; `useFileTree` drives the sidebar file tree with lazy-loading and hidden-file filtering (`isHiddenEntry()` blocks dotfiles and platform system entries like `.DS_Store`, `$RECYCLE.BIN`). `fs_watcher.rs` (debounced `notify` watcher) pushes external folder changes back to the UI.
+
+### Automations
+
+Scheduled, unattended task runs. Three Rust modules split the concerns:
+
+- `automation_scheduler.rs` — one thread per enabled automation, sleeping on a `Condvar` until its next fire time, then re-sleeping. Registry keyed by automation id, so enable/disable/edit cancels and respawns just that thread.
+- `dispatch_slot.rs` — a single global "one run at a time" slot (v1 sequential model). `try_acquire()` is a CAS on an `AtomicBool` returning an RAII `SlotGuard` that releases on drop, including on panic or early return.
+- `cron_schedule.rs` — pure next-fire-time calculation, no I/O, unit-tested in isolation.
+
+Dispatch reuses the normal task path: `automation_dispatch.rs` resolves workspace, folder permissions, model and MCP config into a `StartTaskPayload` and sends the same `start_task` command a user-initiated run would.
 
 ### Skills Manager Window
 
@@ -263,13 +250,11 @@ The Skills Manager opens as a separate Tauri window (label `skills`, route `/#/s
 
 ### Important Notes
 
-- `pnpm tauri dev` for full-stack dev (not `pnpm dev`, which is frontend-only)
 - Dev server port `1420` must be available (required by Tauri)
 - API keys stored in OS Keychain; task history in SQLite at `~/Library/Application Support/cowork-z/`
 - Tauri capabilities split across three files: `default.json` (shell/dialog/opener for `main` + `skills` windows), `desktop.json` (updater/process for `main` only), `skills.json` (shell execute + opener for `skills` window only)
 - OpenCode must be installed globally: `npm install -g opencode-ai`
-- Provider configuration forms are in `src/components/settings/` (Anthropic, OpenAI, Google, Bedrock, Azure Foundry, Ollama, OpenRouter, LiteLLM)
-- Reference Electron app source preserved at `apps/desktop/` for reference
+- Provider configuration forms are in `src/components/settings/providers/`. `ClassicProviderForm` covers the plain API-key providers (Anthropic, OpenAI, Google); Bedrock, Azure Foundry, Ollama, OpenRouter, LiteLLM and Copilot each have their own form
 
 ### Design Context
 
@@ -279,25 +264,4 @@ Strategic and visual design context for any UI work:
 
 ### Design Documentation
 
-See `docs/specs/`:
-- `requirements.md` — Feature requirements
-- `design.md` — Technical design
-- `windows-support/` — Windows platform support plans
-- `opencode-integration` - OpenCode sidecar integration
-- `chat-ux` - Agent chat feature plans
-- `app-ux` - General app feature plans
-- `workspace-as-folder/` — Workspace feature design and plans
-- `workspace-packs/` — Workspace starter packs feature design and plans
-- `skills-management/` — Skills Catalog and Skills Manager plans
-
-## Post-Feature Completion Checklist (MANDATORY)
-
-**IMPORTANT: After completing ANY feature or plan implementation, you MUST perform ALL of these steps before reporting completion. Do not skip this section — it is as important as passing tests.**
-
-1. **Update requirement status** in `docs/specs/requirements.md`:
-   - Add `✅` to the requirement heading (e.g., `#### 4.4 About Panel ✅`)
-   - Add a plan reference link (`> **Plan:** [Name](plan_name.md)`) if an implementation plan exists
-   - Check off the item in the "Outstanding Feature TODO" section at the bottom
-   - Add the plan to the "Implementation Plans Index" table if applicable
-2. **Add to UPDATE_LOG.md**: Append to the current version section describing the completed feature with its requirement number (e.g., `- 4.5 Feedback — description`)
-3. **Verify** both `pnpm typecheck` and `cd src-tauri && cargo check` pass before reporting completion
+`docs/specs/index.md` indexes every requirement, design doc and implementation plan — start there rather than browsing the directory. `docs/specs/requirements.md` holds the numbered feature requirements; `docs/specs/design.md` the technical design.

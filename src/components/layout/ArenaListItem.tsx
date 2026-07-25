@@ -1,6 +1,6 @@
 import { ChevronRight, Columns3, Loader2, X } from 'lucide-react';
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TaskStatusIcon } from '@/components/ui/task-status-icon';

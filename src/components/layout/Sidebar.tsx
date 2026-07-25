@@ -2,7 +2,7 @@
 
 import { FolderTree, MessageSquare, MessageSquarePlus, Package, Search, Settings, Zap } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import AutomationRunsPanel from '@/components/sidebar/AutomationRunsPanel';
 import FileTreePanel from '@/components/sidebar/FileTreePanel';
 import FoldersPanel from '@/components/sidebar/FoldersPanel';

@@ -3,7 +3,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { Columns3 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SkillMeta } from '@/lib/tauri-api';
 import { hasAnyReadyProvider } from '@/shared';

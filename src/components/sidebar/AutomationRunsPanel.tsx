@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useAutomationStore } from '@/stores/automationStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import AutomationRunItem from './AutomationRunItem';

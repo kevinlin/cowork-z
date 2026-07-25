@@ -3,7 +3,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertCircle, ArrowLeft, CheckCircle2, Clock, Square, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { useShallow } from 'zustand/react/shallow';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { DebugLogPanel } from '@/components/chat/DebugLogPanel';

@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { ArenaColumns } from '@/components/arena/ArenaColumns';
 import { ArenaInputBar } from '@/components/arena/ArenaInputBar';
 import { PermissionModal } from '@/components/chat/PermissionModal';

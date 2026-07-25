@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { Toaster } from 'sonner';
 import { FilePreviewPanel } from './components/file-preview';
 import AboutDialog from './components/layout/AboutDialog';

@@ -1,7 +1,7 @@
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { ChevronDown, Loader2, Play, Send, Square } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { clearPendingDragPath, getPendingDragPath } from '@/components/sidebar/FileTreePanel';
 import { Button } from '@/components/ui/button';
 import { SkillAutocompletePopover } from '@/components/ui/skill-autocomplete-popover';

@@ -10,6 +10,20 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/verify-on-edit.sh\"",
+            "statusMessage": "Typechecking edited file",
+            "timeout": 300,
+            "asyncRewake": true
+          }
+        ]
+      }
     ]
   }
 }

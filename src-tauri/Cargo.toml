@@ -44,7 +44,7 @@ base64 = "0.22"
 
 # Filesystem watching
 notify = "7"
-notify-debouncer-mini = "0.5"
+notify-debouncer-mini = "0.7"
 
 # HTTP client for provider validation
 reqwest = { version = "0.12", features = ["json"] }

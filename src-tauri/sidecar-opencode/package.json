@@ -16,7 +16,7 @@
     "build:binary:linux-arm64": "pnpm build && pkg dist/index.js --targets node20-linux-arm64 --output ../binaries/sidecar-opencode-aarch64-unknown-linux-gnu"
   },
   "dependencies": {
-    "eventsource": "^2.0.2"
+    "eventsource": "^5.0.0"
   },
   "devDependencies": {
     "@jest/globals": "^30.4.1",

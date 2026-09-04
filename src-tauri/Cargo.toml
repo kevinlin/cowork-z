@@ -15,7 +15,7 @@ name = "cowork_z_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "~2.5", features = [] }
+tauri-build = { version = "~2.6", features = [] }
 
 [dependencies]
 tauri = { version = "~2.10", features = ["protocol-asset"] }
@@ -73,5 +73,5 @@ panic = "abort" # Higher performance by disabling panic handlers.
 strip = true # Ensures debug symbols are removed.
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-updater = "~2.10"
+tauri-plugin-updater = "~2.11"
 tauri-plugin-process = "~2.3"

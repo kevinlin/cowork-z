@@ -662,7 +662,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 4. THE SYSTEM SHALL provide an "Open Externally" button in the preview header to open the file with the OS default application
 5. THE SYSTEM SHALL provide an "Add to Chat" button in the preview header that inserts the file path using the `@path` format defined in 3.5 AC#2 into the active chat input, then focuses the input
 
-> **Plan:** [Unify File Click Behavior to In-App Preview](workspace-as-folder/plan_unify-file-click-behavior.md)
+> **Plan:** [Workspace as Folder](workspace-as-folder/plan_workspace-as-folder.md) (see "Unify File Click Behavior" in Implementation Log)
 
 ##### 6.4.2 Resizable Panel
 1. THE SYSTEM SHALL provide a drag handle on the left edge of the preview panel for horizontal resizing

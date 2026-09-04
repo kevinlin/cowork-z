@@ -92,9 +92,7 @@ Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#re
 
 | Plan | Location | Requirements |
 |------|----------|--------------|
-| Workspace as Folder (Phase 1) | [`workspace-as-folder/plan_workspace-as-folder.md`](workspace-as-folder/plan_workspace-as-folder.md) | 6.1–6.3 |
-| File Preview Panel (Phase 2) | [`workspace-as-folder/plan_file-preview-panel.md`](workspace-as-folder/plan_file-preview-panel.md) | 6.4 |
-| Unify File Click Behavior | [`workspace-as-folder/plan_unify-file-click-behavior.md`](workspace-as-folder/plan_unify-file-click-behavior.md) | 6.4 |
+| Workspace as Folder (Phases 1 + 2) | [`workspace-as-folder/plan_workspace-as-folder.md`](workspace-as-folder/plan_workspace-as-folder.md) | 6.1–6.4 |
 
 ### workspace-packs — Workspace Starter Packs
 

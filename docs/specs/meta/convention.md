@@ -122,7 +122,6 @@ The pattern is:
 requirements_workspace-as-folder.md
 design_workspace-as-folder.md
 plan_workspace-as-folder.md
-plan_file-preview-panel.md
 plan_keyboard-shortcuts.md
 plan_dynamic-model-discovery-for-direct-api-providers.md
 ```
@@ -169,9 +168,7 @@ docs/specs/
 ├── workspace-as-folder/                  # module with module-internal requirements
 │   ├── requirements_workspace-as-folder.md
 │   ├── design_workspace-as-folder.md
-│   ├── plan_workspace-as-folder.md
-│   ├── plan_file-preview-panel.md
-│   └── plan_unify-file-click-behavior.md
+│   └── plan_workspace-as-folder.md
 └── opencode-integration/                 # module with a supporting API contract
     ├── design_opencode-integration.md
     ├── opencode-api.json

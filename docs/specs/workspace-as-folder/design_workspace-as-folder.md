@@ -164,6 +164,8 @@ Each non-active workspace has a remove button (X) on hover.
 
 ## 5. File Tree Browser
 
+> **Layout superseded:** the file tree now lives in the right rail's Files tab, not the left sidebar. See [Right Rail](../app-ux/design_right-rail.md). Tree behaviour below still applies.
+
 ### Tab Structure
 
 The left sidebar panel gets two tabs: **Sessions** (existing session list) and **Files** (new file tree). Both tabs are always visible regardless of whether a task is active.
@@ -362,6 +364,8 @@ This ensures the user always sees the correct file tree and session context for 
 ---
 
 ## 8. File Preview Panel
+
+> **Layout superseded:** previews now open as tabs in the right rail, and the store holds a list of tabs. The docked panel layout, the 280–700px width rule and the single-file store described below are historical. Preview types, renderers, fullscreen and Add to Chat still apply. See [Right Rail](../app-ux/design_right-rail.md).
 
 A closable, resizable right-side file preview panel. Clicking a file in the file tree (or a media thumbnail in chat) opens the preview. The panel supports code (syntax-highlighted), markdown, images, video, PDFs, HTML, plain text, and binary files. It includes fullscreen mode and an "Add to Chat" button.
 

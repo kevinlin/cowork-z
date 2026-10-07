@@ -203,6 +203,14 @@ All update bundles are signed with a private key during CI and verified with the
 
 ---
 
+## Right Rail
+
+> **Design:** [Right Rail](design_right-rail.md)
+
+A resizable, hideable column right of the main content. It holds the workspace file tree, External Folders, Todos, and file previews as closable tabs. A corner button in the main column shows and hides it, and opening a preview widens it to half the main content width. The left sidebar keeps the workspace switcher, New Task, Sessions | Auto and the footer.
+
+---
+
 ## Key Source Locations
 
 | Path | Purpose |
@@ -210,6 +218,7 @@ All update bundles are signed with a private key during CI and verified with the
 | `src/hooks/useKeyboardShortcuts.ts` | App-level and chat-level shortcuts |
 | `src/hooks/useTheme.ts` | Theme management |
 | `src/hooks/useAppUpdate.ts` | Auto-update check on launch |
+| `src/components/layout/RightRail.tsx` | Right rail: file tree, External Folders, Todos, preview tabs |
 | `src/components/layout/SettingsDialog.tsx` | Settings modal |
 | `src/components/settings/` | Provider configuration forms |
 | `src-tauri/src/commands/settings.rs` | Settings Tauri commands |

@@ -15,9 +15,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kevinlin/cowork-z/releases/latest">
-    <img src="assets/Automation Announcement.png" alt="Cowork-Z — 自动化任务：定时运行无人值守的 AI 任务" width="800" />
+  <a href="assets/cowork-z-promo.mp4">
+    <img src="assets/cowork-z-hero.gif" alt="Cowork-Z — 15 秒速览：工作区、智能体对话、权限、Arena、自动化、供应商、主题与入门包" width="800" />
   </a>
+  <br />
+  <a href="assets/cowork-z-promo.mp4">观看 60 秒完整介绍（含声音）</a>
 </p>
 
 <p align="center">
@@ -51,6 +53,12 @@
 - **工作区绑定** — 每个自动化任务绑定一个工作区。切换工作区后，自动化列表和分类视图自动更新。
 - **立即运行** — 从操作菜单按需触发任意自动化任务，绕过定时计划。
 
+<p align="center">
+  <img src="assets/feature-automations.gif" alt="Cowork-Z — 创建每周自动化任务" width="700" />
+  <br />
+  <em>填写名称和提示词，选择执行计划——有发现的运行会出现在侧边栏</em>
+</p>
+
 ---
 
 ### 🏟️ Arena — 模型并排对比
@@ -63,6 +71,12 @@
 - **标签页布局** — 通过模型名称标签页和实时状态徽章在各列之间切换
 - **追问对话** — 发送后续消息，3 个智能体都会从上次中断的地方继续
 - **侧边栏集成** — Arena 会话与普通任务并列显示，带可展开的折叠三角形，显示每个模型的独立聊天
+
+<p align="center">
+  <img src="assets/feature-arena.gif" alt="Cowork-Z — Arena 对比三个模型" width="700" />
+  <br />
+  <em>一个提示词，三个模型，每个回答各占一个标签页</em>
+</p>
 
 ---
 
@@ -77,7 +91,7 @@
 - **按会话追踪** — 权限按任务范围设定并持久化
 
 <p align="center">
-  <img src="assets/Screenshot_PermissionRequest.png" alt="Cowork-Z — 运行时权限对话框" width="700" />
+  <img src="assets/feature-permissions.gif" alt="Cowork-Z — 运行时权限对话框" width="700" />
   <br />
   <em>智能体在访问你批准列表之外的文件夹前会先请求许可</em>
 </p>
@@ -94,7 +108,7 @@
 凭证存储在 **操作系统钥匙串**（macOS 钥匙串、Windows 凭据管理器、Linux Secret Service）中——绝不以明文存储。
 
 <p align="center">
-  <img src="assets/Screenshot_MultiProvider.png" alt="Cowork-Z — 供应商设置" width="700" />
+  <img src="assets/feature-providers.gif" alt="Cowork-Z — 供应商设置" width="700" />
   <br />
   <em>连接任意供应商——凭证存储在操作系统钥匙串中</em>
 </p>
@@ -112,7 +126,7 @@
 - **"添加到聊天"** — 直接从预览面板将任意文件以 `@路径` 引用的方式插入聊天输入
 
 <p align="center">
-  <img src="assets/Screenshot_Workspace.png" alt="Cowork-Z — 工作区" width="700" />
+  <img src="assets/feature-workspace.gif" alt="Cowork-Z — 工作区" width="700" />
   <br />
   <em>每个项目一个工作区——文件、会话和历史记录集中管理</em>
 </p>
@@ -128,7 +142,7 @@
 - **产出物面板** — 智能体创建或修改的所有文件都在侧边栏中追踪
 
 <p align="center">
-  <img src="assets/Screenshot_MediaFileInChat.png" alt="Cowork-Z — 聊天中的媒体文件" width="700" />
+  <img src="assets/feature-chat.gif" alt="Cowork-Z — 聊天中的媒体文件" width="700" />
   <br />
   <em>文件路径渲染为可点击链接，带内联媒体预览</em>
 </p>
@@ -139,7 +153,7 @@
 
 #### 入门包
 
-通过 **6 个引导式工作区包** 快速开始，涵盖写作、研究、安全审计、法律审查等。每个包都包含模板文件、提示词和分步指南：
+通过 **8 个引导式工作区包** 快速开始，涵盖写作、研究、安全审计、法律审查等。每个包都包含模板文件、提示词和分步指南：
 
 1. 在主页浏览入门包，点击 **安装**
 2. 选择目标文件夹——应用会自动创建工作区
@@ -148,7 +162,7 @@
 无需配置，无需从零开始。
 
 <p align="center">
-  <img src="assets/Screenshot_StarterPacks.png" alt="Cowork-Z — 入门包" width="700" />
+  <img src="assets/feature-starter-packs.gif" alt="Cowork-Z — 入门包" width="700" />
   <br />
   <em>在主页浏览并安装引导式工作区包</em>
 </p>
@@ -163,7 +177,7 @@
 - **更新检测** — SHA256 校验和标记过期技能，提供重新安装提示
 
 <p align="center">
-  <img src="assets/Screenshot_SkillsCatalog.png" alt="Cowork-Z — 技能目录" width="700" />
+  <img src="assets/feature-skills.gif" alt="Cowork-Z — 技能目录" width="700" />
   <br />
   <em>一键安装可复用 AI 技能——无需手动管理文件</em>
 </p>
@@ -192,7 +206,7 @@
 - **跨平台** — 目前支持 macOS（Apple Silicon 和 Intel）；Windows 和 Linux 构建版本可用
 
 <p align="center">
-  <img src="assets/Screenshot_DarkMode.png" alt="Cowork-Z — 暗色主题" width="700" />
+  <img src="assets/feature-themes.gif" alt="Cowork-Z — 暗色主题" width="700" />
   <br />
   <em>随时切换亮色和暗色主题</em>
 </p>

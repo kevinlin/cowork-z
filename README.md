@@ -15,9 +15,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kevinlin/cowork-z/releases/latest">
-    <img src="assets/Automation Announcement.png" alt="Cowork-Z — Automation Tasks: schedule recurring AI tasks that run unattended" width="800" />
+  <a href="assets/cowork-z-promo.mp4">
+    <img src="assets/cowork-z-hero.gif" alt="Cowork-Z — a 15-second tour: workspace, agent chat, permissions, Arena, automations, providers, themes and starter packs" width="800" />
   </a>
+  <br />
+  <a href="assets/cowork-z-promo.mp4">Watch the full 60-second tour (with sound)</a>
 </p>
 
 <p align="center">
@@ -51,6 +53,12 @@ Schedule recurring AI tasks that run unattended — and only ping you when there
 - **Workspace-scoped** — Each automation is bound to a workspace. Switch workspaces and the automations list and triage view update automatically.
 - **Run Now** — Trigger any automation on demand from the action menu, bypassing the schedule.
 
+<p align="center">
+  <img src="assets/feature-automations.gif" alt="Cowork-Z — Creating a weekly automation" width="700" />
+  <br />
+  <em>Name it, write the prompt, pick a schedule — runs with findings show up in the sidebar</em>
+</p>
+
 ---
 
 ### 🏟️ Arena — Side-by-Side Model Comparison
@@ -63,6 +71,12 @@ Type one prompt, run 3 models in parallel, and compare results side-by-side. Are
 - **Tabbed layout** — switch between columns with model-name tabs and live status badges
 - **Follow-up conversations** — send additional messages and all 3 agents continue from where they left off
 - **Sidebar integration** — arena sessions appear alongside regular tasks with an expandable disclosure triangle showing each model's individual chat
+
+<p align="center">
+  <img src="assets/feature-arena.gif" alt="Cowork-Z — Arena comparing three models" width="700" />
+  <br />
+  <em>One prompt, three models, each answer in its own tab</em>
+</p>
 
 ---
 
@@ -77,7 +91,7 @@ Your files never leave your machine. The agent reads and writes locally — noth
 - **Per-session tracking** — permissions are scoped and persisted per task
 
 <p align="center">
-  <img src="assets/Screenshot_PermissionRequest.png" alt="Cowork-Z — Runtime permission dialog" width="700" />
+  <img src="assets/feature-permissions.gif" alt="Cowork-Z — Runtime permission dialog" width="700" />
   <br />
   <em>The agent asks before accessing folders outside your approved list</em>
 </p>
@@ -94,7 +108,7 @@ Connect to **12+ AI providers** and switch between them at any time:
 Credentials are stored in the **OS Keychain** (macOS Keychain, Windows Credential Manager, Linux Secret Service) — never in plain text files.
 
 <p align="center">
-  <img src="assets/Screenshot_MultiProvider.png" alt="Cowork-Z — Provider Settings" width="700" />
+  <img src="assets/feature-providers.gif" alt="Cowork-Z — Provider Settings" width="700" />
   <br />
   <em>Connect to any provider — credentials stored in the OS Keychain</em>
 </p>
@@ -112,7 +126,7 @@ Work is organized around workspaces — one folder, one focus. Each workspace ho
 - **"Add to Chat"** — insert any file as an `@path` reference into the chat input directly from the preview panel
 
 <p align="center">
-  <img src="assets/Screenshot_Workspace.png" alt="Cowork-Z — Workspace" width="700" />
+  <img src="assets/feature-workspace.gif" alt="Cowork-Z — Workspace" width="700" />
   <br />
   <em>One workspace per project — files, sessions, and history in one place</em>
 </p>
@@ -128,7 +142,7 @@ Work is organized around workspaces — one folder, one focus. Each workspace ho
 - **Artefacts panel** — all files the agent creates or modifies are tracked in the sidebar
 
 <p align="center">
-  <img src="assets/Screenshot_MediaFileInChat.png" alt="Cowork-Z — Media files in chat" width="700" />
+  <img src="assets/feature-chat.gif" alt="Cowork-Z — Media files in chat" width="700" />
   <br />
   <em>File paths render as clickable links with inline media previews</em>
 </p>
@@ -139,7 +153,7 @@ Work is organized around workspaces — one folder, one focus. Each workspace ho
 
 #### Starter Packs
 
-Hit the ground running with **6 guided workspace packs** covering writing, research, security audits, legal review, and more. Each pack bundles template files, prompts, and step-by-step guidance:
+Hit the ground running with **8 guided workspace packs** covering writing, research, security audits, legal review, and more. Each pack bundles template files, prompts, and step-by-step guidance:
 
 1. Browse packs on the Home screen and click **Install**
 2. Choose a destination folder — the app creates the workspace automatically
@@ -148,7 +162,7 @@ Hit the ground running with **6 guided workspace packs** covering writing, resea
 No configuration, no setup from scratch.
 
 <p align="center">
-  <img src="assets/Screenshot_StarterPacks.png" alt="Cowork-Z — Starter Packs" width="700" />
+  <img src="assets/feature-starter-packs.gif" alt="Cowork-Z — Starter Packs" width="700" />
   <br />
   <em>Browse and install guided workspace packs from the Home screen</em>
 </p>
@@ -163,7 +177,7 @@ A built-in catalog of reusable AI skill templates, installable with one click:
 - **Update detection** — SHA256 checksums flag outdated skills with a Re-install prompt
 
 <p align="center">
-  <img src="assets/Screenshot_SkillsCatalog.png" alt="Cowork-Z — Skills Catalog" width="700" />
+  <img src="assets/feature-skills.gif" alt="Cowork-Z — Skills Catalog" width="700" />
   <br />
   <em>One-click install of reusable AI skills — no manual file management</em>
 </p>
@@ -192,7 +206,7 @@ Connect external tools and data sources via the [Model Context Protocol](https:/
 - **Cross-platform** — macOS (Apple Silicon & Intel) today; Windows and Linux builds available
 
 <p align="center">
-  <img src="assets/Screenshot_DarkMode.png" alt="Cowork-Z — Dark mode theme" width="700" />
+  <img src="assets/feature-themes.gif" alt="Cowork-Z — Dark mode theme" width="700" />
   <br />
   <em>Switch between light and dark themes at any time</em>
 </p>

@@ -54,3 +54,9 @@ src-tauri/sidecar-opencode/dist/
 
 # AGENTS.md
 AGENTS.md
+
+# Agent Handoff
+.handoff/
+
+# Productvideo
+product-video/

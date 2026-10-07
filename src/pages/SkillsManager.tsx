@@ -198,7 +198,7 @@ export default function SkillsManagerPage() {
             >
               <div className="absolute top-0 bottom-0 -left-1 z-10 w-2 transition-colors group-hover:bg-primary/20 group-active:bg-primary/30" />
             </div>
-            <div className="shrink-0" style={{ width: previewWidth }}>
+            <div className="shrink-0 border-border border-l" style={{ width: previewWidth }}>
               <FilePreviewPanel file={selectedFile} onClose={closePreview} />
             </div>
           </>

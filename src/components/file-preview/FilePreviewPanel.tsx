@@ -31,7 +31,8 @@ import { TextPreview } from './TextPreview';
 
 interface FilePreviewPanelProps {
   file: DirectoryEntry;
-  onClose: () => void;
+  /** Omit inside the right rail, where the tab's X closes the preview */
+  onClose?: () => void;
   onAddToChat?: (file: DirectoryEntry) => void;
 }
 
@@ -170,12 +171,7 @@ export function FilePreviewPanel({ file, onClose, onAddToChat }: FilePreviewPane
   const Icon = getIcon(previewType);
 
   const panel = (
-    <div
-      className={cn(
-        expanded ? 'fixed inset-0 z-50 bg-background/95 shadow-2xl backdrop-blur-xl' : 'h-full',
-        expanded ? '' : 'border-border border-l'
-      )}
-    >
+    <div className={cn(expanded ? 'fixed inset-0 z-50 bg-background/95 shadow-2xl backdrop-blur-xl' : 'h-full')}>
       <div className={cn('flex h-full flex-col', expanded ? 'bg-background/95' : 'bg-background')}>
         {/* Header */}
         <div className="flex items-center justify-between border-border border-b px-4 py-3">
@@ -214,14 +210,16 @@ export function FilePreviewPanel({ file, onClose, onAddToChat }: FilePreviewPane
                 <span>Add to Chat</span>
               </button>
             )}
-            <button
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              onClick={onClose}
-              title="Close preview"
-              type="button"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            {onClose && (
+              <button
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                onClick={onClose}
+                title="Close preview"
+                type="button"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 

@@ -187,3 +187,10 @@ textarea::placeholder {
 .sidebar-resize-handle:active::after {
   background-color: hsl(var(--primary));
 }
+
+/* Right rail: the same handle, on the rail's left edge */
+.rail-resize-handle,
+.rail-resize-handle::after {
+  left: 0;
+  right: auto;
+}

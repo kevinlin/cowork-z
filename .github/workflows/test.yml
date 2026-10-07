@@ -99,10 +99,12 @@ jobs:
           node-version: '22.22.0'
 
       - name: Audit frontend dependencies
-        run: pnpm audit --audit-level=high
+        # CVE-2026-93687: braces is tooling-only (Tailwind/Jest), with no published fix.
+        # Remove this exception once upstream publishes a patched release.
+        run: pnpm audit --audit-level=high --ignore CVE-2026-93687
 
       - name: Audit sidecar dependencies
-        run: pnpm audit --audit-level=high --ignore-workspace
+        run: pnpm audit --audit-level=high --ignore CVE-2026-93687 --ignore-workspace
         working-directory: src-tauri/sidecar-opencode
 
       - name: Install cargo-audit

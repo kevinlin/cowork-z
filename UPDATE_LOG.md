@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.9.0
+
+- 
+
 ## v0.8.7
 
 - **Fix: manual "Run Now" could disrupt a scheduled automation mid-run** — A manual run finishing released the shared single-run execution slot even though it never claimed it, so it could free the slot while a scheduled automation was still running and start draining queued runs on top of it. Manual runs now claim the same slot as scheduled ones and cleanly decline with a message when an automation is already in progress.

@@ -6,13 +6,14 @@ import { useFileTree } from '@/hooks/useFileTree';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { cn } from '@/lib/utils';
 import type { DirectoryEntry } from '@/shared/types/workspace';
-import { useFilePreviewStore } from '@/stores/filePreviewStore';
+import { selectActiveFile, useFilePreviewStore } from '@/stores/filePreviewStore';
 import { useSkillsManagerStore } from '@/stores/skillsManagerStore';
 import { FolderSwitcher } from './FolderSwitcher';
 
 export function SkillsSidebar() {
   const { targetFolder } = useSkillsManagerStore();
-  const { selectedFile, openPreview } = useFilePreviewStore();
+  const openPreview = useFilePreviewStore((s) => s.openPreview);
+  const selectedFile = useFilePreviewStore(selectActiveFile);
   const [showHidden, setShowHidden] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 

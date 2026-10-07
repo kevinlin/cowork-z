@@ -28,7 +28,7 @@ import ExecutionPage from './pages/Execution';
 // Pages
 import HomePage from './pages/Home';
 import SkillsManagerPage from './pages/SkillsManager';
-import { useFilePreviewStore } from './stores/filePreviewStore';
+import { selectActiveFile, useFilePreviewStore } from './stores/filePreviewStore';
 import { useTaskStore } from './stores/taskStore';
 
 type AppStatus = 'loading' | 'ready' | 'error';
@@ -52,8 +52,10 @@ export default function App() {
     setShowCliMissing,
   } = useTaskStore();
 
-  // File preview state
-  const { selectedFile, isPreviewOpen, closePreview } = useFilePreviewStore();
+  // File preview state (interim: Task 3 moves previews into the right rail)
+  const selectedFile = useFilePreviewStore(selectActiveFile);
+  const closePreview = useFilePreviewStore((s) => s.closePreview);
+  const isPreviewOpen = selectedFile !== null;
 
   const handleAddFileToChat = useCallback((file: { path: string }) => {
     const formatted = formatPathForChat(file.path);

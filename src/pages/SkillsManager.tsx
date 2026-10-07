@@ -8,7 +8,7 @@ import { SkillsStatusBar } from '@/components/skills-manager/SkillsStatusBar';
 import { useTheme } from '@/hooks/useTheme';
 import { PENDING_FOCUS_REPO_KEY, readAndClearPendingFocusRepo } from '@/lib/skills-window';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
-import { useFilePreviewStore } from '@/stores/filePreviewStore';
+import { selectActiveFile, useFilePreviewStore } from '@/stores/filePreviewStore';
 import { useSkillsManagerStore } from '@/stores/skillsManagerStore';
 
 const MIN_SIDEBAR = 200;
@@ -21,7 +21,9 @@ const PREVIEW_DEFAULT_WIDTH = 400;
 
 export default function SkillsManagerPage() {
   const { refreshAll } = useSkillsManagerStore();
-  const { selectedFile, isPreviewOpen, closePreview } = useFilePreviewStore();
+  const selectedFile = useFilePreviewStore(selectActiveFile);
+  const closePreview = useFilePreviewStore((s) => s.closePreview);
+  const isPreviewOpen = selectedFile !== null;
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR);
   const [previewWidth, setPreviewWidth] = useState(PREVIEW_DEFAULT_WIDTH);
   const sidebarResizingRef = useRef(false);

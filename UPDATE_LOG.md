@@ -4,7 +4,11 @@
 
 ## v0.9.0
 
-- 
+- **Right side panel** — The workspace file tree, External Folders and Todos now live in a panel on the right, so the left sidebar holds just sessions and automations.
+  - A button in the top-right corner shows or hides the panel. Hiding it gives the chat the full width and keeps your expanded folders, search and open tabs as they were.
+  - Drag the panel's left edge to resize it, or focus the edge and use the arrow keys.
+  - Files open as tabs in the panel instead of a separate preview pane. Opening one widens the panel to half the content area unless it's already that wide, each tab has its own close button, and closing the last tab puts the panel back to its earlier width.
+  - Clicking a file link in chat while the panel is hidden brings it back. Switching workspace closes the open tabs.
 
 ## v0.8.7
 

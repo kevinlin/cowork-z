@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.9.1
+
+- 
+
 ## v0.9.0
 
 - **Right side panel** — The workspace file tree, External Folders and Todos now live in a panel on the right, so the left sidebar holds just sessions and automations.

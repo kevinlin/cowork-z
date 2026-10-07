@@ -25,7 +25,7 @@ The model is open-worker's `RightRail`, adapted to this codebase. The research d
 ```
 <div flex h-screen>
   <Sidebar/>                          left: switcher, New Task, Sessions | Auto, footer
-  <div flex-1 min-w-0 (ref)>          "main content": the area right of the left sidebar
+  <div flex flex-1 min-w-0 (ref)>     "main content": a flex row, the area right of the left sidebar
     <main relative flex-1 min-w-0>
       routes ...
       [PanelRight toggle]             absolute top-right, outside the route animation
@@ -65,6 +65,7 @@ The model is open-worker's `RightRail`, adapted to this codebase. The research d
 
 - **Resize handle.** It reuses `.sidebar-resize-handle` styles (clay on hover, Deep Forest while dragging, per DESIGN.md), mirrored to the left edge. It has `role="separator"`, `aria-orientation="vertical"` and `aria-valuenow`/`min`/`max`. When focused, Left/Right arrows move it 16px.
 - **Tab strip.** `role="tablist"`. The **Files** tab comes first and has no close button. After it comes one tab per open preview, showing the file name (full path in the tooltip) and an X with `aria-label="Close <name>"`. With many tabs the strip scrolls sideways, and the active tab scrolls into view.
+- **Tab semantics.** Each tab is a `role="tab"` button with `aria-selected` and `aria-controls` pointing at its panel (`right-rail-files` or `right-rail-preview`), and each panel is a `role="tabpanel"` with that id. The tab button and its X are separate buttons. Tabs sit in the normal Tab order and activate on click, Enter or Space; arrow-key movement between tabs is out of scope. After a tab is closed with its X, focus moves to the newly active tab (the Files tab when none are left).
 - **Files tab body.** `FileTreePanel` takes the free height. `FoldersPanel` and the Todos `CollapsibleSection` sit below it in a pinned block capped at half the rail height, with its own scroll, so an opened section can't squash the tree to nothing.
 - **Preview tab body.** `FilePreviewPanel` for the active tab only, `key={path}`. Switching tabs re-reads the file, which is cheap and avoids keeping several iframes and PDF embeds alive.
 - **`FilePreviewPanel.onClose` becomes optional.** The rail doesn't pass it, so the panel header drops its own X because the tab owns closing. Fullscreen, Open externally and Add to Chat stay. Skills Manager still passes `onClose` and doesn't change.
@@ -80,12 +81,14 @@ The reason is that `FileTreePanel` keeps its expanded folders and search text in
 
 Preview bodies are the exception: only the active one is mounted, as above.
 
+What this keeps is state across a hide/show and a tab switch. It doesn't protect the tree from its own refresh. When the workspace changes on disk, `FileTreePanel` calls `useFileTree`'s `refreshRoot`, which reloads the root, collapses every folder and clears the search. That already happens with the tree visible, and it falls short of 6.2.3 AC#2 today. This change leaves it as it is; fixing it belongs to the file tree, not the rail.
+
 ### Section defaults
 
 External Folders and Todos move as they are, with no change to their open logic:
 
 - **External Folders** keeps `defaultOpen={allPermissions.length > 0}`. That value is read once on mount and permissions load asynchronously, so at launch it usually starts collapsed. It opens when permissions are already in the store at mount time.
-- **Todos** keeps `useState(hasTodos)` plus the effect that expands it when todos arrive (requirement 3.3 AC#5). At launch Home has no current task, so it starts collapsed.
+- **Todos** keeps `useState(hasTodos)` plus the effect that opens it when the active task's todo list goes from empty to non-empty. That is how 3.3 AC#5 ("auto-expand when new todos arrive") is implemented today: the effect depends on `hasTodos` alone, so a section the user collapsed stays collapsed while more todos arrive. At launch Home has no current task, so it starts collapsed.
 
 ## Left sidebar changes
 
@@ -138,7 +141,7 @@ Local state in `RightRail`, not persisted.
 | Minimum | 240px |
 | Maximum | main content width − 360px, so the chat keeps at least 360px |
 | Maximum below minimum (small window) | the minimum wins |
-| Window resize | clamp again, as the left sidebar does |
+| Main content width changes | clamp again. A `ResizeObserver` on the wrapper catches both a window resize and a left-sidebar drag (which fires no window `resize`), and it keeps working while the rail is hidden. |
 | Keyboard | Left/Right on the focused handle, 16px per step |
 
 **Auto-widen.** When `openSeq` changes:
@@ -170,9 +173,10 @@ widthOnOpen(width, contentWidth)      // width after an open: the target if belo
 | Case | Behaviour |
 |------|-----------|
 | Open a file that's already in a tab | That tab becomes active; no duplicate. It still bumps `openSeq`, so it still widens and un-hides. |
-| File deleted while its tab is open | The preview shows the read error it already shows. No auto-close. |
-| Fullscreen | Per tab, same as today. Escape exits. Switching tabs remounts the preview, so it goes back to docked (6.4.4 AC#4 still holds). |
-| Arena page | The rail narrows the three columns. Hiding it gives the space back. |
+| File deleted while its tab is open | The preview keeps showing what it already loaded. Switching away and back re-reads the file and shows the read error (a PDF shows whatever the embed does). No auto-close, no deletion detection. |
+| Fullscreen | The expanded preview is portalled to `document.body`, so hiding the rail doesn't hide it, and the rail has no close button inside it. Escape or the minimize button docks it; the tab's X then closes it. Switching tabs remounts the preview, so it goes back to docked (6.4.4 AC#4 still holds). |
+| Arena page | Arena shows model tabs over one active column, with its input bar on top. The rail narrows both; hiding it gives the space back. |
+| Skill preview opened just before a workspace switch | The input bars look up a skill's path before opening it. If that lookup resolves after the switch cleared the tabs, the skill file opens in the new workspace's rail. The window is one IPC round trip after a click, so it isn't guarded. |
 | 800px minimum window | Sidebar 260 + rail 240 leaves the chat about 300px. The corner button is the way out. |
 
 ## Testing
@@ -181,7 +185,7 @@ Vitest only. There are no Rust, sidecar or IPC changes, so `cargo test` and Jest
 
 - **`filePreviewStore.test.ts`** (extended):
   - opening a path twice keeps one tab;
-  - closing the active tab moves focus right, then left, then to Files;
+  - closing the active tab makes the tab to its right active, else the one to its left, else Files;
   - `closePreview` clears every tab;
   - `openSeq` goes up on a re-open;
   - the three existing `isPathSafe` cases are rewritten against the tab shape.
@@ -190,13 +194,16 @@ Vitest only. There are no Rust, sidecar or IPC changes, so `cargo test` and Jest
   - `widthOnOpen` widens only below half and never shrinks.
 - **`RightRail` component test:**
   - Files is the default tab and has no X;
-  - a preview tab's X closes it;
+  - a preview tab's X closes it, and focus lands on the newly active tab;
   - the Files body stays in the DOM while a preview is active;
   - `hidden` applies `display: none`;
-  - one case stubs the wrapper's `clientWidth` (jsdom has no layout) to cover widen-on-open, then restore after the last tab closes.
+  - Todos opens when the task gets its first todos, and a manual collapse survives more arriving;
+  - stubbing the wrapper's `clientWidth` (jsdom has no layout) covers widen-on-open, restore after the last tab closes, a drag cancelling the restore, keyboard steps, and a re-clamp fired through a stubbed `ResizeObserver`.
 - **By hand in `pnpm tauri dev`:**
-  - the corner toggle on Home, Execution and Arena;
+  - the corner toggle on Home, Execution and Arena (Arena's model tabs and input controls at narrow widths);
   - dragging the handle, and moving it with the arrow keys;
+  - widening the left sidebar with a preview open: the rail gives way so the chat keeps 360px;
+  - hiding the rail with a preview in fullscreen: the overlay stays until docked;
   - a drag stopping the restore;
   - a chat file link un-hiding a hidden rail;
   - a workspace switch clearing the tabs;

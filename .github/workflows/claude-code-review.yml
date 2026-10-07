@@ -42,3 +42,9 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
+      - name: Report Claude execution error
+        if: failure() && steps.claude-review.outputs.execution_file != ''
+        env:
+          CLAUDE_EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+        run: |
+          jq -r '.[] | select(.type == "result" and .is_error) | .result // (.errors | join("\n"))' "$CLAUDE_EXECUTION_FILE"

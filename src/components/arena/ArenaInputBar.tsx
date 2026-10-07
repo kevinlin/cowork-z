@@ -216,7 +216,7 @@ export const ArenaInputBar = ({ isNewArena, canFollowUp }: ArenaInputBarProps) =
   const showModelPickers = isNewArena || !arenaId;
 
   return (
-    <div className="flex-shrink-0 border-border border-b bg-card/50 px-4 py-3">
+    <div className="flex-shrink-0 border-border border-b bg-card/50 py-3 pr-14 pl-4">
       {/* Model pickers row — shown before arena starts */}
       {showModelPickers && (
         <div className="mb-3 flex items-center gap-2">

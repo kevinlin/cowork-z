@@ -1,54 +1,37 @@
 'use client';
 
-import { FolderTree, MessageSquare, MessageSquarePlus, Package, Search, Settings, Zap } from 'lucide-react';
+import { MessageSquare, MessageSquarePlus, Package, Search, Settings, Zap } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import AutomationRunsPanel from '@/components/sidebar/AutomationRunsPanel';
-import FileTreePanel from '@/components/sidebar/FileTreePanel';
-import FoldersPanel from '@/components/sidebar/FoldersPanel';
-import { TodoPanel } from '@/components/sidebar/TodoPanel';
 import WorkspaceSwitcher from '@/components/sidebar/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
 import { analytics } from '@/lib/analytics';
 import { openSkillsManagerWindow } from '@/lib/skills-window';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
-import type { Todo } from '@/shared';
 import { useArenaStore } from '@/stores/arenaStore';
 import { useAutomationStore } from '@/stores/automationStore';
+import { useFilePreviewStore } from '@/stores/filePreviewStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import logoImage from '/assets/logo-1.png';
-import CollapsibleSection from '../sidebar/CollapsibleSection';
 import FeedbackButton from './FeedbackButton';
 import SessionPanel from './SessionPanel';
-
-// Stable empty array to avoid creating new references in selectors
-const EMPTY_TODOS: Todo[] = [];
 
 // Resize constraints
 const MIN_WIDTH = 200; // pixels
 const MAX_WIDTH_PERCENT = 0.5; // 50% of window
 const DEFAULT_WIDTH = 260;
 
-type SidebarTab = 'sessions' | 'automations' | 'files';
+type SidebarTab = 'sessions' | 'automations';
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const { tasks, loadTasks, openLauncher, setShowSettings } = useTaskStore();
   const api = getTauriAPI();
-  const currentTaskTodos = useTaskStore((s) => s.todos.get(s.currentTask?.id ?? '') ?? EMPTY_TODOS);
-  const hasTodos = currentTaskTodos.length > 0;
 
   const [activeTab, setActiveTab] = useState<SidebarTab>('sessions');
   const automationUnreadCount = useAutomationStore((s) => s.unreadCount);
-
-  // Controlled open state for Todos section — auto-expand when todos arrive
-  const [todosOpen, setTodosOpen] = useState(hasTodos);
-  useEffect(() => {
-    if (hasTodos) {
-      setTodosOpen(true);
-    }
-  }, [hasTodos]);
 
   // Resize state
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
@@ -140,6 +123,8 @@ export default function Sidebar() {
       if (currentId && currentId !== prevId) {
         useTaskStore.getState().reset();
         useArenaStore.getState().reset();
+        // Preview tabs point at files in the old workspace (4.7.4 AC#5)
+        useFilePreviewStore.getState().closePreview();
         navigate('/');
         loadTasks();
         loadArenas(currentId);
@@ -227,41 +212,11 @@ export default function Sidebar() {
             Auto
             {automationUnreadCount > 0 && <span className="h-2 w-2 rounded-full bg-destructive" />}
           </button>
-          <button
-            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 font-medium text-xs transition-colors ${
-              activeTab === 'files' ? 'border-primary border-b-2 text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-            onClick={() => setActiveTab('files')}
-            type="button"
-          >
-            <FolderTree className="h-3.5 w-3.5" />
-            Files
-          </button>
         </div>
 
         {/* Tab Content */}
         {activeTab === 'sessions' && <SessionPanel mergedList={mergedList} />}
         {activeTab === 'automations' && <AutomationRunsPanel />}
-        {activeTab === 'files' && (
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <FileTreePanel />
-          </div>
-        )}
-
-        {/* Pinned Panels - Always visible, never scroll out of view */}
-        <div className="shrink-0 border-border border-t">
-          {/* External Folders Panel */}
-          <FoldersPanel />
-
-          {/* Todos Panel - Shows current task's todos, auto-expands when todos appear */}
-          <CollapsibleSection onOpenChange={setTodosOpen} open={todosOpen} title="Todos">
-            {hasTodos ? (
-              <TodoPanel todos={currentTaskTodos} />
-            ) : (
-              <div className="px-2 py-3 text-center text-muted-foreground text-xs">No active todos</div>
-            )}
-          </CollapsibleSection>
-        </div>
 
         {/* Bottom Section - Logo and Settings */}
         <div className="flex items-center justify-between border-border border-t px-3 py-4">

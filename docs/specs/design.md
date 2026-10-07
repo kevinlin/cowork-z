@@ -73,7 +73,7 @@ For detailed IPC protocol, SSE event shapes, session lifecycle, and security arc
 
 - `src/stores/taskStore.ts` — Tasks, permissions, questions, active task, UI state
 - `src/stores/workspaceStore.ts` — Workspace list, active workspace, switching
-- `src/stores/filePreviewStore.ts` — File preview panel state
+- `src/stores/filePreviewStore.ts` — Right-rail preview tabs (open tabs, active tab, open counter)
 - `src/stores/skillsStore.ts` — Installed skills for slash-command autocomplete
 - `src/stores/skillsManagerStore.ts` — Skills Manager window state
 

@@ -462,7 +462,7 @@ export default function ExecutionPage() {
 
       <div className="relative flex h-full flex-col bg-background">
         {/* Task header */}
-        <div className="flex-shrink-0 border-border border-b bg-card/50 px-6 py-4">
+        <div className="flex-shrink-0 border-border border-b bg-card/50 py-4 pr-14 pl-6">
           <div className="mx-auto flex max-w-4xl items-center justify-between">
             <div className="flex min-w-0 flex-1 items-center gap-4">
               <Button className="no-drag shrink-0" onClick={() => navigate('/')} size="icon" variant="ghost">

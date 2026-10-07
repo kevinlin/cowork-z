@@ -24,7 +24,7 @@ import { openFilePath, revealInFinder, trashFile } from '@/lib/tauri-api';
 import { getTauriAPI } from '@/lib/tauri-api-interface';
 import { cn } from '@/lib/utils';
 import type { DirectoryEntry } from '@/shared/types/workspace';
-import { useFilePreviewStore } from '@/stores/filePreviewStore';
+import { selectActiveFile, useFilePreviewStore } from '@/stores/filePreviewStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const CODE_EXTENSIONS = new Set(['ts', 'tsx', 'js', 'jsx', 'rs', 'py', 'java', 'c', 'cpp', 'go', 'rb', 'swift', 'kt']);
@@ -239,7 +239,8 @@ export function TreeRow({ node, depth, onToggle, onSelect, onDelete, selectedPat
 
 export default function FileTreePanel() {
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
-  const { selectedFile, openPreview } = useFilePreviewStore();
+  const openPreview = useFilePreviewStore((s) => s.openPreview);
+  const selectedFile = useFilePreviewStore(selectActiveFile);
   const [showHidden, setShowHidden] = useState(false);
 
   const hiddenFilter = useMemo(() => {

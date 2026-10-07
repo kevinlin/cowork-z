@@ -15,7 +15,7 @@ Technical design documents covering each module's architecture, decisions, and r
 | **Overall Architecture** | [`design.md`](design.md) | Technology stack, multi-process overview, database schema, architectural decisions |
 | **OpenCode Integration** | [`design_opencode-integration.md`](opencode-integration/design_opencode-integration.md) | IPC protocol, sidecar architecture, session management, security, provider support |
 | **Chat Experience** | [`design_chat-ux.md`](chat-ux/design_chat-ux.md) | Message rendering, streaming, tool calls, dialogs, input handling, sidebar panels |
-| **App Experience** | [`design_app-ux.md`](app-ux/design_app-ux.md) | Themes, keyboard shortcuts, settings, about panel, feedback, updates, CLI detection |
+| **App Experience** | [`design_app-ux.md`](app-ux/design_app-ux.md), [`design_right-rail.md`](app-ux/design_right-rail.md) | Themes, keyboard shortcuts, settings, about panel, feedback, updates, CLI detection; right rail (file tree, External Folders, Todos, preview tabs) |
 | **Workspace-as-Folder** | [`design_workspace-as-folder.md`](workspace-as-folder/design_workspace-as-folder.md) | Workspace lifecycle, file tree, permissions, file preview panel |
 | **Workspace Packs** | [`design_workspace-packs.md`](workspace-packs/design_workspace-packs.md) | Starter pack catalog, installation, workspace creation |
 | **Skills Management** | [`skills-management/design_skills-catalog.md`](skills-management/design_skills-catalog.md), [`design_skills-manager.md`](skills-management/design_skills-manager.md) | Curated skill repo catalog, Skills Manager (clone, sync, install) |
@@ -87,6 +87,7 @@ Resolved issues documented in [`design_chat-ux.md`](chat-ux/design_chat-ux.md#re
 | Arena — Side-by-Side Agent Comparison | [`app-ux/plan_arena.md`](app-ux/plan_arena.md) | 4.6 |
 | Enhance MCP Server Config UI | [`app-ux/plan_enhance-mcp-server-config-ui.md`](app-ux/plan_enhance-mcp-server-config-ui.md) | 2.3 |
 | Design Overhaul — Homescreen | [`app-ux/plan_design-overhaul.md`](app-ux/plan_design-overhaul.md) | DESIGN.md / PRODUCT.md |
+| Right Rail | [`app-ux/plan_right-rail.md`](app-ux/plan_right-rail.md) | 4.7 |
 
 ### workspace-as-folder — Workspace-per-Folder Model
 

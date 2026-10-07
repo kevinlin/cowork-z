@@ -111,7 +111,7 @@ export default function HomePage() {
         {/* Arena entry point — top-right corner */}
         <motion.div
           animate={{ opacity: 1 }}
-          className="absolute top-6 right-6 z-10"
+          className="absolute top-6 right-14 z-10"
           initial={{ opacity: 0 }}
           transition={{ ...springs.gentle, delay: 0.05 }}
         >

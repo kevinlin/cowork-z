@@ -148,3 +148,7 @@ App-level bindings live in [useKeyboardShortcuts.ts](src/hooks/useKeyboardShortc
 - Tauri capabilities are split three ways: `default.json` (shell/dialog/opener for `main` + `skills`), `desktop.json` (updater/process, `main` only), `skills.json` (shell execute + opener, `skills` only). The Skills Manager needs shell execute for Git.
 - `src-tauri/resources/` is bundled into the binary: `skills/`, `packs/`, `pack-docs/`, per `tauri.conf.json`.
 - Provider forms live in `src/components/settings/providers/`. `ClassicProviderForm` covers the plain API-key providers (Anthropic, OpenAI, Google); Bedrock, Azure Foundry, Ollama, OpenRouter, LiteLLM and Copilot each have their own.
+
+## Agent Output
+
+DO NOT send optional commentary

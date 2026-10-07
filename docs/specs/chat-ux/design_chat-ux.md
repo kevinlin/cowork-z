@@ -684,6 +684,8 @@ When a user opens an existing conversation, the chat auto-scrolls to the latest 
 ### Todo Panel
 
 > **Plan:** [Todo Panel in Sidebar](../app-ux/plan_todo-panel-in-sidebar.md)
+>
+> **Location:** now a section of the right rail's Files tab. See [Right Rail](../app-ux/design_right-rail.md).
 
 Wires OpenCode's todo API (`GET /session/{sessionID}/todo`) and real-time SSE events (`todo.updated`) through all five layers of the stack (OpenCode SSE → Sidecar → Rust → Frontend). Renders the agent's planned and in-progress work items with status icons and a progress bar.
 

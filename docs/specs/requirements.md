@@ -235,7 +235,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 > **Plan:** [Todo Panel in Sidebar](app-ux/plan_todo-panel-in-sidebar.md)
 
 **Acceptance Criteria:**
-1. THE SYSTEM SHALL display the active task's todo items in a collapsible sidebar panel (positioned after Folders)
+1. THE SYSTEM SHALL display the active task's todo items in a collapsible section of the right rail's Files tab, below External Folders (see 4.7.2)
 2. THE SYSTEM SHALL show each todo's status (pending, in progress, completed, cancelled) with a distinct icon
 3. THE SYSTEM SHALL display a progress bar showing completed vs. total items
 4. THE SYSTEM SHALL sort todos by status: in-progress first, then pending, completed, cancelled
@@ -481,6 +481,57 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 5. WHEN a workspace is deleted, THE SYSTEM SHALL cascade-delete its arenas and their tasks
 6. THE SYSTEM SHALL provide a delete action on each sidebar arena entry that removes the arena and all three child tasks after user confirmation
 
+#### 4.7 Right Rail
+
+> **Design:** [Right Rail](app-ux/design_right-rail.md)
+> **Plan:** [Right Rail](app-ux/plan_right-rail.md)
+
+**User Story:** As a user, I want the workspace files, folder access, todos and file previews together in one right-hand rail that I can resize or hide, so that the left sidebar stays focused on sessions and I can give the chat its full width when I need it.
+
+"Main content width" below means the width of the area right of the left sidebar (chat plus rail).
+
+**Acceptance Criteria:**
+
+##### 4.7.1 Rail Visibility
+1. THE SYSTEM SHALL display a right rail to the right of the main content on the Home, Execution and Arena pages
+2. THE SYSTEM SHALL provide a single show/hide toggle button pinned to the top-right corner of the main content column
+3. WHEN the rail is hidden, THE SYSTEM SHALL give its width back to the main content
+4. WHEN a file preview is opened from any entry point while the rail is hidden, THE SYSTEM SHALL show the rail
+5. THE SYSTEM SHALL show the rail on every app launch (visibility is not persisted)
+6. WHILE the rail is hidden, THE SYSTEM SHALL keep its open tabs, width, section open state, and file tree expansion and search text; the only changes allowed meanwhile are a workspace switch closing tabs (4.7.4 AC#5), width re-clamping (4.7.3 AC#4), Todos auto-expanding (4.7.2 AC#3), and the file tree reloading after a filesystem change (6.2.3)
+7. WHEN the rail is hidden while a preview is in fullscreen (6.4.4), THE SYSTEM SHALL keep the fullscreen preview open until the user docks it
+
+##### 4.7.2 Default Layout
+1. THE SYSTEM SHALL show a "Files" tab as the rail's first tab and the active tab at launch; the Files tab SHALL NOT be closable
+2. THE Files tab SHALL show the workspace file tree (6.2) filling the available height, with the External Folders (6.3.2) and Todos (3.3) sections pinned below it
+3. THE SYSTEM SHALL keep each section's existing open behaviour: External Folders opens if folder permissions are already loaded when it mounts, otherwise it starts collapsed; Todos starts collapsed unless the active task already has todos, and expands when the active task's todo list goes from empty to non-empty (the current implementation of 3.3 AC#5). A Todos section the user collapsed SHALL stay collapsed while its todos update
+4. THE SYSTEM SHALL cap the pinned sections at half the rail height and scroll them independently, so the file tree always keeps visible space
+5. WHILE a preview tab is active, THE SYSTEM SHALL keep the Files tab's tree expansion, search text and section open state, with the same exceptions as 4.7.1 AC#6
+
+##### 4.7.3 Resizing
+1. THE SYSTEM SHALL provide a drag handle on the rail's left edge for horizontal resizing, with a hover indicator
+2. THE SYSTEM SHALL default the rail width to 300px and constrain it between 240px and the main content width minus 360px; where that maximum is below 240px, 240px SHALL apply
+3. WHEN the resize handle has keyboard focus, THE SYSTEM SHALL widen the rail by 16px per Left arrow press and narrow it by 16px per Right arrow press, within the AC#2 constraints
+4. WHEN the main content width changes (window resize or left sidebar resize), including while the rail is hidden, THE SYSTEM SHALL re-apply the width constraints
+5. THE SYSTEM SHALL NOT persist the rail width across launches
+
+##### 4.7.4 Preview Tabs
+1. WHEN a file preview is opened in the main window from any entry point (6.4.1), THE SYSTEM SHALL open it as a tab in the rail and make that tab active; the Skills Manager window keeps its own preview pane (8.3.7)
+2. WHERE the file is already open in a tab, THE SYSTEM SHALL activate that tab instead of opening a duplicate
+3. THE SYSTEM SHALL show the file name and a close button (X) on each preview tab
+4. WHEN the active preview tab is closed, THE SYSTEM SHALL activate the tab to its right, else the tab to its left, else the Files tab
+5. WHEN the active workspace changes, THE SYSTEM SHALL close all preview tabs
+6. WHEN the user switches tasks within the same workspace, THE SYSTEM SHALL keep the open preview tabs
+7. THE SYSTEM SHALL mark up the tab strip as an ARIA tablist: each tab `aria-selected` and `aria-controls` pointing at its tabpanel, with the tab button and its close button as separate controls
+8. WHEN a tab is closed with its close button, THE SYSTEM SHALL move keyboard focus to the newly active tab (the Files tab when no preview tabs remain)
+9. WHILE a preview is in fullscreen, THE SYSTEM SHALL let the user dock it with Escape or the minimize button before closing its tab
+
+##### 4.7.5 Auto-Widen on Preview
+1. WHEN a file preview is opened and the rail is narrower than half the main content width, THE SYSTEM SHALL widen the rail to half the main content width, within the 4.7.3 constraints
+2. WHERE the rail is already at or over half the main content width, THE SYSTEM SHALL leave its width unchanged
+3. WHEN no preview tabs remain open (the last one is closed, or a workspace switch closes them) and an auto-widen under AC#1 recorded the rail's earlier width, THE SYSTEM SHALL restore that width, within the 4.7.3 constraints
+4. WHERE the user resized the rail after it was auto-widened, THE SYSTEM SHALL keep the user's width when no preview tabs remain open
+
 ---
 
 ### 5. Platform & Security
@@ -619,7 +670,7 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 **Acceptance Criteria:**
 
 ##### 6.2.1 Tree Display
-1. THE SYSTEM SHALL display a hierarchical file tree in a "Files" tab in the sidebar, alongside the existing "Sessions" tab
+1. THE SYSTEM SHALL display a hierarchical file tree in the right rail's "Files" tab (see 4.7.2)
 2. THE SYSTEM SHALL lazy-load directory contents on demand (when the user expands a folder)
 3. THE SYSTEM SHALL display type-specific icons for directories, images, code files, data/config files, and text files
 4. THE SYSTEM SHALL sort entries with directories first, then files, both alphabetical
@@ -656,18 +707,16 @@ MCP server configuration follows the [OpenCode MCP specification](https://openco
 **Acceptance Criteria:**
 
 ##### 6.4.1 Preview Opening
-1. WHEN the user clicks a file in the file tree, THE SYSTEM SHALL open the file preview in a right-side panel
+1. WHEN the user clicks a file in the file tree, THE SYSTEM SHALL open the file preview as a tab in the right rail (see 4.7.4)
 2. WHEN the user clicks a file link, media thumbnail, or artefact elsewhere in the app (see 3.1, 3.4), THE SYSTEM SHALL open the file preview panel for that file
-3. THE SYSTEM SHALL display a close button (X) in the preview header to dismiss the panel
+3. THE SYSTEM SHALL close a preview from the close button (X) on its rail tab (see 4.7.4); in the Skills Manager window, which has no rail, the close button stays in the preview header (8.3.7)
 4. THE SYSTEM SHALL provide an "Open Externally" button in the preview header to open the file with the OS default application
 5. THE SYSTEM SHALL provide an "Add to Chat" button in the preview header that inserts the file path using the `@path` format defined in 3.5 AC#2 into the active chat input, then focuses the input
 
 > **Plan:** [Workspace as Folder](workspace-as-folder/plan_workspace-as-folder.md) (see "Unify File Click Behavior" in Implementation Log)
 
 ##### 6.4.2 Resizable Panel
-1. THE SYSTEM SHALL provide a drag handle on the left edge of the preview panel for horizontal resizing
-2. THE SYSTEM SHALL constrain the panel width between a minimum (280px) and maximum (700px), defaulting to 400px
-3. THE SYSTEM SHALL display a visual indicator on hover to signal that the handle is interactive
+> Superseded by [4.7.3](#473-resizing) and [4.7.5](#475-auto-widen-on-preview). The preview now lives in the right rail and shares its width and drag handle; the former 280–700px / 400px default rule no longer applies.
 
 ##### 6.4.3 Preview Types
 1. THE SYSTEM SHALL detect the preview type from the file extension and render accordingly:
@@ -895,7 +944,7 @@ The Skills Catalog is a curated discovery surface for Git-backed skill repositor
 
 #### 9.3 Run Triage ✅
 
-1. THE SYSTEM SHALL surface automation runs in a dedicated sidebar "Automations" tab placed between "Sessions" and "Files"; `SidebarTab` SHALL be one of `'sessions' | 'automations' | 'files'`.
+1. THE SYSTEM SHALL surface automation runs in a dedicated sidebar "Automations" tab placed after "Sessions"; `SidebarTab` SHALL be one of `'sessions' | 'automations'` (the Files tab moved to the right rail, see 4.7).
 2. THE SYSTEM SHALL exclude tasks where `automation_run_id IS NOT NULL` from the Sessions sidebar tab query so automation runs appear ONLY under the Automations tab.
 3. WHEN a run completes, THE SYSTEM SHALL evaluate `has_findings` by inspecting the last assistant message against a case-insensitive list of "no findings" phrases (e.g., "nothing to report", "no files to", "already up to date"); a match sets `has_findings = false` and auto-archives the run.
 4. WHERE a run failed or was cancelled, THE SYSTEM SHALL set `has_findings = false`.

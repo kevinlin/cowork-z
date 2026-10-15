@@ -347,7 +347,7 @@ export interface TauriAPI {
   markRunRead(runId: string): Promise<void>;
   markAllRunsRead(workspaceId: string): Promise<void>;
   getAutomationUnreadCount(workspaceId: string): Promise<number>;
-  runAutomationNow(automationId: string): Promise<void>;
+  runAutomationNow(automationId: string): Promise<string>;
   onAutomationRunStarted(callback: (event: { automationId: string; runId: string }) => void): () => void;
   onAutomationRunCompleted(callback: (event: { runId: string; hasFindings: boolean; status: string }) => void): () => void;
   onAutomationChanged(callback: (event: { automationId: string; action: string }) => void): () => void;

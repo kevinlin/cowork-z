@@ -25,6 +25,8 @@ interface SetupProgressEvent {
   message?: string;
 }
 
+export type SidebarTab = 'sessions' | 'automations';
+
 // Startup stage info for the progress indicator
 export interface StartupStageInfo {
   stage: string;
@@ -87,6 +89,10 @@ interface TaskState {
   isLauncherOpen: boolean;
   openLauncher: () => void;
   closeLauncher: () => void;
+
+  // Left sidebar tab
+  sidebarTab: SidebarTab;
+  setSidebarTab: (tab: SidebarTab) => void;
 
   // Working folder permissions (workspace-scoped, persisted in DB)
   folderPermissions: FolderPermission[];
@@ -353,6 +359,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   showCliMissing: false,
   setShowCliMissing: (show: boolean) => set({ showCliMissing: show }),
   isLauncherOpen: false,
+  sidebarTab: 'sessions',
+  setSidebarTab: (tab: SidebarTab) => set({ sidebarTab: tab }),
   folderPermissions: [],
 
   addFolderPermission: (path: string, accessLevel: string) => {

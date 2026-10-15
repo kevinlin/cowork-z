@@ -380,6 +380,7 @@ fn process_pending_runs(app: &AppHandle) {
 }
 
 /// Creates a task, links it to the run, builds dispatch context, and sends to sidecar.
+/// Returns the dispatched task id, or `None` if dispatch failed.
 /// When `create_run` is true, inserts a new run row; when false, updates the existing one.
 ///
 /// The caller passes the `SlotGuard` it acquired. Early-error returns drop the
@@ -393,7 +394,7 @@ pub(crate) fn dispatch_automation_run(
     run_id: &str,
     create_run: bool,
     guard: SlotGuard,
-) {
+) -> Option<String> {
     let now = Utc::now().to_rfc3339();
     let task_id = format!("task_{}", Uuid::new_v4());
 
@@ -412,7 +413,7 @@ pub(crate) fn dispatch_automation_run(
         },
     ) {
         eprintln!("[AutomationScheduler] Failed to create task: {}", e);
-        return;
+        return None;
     }
 
     let _ = crate::db::tasks::set_automation_run_id(conn, &task_id, run_id);
@@ -444,7 +445,7 @@ pub(crate) fn dispatch_automation_run(
         Ok(d) => d,
         Err(e) => {
             eprintln!("[AutomationScheduler] {}", e);
-            return;
+            return None;
         }
     };
 
@@ -468,4 +469,6 @@ pub(crate) fn dispatch_automation_run(
         "[AutomationScheduler] Dispatched run for '{}' (run: {}, task: {})",
         automation.name, run_id, task_id
     );
+
+    Some(task_id)
 }

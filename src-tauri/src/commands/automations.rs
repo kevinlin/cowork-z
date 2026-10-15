@@ -249,7 +249,7 @@ pub async fn run_automation_now(
     automation_id: String,
     db: State<'_, DbState>,
     app: tauri::AppHandle,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let scheduler_state = app.state::<AutomationSchedulerState>();
 
     // Manual runs cross the same dispatch seam as scheduled ones: claim the
@@ -272,9 +272,8 @@ pub async fn run_automation_now(
         &run_id,
         true,
         guard,
-    );
-
-    Ok(())
+    )
+    .ok_or_else(|| "Failed to start automation run".to_string())
 }
 
 #[tauri::command]

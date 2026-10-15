@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useAutomationStore } from '@/stores/automationStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import AutomationRunItem from './AutomationRunItem';
 
 export default function AutomationRunsPanel() {
-  const [filter, setFilter] = useState<'unread' | 'all'>('unread');
   const navigate = useNavigate();
 
-  const { automations, runs, loadAutomations, loadRuns, markAllRead } = useAutomationStore();
+  const { automations, runs, runsFilter: filter, setRunsFilter: setFilter, loadAutomations, loadRuns, markAllRead } = useAutomationStore();
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
 
   useEffect(() => {

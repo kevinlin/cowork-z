@@ -1460,8 +1460,9 @@ export async function getAutomationUnreadCount(workspaceId: string): Promise<num
   return invoke<number>('get_automation_unread_count', { workspaceId });
 }
 
-export async function runAutomationNow(automationId: string): Promise<void> {
-  return invoke<void>('run_automation_now', { automationId });
+/** Starts a manual run and resolves to the new run's task id. */
+export async function runAutomationNow(automationId: string): Promise<string> {
+  return invoke<string>('run_automation_now', { automationId });
 }
 
 export async function getAutomationNextRuns(automationIds: string[]): Promise<Record<string, string | null>> {

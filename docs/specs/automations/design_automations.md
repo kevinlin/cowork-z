@@ -306,6 +306,8 @@ This ensures the `AutomationRunsPanel` always reflects fresh run status without 
 ### "Run Now" execution
 "Run Now" does **not** enter the scheduler's pending queue, but it does claim the shared dispatch slot: if an automation run is already in progress, the command returns a busy error ("An automation run is already in progress") and the frontend shows a toast. It never dispatches concurrently. When the slot is free, it crosses the same `dispatch_automation_run` seam as scheduled fires: creates a task record (with `tasks.automation_run_id` set), an automation run linked to that task, resolves workspace permissions and API keys, then sends `StartTask` to the sidecar, using the automation's configured model and workspace context.
 
+The command returns the new task id. The frontend then switches the sidebar to the Automations tab with the "All" filter (a fresh run has no findings, so "Unread" would hide it) and navigates to `/execution/:taskId`. On the busy error it stays put.
+
 ### Workspace context
 - The Home tab Automations list is filtered to the currently active workspace
 - Deleting a workspace cascades: associated automations and their runs are deleted

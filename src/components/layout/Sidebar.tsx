@@ -23,14 +23,11 @@ const MIN_WIDTH = 200; // pixels
 const MAX_WIDTH_PERCENT = 0.5; // 50% of window
 const DEFAULT_WIDTH = 260;
 
-type SidebarTab = 'sessions' | 'automations';
-
 export default function Sidebar() {
   const navigate = useNavigate();
-  const { tasks, loadTasks, openLauncher, setShowSettings } = useTaskStore();
+  const { tasks, loadTasks, openLauncher, setShowSettings, sidebarTab: activeTab, setSidebarTab: setActiveTab } = useTaskStore();
   const api = getTauriAPI();
 
-  const [activeTab, setActiveTab] = useState<SidebarTab>('sessions');
   const automationUnreadCount = useAutomationStore((s) => s.unreadCount);
 
   // Resize state

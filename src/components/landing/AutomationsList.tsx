@@ -1,5 +1,6 @@
 import { Plus, Zap } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import type { Automation, CreateAutomationInput, UpdateAutomationInput } from '@/shared';
 import { useAutomationStore } from '@/stores/automationStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -7,6 +8,7 @@ import AutomationCard from './AutomationCard';
 import AutomationForm from './AutomationForm';
 
 export default function AutomationsList() {
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
 
@@ -31,6 +33,16 @@ export default function AutomationsList() {
       setEditingAutomation(null);
     },
     [createAutomation, updateAutomation]
+  );
+
+  const handleRunNow = useCallback(
+    async (id: string) => {
+      const taskId = await runNow(id);
+      if (taskId) {
+        navigate(`/execution/${taskId}`);
+      }
+    },
+    [runNow, navigate]
   );
 
   const handleEdit = useCallback((automation: Automation) => {
@@ -93,7 +105,7 @@ export default function AutomationsList() {
           nextRunAt={nextRuns[automation.id] ?? null}
           onDelete={deleteAutomation}
           onEdit={handleEdit}
-          onRunNow={runNow}
+          onRunNow={handleRunNow}
           onToggleEnabled={toggleEnabled}
         />
       ))}

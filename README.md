@@ -250,7 +250,7 @@ Go to the [**latest release**](https://github.com/kevinlin/cowork-z/releases/lat
 Cowork-Z requires [**OpenCode**](https://opencode.ai/) as its AI engine. Install it globally:
 
 ```bash
-npm install -g opencode-ai
+npm install -g @opencode/cli
 ```
 
 > If the app can't find `opencode` on launch, it will show a dialog with installation instructions. Make sure the `opencode` binary is on your shell's `PATH`.
@@ -313,7 +313,7 @@ pnpm tauri dev
 - Node.js v20+, pnpm v9+
 - Tauri v2 toolchain (see https://v2.tauri.app/start/prerequisites/)
 - Rust toolchain (for the Tauri backend)
-- OpenCode (`npm install -g opencode-ai`)
+- OpenCode (`npm install -g @opencode/cli`)
 
 #### Windows: Rust with MSVC toolchain
 

@@ -403,35 +403,34 @@ type SidecarEvent =
 
 ### 5.3 Sidecar <-> OpenCode Server (HTTP/SSE)
 
-**Mechanism:** REST API for commands, Server-Sent Events for streaming.
+**Mechanism:** REST API for commands, Server-Sent Events for streaming. The sidecar targets OpenCode 2.x, where every route lives under `/api` (contract: [`opencode-api.json`](../specs/opencode-integration/opencode-api.json)).
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/event` | GET | SSE event stream for real-time updates |
-| `/session` | POST | Create a new session |
-| `/session/{id}` | GET | Get session details |
-| `/session/{id}/message` | POST | Send message (with system prompt) |
-| `/session/{id}/todo` | GET | Get session todos |
-| `/permission/{id}/reply` | POST | Reply to permission request |
-| `/question/{id}/reply` | POST | Reply to agent question |
-| `/config` | PATCH | Update model, permissions, MCP config |
-| `/global/health` | GET | Server health check |
+| `/api/event` | GET | SSE event stream for real-time updates |
+| `/api/session` | POST | Create a new session (location, model, permissions) |
+| `/api/session/{id}` | GET, PATCH | Get session details; replace its permission rules |
+| `/api/session/{id}/prompt` | POST | Send a prompt |
+| `/api/experimental/session/{id}/instructions/entries/{key}` | PUT | Write the system prompt (entry `cowork-z`) |
+| `/api/session/{sid}/permission/{rid}/reply` | POST | Reply to permission request |
+| `/api/session/{sid}/form/{fid}/reply` | POST | Reply to agent question |
+| `/api/experimental/mcp/{name}` | PUT, DELETE | Add, replace or remove an MCP server at runtime |
+| `/api/info` | GET | Server health and version check |
+
+v2 has no todo route; the sidecar reads todos from the agent's `todowrite` tool calls.
 
 **SSE Event Types:**
 
 | Event | Payload Shape |
 |-------|--------------|
-| `session.status` | `{ sessionID, status: { type: "idle" \| "busy" \| "retry" } }` |
-| `message.updated` | `{ info: MessageInfo }` |
-| `message.part.updated` | `{ part: PartUpdate, delta? }` (sessionID/messageID nested in part) |
-| `permission.asked` | `PermissionRequest` |
-| `question.asked` | `QuestionRequest` |
-| `todo.updated` | `{ sessionID, todos }` |
-| `session.error` | `{ sessionID, error }` |
-| `server.heartbeat` | `{}` (keepalive) |
-| `server.instance.disposed` | `{ directory }` (triggers SSE reconnection) |
+| `session.execution.started` / `.succeeded` / `.failed` / `.interrupted` | `{ sessionID }` plus `error` (failed) or `reason` (interrupted) |
+| `session.text.delta` | `{ sessionID, assistantMessageID, ordinal, delta }` |
+| `session.tool.input.started` | `{ sessionID, id, name }` |
+| `session.tool.called` / `.success` / `.failed` | `{ sessionID, id, input }`, `{ …, content }` or `{ …, error }` |
+| `permission.asked` | `{ id, sessionID, action, resources, metadata }` |
+| `form.created` | `{ form: { id, sessionID, title, fields } }` |
 
-**Important:** `PATCH /config` causes the OpenCode server to dispose and recreate its instance, which terminates the SSE connection. The `eventsource` library auto-reconnects in ~1 second.
+**Important:** `/api/event` is volatile: events sent while the stream is down are lost. The `eventsource` library reconnects on its own; on each reconnect the sidecar rebuilds active sessions over REST (session state, pending permission asks and forms).
 
 ---
 
@@ -498,7 +497,7 @@ sequenceDiagram
     participant User
 
     Agent->>OC: Request file access outside permitted folders
-    OC-->>SC: SSE: permission.asked { id, permission, patterns }
+    OC-->>SC: SSE: permission.asked { id, sessionID, action, resources }
     SC-->>Rust: { type: "permission_request", payload }
     Rust-->>FE: emit("task:permission_request")
     FE->>User: Show permission dialog with path
@@ -507,14 +506,14 @@ sequenceDiagram
         User->>FE: Click "Allow"
         FE->>Rust: invoke("reply_to_permission", { allow })
         Rust->>SC: { type: "send_permission_reply", reply: "once" | "always" }
-        SC->>OC: POST /permission/{id}/reply
+        SC->>OC: POST /api/session/{sid}/permission/{rid}/reply
         Rust->>Rust: Store ad-hoc grant in SQLite
         OC->>Agent: Permission granted, continue
     else User Denies
         User->>FE: Click "Deny"
         FE->>Rust: invoke("reply_to_permission", { deny })
         Rust->>SC: { type: "send_permission_reply", reply: "reject" }
-        SC->>OC: POST /permission/{id}/reply
+        SC->>OC: POST /api/session/{sid}/permission/{rid}/reply
         OC->>Agent: Permission denied
     end
 ```
@@ -585,7 +584,7 @@ graph LR
 **Context:** Needed to choose between building a custom agent runtime or delegating to an existing one.
 **Decision:** Delegate agent orchestration to the OpenCode CLI rather than implementing a custom agent runtime.
 **Rationale:** OpenCode provides tool execution (file ops, bash, search), model API integration with 13+ providers, session management, and MCP support. Building these from scratch would be a massive undertaking with limited differentiation.
-**Consequences:** Requires OpenCode to be installed globally (`npm install -g opencode-ai`). App depends on OpenCode's release cycle. Need CLI detection at startup.
+**Consequences:** Requires OpenCode to be installed globally (`npm install -g @opencode/cli`). App depends on OpenCode's release cycle. Need CLI detection at startup.
 
 ### ADR-002: Node.js Sidecar over Direct Rust Integration
 
@@ -609,7 +608,7 @@ graph LR
 **Context:** Need real-time streaming from OpenCode server to sidecar.
 **Decision:** Use Server-Sent Events (SSE) rather than WebSockets.
 **Rationale:** SSE is simpler (HTTP-based, unidirectional), supports automatic reconnection via the `eventsource` library, and is the protocol chosen by OpenCode. Commands go via REST API, events stream via SSE — clean separation.
-**Consequences:** `PATCH /config` causes server instance disposal and SSE reconnection (~1s). Must not add manual reconnection logic on top of library auto-reconnect.
+**Consequences:** OpenCode 2.x's `/api/event` stream is volatile, so events sent during a reconnect are lost; the sidecar rebuilds active sessions over REST after each reconnect. Must not add manual reconnection logic on top of library auto-reconnect.
 
 ### ADR-005: OS Keychain for All Secrets
 

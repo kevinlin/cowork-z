@@ -1,8 +1,8 @@
 # Plan: OpenCode v2 Migration
 
-**Status:** Phase 0 shipped in 0.9.3 (`5be5708`). Spike (task 1.0) done, see section 6. Phases 1–3 next · **Date:** 2026-10-27 · **Releases:** 0.9.3 (hotfix), 1.0.0 (migration)
+**Status:** Phase 0 shipped in 0.9.3 (`5be5708`). Phases 1–3 implemented for 1.0.0 and checked live against OpenCode 2.2.0. Spike findings are in section 6 · **Date:** 2026-10-27 · **Releases:** 0.9.3 (hotfix), 1.0.0 (migration)
 **Requirements:** 1.2.1, 1.2.2 (same as [Sidecar OpenCode Rewrite](opencode-integration/plan_sidecar-opencode-rewrite.md))
-**Contract snapshot:** [`opencode-api-v2.json`](opencode-api-v2.json), taken from `opencode serve` 2.2.0 `GET /openapi.json`
+**Contract snapshot:** [`opencode-integration/opencode-api.json`](opencode-integration/opencode-api.json), taken from `opencode serve` 2.2.0 `GET /openapi.json`
 **Upstream guide:** <https://opencode.ai/v2/docs/migrate-v1/>
 **Review:** independent spec review on 2026-10-27 found 9 blocking and 3 advisory findings. All are accepted and folded in below.
 
@@ -332,7 +332,7 @@ Also capture one `GET /api/session/{sid}/message` response. Write the answers to
 **3.1 Install hint.** In [opencode_cli.rs](../../src-tauri/src/commands/opencode_cli.rs), change the install command to `npm install -g @opencode/cli`.
 
 **3.2 Docs.**
-- Move [`opencode-api-v2.json`](opencode-api-v2.json) over [`opencode-integration/opencode-api.json`](opencode-integration/opencode-api.json).
+- Move the v2 contract snapshot over [`opencode-integration/opencode-api.json`](opencode-integration/opencode-api.json), replacing the v1 contract.
 - Update `CLAUDE.md`: the endpoint list, the `?directory` wording and the "OpenCode must be installed globally" gotcha.
 - Update [`design_opencode-integration.md`](opencode-integration/design_opencode-integration.md) and `docs/architecture/architecture.md`.
 

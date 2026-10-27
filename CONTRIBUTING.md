@@ -47,7 +47,7 @@ Feature requests are welcome! Please:
 - **pnpm** (v9+)
 - **Rust** (stable toolchain)
 - **Tauri CLI** (`cargo install tauri-cli`)
-- **OpenCode** (`npm install -g opencode-ai`)
+- **OpenCode** (`npm install -g @opencode/cli`)
 - **macOS** (primary development platform)
 
 ### Getting Started

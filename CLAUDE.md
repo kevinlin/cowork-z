@@ -48,7 +48,7 @@ Tauri (Rust) ↔ stdin/stdout JSON-line ↔ Node.js Sidecar ↔ HTTP/SSE ↔ ope
                                         - session-manager.ts
 ```
 
-OpenCode endpoints in use: `GET /event` (SSE), `POST /session/{id}/message`, `POST /session/{id}/abort`, `POST /permission/{id}/reply`, `POST /question/{id}/reply`, `PATCH /config`.
+OpenCode 2.x endpoints in use (all under `/api`): `GET /api/info`, `GET /api/event` (SSE), `POST /api/session`, `PATCH /api/session/{id}`, `POST /api/session/{id}/prompt`, `POST /api/session/{id}/interrupt`, `PUT /api/experimental/session/{id}/instructions/entries/cowork-z`, `POST /api/session/{sid}/permission/{rid}/reply`, `POST /api/session/{sid}/form/{fid}/reply`, plus the MCP, integration and model routes. Location-scoped routes take `?location[directory]=<workspace>` (OpenAPI deepObject). Contract: `docs/specs/opencode-integration/opencode-api.json`.
 
 ### IPC Protocol
 
@@ -66,8 +66,9 @@ Rust re-emits sidecar events as Tauri events (`task:started`, `task:permission_r
 - **Auth:** random password per launch via `OPENCODE_SERVER_PASSWORD`; all HTTP uses basic auth `opencode:<password>`.
 - **Port:** OS ephemeral (port 0). Windows additionally avoids Hyper-V/WinNAT excluded ranges.
 - **PATH:** from a GUI launch, resolves the login-shell PATH (`$SHELL -ilc 'echo $PATH'`) and merges well-known dirs (Homebrew, nvm, volta, pnpm).
-- **System prompt:** injected via the `system` field on each `sendMessage`, not `PATCH /config`. Carries the server port and password so the agent can call the OpenCode API directly.
-- **MCP servers:** OpenCode reads them only at startup, so `update_mcp_config` writes config files to disk and restarts the server. `PATCH /config` will not pick them up.
+- **System prompt:** written per session into the instructions entry `cowork-z` before every prompt (v2's prompt route has no `system` field). It carries the server port; the password is only referenced as `$OPENCODE_SERVER_PASSWORD`.
+- **MCP servers:** a fresh server gets them through `OPENCODE_CONFIG_CONTENT` (v2 reads no `opencode.json` from the server's cwd). `update_mcp_config` applies changes at runtime with `PUT/DELETE /api/experimental/mcp/{name}`, without a restart.
+- **Permissions:** per-session v2 rules from `buildSessionPermissions` (`config-builder.ts`), sent when a session is created and again on resume. Workspace patterns are location-relative (`Input/*`); an absolute workspace pattern never matches, so the `Input/` deny would silently do nothing. v2 allows `external_directory` by default, so the leading `external_directory *` ask rule is what keeps the sandbox closed.
 - **CommonJS only:** `pkg` has limited ESM support. The binary lands at `src-tauri/binaries/sidecar-opencode-<target-triple>` and is wired in `tauri.conf.json` under `bundle.externalBin`.
 
 ### Frontend
@@ -88,7 +89,7 @@ Key files:
 
 ### Workspace-as-Folder
 
-Workspaces scope each session to a directory. The sidecar passes `?directory=<workspace_path>` on the `GET /event` SSE subscription and on `POST /permission/{id}/reply`. A mismatch misroutes events. Switching workspaces forces an SSE reconnect (same path as `PATCH /config`), managed by `workspaceStore`. `useFileTree` drives the sidebar with lazy loading and hidden-file filtering; `fs_watcher.rs` (debounced `notify`) pushes external changes back to the UI.
+Workspaces scope each session to a directory. Each session is created with `location.directory` set to the workspace path. The sidecar keeps one `GET /api/event` stream and drops frames whose `location.directory` belongs to another workspace; switching workspaces (managed by `workspaceStore`) only re-scopes that filter, with no reconnect. `useFileTree` drives the sidebar with lazy loading and hidden-file filtering; `fs_watcher.rs` (debounced `notify`) pushes external changes back to the UI.
 
 ### Automations
 
@@ -143,7 +144,7 @@ App-level bindings live in [useKeyboardShortcuts.ts](src/hooks/useKeyboardShortc
 ### Gotchas
 
 - Dev server port `1420` must be free (Tauri requires it).
-- OpenCode must be installed globally: `npm install -g opencode-ai`.
+- OpenCode 2.x must be installed globally: `npm install -g @opencode/cli`. A 1.x install (`opencode-ai`) is rejected at startup with an upgrade hint.
 - API keys live in the OS Keychain; task history in SQLite under `~/Library/Application Support/cowork-z/`.
 - Tauri capabilities are split three ways: `default.json` (shell/dialog/opener for `main` + `skills`), `desktop.json` (updater/process, `main` only), `skills.json` (shell execute + opener, `skills` only). The Skills Manager needs shell execute for Git.
 - `src-tauri/resources/` is bundled into the binary: `skills/`, `packs/`, `pack-docs/`, per `tauri.conf.json`.

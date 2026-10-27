@@ -2,6 +2,12 @@
 
 # UPDATE LOG
 
+## v1.0.0
+
+- **Runs on OpenCode 2.x** — Cowork-Z now works with OpenCode 2.x, which changed its whole server API. Tasks, streaming replies, tool cards, permission prompts, questions, todos, MCP servers and GitHub Copilot sign-in work as before. OpenCode 1.x is no longer supported: with 1.x installed, starting a task tells you how to upgrade (`npm uninstall -g opencode-ai && npm install -g @opencode/cli`).
+- **Earlier conversations** — Conversations from before the upgrade still show their history, but OpenCode 2.x can't continue their old sessions. A new message in one of them starts a fresh session in the same conversation, so the agent won't remember the earlier turns.
+- **MCP changes apply right away** — Adding, changing or removing an MCP server in Settings now takes effect at once, without restarting the agent server.
+
 ## v0.9.3
 
 - **Clear message on OpenCode 2.x** — OpenCode 2.x changed its server API, and this version of Cowork-Z only works with OpenCode 1.x. With 2.x installed, starting a task now stops right away with a message that tells you how to switch back (`npm uninstall -g @opencode/cli && npm install -g opencode-ai@1`), instead of waiting 15 seconds and showing a confusing error. Support for OpenCode 2.x is planned for Cowork-Z 1.0.

@@ -250,7 +250,7 @@
 Cowork-Z 需要 [**OpenCode**](https://opencode.ai/) 作为 AI 引擎。全局安装：
 
 ```bash
-npm install -g opencode-ai
+npm install -g @opencode/cli
 ```
 
 > 如果应用在启动时找不到 `opencode`，会显示包含安装说明的对话框。请确保 `opencode` 可执行文件在你的 shell `PATH` 中。
@@ -313,7 +313,7 @@ pnpm tauri dev
 - Node.js v20+、pnpm v9+
 - Tauri v2 工具链（参见 https://v2.tauri.app/start/prerequisites/）
 - Rust 工具链（用于 Tauri 后端）
-- OpenCode (`npm install -g opencode-ai`)
+- OpenCode (`npm install -g @opencode/cli`)
 
 #### Windows：使用 MSVC 工具链的 Rust
 

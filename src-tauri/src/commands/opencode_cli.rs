@@ -211,13 +211,13 @@ pub async fn check_opencode_cli() -> Result<OpenCodeCliStatus, String> {
             Ok(OpenCodeCliStatus {
                 installed: true,
                 version,
-                install_command: "npm install -g opencode-ai".to_string(),
+                install_command: "npm install -g @opencode/cli".to_string(),
             })
         }
         _ => Ok(OpenCodeCliStatus {
             installed: false,
             version: None,
-            install_command: "npm install -g opencode-ai".to_string(),
+            install_command: "npm install -g @opencode/cli".to_string(),
         }),
     }
 }

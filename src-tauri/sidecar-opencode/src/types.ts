@@ -10,7 +10,7 @@
 
 // ============================================================================
 // OpenCode 2.x Server API Types — the subset the sidecar uses
-// (full contract: docs/specs/opencode-api-v2.json)
+// (full contract: docs/specs/opencode-integration/opencode-api.json)
 // ============================================================================
 
 export interface ServerInfo {

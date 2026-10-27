@@ -54,7 +54,7 @@ Some modules carry a full feature-level requirement spec next to their design (u
 | Server Isolation | [`opencode-integration/plan_server-isolation.md`](opencode-integration/plan_server-isolation.md) | 5.2.1 |
 | OpenRouter Provider Support | [`opencode-integration/plan_openrouter-provider-support.md`](opencode-integration/plan_openrouter-provider-support.md) | 1.1.3 |
 | GitHub Copilot Provider Support | [`opencode-integration/plan_github-copilot-provider-support.md`](opencode-integration/plan_github-copilot-provider-support.md) | 1.1.6 |
-| OpenCode v2 Migration | [`plan_opencode-v2-migration.md`](plan_opencode-v2-migration.md) (contract: [`opencode-api-v2.json`](opencode-api-v2.json)) | 1.2.1, 1.2.2 |
+| OpenCode v2 Migration | [`plan_opencode-v2-migration.md`](plan_opencode-v2-migration.md) (contract: [`opencode-integration/opencode-api.json`](opencode-integration/opencode-api.json)) | 1.2.1, 1.2.2 |
 
 Resolved issues documented in [`design_opencode-integration.md`](opencode-integration/design_opencode-integration.md#resolved-issues): System Prompt Not Applied, Cross-Task Message Leakage (#22), Question Reply Format Mismatch, Multi-Select Question Dialog.
 

@@ -10,7 +10,7 @@ interface OpenCodeCliMissingDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const INSTALL_COMMAND = 'npm install -g opencode-ai';
+const INSTALL_COMMAND = 'npm install -g @opencode/cli';
 const DOCS_URL = 'https://opencode.ai/docs';
 
 export default function OpenCodeCliMissingDialog({ open, onOpenChange }: OpenCodeCliMissingDialogProps) {

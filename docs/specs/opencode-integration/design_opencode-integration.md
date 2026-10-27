@@ -82,53 +82,65 @@ Rust serializes `SidecarCommand` as JSON-lines on sidecar stdin. Sidecar emits `
 
 ## OpenCode Server Integration
 
-The sidecar communicates with the OpenCode server via HTTP REST and Server-Sent Events.
+The sidecar communicates with the OpenCode 2.x server via HTTP REST and Server-Sent Events. Every route lives under `/api`; the full contract is [`opencode-api.json`](opencode-api.json), a snapshot of `GET /openapi.json` from `opencode serve` 2.2.0.
 
 ### Endpoints
 
+Location-scoped routes (MCP, integrations, models) take `?location[directory]=<workspace>`, an OpenAPI `deepObject` parameter. Session routes need no scoping: the workspace is fixed when the session is created.
+
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/global/event` | GET | SSE event stream for real-time updates (workspace-agnostic; client filters by `directory`) |
-| `/session/{id}/message` | POST | Send a message to an active session |
-| `/permission/{id}/reply` | POST | Reply to a permission request |
-| `/question/{id}/reply` | POST | Reply to an agent question |
-| `/config` | PATCH | Update provider config, MCP servers |
+| `/api/info` | GET | Health and version probe; a 1.x server doesn't answer it and is rejected at startup |
+| `/api/event` | GET | SSE event stream for real-time updates (one stream for all workspaces; client filters by `location.directory`) |
+| `/api/session` | POST | Create a session with its `location`, `model` and `permissions` |
+| `/api/session/{id}` | GET, PATCH | Check that a session exists; replace its permission rules |
+| `/api/session/{id}/prompt` | POST | Send a user turn; returns once the server has admitted it |
+| `/api/session/{id}/interrupt` | POST | Abort the running turn |
+| `/api/experimental/session/{id}/instructions/entries/{key}` | PUT | Write the system prompt (entry `cowork-z`) |
+| `/api/session/{sid}/permission/{rid}/reply` | POST | Reply to a permission request |
+| `/api/session/{sid}/form/{fid}/reply` | POST | Reply to an agent question (a form) |
+| `/api/experimental/mcp/{name}` | PUT, DELETE | Add, replace or remove an MCP server at runtime |
+
+GitHub Copilot sign-in uses the `/api/integration/github-copilot/connect/oauth` routes, and model listing uses `/api/model`.
 
 ### SSE Event Shapes
 
-`/global/event` delivers every frame inside a `GlobalEvent` envelope:
+`/api/event` delivers each frame as a plain `data:` line:
 
 ```json
-{ "directory": "<workspace path>", "project": "global", "payload": { "id": "...", "type": "...", "properties": { ... } } }
+{ "id": "...", "created": 1793115671105, "type": "...", "location": { "directory": "<workspace path>" }, "data": { ... } }
 ```
 
-Server-only frames (`server.connected`, `server.heartbeat`, `server.instance.disposed`) omit `directory`/`project`. The sidecar's `EventStream` unwraps `payload` and drops frames whose `directory` doesn't match the current workspace — server-only frames always pass through.
+Frames without a `location` (`server.connected`, `session.execution.*`) are server-wide. The sidecar's `EventStream` drops frames whose `location.directory` belongs to another workspace and passes everything else through; handlers receive the frame's `data`.
 
-| Payload type | Properties |
-|--------------|------------|
-| `session.status` | `{ sessionID: string, status: SessionStatus }` |
-| `message.updated` | `{ info: MessageInfo }` |
-| `message.part.updated` | `sessionID` and `messageID` nested inside `part` |
-| `server.heartbeat` | Keepalive every 10 s |
-| `server.instance.disposed` | Per-instance bus shutdown (informational only on `/global/event`; does NOT close the stream) |
+| Event type | Data |
+|------------|------|
+| `session.execution.started` / `.succeeded` / `.failed` / `.interrupted` | Turn lifecycle; `.failed` carries `error { type, message }`, `.interrupted` carries `reason` |
+| `session.text.delta` | `{ assistantMessageID, ordinal, delta }`, followed by `session.text.ended { text }` |
+| `session.tool.input.started` | `{ id, name }` (the only event that carries the tool name) |
+| `session.tool.called` / `.success` / `.failed` | `{ id, input }`, then `{ content }` or `{ error }` |
+| `permission.asked` | `{ id, sessionID, action, resources, metadata }` |
+| `form.created` | `{ form: { id, sessionID, title, fields } }` |
 
-**Why `/global/event` rather than `/event`:** OpenCode 1.14.x binds the per-instance `/event` endpoint to the per-request Effect scope, so the wildcard PubSub publishes `server.instance.disposed` and shuts down as soon as the HTTP request's instance scope finalizes — closing the stream after the first event. `/global/event` is backed by a long-lived Node `EventEmitter` (`GlobalBus`) and survives instance churn, `PATCH /config`, and workspace switches. See [Resolved: SSE Stream Closes Immediately on OpenCode 1.14.x](#resolved-sse-stream-closes-immediately).
+**Volatile stream:** `/api/event` is volatile by contract. Events sent while the stream is down are lost, and a slow consumer gets the stream killed. The first `server.connected` frame marks the stream ready; every later one makes `EventStream` emit `reconnected`, and the session manager rebuilds each active session over REST (session state, pending permission asks and forms). See [Resolved: OpenCode 2.x migration (1.0.0)](#resolved-opencode-2x-migration).
 
 ---
 
 ## System Prompt Injection
 
-The system prompt is injected via the `system` field on each `POST /session/{id}/message` call, bypassing agent resolution entirely. This approach was adopted because OpenCode 1.1.48 ignores custom agent names set via `PATCH /config` — the `default_agent` field falls back to the built-in `build` agent regardless of the custom agent configuration (see [Resolved Issue: System Prompt Not Applied](#resolved-system-prompt-not-applied)).
+The system prompt is written into a per-session instructions entry named `cowork-z` before every prompt, bypassing agent resolution entirely. OpenCode 2.x's `prompt` route has no `system` field, and the entry is replaced by key, so each resume refreshes it. This replaces the 1.x `system` field on each message (see [Resolved Issue: System Prompt Not Applied](#resolved-system-prompt-not-applied) for the earlier agent-config attempt).
 
 **Sequence:**
 
 1. Rust sends `start_task(prompt, ...)` to sidecar
-2. Sidecar sends `PATCH /config` (model, permission, enabled_providers — no agent/default_agent)
-3. Sidecar sends `POST /session` (create)
-4. Sidecar sends `POST /session/{id}/message` with `parts` + `system=SYSTEM_PROMPT`
+2. Sidecar sends `POST /api/session` (`location`, `model`, `permissions` — no agent)
+3. Sidecar sends `PUT /api/experimental/session/{id}/instructions/entries/cowork-z` with `SYSTEM_PROMPT`
+4. Sidecar sends `POST /api/session/{id}/prompt` with `text`
+
+`resume_session` repeats steps 3 and 4 on the existing session, after `PATCH /api/session/{id}` re-applies the current permissions. If `GET /api/session/{id}` returns 404 (a session from before the upgrade), the sidecar creates a new session in the same task instead.
 
 The system prompt includes:
-- Server port and password (so the agent can call the OpenCode server API directly)
+- Server port, and the password only as a reference to `$OPENCODE_SERVER_PASSWORD` (so the agent can call the OpenCode server API directly without the password appearing in the prompt)
 - **Workspace conventions** (always emitted): the current workspace path, an auto-create `mkdir -p` first action for the four convention folders (`Input/`, `Output/`, `Misc/`, `Artefacts/`), and the soft rules covering read-only folders, category-subfolder layout under `Output/`, and the dual promotion workflow (`Output/` → `Artefacts/` for governed deliverables, `Output/` → `Misc/` for curated utilities). See [Workspace Conventions in System Prompt](#workspace-conventions-in-system-prompt).
 - User custom prompt (when enabled, wrapped in `<user-instructions>` XML block)
 
@@ -145,7 +157,7 @@ The injected `<workspace-conventions>` block:
    - `Misc/` — default read-only, `edit: ask`. Holds two related kinds of content: (a) **static user-provided assets** (icons, logos, brand images, fonts) and (b) **curated supporting scripts and prompt experiments** generated by the agent and promoted from `Output/` after human review. The agent never overwrites user-placed static assets.
    - `Artefacts/` — default read-only, `edit: ask`. Holds **governed, versioned deliverables** promoted from `Output/` after human review (BPMN, gap analyses, risks, requirements, scope, solution designs, trackers, UX prototypes, finalized PRDs, ADRs, etc.). These are authoritative — the source of truth the agent actively references and evolves.
 
-   The hard rules are emitted by `buildSessionConfig` (see [Folder Permission Model](#folder-permission-model)).
+   The hard rules are emitted by `buildSessionPermissions` (see [Folder Permission Model](#folder-permission-model)).
 4. **Forces new-file creation under a category subfolder of `<workspace>/Output/`** — every write/edit tool call and every file-creating bash command (`touch`, `>`, `tee`, `mkdir`, `cp`, `mv`, etc.) must target a path inside a subfolder of `Output/`, never directly in `Output/` root. The agent picks the subfolder name based on the file's nature, with these common categories suggested in the prompt: `executable/` (scripts), `product/` (PRDs, user stories), `ux-prototype/` (mockups, HTML prototypes), `engineering/` (design docs, ADRs), `testing/` (test cases, scripts), `research/` (notes, summaries), `data/` (datasets, exports), plus `scratch/` (intermediate data) and `logs/` (debug logs) under `Output/` only. The agent is instructed to **reuse existing subfolders first** before creating new ones, so artefacts stay grouped consistently across follow-up tasks in the same workspace.
 5. **Describes the dual promotion workflow** — `Output/` content is the agent's working area; the user reviews and decides whether to promote each file. Two promotion targets are documented:
    - **Governed deliverables → `Artefacts/<category>/...`** — `Artefacts/` mirrors the `Output/` category-subfolder layout so promoted files keep their classification (e.g., `Output/product/spec.md` → `Artefacts/product/spec.md`).
@@ -161,7 +173,7 @@ This removes the prior conditional branch that skipped the block when `workspace
 
 > **Plan:** [User Prompt Customization](plan_user-prompt-customization.md)
 
-Users configure a custom system prompt via a Settings toggle and textarea. When enabled, the custom prompt is appended to the agent's system prompt in a `<user-instructions>` XML block, delivered via the `system` field on each `sendMessage` call. Persisted to SQLite (`app_settings` table) and applied on every `startTask` and `resumeSession` call through the sidecar IPC protocol.
+Users configure a custom system prompt via a Settings toggle and textarea. When enabled, the custom prompt is appended to the agent's system prompt in a `<user-instructions>` XML block, written into the session's `cowork-z` instructions entry before each prompt. Persisted to SQLite (`app_settings` table) and applied on every `startTask` and `resumeSession` call through the sidecar IPC protocol.
 
 ---
 
@@ -197,9 +209,9 @@ Keys are retrieved on-demand during task startup. Only masked prefixes are retur
 > **Plan:** [Folder Permission Model](plan_folder-permission-model.md)
 > **Plan:** [Convention-Based Workspace Permission Model](plan_convention-based-workspace-permission-model.md)
 
-- **Convention-based defaults:** Workspace exposes four convention folders with hard edit rules emitted by `buildSessionConfig`: `Input/` (immutable source-of-truth material, `edit: deny`), `Output/` (scratchpad with category subfolders, `edit: allow`), `Misc/` (default read-only — static assets like icons/logos/images/fonts plus curated supporting scripts and prompt experiments promoted from `Output/`, `edit: ask` so the user approves each save), `Artefacts/` (governed, versioned deliverables typically promoted from `Output/`, `edit: ask` so the user approves each save). This aligns with the four-tier governance model used in the `rfp-daily` skill (see `~/dev/ai-sdlc/zapac-agent-skills/rfp-daily/assets/folder_governance.md`). Workspace root allows read/list for everything; the four folders are auto-created on workspace entry by an agent-issued `mkdir -p` (see [Workspace Conventions in System Prompt](#workspace-conventions-in-system-prompt))
+- **Convention-based defaults:** Workspace exposes four convention folders with hard edit rules emitted by `buildSessionPermissions` (`config-builder.ts`) — an ordered v2 rule list where the last matching rule wins and workspace patterns are location-relative (`Input/*`), sent when the session is created and again on resume: `Input/` (immutable source-of-truth material, `edit: deny`), `Output/` (scratchpad with category subfolders, `edit: allow`), `Misc/` (default read-only — static assets like icons/logos/images/fonts plus curated supporting scripts and prompt experiments promoted from `Output/`, `edit: ask` so the user approves each save), `Artefacts/` (governed, versioned deliverables typically promoted from `Output/`, `edit: ask` so the user approves each save). v2 allows `external_directory` by default, so the list always opens with an `external_directory * ask` rule; without it the sandbox would be open. This aligns with the four-tier governance model used in the `rfp-daily` skill (see `~/dev/ai-sdlc/zapac-agent-skills/rfp-daily/assets/folder_governance.md`). Workspace root allows read/list for everything; the four folders are auto-created on workspace entry by an agent-issued `mkdir -p` (see [Workspace Conventions in System Prompt](#workspace-conventions-in-system-prompt))
 - **Workspace-scoped persistence:** Permissions are stored in the `workspace_permissions` table (replaced task-scoped `folder_permissions`). Adhoc approvals carry across all tasks in the same workspace.
-- **Bash soft enforcement:** System prompt instructs the agent not to modify `Input/` via bash commands. Hard enforcement is via `edit: deny` permission rules in the OpenCode config.
+- **Bash soft enforcement:** System prompt instructs the agent not to modify `Input/` via bash commands. Hard enforcement is via `edit: deny` rules in the session's permissions, which are re-sent on resume so a revoked grant also applies to an existing session.
 - **Architecture flow:** User approves permission → saved to `workspace_permissions` → loaded for all future tasks in the workspace
 - All paths outside the workspace require explicit user approval via runtime permission dialogs
 - Two access levels: `read` and `read-write`
@@ -231,13 +243,13 @@ Previously, `sendMessage` was awaited with a 10-minute timeout. For complex task
 
 ### Question & Permission Handling
 
-**Question reply format:** The OpenCode server's `POST /question/{id}/reply` expects `answers` as `string[][]` (array of arrays). The sidecar transforms the `{labels, customText}` objects from Rust into flat arrays before calling the API. When `customText` is provided, it's appended to the labels array.
+**Question reply format:** OpenCode 2.x delivers agent questions as forms (`form.created`). `form-mapper.ts` turns each form field into one UI question: a `string` field with options is single-select, a `string` field without options is free text, `multiselect` is multi-select, `boolean` becomes Yes/No, and `number`/`integer` are free text parsed into a number. Hidden fields and fields with `when` conditions are skipped. A form with an `external` field can't be shown, so the sidecar cancels it with `DELETE /api/session/{sid}/form/{fid}`. The answer goes out as `POST /api/session/{sid}/form/{fid}/reply` with `{ answer: { [field.key]: value } }`: the sidecar maps option labels back to option values, sends an array for multi-select, and adds the custom text when the field allows it. If the server refuses an answer (`FormInvalidAnswerError`), the same questions are shown again with the reason.
 
-**Multi-select questions:** The OpenCode server sends `multiple: true` on question objects. The sidecar normalizes this to `multiSelect: boolean` for the frontend. The QuestionDialog renders checkbox indicators and count badges when multi-select is enabled.
+**Multi-select questions:** A `multiselect` form field becomes `multiSelect: true` on the question the sidecar emits to the frontend. The QuestionDialog renders checkbox indicators and count badges when multi-select is enabled.
 
-**Always-on free-text fallback:** The frontend `QuestionDialog` injects a synthetic `Others` option (description "Type your own response") whenever the agent's `options` array contains at least one entry but no case-insensitive `Other`/`Others` variant. Selecting it surfaces a free-text input whose contents become the answer's `customText`; in multi-select mode the input is rendered inline so it can coexist with checkbox selections. The existing `replyToQuestion` flattening (`labels` + `customText` → `string[]`) means OpenCode receives the typed text without any protocol change. When the agent supplies no options at all, the dialog continues to render the free-text-only path instead of injecting the synthetic option.
+**Always-on free-text fallback:** The frontend `QuestionDialog` injects a synthetic `Others` option (description "Type your own response") whenever the agent's `options` array contains at least one entry but no case-insensitive `Other`/`Others` variant, unless the question's `custom` flag is `false` (the sidecar copies it from the form field, default `true`). Selecting it surfaces a free-text input whose contents become the answer's `customText`; in multi-select mode the input is rendered inline so it can coexist with checkbox selections. The `buildFormAnswer` mapping (`labels` + `customText` → the field's value) means OpenCode receives the typed text as the answer itself, or added to the array for multi-select, without any protocol change. When the agent supplies no options at all, the dialog continues to render the free-text-only path instead of injecting the synthetic option.
 
-**Permission replies:** Both `replyToPermission` and `replyToQuestion` extract the session's `directory` and pass it to the OpenCode API to ensure correct routing.
+**Permission replies:** `replyToPermission` finds the session the ask belongs to (the task's session, or the one recorded when the ask was shown) and calls `POST /api/session/{sid}/permission/{rid}/reply` with `{ decision, message? }`. Rust sends only `once` (allow) or `reject`: an `always` reply on an edit ask would allow every edit in the project. The `permission.asked` payload reaches the UI with the v2 `action` as `permission` (`shell` shown as `bash`) and `resources` as `patterns`. Neither reply passes a `directory`: the session already carries its location.
 
 ---
 
@@ -267,18 +279,13 @@ Without these resets, stale partial messages from a previous task would appear i
 
 > **Plan:** [MCP Server Support](plan_mcp-server-support.md)
 
-MCP (Model Context Protocol) server configuration allows users to extend the agent with additional tools via local commands or remote URLs. Configurations are managed in the Settings UI, persisted to the database, and sent to the OpenCode server via `PATCH /config`. Supports both local (command-based) and remote (URL-based) MCP servers with per-server enable/disable toggles.
+MCP (Model Context Protocol) server configuration allows users to extend the agent with additional tools via local commands or remote URLs. Configurations are managed in the Settings UI, persisted to the database, and applied to the OpenCode server at runtime: a fresh server receives them through `OPENCODE_CONFIG_CONTENT`, and `update_mcp_config` adds, replaces or removes servers on a running server with `PUT` and `DELETE /api/experimental/mcp/{name}`, without a restart. Supports both local (command-based) and remote (URL-based) MCP servers with per-server enable/disable toggles.
 
 ### Tool Listing API Limitation
 
-The OpenCode server's tool endpoints do not include MCP server tools — they return only built-in tools (bash, read, glob, grep, etc.). This was confirmed through runtime investigation across multiple API approaches:
+OpenCode 2.x has no route that lists tools, so the sidecar can't list MCP server tools. `get_mcp_tools` answers with an empty `toolIds` list. `GET /api/mcp` (scoped with `?location[directory]=<workspace>`) returns only per-server connection status, `{ name, status: { status, error? } }`, which `mcp-runtime.ts` converts into the `name → { status, error? }` record the UI expects (v2 `pending` shows as `initializing`).
 
-- `GET /experimental/tool/ids` — returns built-in tool IDs only
-- `GET /experimental/tool?provider=X&model=Y` — returns built-in tools only, even with valid connected providers
-- `GET /mcp` — returns per-server connection status but no tool names or counts
-- `mcp.tools.changed` SSE event — does not fire during normal MCP server initialization
-
-The frontend's `groupToolsByServer` utility (`useMcpRuntime.ts`) is implemented and tested, ready to parse `{serverName}_{toolName}` prefixed IDs when the upstream API begins including them. Until then, the `McpServerCard` displays connection status as the primary indicator of server health.
+The frontend's `groupToolsByServer` utility (`useMcpRuntime.ts`) is implemented and tested, ready to parse `{serverName}_{toolName}` prefixed IDs if a tool list becomes available. Until then, the `McpServerCard` displays connection status as the primary indicator of server health.
 
 ---
 
@@ -486,3 +493,11 @@ data: {"id":"evt_...","type":"server.connected","properties":{}}
 - The earlier "PATCH /config terminates the SSE connection, eventsource auto-reconnects in ~1 s" note no longer applies — `GlobalBus` is not torn down by config updates.
 
 **Debugging methodology:** Bug was diagnosed entirely from runtime evidence: OpenCode server log (`~/.local/share/opencode/log/<timestamp>.log`) showed `subscribing → connected → unsubscribing → disconnected` within 1–2 ms; sidecar TS log showed the matching `server.connected` → `error` loop; direct raw-TCP probe of the running server with `curl` confirmed the server itself terminated the chunked response (received `0\r\n\r\n` end-marker), proving it was server-side, not the `eventsource` library. A second curl against `/global/event` returned a stable stream with `server.connected` → `session.created` → `server.heartbeat`, locking in the workaround.
+
+---
+
+### Resolved: OpenCode 2.x migration (1.0.0) {#resolved-opencode-2x-migration}
+
+**Problem:** OpenCode 2.x replaced the whole server API, so every task failed on a 2.x install.
+
+**Fix:** The sidecar now speaks the 2.x API, and Cowork-Z 1.0.0 supports OpenCode 2.x only; a 1.x install is rejected at startup with an upgrade hint. The IPC protocol keeps its shape. The resolved issues above were fixed against 1.x, and the routes and events they name no longer exist on 2.x, so read them as history. For the v1 → v2 contract map and the spike findings, see [OpenCode v2 Migration](../plan_opencode-v2-migration.md).

@@ -73,5 +73,6 @@ panic = "abort" # Higher performance by disabling panic handlers.
 strip = true # Ensures debug symbols are removed.
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-updater = "~2.11"
+# Native Tauri 2 artifacts do not need the legacy ZIP updater feature.
+tauri-plugin-updater = { version = "~2.11", default-features = false, features = ["rustls-tls", "system-proxy"] }
 tauri-plugin-process = "~2.3"

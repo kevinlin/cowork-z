@@ -6,10 +6,6 @@
 
 - **Run Now opens the run** — Starting an automation by hand now switches the left sidebar to the Automations tab, shows all runs so the new one is listed (a run that just started has no findings yet, so the Unread filter would hide it), and opens the run's chat in the main view. If another automation is already running, you get the usual "already in progress" message and stay where you are.
 
-## v0.9.1
-
-- 
-
 ## v0.9.0
 
 - **Right side panel** — The workspace file tree, External Folders and Todos now live in a panel on the right, so the left sidebar holds just sessions and automations.

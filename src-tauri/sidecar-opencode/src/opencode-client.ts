@@ -9,6 +9,14 @@ export interface OpenCodeClientOptions {
   password?: string;
 }
 
+/** A 2xx `text/html` response: OpenCode 2.x serves its web UI for unknown v1 paths. */
+export class OpenCodeRouteNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OpenCodeRouteNotFoundError';
+  }
+}
+
 export class OpenCodeClient {
   private baseUrl: string;
   private timeout: number;
@@ -54,6 +62,12 @@ export class OpenCodeClient {
         signal: timeoutId === null ? undefined : controller.signal,
       });
 
+      const contentType = response.headers?.get?.('content-type') ?? '';
+      if (response.ok && contentType.includes('text/html')) {
+        logger.httpResponse(method, path, response.status);
+        throw new OpenCodeRouteNotFoundError(`OpenCode route not found: ${method} ${path} (unsupported OpenCode version?)`);
+      }
+
       const responseBody = await response.json().catch(() => null);
       logger.httpResponse(method, path, response.status, responseBody);
 
@@ -73,6 +87,10 @@ export class OpenCodeClient {
 
   async health(): Promise<HealthResponse> {
     return this.request<HealthResponse>('GET', '/global/health');
+  }
+
+  async getServerInfo(): Promise<{ version?: string } | null> {
+    return this.request<{ version?: string } | null>('GET', '/api/info');
   }
 
   async isServerRunning(): Promise<boolean> {

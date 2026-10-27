@@ -5,7 +5,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { logger } from './logger';
-import { OpenCodeClient } from './opencode-client';
+import { OpenCodeClient, OpenCodeRouteNotFoundError } from './opencode-client';
 import { getAppOpenCodeConfigDir, getOpenCodeLogDir } from './paths';
 import type { ApiKeys, Config } from './types';
 
@@ -347,6 +347,32 @@ export function generatePassword(length = 32): string {
   return crypto.randomBytes(length).toString('base64url');
 }
 
+/** The installed OpenCode is 2.x, whose server API this Cowork-Z version does not speak. */
+export class UnsupportedOpenCodeVersionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnsupportedOpenCodeVersionError';
+  }
+}
+
+/** Returns the version string when `info` (a `/api/info` body) reports a major of 2 or more. */
+export function parseUnsupportedOpenCodeVersion(info: unknown): string | undefined {
+  if (typeof info !== 'object' || info === null) return undefined;
+  const version = (info as { version?: unknown }).version;
+  if (typeof version !== 'string') return undefined;
+  const major = Number.parseInt(version.replace(/^v/, ''), 10);
+  return Number.isInteger(major) && major >= 2 ? version : undefined;
+}
+
+/** Probe `/api/info`; any failure (HTML, 404, 401, connection refused) means "not known to be v2". */
+export async function detectUnsupportedOpenCodeVersion(client: Pick<OpenCodeClient, 'getServerInfo'>): Promise<string | undefined> {
+  try {
+    return parseUnsupportedOpenCodeVersion(await client.getServerInfo());
+  } catch {
+    return undefined;
+  }
+}
+
 export interface ProcessManagerOptions {
   hostname?: string;
   cliPath?: string;
@@ -596,13 +622,22 @@ export class ProcessManager {
       this.process = null;
     });
 
-    await this.waitForServer();
+    try {
+      await this.waitForServer();
+    } catch (error) {
+      // Callers drop this ProcessManager on failure, so nothing else would stop the child.
+      if (this.process) {
+        this.terminate(this.process);
+      }
+      throw error;
+    }
   }
 
   private async waitForServer(): Promise<void> {
     const maxAttempts = 30;
     const delayMs = 500;
     let lastError: unknown;
+    let probed = false;
 
     for (let i = 0; i < maxAttempts; i++) {
       if (this.spawnError) {
@@ -617,6 +652,15 @@ export class ProcessManager {
         logger.info(`OpenCode server ready, version: ${health.version}`);
         return;
       } catch (err) {
+        if (err instanceof OpenCodeRouteNotFoundError && !probed) {
+          probed = true;
+          const version = await detectUnsupportedOpenCodeVersion(this.client);
+          if (version) {
+            throw new UnsupportedOpenCodeVersionError(
+              `OpenCode ${version} isn't supported by this Cowork-Z version. Run: npm uninstall -g @opencode/cli && npm install -g opencode-ai@1`
+            );
+          }
+        }
         lastError = err;
         if (i % 5 === 0) {
           logger.debug(`Waiting for OpenCode server (attempt ${i + 1}/${maxAttempts})`, {

@@ -2,6 +2,10 @@
 
 # UPDATE LOG
 
+## v0.9.3
+
+- **Clear message on OpenCode 2.x** — OpenCode 2.x changed its server API, and this version of Cowork-Z only works with OpenCode 1.x. With 2.x installed, starting a task now stops right away with a message that tells you how to switch back (`npm uninstall -g @opencode/cli && npm install -g opencode-ai@1`), instead of waiting 15 seconds and showing a confusing error. Support for OpenCode 2.x is planned for Cowork-Z 1.0.
+
 ## v0.9.2
 
 - **Run Now opens the run** — Starting an automation by hand now switches the left sidebar to the Automations tab, shows all runs so the new one is listed (a run that just started has no findings yet, so the Unread filter would hide it), and opens the run's chat in the main view. If another automation is already running, you get the usual "already in progress" message and stay where you are.

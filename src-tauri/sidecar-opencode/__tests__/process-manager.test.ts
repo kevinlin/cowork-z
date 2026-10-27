@@ -56,6 +56,7 @@ jest.mock('node:net', () => ({
 
 // Mock OpenCodeClient
 jest.mock('../src/opencode-client', () => ({
+  ...jest.requireActual('../src/opencode-client'),
   OpenCodeClient: jest.fn().mockImplementation(() => ({
     health: jest.fn().mockResolvedValue({ version: '1.0.0', status: 'healthy' }),
     disposeGlobal: jest.fn().mockResolvedValue(undefined),
@@ -469,5 +470,150 @@ describe('applyApiKeyEnv — server spawn env mapping (2026-06-12 review #22)', 
     applyApiKeyEnv(env, {});
 
     expect(Object.keys(env)).toHaveLength(0);
+  });
+});
+
+describe('OpenCode 2.x gate', () => {
+  const loadModules = async () => {
+    jest.resetModules();
+    const processManager = await import('../src/process-manager');
+    const openCodeClient = await import('../src/opencode-client');
+    return {
+      ...processManager,
+      OpenCodeClient: openCodeClient.OpenCodeClient as unknown as jest.Mock,
+      OpenCodeRouteNotFoundError: openCodeClient.OpenCodeRouteNotFoundError,
+    };
+  };
+
+  describe('parseUnsupportedOpenCodeVersion', () => {
+    it.each([
+      [{ version: '2.2.0' }, '2.2.0'],
+      [{ version: 'v2.0.1' }, 'v2.0.1'],
+      [{ version: '1.19.4' }, undefined],
+      [{ version: 'abc' }, undefined],
+      [{}, undefined],
+      [null, undefined],
+      ['<html>', undefined],
+    ])('maps %j to %j', async (info, expected) => {
+      const { parseUnsupportedOpenCodeVersion } = await loadModules();
+
+      expect(parseUnsupportedOpenCodeVersion(info)).toBe(expected);
+    });
+  });
+
+  describe('detectUnsupportedOpenCodeVersion', () => {
+    it('returns the version when /api/info reports 2.x', async () => {
+      const { detectUnsupportedOpenCodeVersion } = await loadModules();
+      const client = { getServerInfo: jest.fn<() => Promise<{ version?: string } | null>>().mockResolvedValue({ version: '2.2.0' }) };
+
+      await expect(detectUnsupportedOpenCodeVersion(client)).resolves.toBe('2.2.0');
+    });
+
+    it('returns undefined when /api/info resolves null', async () => {
+      const { detectUnsupportedOpenCodeVersion } = await loadModules();
+      const client = { getServerInfo: jest.fn<() => Promise<{ version?: string } | null>>().mockResolvedValue(null) };
+
+      await expect(detectUnsupportedOpenCodeVersion(client)).resolves.toBeUndefined();
+    });
+
+    it.each([
+      [
+        'an HTML route-not-found response',
+        (m: Awaited<ReturnType<typeof loadModules>>) => new m.OpenCodeRouteNotFoundError('route not found'),
+      ],
+      ['an HTTP 404', () => new Error('HTTP 404: {"error":"not found"}')],
+      ['an HTTP 401', () => new Error('HTTP 401: {"error":"unauthorized"}')],
+      ['a refused connection', () => new TypeError('fetch failed')],
+    ])('returns undefined when the probe fails with %s', async (_label, makeError) => {
+      const modules = await loadModules();
+      const client = { getServerInfo: jest.fn<() => Promise<{ version?: string } | null>>().mockRejectedValue(makeError(modules)) };
+
+      await expect(modules.detectUnsupportedOpenCodeVersion(client)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('server startup failure', () => {
+    const health = jest.fn<() => Promise<unknown>>();
+    const getServerInfo = jest.fn<() => Promise<{ version?: string } | null>>();
+    let child: { stdout: { on: jest.Mock }; stderr: { on: jest.Mock }; on: jest.Mock; kill: jest.Mock; killed: boolean };
+
+    // Start a ProcessManager whose OpenCode server never becomes healthy and whose child never exits.
+    const createManager = async () => {
+      const modules = await loadModules();
+      modules.OpenCodeClient.mockImplementation(() => ({ health, getServerInfo, disposeGlobal: jest.fn() }));
+      const sleep = jest
+        .spyOn(modules.ProcessManager.prototype as unknown as { sleep: (ms: number) => Promise<void> }, 'sleep')
+        .mockResolvedValue(undefined);
+      const pm = new modules.ProcessManager({ cliPath: 'opencode', password: 'test' });
+      return { ...modules, pm, sleep };
+    };
+
+    beforeEach(() => {
+      health.mockReset();
+      getServerInfo.mockReset();
+      mockExistsSync.mockReset();
+      mockExecFileSync.mockReset();
+      mockSpawn.mockReset();
+      mockReadFileSync.mockReset();
+      mockWriteFileSync.mockReset();
+      mockMkdirSync.mockReset();
+      mockExistsSync.mockReturnValue(false);
+      mockReadFileSync.mockReturnValue('{}');
+      child = { stdout: { on: jest.fn() }, stderr: { on: jest.fn() }, on: jest.fn(), kill: jest.fn(), killed: false };
+      mockSpawn.mockReturnValue(child);
+      Object.defineProperty(process, 'platform', { value: 'darwin', writable: true, configurable: true });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(process, 'platform', { value: originalPlatform, writable: true, configurable: true });
+    });
+
+    it('fails on the first health poll with UnsupportedOpenCodeVersionError when the server reports 2.x', async () => {
+      const { pm, sleep, OpenCodeRouteNotFoundError, UnsupportedOpenCodeVersionError } = await createManager();
+      health.mockRejectedValue(
+        new OpenCodeRouteNotFoundError('OpenCode route not found: GET /global/health (unsupported OpenCode version?)')
+      );
+      getServerInfo.mockResolvedValue({ version: '2.2.0' });
+
+      const result = pm.ensureServerRunning();
+
+      await expect(result).rejects.toBeInstanceOf(UnsupportedOpenCodeVersionError);
+      await expect(result).rejects.toMatchObject({
+        name: 'UnsupportedOpenCodeVersionError',
+        message: expect.stringContaining('2.2.0'),
+      });
+      await expect(result).rejects.toThrow('npm uninstall -g @opencode/cli && npm install -g opencode-ai@1');
+      expect(health).toHaveBeenCalledTimes(1);
+      expect(getServerInfo).toHaveBeenCalledTimes(1);
+      expect(sleep).not.toHaveBeenCalled();
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    });
+
+    it('probes /api/info once, then keeps polling and reports the generic error when no 2.x server answers', async () => {
+      const { pm, OpenCodeRouteNotFoundError, UnsupportedOpenCodeVersionError } = await createManager();
+      health.mockRejectedValue(
+        new OpenCodeRouteNotFoundError('OpenCode route not found: GET /global/health (unsupported OpenCode version?)')
+      );
+      getServerInfo.mockResolvedValue(null);
+
+      const result = pm.ensureServerRunning();
+
+      await expect(result).rejects.toThrow('OpenCode server failed to start after 15000ms');
+      await expect(result).rejects.not.toBeInstanceOf(UnsupportedOpenCodeVersionError);
+      expect(health).toHaveBeenCalledTimes(30);
+      expect(getServerInfo).toHaveBeenCalledTimes(1);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    });
+
+    it('kills the spawned child before rejecting when the server never becomes healthy', async () => {
+      const { pm } = await createManager();
+      health.mockRejectedValue(new Error('HTTP 500: {"error":"boom"}'));
+
+      await expect(pm.ensureServerRunning()).rejects.toThrow('OpenCode server failed to start after 15000ms. Last error: HTTP 500');
+
+      expect(health).toHaveBeenCalledTimes(30);
+      expect(getServerInfo).not.toHaveBeenCalled();
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    });
   });
 });

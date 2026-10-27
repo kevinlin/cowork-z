@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { OpenCodeClient } from '../src/opencode-client';
+import { logger } from '../src/logger';
+import { OpenCodeClient, OpenCodeRouteNotFoundError } from '../src/opencode-client';
 
 // Mock fetch
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
@@ -73,6 +74,62 @@ describe('OpenCodeClient', () => {
       } as Response);
 
       await expect(client.health()).rejects.toThrow('HTTP 500');
+    });
+  });
+
+  describe('HTML 200 guard', () => {
+    const htmlHeaders = { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'text/html; charset=utf-8' : null) };
+
+    it('should reject with OpenCodeRouteNotFoundError when a 2xx response is text/html', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: htmlHeaders,
+        json: () => Promise.reject(new SyntaxError('Unexpected token <')),
+      } as unknown as Response);
+
+      const result = client.health();
+
+      await expect(result).rejects.toBeInstanceOf(OpenCodeRouteNotFoundError);
+      await expect(result).rejects.toMatchObject({
+        name: 'OpenCodeRouteNotFoundError',
+        message: 'OpenCode route not found: GET /global/health (unsupported OpenCode version?)',
+      });
+      expect(logger.httpResponse).toHaveBeenCalledWith('GET', '/global/health', 200);
+    });
+
+    it('should still resolve a JSON response that has no headers', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ healthy: true, version: '1.0.0' }),
+      } as Response);
+
+      await expect(client.health()).resolves.toEqual({ healthy: true, version: '1.0.0' });
+    });
+
+    it('should resolve null for an empty non-HTML body', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: () => Promise.reject(new SyntaxError('Unexpected end of JSON input')),
+      } as unknown as Response);
+
+      await expect(client.disconnectMcpServer('github')).resolves.toBeNull();
+    });
+  });
+
+  describe('getServerInfo', () => {
+    it('should GET /api/info', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ version: '2.2.0' }),
+      } as Response);
+
+      const result = await client.getServerInfo();
+
+      expect(result).toEqual({ version: '2.2.0' });
+      expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:4096/api/info', expect.objectContaining({ method: 'GET' }));
     });
   });
 

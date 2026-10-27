@@ -1,6 +1,6 @@
 # Plan: OpenCode v2 Migration
 
-**Status:** Proposed · **Date:** 2026-10-27 · **Releases:** 0.9.3 (hotfix), 1.0.0 (migration)
+**Status:** Phase 0 shipped in 0.9.3 (`5be5708`). Spike (task 1.0) done, see section 6. Phases 1–3 next · **Date:** 2026-10-27 · **Releases:** 0.9.3 (hotfix), 1.0.0 (migration)
 **Requirements:** 1.2.1, 1.2.2 (same as [Sidecar OpenCode Rewrite](opencode-integration/plan_sidecar-opencode-rewrite.md))
 **Contract snapshot:** [`opencode-api-v2.json`](opencode-api-v2.json), taken from `opencode serve` 2.2.0 `GET /openapi.json`
 **Upstream guide:** <https://opencode.ai/v2/docs/migrate-v1/>
@@ -58,20 +58,20 @@ This table covers only the calls and events Cowork-Z uses today. Every OpenCode 
 | Model per task | Sent with each message | Session-level: in the create body, or `POST /api/session/{id}/model {model}` |
 | System prompt | `system` field on each message | Candidate: `PUT /api/experimental/session/{id}/instructions/entries/{key} {value}` (a 12 KB value was accepted). Needs the spike in task 1.0 |
 | Runtime config | `PATCH /config` with permission, model, mcp, provider | `PATCH /api/experimental/config` accepts `{shell}` only. Use per-session `permissions`, the MCP runtime routes, and on-disk or env config |
-| Permission rules | Map `{edit:{pattern: action}}`; `bash` | Ordered array `[{action, resource, effect}]`. Renames: `bash`→`shell`, `task`→`subagent`, `write`/`patch`→`edit`. **`external_directory` is allow by default** |
+| Permission rules | Map `{edit:{pattern: action}}`; `bash` | Ordered array `[{action, resource, effect}]`; the last matching rule wins. Renames: `bash`→`shell`, `task`→`subagent`, `write`/`patch`→`edit`. No `doom_loop`. **`external_directory` is allow by default.** **Workspace files are matched by location-relative path** (`Output/a.txt`). External files: `external_directory` checks `<dir>/*`, then `read`/`edit` check the absolute path |
 | Permission ask | `permission.asked {permission, patterns, metadata}` | `permission.asked` with `data {id, sessionID, action, resources, metadata, message?}`. Pending asks can be listed with `GET /api/session/{sid}/permission` |
 | Permission reply | `POST /permission/{id}/reply {reply}` | `POST /api/session/{sid}/permission/{rid}/reply {decision, message?}` |
 | Questions | `question.asked {questions[]}`. Reply `POST /question/{id}/reply {answers: string[][]}` | Forms. `form.created` with `data {form:{id, sessionID, title, fields[]}}`. Field types: `string` (optional `options`, `custom`), `multiselect` (`options`, `custom`), `number`, `integer`, `boolean`, `external`. Reply `POST /api/session/{sid}/form/{fid}/reply {answer:{[field.key]: value}}`. Pending forms: `GET /api/session/{sid}/form` |
 | Abort | `POST /session/{id}/abort` | `POST /api/session/{id}/interrupt` → `{interrupted}` |
 | Streaming text | `message.updated` + `message.part.delta` | `session.text.delta {assistantMessageID, ordinal, delta}`, then `session.text.ended {text}` |
 | Tool calls | `message.part.updated` with `part.type==='tool'`, `part.tool`, `part.state` | `session.tool.input.started {id, name}` → `session.tool.called {id, input}` → `session.tool.success {content: [text/file items]}` or `session.tool.failed {error:{type, message}}`. **The tool name is only in `input.started`** |
-| Turn lifecycle | `session.status` busy/idle, `session.error` | `session.execution.started`, `.succeeded`, `.failed {error:{type, message}}`, `.interrupted` (reasons `user`, `shutdown`, `superseded`, `inactivity`); plus `session.idle` |
+| Turn lifecycle | `session.status` busy/idle, `session.error` | `session.execution.started`, `.succeeded`, `.failed {error:{type, message}}`, `.interrupted {reason}`. The spike saw **no** `session.idle` or `session.status` events. Rejecting a permission ends the turn with `.interrupted` (reason `shutdown`) |
 | Compaction | `session.compacted` | `session.compaction.ended` |
-| Todos | `todo.updated` event and `GET /session/{id}/todo` | Both removed. Todos are off by default (`experimental.todo`) |
-| MCP | `GET /mcp` (record), `POST /mcp/{name}/connect`, `/disconnect`, `GET /experimental/tool/ids`, `PATCH /config {mcp}` | `GET /api/mcp` → `{location, data: [{name, status: {…}}]}` (status is an object). `PUT /api/experimental/mcp/{name}` adds or replaces a server at runtime and connects it. `DELETE /api/experimental/mcp/{name}`. `POST …/{name}/connect`, `/disconnect`. **No tool-ids route** |
-| Copilot OAuth | `POST /provider/{id}/oauth/authorize`, then a blocking `/callback` | `POST /api/integration/{id}/connect/oauth {methodID}` → `{attemptID, url, instructions, mode}`. Poll `GET …/{attemptID}` (pending, complete, failed, expired). `POST …/{attemptID}/complete {code?}` |
-| Copilot models and logout | `GET /provider` (`all[].models`), `DELETE /auth/{id}` | `GET /api/model`, `GET /api/credential`, `DELETE /api/credential/{id}`. **`GET /api/credential` returns every stored secret** (`Credential.Key.key`, `Credential.OAuth.access` and `refresh`) |
-| Config file keys | `mcp`, `provider`, `small_model`, `enabled_providers`, `disabled_providers` | `mcp.servers` (with `enabled` inverted to `disabled`), `providers`, `agents.title.model`, `policies`. The upstream guide says v2 normalises v1 fields in memory. Needs the spike |
+| Todos | `todo.updated` event and `GET /session/{id}/todo` | Both removed. With `experimental.todo: true` the agent gets a `todowrite` tool whose input is `{todos: [{content, status}]}` (no `id`, no `priority`) |
+| MCP | `GET /mcp` (record), `POST /mcp/{name}/connect`, `/disconnect`, `GET /experimental/tool/ids`, `PATCH /config {mcp}` | `GET /api/mcp` → `{location, data: [{name, status: {status, error?}}]}`. Seen values: `disabled`, `failed`. The list also includes servers from the user's global `~/.config/opencode` config. `PUT /api/experimental/mcp/{name}` adds or replaces a server at runtime and connects it. `DELETE /api/experimental/mcp/{name}`. `POST …/{name}/connect`, `/disconnect`. **No tool-ids route** |
+| Copilot OAuth | `POST /provider/{id}/oauth/authorize`, then a blocking `/callback` | Integration `github-copilot`, method `device`. `POST /api/integration/github-copilot/connect/oauth {methodID: 'device', answer: {deploymentType: 'github.com'}}`, or for enterprise `{deploymentType: 'enterprise', enterpriseUrl}` → `{attemptID, url, instructions, mode}`. Poll `GET …/{attemptID}` (pending, complete, failed, expired). `POST …/{attemptID}/complete {code?}`. v2 has one provider, `github-copilot`, for both deployment types |
+| Copilot models and logout | `GET /provider` (`all[].models`), `DELETE /auth/{id}` | `GET /api/model` → `data[] {id, modelID, providerID, name, enabled, status}`. Logout: the connection ids from `GET /api/integration` (no secrets), then `DELETE /api/credential/{id}`. **Never call `GET /api/credential`: it returns every stored secret** |
+| Config file keys | `mcp`, `provider`, `small_model`, `enabled_providers`, `disabled_providers` | `mcp.servers` (with `enabled` inverted to `disabled`), `providers`, `agents.title.model`, `policies`. Verified: v1 `small_model` and `mcp` sent through `OPENCODE_CONFIG_CONTENT` are normalised, and that env config reaches every location. **`opencode.json` in the server's cwd is not read** |
 | Install | `npm i -g opencode-ai` (npm still has 1.19.4) | `npm i -g @opencode/cli`, or the curl installer. Both packages install an `opencode` binary |
 
 ---
@@ -127,7 +127,10 @@ Expected frontend touch points, all small:
 
 ### Phase 1: core task flow on v2 (part of release 1.0.0)
 
-**1.0 Spike.** About 2 h. Needs one provider key.
+**1.0 Spike.** Done on 2026-10-27 against OpenCode 2.2.0 with Copilot `claude-haiku-5.5`. Answers are in section 6. The raw captures, with machine paths replaced, are in `src-tauri/sidecar-opencode/__tests__/fixtures/v2/`:
+- `turn-tools-form-todo.events.jsonl`: identity, todowrite, a question form, three writes, an external read, then an interrupted second turn
+- `turn-permissions-reject.events.jsonl`: the task 1.4 ruleset, two rejects that end the turn, and a permissions `PATCH`
+- `session-messages.json`: the message history
 
 Capture raw `/api/event` output as JSONL into `src-tauri/sidecar-opencode/__tests__/fixtures/v2/` for one turn that includes:
 - a tool call
@@ -187,11 +190,11 @@ Also capture one `GET /api/session/{sid}/message` response. Write the answers to
 | `session.tool.called` / `.success` / `.failed` | `task_message` tool_use carrying the rebuilt v1 part `{type:'tool', tool, callID, messageID, state:{status: running/completed/error, input, output}}` |
 | `session.execution.succeeded` | Flush text, then `complete {status: success}` |
 | `session.execution.failed` | `task_error(error.message)`, then cleanup |
-| `session.execution.interrupted` | Flush text, then `complete {status: aborted}`, then cleanup. **Skip it when a local abort already emitted completion** (the session is already cleaned up or marked `completing`). Log the reason for `shutdown`, `superseded` and `inactivity` |
+| `session.execution.interrupted` | **When a local abort is pending** (the session is marked `completing` or already cleaned up), ignore it: `abortSession` already emitted `complete {status: aborted}`. **Otherwise**, for example after the user rejected a permission (which v2 reports with reason `shutdown`): flush text, then `complete {status: success}`, then cleanup. This matches v1, where a rejected permission ended the turn and the task finished. Log the reason |
 | `permission.asked` | `permission_request {permission: action, patterns: resources, metadata}`. Map `shell` back to `bash` for the UI |
 | `form.created` | `question_request` (mapping below). Keep `form.fields` per request id |
 | `session.compaction.ended` | Compaction loop counter (unchanged threshold of 3) |
-| todo source from spike item 4 | `todo_updated` |
+| `session.tool.called` with name `todowrite` | Also emit `todo_updated`, mapping `input.todos` to `Todo {id: String(index), content, status, priority: 'medium'}`. Keep the list as the session's last-seen todos (task 2.3) |
 
 - Tool part conversion:
   - Output: join the text items of `content` into one string, and write each file item as `[file: <name or uri>]`. A failure becomes `error.message`. The frontend only keeps string output.
@@ -216,14 +219,16 @@ Also capture one `GET /api/session/{sid}/message` response. Write the answers to
   - Multiselect: `answer[key]` is an array of the selected values, plus the custom text when it's allowed and filled in.
 - `startTask`: create the session with `location`, `model` and `permissions`, write the instructions entry, then `prompt`.
 - `resumeSession`, in this order:
-  1. `getSession` (handle a 404 as decided in spike item 6).
+  1. `getSession`. A 404 means the session predates the upgrade: v1 ids return 404 even though `GET /api/experimental/migration/v1` reports `completed`. In that case, create a new session in the same task the way `startTask` does, and skip to step 4.
   2. **`PATCH /api/session/{id} {permissions}` with the resume payload's `folderPermissions`.** Without it, a revoked or changed folder grant has no effect on a session that already exists, and a session migrated from v1 never gets the leading `external_directory` ask rule. Today's resume reapplies permissions through `PATCH /config` ([session-manager.ts:407-411](../../src-tauri/sidecar-opencode/src/session-manager.ts#L407-L411)).
   3. `switchModel` when the model changed.
   4. Refresh the instructions entry.
   5. `prompt`.
 - Remove the `PATCH /config` calls ([session-manager.ts:347](../../src-tauri/sidecar-opencode/src/session-manager.ts#L347), [:410](../../src-tauri/sidecar-opencode/src/session-manager.ts#L410)).
 - Remove the arena `skipConfig` path. Permissions are per session now, so each arena session carries its own.
-- Handle a failed `prompt` as decided in spike item 2. Remove the `turnConfirmed` workaround ([session-manager.ts:461-497](../../src-tauri/sidecar-opencode/src/session-manager.ts#L461-L497)) only once ambiguous failures have their own handling.
+- `prompt` returns within milliseconds (spike), so it no longer needs `timeout: 0`.
+  - An HTTP error response (4xx or 5xx) means the turn didn't start. Emit `task_error` and clean up, whatever `turnConfirmed` says.
+  - A transport failure (no HTTP status) stays ambiguous. Keep today's `turnConfirmed` check in `handleSendMessageFailure` ([session-manager.ts:461-497](../../src-tauri/sidecar-opencode/src/session-manager.ts#L461-L497)) for that case only.
 
 **1.4 Config builder.** File: [config-builder.ts](../../src-tauri/sidecar-opencode/src/config-builder.ts).
 - Replace `buildSessionConfig` with `buildSessionPermissions(folderPermissions): Rule[]`.
@@ -233,6 +238,22 @@ Also capture one `GET /api/session/{sid}/message` response. Write the answers to
   - the general `edit * ask` rule
   - workspace rules: `Input/` deny, `Output/` allow, `Misc/` and `Artefacts/` ask
   - non-workspace folders: read-only → deny, read-write → ask, adhoc → allow, each with `external_directory` and `read` allow
+- **Resource format, verified in spike run 3:**
+  - Workspace rules use location-relative patterns: `Input/*`, `Output/*`, `Misc/*`, `Artefacts/*`. Absolute workspace patterns never match, so with them the `Input/` deny silently does nothing (spike run 2 wrote `Input/c.txt`).
+  - Folder rules use the absolute folder path with forward slashes plus `/*` for `external_directory`, `read` and `edit`. On Windows, turn backslashes into slashes first, since v2 normalises paths that way.
+  - Drop `doom_loop`; v2 has no such action.
+  - The ruleset that passed the spike (`<F>` is a read-only external folder):
+
+    ```
+    external_directory *        ask
+    edit               *        ask
+    edit               Input/*  deny
+    edit               Output/* allow
+    edit               Misc/*   ask      (and Artefacts/* ask)
+    external_directory <F>/*    allow
+    read               <F>/*    allow
+    edit               <F>/*    deny
+    ```
 - Known limit, unchanged by this migration: edit rules don't cover shell commands. The system prompt already says so ([config-builder.ts:64](../../src-tauri/sidecar-opencode/src/config-builder.ts#L64)), and upstream calls shell path detection best effort.
 - System prompt changes:
   - In `<server-access>`, change `/doc` → `/openapi.json` and `/skill` → `/api/skill`.
@@ -243,7 +264,11 @@ Also capture one `GET /api/session/{sid}/message` response. Write the answers to
 - `health()` → `info()` in both `waitForServer` and `handleCheckServer`.
 - Version gate: when `/api/info` isn't JSON but `/global/health` is, the server is v1. Throw `UnsupportedOpenCodeVersionError`: `Cowork-Z needs OpenCode 2.x. Run: npm uninstall -g opencode-ai && npm install -g @opencode/cli`. It reuses Phase 0's typed error and its path out of the retry loop.
 - Remove `disposeGlobal`. `stopServer` just terminates.
-- Write config in the shape and place spike item 5 shows works.
+- Config travels only through `OPENCODE_CONFIG_CONTENT`, because v2 doesn't read `opencode.json` from the server's cwd (spike).
+  - Delete `writePreStartConfig` and its `opencode.json`/`config.json` writes, along with `updateMcpConfig`.
+  - Add `experimental: {todo: true}` to the env config.
+  - Keep the v1-shaped OpenRouter overlay, since v1 keys are normalised. During implementation, confirm that `disabled_providers` and `provider` show up in `GET /api/config`.
+  - `updateModelConfig` (called from [index.ts:335](../../src-tauri/sidecar-opencode/src/index.ts#L335) and [:359](../../src-tauri/sidecar-opencode/src/index.ts#L359)) can no longer change a running server. When a task switches into or out of an OpenRouter model, restart the server the way a key change does; otherwise drop the call.
 - Log `info.version` on startup.
 
 **1.6 Types.** File: [types.ts](../../src-tauri/sidecar-opencode/src/types.ts).
@@ -268,27 +293,35 @@ Also capture one `GET /api/session/{sid}/message` response. Write the answers to
 - Config changes: `handleUpdateMcpConfig` ([index.ts:377-400](../../src-tauri/sidecar-opencode/src/index.ts#L377-L400)) applies changes at runtime, so no restart is needed:
   - `PUT /api/experimental/mcp/{name}` for each added or changed server
   - `DELETE /api/experimental/mcp/{name}` for each removed one
-  - It also still persists the set to disk (in the shape from spike item 5) for the next spawn.
-  - Pass `location[directory]` so the change lands on the workspace's location.
+  - Nothing is written to disk. The next spawn gets the set from the task payload through `OPENCODE_CONFIG_CONTENT`.
+  - Pass `location[directory]` so the change lands on the workspace's location. The spike saw a runtime-added server appear in `GET /api/mcp` at once.
 - Status: call `GET /api/mcp?location[directory]=…`, read `data[]`, and convert each `{name, status: {…}}` into the `Record<name, {status, error}>` the UI expects. The UI knows the statuses `connected|disabled|failed|needs_auth|needs_client_registration` ([mcpSettings.ts:20](../../src/shared/types/mcpSettings.ts#L20)). Map v2 values onto those.
 - Connect and disconnect go through the experimental routes.
 - `mcp_tools` has no v2 route. Find another source (agent or tool listing), or show servers without tool lists.
 
 **2.2 Copilot.** Files: [index.ts:459-592](../../src-tauri/sidecar-opencode/src/index.ts#L459-L592) and `CopilotProviderForm.tsx`.
 - **Secrets first.** `GET /api/credential` returns secrets in fields named `key`, `access` and `refresh`, and the current redaction pattern doesn't catch them ([redact.ts:8](../../src-tauri/sidecar-opencode/src/redact.ts#L8)). With payload logging on, `httpResponse` would write them to the log file and the debug panel ([logger.ts:118](../../src-tauri/sidecar-opencode/src/logger.ts#L118)).
-  - Call every credential route with `logBody: false` (task 1.1).
+  - The client gets no method for `GET /api/credential`.
+  - Every credential route it does call passes `logBody: false` (task 1.1).
   - Add a test proving no credential value reaches the log.
-- Connect: call the integration OAuth connect route, emit `copilot_oauth_result`, poll the attempt status, then emit `copilot_oauth_complete`.
-- Models: `GET /api/model`.
-- Logout: find the Copilot credential ids with `GET /api/credential`, keeping only ids, then `DELETE /api/credential/{id}`.
-- Get the integration id from `GET /api/integration`.
+- Connect: `POST /api/integration/github-copilot/connect/oauth` with:
+  - body `{methodID: 'device', answer: {deploymentType: 'github.com'}}`
+  - or, when an enterprise URL is given, `{deploymentType: 'enterprise', enterpriseUrl}`. This replaces the `PATCH /config` at [index.ts:471](../../src-tauri/sidecar-opencode/src/index.ts#L471).
+  - Emit `copilot_oauth_result` from the attempt's `url` and `instructions`, poll `GET …/{attemptID}` every 2 s until `complete` / `failed` / `expired` (10-minute cap), then emit `copilot_oauth_complete`.
+- Provider ids: v2 has one provider, `github-copilot`, for both deployment types.
+  - Map stored app model ids `github-copilot-enterprise/<m>` to `github-copilot/<m>` before they reach OpenCode.
+  - Drop the `enabled_providers` overlay in `config-builder.ts:243-247`.
+- Models: `GET /api/model?location[directory]=…`. Keep `providerID === 'github-copilot' && enabled`, mapped to `{id: 'github-copilot/<modelID>', name}`.
+- Logout: read the connection ids of the `github-copilot` integration from `GET /api/integration` (that response carries no secrets), then `DELETE /api/credential/{id}` for each. Confirm during implementation that a connection id is a credential id.
 - Check that the `instructions.replace('Enter code: ', '')` parsing still matches the v2 text.
-- The enterprise URL goes through config instead of `PATCH /config` ([index.ts:471](../../src-tauri/sidecar-opencode/src/index.ts#L471)).
 
 **2.3 Todos.**
 - `get_session_todos` ([index.ts:769](../../src-tauri/sidecar-opencode/src/index.ts#L769)) has no server route anymore. Serve it from the sidecar's last-seen todos for that session.
-- **Cold cache:** after a sidecar restart, opening an existing task asks for its todos ([Execution.tsx:323](../../src/pages/Execution.tsx#L323)). Rebuild them from the latest todowrite input in the message history if spike item 4 shows they are there. Otherwise return `todos: null`, which the UI already handles.
-- Enable `experimental.todo` in config if spike item 4 needs it.
+- **Cold cache:** after a sidecar restart, opening an existing task asks for its todos ([Execution.tsx:323](../../src/pages/Execution.tsx#L323)). Rebuild them from the message history:
+  - `GET /api/session/{id}/message` returns the newest message first.
+  - The first content item with `{type: 'tool', name: 'todowrite'}` holds the list in `state.input.todos`.
+  - Map it as in task 1.3. If no such item exists, return `todos: null`, which the UI already handles.
+- `experimental.todo` is enabled by task 1.5.
 
 **2.4 Bundled skill.**
 - Rewrite [opencode-server-api/SKILL.md](../../src-tauri/resources/skills/opencode-server-api/SKILL.md) for the v2 routes.
@@ -326,7 +359,52 @@ Also capture one `GET /api/session/{sid}/message` response. Write the answers to
 
 ## 6. Spike findings
 
-_To be filled in by task 1.0._
+Probed on 2026-10-27 against `opencode serve` 2.2.0. Server cwd was an empty app dir. The session location was a scratch workspace holding the four convention folders. Model: `github-copilot/claude-haiku-5.5`. Numbers match the questions in task 1.0.
+
+1. **Instructions entry: works.** `PUT …/instructions/entries/cowork-z` returned 204. The agent's first words were "ZEBRA-42. I'm Cowork-Z, a desktop agent…", which is both the marker and the identity from the entry. A refresh on resume wasn't tested; the PUT replaces the entry by key.
+2. **`prompt` admits and returns:** 66 ms, 253 ms and 1–2 ms, with `{data: {id: msg_…, type: 'user', payload, delivery}}`. Lifecycle events follow on SSE: `session.inbox.enqueued`, then `.inbox.delivered`, then `.execution.started`, … `.succeeded`.
+3. **Permissions:**
+   - The last matching rule wins. Session `permissions` given on create are applied and echoed back.
+   - `edit` resources for workspace files are location-relative (`Output/a.txt`), so absolute patterns don't match.
+   - An external read asks `external_directory` with resource `/etc/*`. After that, `read`/`edit` use the absolute path.
+   - `PATCH /api/session/{id} {permissions}` takes effect on the next tool call.
+   - An edit ask carries `save: ['*']`, so an `always` reply would allow every edit in the project. Cowork-Z only sends `once` and `reject` ([tasks.rs:598-600](../../src-tauri/src/commands/tasks.rs#L598-L600)); keep it that way.
+   - Rejecting a permission aborts the pending tool calls ("The user declined this tool call") and ends the turn with `session.execution.interrupted`, reason `shutdown`.
+   - The ruleset in task 1.4 enforced what it should: Output silent, Misc ask, Input denied, root file ask, read-only external folder readable but not writable, `/etc` ask.
+4. **Todos:**
+   - `experimental.todo: true` in `OPENCODE_CONFIG_CONTENT` enables a `todowrite` tool with input `{todos: [{content, status}]}`.
+   - Its success content is a text summary.
+   - The message history holds the same input under `state.input.todos` (and `state.metadata.todos`).
+5. **Config:**
+   - `GET /api/config?location[directory]=…` returns the list of config sources.
+   - `OPENCODE_CONFIG_CONTENT` shows up as a path-less document and reaches the workspace location.
+   - v1 `small_model` became `agents.title.model {providerID, model}`, and v1 `mcp.{name}.enabled: false` became `mcp.servers.{name}.disabled: true`.
+   - A marker `opencode.json` placed in the server's cwd was **not** among the sources.
+   - The user's global `~/.config/opencode/opencode.json` is loaded too, so its MCP servers show up in Cowork-Z.
+6. **v1 sessions:** `GET /api/session/<v1 id>` returns 404 `SessionNotFoundError`, while `GET /api/experimental/migration/v1` reports `{status: 'completed'}`.
+7. **Question tool → form:**
+   - One form per `question` call: `{title: 'Questions', metadata: {kind: 'question', tool: {messageID, id}}, fields: [{key: 'q0', title: <header>, description: <question>, type: 'string', options: [{value, label, description}], custom: true}]}`.
+   - The reply `{answer: {q0: 'red'}}` returned 204, and the tool result text quotes the answer back to the model.
+8. **Message history:**
+   - `GET /api/session/{id}/message` returns `{data, cursor}`, newest first.
+   - Assistant content items include `{type: 'tool', id, name, state: {status, input, content, metadata}}`, so tool names can be recovered after a missed `tool.input.started`.
+
+Other observations:
+- Events seen in a turn:
+  - lifecycle: `session.execution.*`, `session.inbox.*`
+  - streaming: `session.text.started/delta/ended`, `session.reasoning.*`, `session.step.started/streamed/ended`
+  - tools: `session.tool.input.started/ended`, `session.tool.called/success/failed`
+  - asks: `permission.asked/replied`, `form.created/replied`
+  - other: `session.usage.updated`, `session.renamed`
+  - No `session.idle` and no `session.status`.
+- Tool success `content` is `[{type: 'text', text}]`. A tool failure gives `error: {type: 'permission.rejected' | 'aborted', message}`.
+- `POST /api/session/{id}/interrupt` → `{interrupted: true}`, then `session.execution.interrupted` with reason `user`.
+- `GET /api/mcp` items look like `{name, status: {status: 'disabled' | 'failed', error?}}`. `PUT /api/experimental/mcp/{name} {config: {type, command, disabled}}` returned 204, and the server was listed straight away.
+- Copilot integration (`GET /api/integration`): id `github-copilot`.
+  - Methods: `env` (`GITHUB_TOKEN`) and `device` (oauth).
+  - The `device` form has `deploymentType` (`github.com` or `enterprise`) and, when `enterprise` is chosen, `enterpriseUrl`.
+  - Connections are `{id, label, method, type}`, with no secrets.
+- `GET /api/model` lists Copilot models as `providerID: 'github-copilot'`.
 
 ---
 

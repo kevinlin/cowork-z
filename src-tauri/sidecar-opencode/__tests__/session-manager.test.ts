@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { buildSessionPermissions, buildSystemPrompt } from '../src/config-builder';
 import type { EventStream } from '../src/event-stream';
 import { type OpenCodeClient, OpenCodeHttpError } from '../src/opencode-client';
-import { SessionManager } from '../src/session-manager';
+import { parseModelId, SessionManager } from '../src/session-manager';
 import type { FolderPermission, FormInfo, OpenCodeEventFrame, PermissionAsk, SessionInfo, SessionMessage } from '../src/types';
 
 // Mock logger to prevent file I/O during tests
@@ -94,6 +94,28 @@ function replay(stream: EventStream, frames: OpenCodeEventFrame[]) {
 
 const rwWorkspace: FolderPermission[] = [{ path: '/test', accessLevel: 'read-write', source: 'workspace' }];
 
+describe('parseModelId', () => {
+  it('splits a composite id at the first slash', () => {
+    expect(parseModelId('anthropic/claude-sonnet-4-5')).toEqual({ providerID: 'anthropic', id: 'claude-sonnet-4-5' });
+    expect(parseModelId('openrouter/minimax/minimax-m2.5')).toEqual({ providerID: 'openrouter', id: 'minimax/minimax-m2.5' });
+  });
+
+  it('maps the github-copilot-enterprise prefix onto the single v2 provider github-copilot', () => {
+    expect(parseModelId('github-copilot-enterprise/claude-haiku-5.5')).toEqual({ providerID: 'github-copilot', id: 'claude-haiku-5.5' });
+  });
+
+  it('leaves github-copilot ids alone', () => {
+    expect(parseModelId('github-copilot/claude-haiku-5.5')).toEqual({ providerID: 'github-copilot', id: 'claude-haiku-5.5' });
+  });
+
+  it('returns undefined for no id or an id without a provider', () => {
+    expect(parseModelId(undefined)).toBeUndefined();
+    expect(parseModelId('')).toBeUndefined();
+    expect(parseModelId('claude')).toBeUndefined();
+    expect(parseModelId('/claude')).toBeUndefined();
+  });
+});
+
 describe('SessionManager', () => {
   let client: MockClient;
   let eventStream: EventStream;
@@ -141,6 +163,14 @@ describe('SessionManager', () => {
 
       expect(client.createSession).toHaveBeenCalledWith(
         expect.objectContaining({ model: { providerID: 'openrouter', id: 'minimax/minimax-m2.5' } })
+      );
+    });
+
+    it('creates the session on github-copilot for a stored github-copilot-enterprise model id', async () => {
+      await start({ modelId: 'github-copilot-enterprise/claude-haiku-5.5' });
+
+      expect(client.createSession).toHaveBeenCalledWith(
+        expect.objectContaining({ model: { providerID: 'github-copilot', id: 'claude-haiku-5.5' } })
       );
     });
 
@@ -903,6 +933,111 @@ describe('SessionManager', () => {
 
       expect(of('todo-updated')).toHaveLength(0);
       expect(manager.getSessionTodos('ses_123')).toBeUndefined();
+    });
+  });
+
+  describe('todos after a sidecar restart (2.3)', () => {
+    const todoItem = (todos: unknown, extra: Record<string, unknown> = {}) => ({
+      type: 'tool',
+      id: 'toolu_x',
+      name: 'todowrite',
+      state: { status: 'completed', input: { todos } },
+      ...extra,
+    });
+    const assistant = (id: string, content: unknown[]) => ({ id, type: 'assistant', content });
+
+    it('rebuilds the newest todo list from session-messages.json when nothing is in memory', async () => {
+      client.getSessionMessages.mockResolvedValue(loadHistory());
+
+      const todos = await manager.loadSessionTodos('ses_cold');
+
+      expect(client.getSessionMessages).toHaveBeenCalledWith('ses_cold');
+      // The fixture holds two todowrite calls: the in-progress one early on, the completed one later. Newest wins.
+      expect(todos).toEqual([
+        { id: '0', content: 'Ask the user a red/blue multiple-choice question', status: 'completed', priority: 'medium' },
+        {
+          id: '1',
+          content: 'Write hi to Output/a.txt, Misc/b.txt, Input/c.txt and read /etc/hosts, then reply DONE',
+          status: 'completed',
+          priority: 'medium',
+        },
+      ]);
+    });
+
+    it('caches the rebuilt list: the next ask is answered from memory', async () => {
+      client.getSessionMessages.mockResolvedValue(loadHistory());
+
+      const first = await manager.loadSessionTodos('ses_cold');
+      const second = await manager.loadSessionTodos('ses_cold');
+
+      expect(second).toEqual(first);
+      expect(manager.getSessionTodos('ses_cold')).toEqual(first);
+      expect(client.getSessionMessages).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not read the history when the todos are already in memory', async () => {
+      await start();
+      emit('session.tool.input.started', { sessionID: 'ses_123', assistantMessageID: 'msg_1', id: 'call_1', name: 'todowrite' });
+      emit('session.tool.called', {
+        sessionID: 'ses_123',
+        assistantMessageID: 'msg_1',
+        id: 'call_1',
+        input: { todos: [{ content: 'Live', status: 'pending' }] },
+      });
+      await flush();
+
+      await expect(manager.loadSessionTodos('ses_123')).resolves.toEqual([
+        { id: '0', content: 'Live', status: 'pending', priority: 'medium' },
+      ]);
+
+      expect(client.getSessionMessages).not.toHaveBeenCalled();
+    });
+
+    it('answers undefined (todos: null for the UI) when the history has no todowrite call', async () => {
+      client.getSessionMessages.mockResolvedValue(
+        loadHistory().filter((message) => !message.content?.some((item) => item.name === 'todowrite'))
+      );
+
+      await expect(manager.loadSessionTodos('ses_cold')).resolves.toBeUndefined();
+
+      expect(manager.getSessionTodos('ses_cold')).toBeUndefined();
+    });
+
+    it('answers undefined for an empty history', async () => {
+      client.getSessionMessages.mockResolvedValue([]);
+
+      await expect(manager.loadSessionTodos('ses_cold')).resolves.toBeUndefined();
+    });
+
+    it('answers undefined, and does not throw, when the history cannot be read', async () => {
+      client.getSessionMessages.mockRejectedValue(new Error('connection refused'));
+
+      await expect(manager.loadSessionTodos('ses_cold')).resolves.toBeUndefined();
+    });
+
+    it('skips a todowrite call without a todo list and uses the next older one', async () => {
+      client.getSessionMessages.mockResolvedValue([
+        assistant('msg_3', [todoItem(undefined, { state: { status: 'pending', input: {} } })]),
+        assistant('msg_2', [{ type: 'tool', id: 't2', name: 'read', state: { status: 'completed', input: { path: 'a' } } }]),
+        assistant('msg_1', [todoItem([{ content: 'Older', status: 'in_progress' }])]),
+      ] as SessionMessage[]);
+
+      await expect(manager.loadSessionTodos('ses_cold')).resolves.toEqual([
+        { id: '0', content: 'Older', status: 'in_progress', priority: 'medium' },
+      ]);
+    });
+
+    it('takes the last todowrite of a message that holds several, since content is in call order', async () => {
+      client.getSessionMessages.mockResolvedValue([
+        assistant('msg_1', [
+          todoItem([{ content: 'First write', status: 'pending' }], { id: 'a' }),
+          todoItem([{ content: 'Second write', status: 'completed' }], { id: 'b' }),
+        ]),
+      ] as SessionMessage[]);
+
+      await expect(manager.loadSessionTodos('ses_cold')).resolves.toEqual([
+        { id: '0', content: 'Second write', status: 'completed', priority: 'medium' },
+      ]);
     });
   });
 

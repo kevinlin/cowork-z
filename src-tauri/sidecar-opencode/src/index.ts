@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto';
 import readline from 'node:readline';
 import { CommandQueue } from './command-queue';
 import { toV2McpConfig } from './config-builder';
+import { copilotDirectory, disconnectCopilot, listCopilotModels, startCopilotLogin } from './copilot';
 import { EventStream } from './event-stream';
 import { logger } from './logger';
+import { mcpConfigsEqual, reapplyMcpServers, toMcpStatusRecord } from './mcp-runtime';
 import { ProcessManager } from './process-manager';
 import { SessionManager } from './session-manager';
 import type {
@@ -52,6 +54,8 @@ let appliedApiKeysFingerprint: string | undefined;
 let appliedOpenRouter = false;
 /** MCP servers the running server has: its startup config plus every runtime put/delete since. */
 let appliedMcpServers: Record<string, McpConfig> = {};
+/** MCP servers the running server was spawned with. They reach every workspace; runtime changes reach one. */
+let spawnMcpServers: Record<string, McpConfig> = {};
 
 const isOpenRouterModel = (modelId: string | undefined): boolean => modelId?.startsWith('openrouter/') === true;
 
@@ -149,6 +153,7 @@ async function initialize(
       logger.info('Workspace directory changed, re-scoping the event stream', { from: currentDirectory, to: workingDirectory });
       currentDirectory = workingDirectory;
       eventStream.setDirectory(workingDirectory);
+      await reapplyMcpToDirectory(workingDirectory);
     }
     return;
   }
@@ -167,10 +172,31 @@ async function initialize(
   }
 }
 
+/**
+ * MCP changes made at runtime (`handleUpdateMcpConfig`) land on one workspace's location only. When the
+ * workspace changes, bring the new location in line with what the app currently has. Never throws: a
+ * server that fails to connect must not stop the task from starting.
+ */
+async function reapplyMcpToDirectory(directory: string): Promise<void> {
+  if (!processManager) return;
+  try {
+    const failures = await reapplyMcpServers(processManager.getClient(), directory, appliedMcpServers, spawnMcpServers);
+    if (failures.length > 0) {
+      logger.warn('Some MCP servers could not be applied to the new workspace', { directory, failures });
+    }
+  } catch (error) {
+    logger.warn('Could not apply MCP servers to the new workspace', {
+      directory,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 async function doInitialize(mcpServers?: Record<string, McpConfig>, modelId?: string, workingDirectory?: string): Promise<void> {
   currentDirectory = workingDirectory;
   appliedOpenRouter = isOpenRouterModel(modelId);
   appliedMcpServers = { ...mcpServers };
+  spawnMcpServers = { ...mcpServers };
 
   // Pull credentials from the host at spawn time (2026-06-12 review #5)
   const keyResponse = await requestApiKeysFromHost();
@@ -406,7 +432,7 @@ async function handleUpdateMcpConfig(payload: UpdateMcpConfigPayload): Promise<v
 
     for (const [name, config] of Object.entries(desired)) {
       const known = appliedMcpServers[name];
-      if (known && JSON.stringify(toV2McpConfig(known)) === JSON.stringify(toV2McpConfig(config))) continue;
+      if (known && mcpConfigsEqual(known, config)) continue;
       try {
         await client.putMcpServer(name, toV2McpConfig(config), directory);
         appliedMcpServers[name] = config;
@@ -504,59 +530,21 @@ async function handleCopilotOAuthAuthorize(enterpriseUrl?: string): Promise<void
       throw new Error('Process manager not initialized');
     }
 
-    const client = processManager.getClient();
-    const providerID = enterpriseUrl ? 'github-copilot-enterprise' : 'github-copilot';
+    const { done } = await startCopilotLogin(processManager.getClient(), {
+      directory: copilotDirectory(currentDirectory),
+      enterpriseUrl,
+      emit: send,
+    });
 
-    if (enterpriseUrl) {
-      await client.updateConfig({
-        provider: {
-          'github-copilot-enterprise': { url: enterpriseUrl },
-        },
-      });
-    }
-
-    const result = await client.oauthAuthorize(providerID, 0);
-
-    send({
-      type: 'copilot_oauth_result',
-      payload: {
-        url: result.url,
-        method: (result.method || 'code') as 'auto' | 'code',
-        instructions: result.instructions,
-      },
-    } as SidecarEvent);
-
-    // The authorize call stores a pending auth in the server's memory.
-    // Calling callback with method:"auto" blocks until the user completes
-    // the device flow on GitHub, then exchanges the code for a token and
-    // persists it via Auth.set(). This is the correct completion signal.
-    const callbackAsync = async () => {
-      try {
-        await client.oauthCallback(providerID, 0);
-
-        send({
-          type: 'copilot_oauth_complete',
-          payload: { connected: true },
-        } as SidecarEvent);
-      } catch (e) {
-        const errMsg = e instanceof Error ? e.message : String(e);
-        logger.error('Copilot OAuth callback failed', { error: errMsg });
-
-        send({
-          type: 'copilot_oauth_complete',
-          payload: { connected: false, error: errMsg },
-        } as SidecarEvent);
-      }
-    };
-
-    callbackAsync();
+    // Watching the attempt takes minutes and never rejects; the command queue must not wait for it.
+    done.catch(() => undefined);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Copilot OAuth authorize failed', { error: message });
     send({
       type: 'copilot_oauth_complete',
       payload: { connected: false, error: message },
-    } as SidecarEvent);
+    });
   }
 }
 
@@ -566,36 +554,17 @@ async function handleCopilotGetModels(): Promise<void> {
       throw new Error('Process manager not initialized');
     }
 
-    const client = processManager.getClient();
-    const providers = await client.listProviders();
-
-    const copilotProvider = providers.all?.find((p: { id: string }) => p.id === 'github-copilot' || p.id === 'github-copilot-enterprise');
-
-    if (!(copilotProvider && copilotProvider.models)) {
-      send({
-        type: 'copilot_models_result',
-        payload: { success: false, error: 'No Copilot provider found or no models available' },
-      } as SidecarEvent);
-      return;
-    }
-
-    const prefix = copilotProvider.id;
-    const models = Object.entries(copilotProvider.models).map(([modelId, meta]) => ({
-      id: `${prefix}/${modelId}`,
-      name: (meta as { name?: string }).name || modelId,
-    }));
-
     send({
       type: 'copilot_models_result',
-      payload: { success: true, models },
-    } as SidecarEvent);
+      payload: await listCopilotModels(processManager.getClient(), copilotDirectory(currentDirectory)),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Failed to get Copilot models', { error: message });
     send({
       type: 'copilot_models_result',
       payload: { success: false, error: message },
-    } as SidecarEvent);
+    });
   }
 }
 
@@ -605,22 +574,12 @@ async function handleCopilotDisconnect(): Promise<void> {
       throw new Error('Process manager not initialized');
     }
 
-    const client = processManager.getClient();
-    try {
-      await client.deleteAuth('github-copilot');
-    } catch {
-      // May not exist
-    }
-    try {
-      await client.deleteAuth('github-copilot-enterprise');
-    } catch {
-      // May not exist
-    }
+    await disconnectCopilot(processManager.getClient(), copilotDirectory(currentDirectory));
 
     send({
       type: 'copilot_oauth_complete',
       payload: { connected: false },
-    } as SidecarEvent);
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Failed to disconnect Copilot', { error: message });
@@ -638,9 +597,8 @@ async function handleGetMcpStatus(): Promise<void> {
       return;
     }
 
-    const client = processManager.getClient();
-    const servers = await client.getMcpStatus(currentDirectory);
-    send({ type: 'mcp_status', payload: { servers } });
+    const servers = await processManager.getClient().listMcpServers(currentDirectory);
+    send({ type: 'mcp_status', payload: { servers: toMcpStatusRecord(servers) } });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Failed to get MCP status', { error: message });
@@ -648,21 +606,9 @@ async function handleGetMcpStatus(): Promise<void> {
   }
 }
 
+/** OpenCode 2.x has no route that lists tools, so no server has a tool list to show. The UI renders servers without one. */
 async function handleGetMcpTools(): Promise<void> {
-  try {
-    if (!processManager) {
-      send({ type: 'mcp_tools', payload: { toolIds: [] } });
-      return;
-    }
-
-    const client = processManager.getClient();
-    const toolIds = await client.getToolIds(currentDirectory);
-    send({ type: 'mcp_tools', payload: { toolIds } });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error('Failed to get MCP tools', { error: message });
-    send({ type: 'mcp_tools', payload: { toolIds: [] } });
-  }
+  send({ type: 'mcp_tools', payload: { toolIds: [] } });
 }
 
 async function handleConnectMcpServer(name: string): Promise<void> {
@@ -672,10 +618,10 @@ async function handleConnectMcpServer(name: string): Promise<void> {
     }
 
     const client = processManager.getClient();
-    await client.connectMcpServer(name, currentDirectory);
+    await client.connectMcp(name, currentDirectory);
     // Refresh status after connect
-    const servers = await client.getMcpStatus(currentDirectory);
-    send({ type: 'mcp_status', payload: { servers } });
+    const servers = await client.listMcpServers(currentDirectory);
+    send({ type: 'mcp_status', payload: { servers: toMcpStatusRecord(servers) } });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Failed to connect MCP server', { name, error: message });
@@ -690,10 +636,10 @@ async function handleDisconnectMcpServer(name: string): Promise<void> {
     }
 
     const client = processManager.getClient();
-    await client.disconnectMcpServer(name, currentDirectory);
+    await client.disconnectMcp(name, currentDirectory);
     // Refresh status after disconnect
-    const servers = await client.getMcpStatus(currentDirectory);
-    send({ type: 'mcp_status', payload: { servers } });
+    const servers = await client.listMcpServers(currentDirectory);
+    send({ type: 'mcp_status', payload: { servers: toMcpStatusRecord(servers) } });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Failed to disconnect MCP server', { name, error: message });
@@ -803,8 +749,9 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
       break;
 
     case 'get_session_todos': {
-      // OpenCode 2.x has no todo route: answer from the todos the agent last wrote (null when it never wrote any).
-      const todos = sessionManager?.getSessionTodos(msg.sessionId) ?? null;
+      // OpenCode 2.x has no todo route: answer from the todos this run saw, else rebuild them from the
+      // message history (null when the agent never wrote any, or no server is running to read them from).
+      const todos = (await sessionManager?.loadSessionTodos(msg.sessionId)) ?? null;
       send({ type: 'todo_updated', taskId: msg.taskId, payload: { todos } } as unknown as SidecarEvent);
       break;
     }

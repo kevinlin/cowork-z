@@ -177,6 +177,56 @@ export interface McpV2Config {
   oauth?: { client_id: string; client_secret: string; scope?: string } | false;
 }
 
+/** One item of `GET /api/mcp` `data`. `status.status` is `connected`, `pending`, `disabled`, `failed` or `needs_auth`. */
+export interface McpServerState {
+  name: string;
+  status: { status: string; error?: string };
+  integrationID?: string;
+}
+
+export interface IntegrationMethod {
+  id: string;
+  type: string;
+  label?: string;
+}
+
+/** A credential connection carries the id `DELETE /api/credential/{id}` takes; an env connection has only a variable name. */
+export type IntegrationConnection = { type: 'credential'; id: string; label?: string; method?: string } | { type: 'env'; name: string };
+
+/** One item of `GET /api/integration` `data` (no secrets). */
+export interface IntegrationInfo {
+  id: string;
+  name: string;
+  methods: IntegrationMethod[];
+  connections: IntegrationConnection[];
+}
+
+export interface OAuthConnectRequest {
+  methodID: string;
+  answer?: Record<string, string>;
+}
+
+/** `data` of `POST /api/integration/{id}/connect/oauth`. `auto`: the server polls the provider itself. `code`: the user supplies a code. */
+export interface OAuthAttempt {
+  attemptID: string;
+  url: string;
+  instructions: string;
+  mode: 'auto' | 'code';
+}
+
+/** `data` of `GET /api/integration/{id}/connect/oauth/{attemptID}`. */
+export type OAuthAttemptStatus = { status: 'pending' | 'complete' | 'expired' } | { status: 'failed'; message?: string };
+
+/** One item of `GET /api/model` `data`. */
+export interface ModelInfo {
+  id: string;
+  modelID: string;
+  providerID: string;
+  name: string;
+  enabled: boolean;
+  status?: string;
+}
+
 /** v1-shaped OpenCode config document (`OPENCODE_CONFIG_CONTENT`; v2 normalises it). */
 export interface Config {
   model?: string;

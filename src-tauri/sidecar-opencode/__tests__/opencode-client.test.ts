@@ -115,7 +115,8 @@ describe('OpenCodeClient', () => {
         json: () => Promise.reject(new SyntaxError('Unexpected end of JSON input')),
       } as unknown as Response);
 
-      await expect(client.disconnectMcpServer('github')).resolves.toBeNull();
+      const request = (client as unknown as { request: (...args: unknown[]) => Promise<unknown> }).request.bind(client);
+      await expect(request('POST', '/api/experimental/mcp/github/disconnect')).resolves.toBeNull();
     });
   });
 
@@ -152,29 +153,6 @@ describe('OpenCodeClient', () => {
       const result = await client.isServerRunning();
 
       expect(result).toBe(false);
-    });
-  });
-
-  describe('updateConfig', () => {
-    it('should send PATCH request with config body', async () => {
-      const newConfig = { model: 'claude-3-sonnet' };
-      const returnedConfig = { ...newConfig, default_agent: 'accomplish' };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(returnedConfig),
-      } as Response);
-
-      const result = await client.updateConfig(newConfig);
-
-      expect(result).toEqual(returnedConfig);
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://127.0.0.1:4096/config',
-        expect.objectContaining({
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newConfig),
-        })
-      );
     });
   });
 
@@ -462,6 +440,160 @@ describe('OpenCodeClient', () => {
     });
   });
 
+  describe('MCP status and connection routes', () => {
+    const okData = (data: unknown) => ({ ok: true, status: 200, json: () => Promise.resolve({ data }) }) as unknown as Response;
+    const noContent = () =>
+      ({ ok: true, status: 204, json: () => Promise.reject(new SyntaxError('Unexpected end of JSON input')) }) as unknown as Response;
+
+    it('listMcpServers GETs /api/mcp with the location[directory] deepObject query and unwraps {data}', async () => {
+      const servers = [{ name: 'github', status: { status: 'connected' } }];
+      mockFetch.mockResolvedValueOnce(okData(servers));
+
+      await expect(client.listMcpServers('/Users/me/My Docs')).resolves.toEqual(servers);
+
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('http://127.0.0.1:4096/api/mcp?location[directory]=%2FUsers%2Fme%2FMy%20Docs');
+      expect(init.method).toBe('GET');
+    });
+
+    it('listMcpServers omits the location query when no directory is known', async () => {
+      mockFetch.mockResolvedValueOnce(okData([]));
+
+      await client.listMcpServers();
+
+      expect((mockFetch.mock.calls[0] as [string, RequestInit])[0]).toBe('http://127.0.0.1:4096/api/mcp');
+    });
+
+    it('connectMcp POSTs /api/experimental/mcp/{name}/connect with location[directory]', async () => {
+      mockFetch.mockResolvedValueOnce(noContent());
+
+      await client.connectMcp('my server', '/ws');
+
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('http://127.0.0.1:4096/api/experimental/mcp/my%20server/connect?location[directory]=%2Fws');
+      expect(init.method).toBe('POST');
+    });
+
+    it('disconnectMcp POSTs /api/experimental/mcp/{name}/disconnect with location[directory]', async () => {
+      mockFetch.mockResolvedValueOnce(noContent());
+
+      await client.disconnectMcp('github', '/ws');
+
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('http://127.0.0.1:4096/api/experimental/mcp/github/disconnect?location[directory]=%2Fws');
+      expect(init.method).toBe('POST');
+    });
+  });
+
+  describe('integration, credential and model routes', () => {
+    const okData = (data: unknown) => ({ ok: true, status: 200, json: () => Promise.resolve({ data }) }) as unknown as Response;
+    const noContent = () =>
+      ({ ok: true, status: 204, json: () => Promise.reject(new SyntaxError('Unexpected end of JSON input')) }) as unknown as Response;
+    const lastCall = () => {
+      const call = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
+      return { url: call[0] as string, init: call[1] as RequestInit };
+    };
+
+    it('listIntegrations GETs /api/integration with location[directory] and unwraps {data}', async () => {
+      const integrations = [{ id: 'github-copilot', name: 'GitHub Copilot', methods: [], connections: [] }];
+      mockFetch.mockResolvedValueOnce(okData(integrations));
+
+      await expect(client.listIntegrations('/ws')).resolves.toEqual(integrations);
+
+      expect(lastCall().url).toBe('http://127.0.0.1:4096/api/integration?location[directory]=%2Fws');
+      expect(lastCall().init.method).toBe('GET');
+    });
+
+    it('startOAuth POSTs {methodID, answer} to connect/oauth with location[directory] and unwraps {data}', async () => {
+      const attempt = { attemptID: 'att_1', url: 'https://github.com/login/device', instructions: 'Enter code: AAAA-BBBB', mode: 'auto' };
+      mockFetch.mockResolvedValueOnce(okData(attempt));
+
+      const result = await client.startOAuth('github-copilot', { methodID: 'device', answer: { deploymentType: 'github.com' } }, '/ws');
+
+      expect(result).toEqual(attempt);
+      expect(lastCall().url).toBe('http://127.0.0.1:4096/api/integration/github-copilot/connect/oauth?location[directory]=%2Fws');
+      expect(lastCall().init.method).toBe('POST');
+      expect(JSON.parse(lastCall().init.body as string)).toEqual({ methodID: 'device', answer: { deploymentType: 'github.com' } });
+    });
+
+    it('getOAuthAttempt GETs the attempt with location[directory] and unwraps {data}', async () => {
+      mockFetch.mockResolvedValueOnce(okData({ status: 'pending' }));
+
+      await expect(client.getOAuthAttempt('github-copilot', 'att_1', '/ws')).resolves.toEqual({ status: 'pending' });
+
+      expect(lastCall().url).toBe('http://127.0.0.1:4096/api/integration/github-copilot/connect/oauth/att_1?location[directory]=%2Fws');
+      expect(lastCall().init.method).toBe('GET');
+    });
+
+    it('completeOAuth POSTs {} without a code and {code} with one', async () => {
+      mockFetch.mockResolvedValueOnce(noContent());
+      await client.completeOAuth('github-copilot', 'att_1', undefined, '/ws');
+      expect(lastCall().url).toBe(
+        'http://127.0.0.1:4096/api/integration/github-copilot/connect/oauth/att_1/complete?location[directory]=%2Fws'
+      );
+      expect(lastCall().init.method).toBe('POST');
+      expect(JSON.parse(lastCall().init.body as string)).toEqual({});
+
+      mockFetch.mockResolvedValueOnce(noContent());
+      await client.completeOAuth('github-copilot', 'att_1', 'ABCD-1234', '/ws');
+      expect(JSON.parse(lastCall().init.body as string)).toEqual({ code: 'ABCD-1234' });
+    });
+
+    it('deleteCredential DELETEs /api/credential/{id} and nothing else', async () => {
+      mockFetch.mockResolvedValueOnce(noContent());
+
+      await client.deleteCredential('cred/1');
+
+      expect(lastCall().url).toBe('http://127.0.0.1:4096/api/credential/cred%2F1');
+      expect(lastCall().init.method).toBe('DELETE');
+    });
+
+    it('has no method that reads the credential list (GET /api/credential returns every stored secret)', () => {
+      const methods = Object.getOwnPropertyNames(OpenCodeClient.prototype);
+
+      expect(methods.filter((name) => /credential/i.test(name))).toEqual(['deleteCredential']);
+    });
+
+    it('listModels GETs /api/model with location[directory] and unwraps {data}', async () => {
+      const models = [{ id: 'm1', modelID: 'claude-haiku-5.5', providerID: 'github-copilot', name: 'Haiku', enabled: true }];
+      mockFetch.mockResolvedValueOnce(okData(models));
+
+      await expect(client.listModels('/ws')).resolves.toEqual(models);
+
+      expect(lastCall().url).toBe('http://127.0.0.1:4096/api/model?location[directory]=%2Fws');
+    });
+
+    it.each([
+      ['listIntegrations', () => client.listIntegrations('/ws')],
+      ['startOAuth', () => client.startOAuth('github-copilot', { methodID: 'device' }, '/ws')],
+      ['getOAuthAttempt', () => client.getOAuthAttempt('github-copilot', 'att_1', '/ws')],
+      ['completeOAuth', () => client.completeOAuth('github-copilot', 'att_1', undefined, '/ws')],
+      ['deleteCredential', () => client.deleteCredential('cred_1')],
+    ])('%s never passes a response body to the logger', async (_name, call) => {
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ data: { key: 'sk-secret' } }) } as Response);
+
+      await call();
+
+      const logged = (logger.httpResponse as jest.Mock).mock.calls[0];
+      expect(logged).toHaveLength(3);
+    });
+
+    it('keeps the response body out of the error message of a credential route, but keeps the server message', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ _tag: 'OAuthMethodNotFoundError', message: 'OAuth method not found', key: 'sk-secret' }),
+      } as Response);
+
+      const error = await client.startOAuth('github-copilot', { methodID: 'device' }, '/ws').catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(OpenCodeHttpError);
+      expect((error as Error).message).toBe('HTTP 500: OAuth method not found');
+      expect((error as Error).message).not.toContain('sk-secret');
+      expect((error as OpenCodeHttpError).status).toBe(500);
+    });
+  });
+
   describe('HTTP basic auth', () => {
     it('should not send Authorization header when no password is set', async () => {
       const noAuthClient = new OpenCodeClient({ port: 4096 });
@@ -503,7 +635,7 @@ describe('OpenCodeClient', () => {
         json: () => Promise.resolve({}),
       } as Response);
 
-      await authClient.updateConfig({ model: 'test-model' });
+      await authClient.prompt('ses_1', 'hello');
 
       const callArgs = mockFetch.mock.calls[0];
       const fetchOptions = callArgs[1] as RequestInit;

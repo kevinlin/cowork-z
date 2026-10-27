@@ -1,10 +1,15 @@
 import { logger } from './logger';
 import type {
-  Config,
   FormAnswer,
   FormInfo,
+  IntegrationInfo,
+  McpServerState,
   McpV2Config,
+  ModelInfo,
   ModelRef,
+  OAuthAttempt,
+  OAuthAttemptStatus,
+  OAuthConnectRequest,
   PermissionAsk,
   PermissionRule,
   ServerInfo,
@@ -36,12 +41,21 @@ export class OpenCodeHttpError extends Error {
   readonly status: number;
   readonly body: unknown;
 
-  constructor(status: number, body: unknown) {
-    super(`HTTP ${status}: ${JSON.stringify(body)}`);
+  /**
+   * `redactBody` keeps the response body out of the message, which handlers log and send to the UI:
+   * only the server's own `message` text stays. The body is still on `.body` for callers that branch on it.
+   */
+  constructor(status: number, body: unknown, options?: { redactBody?: boolean }) {
+    super(`HTTP ${status}: ${options?.redactBody ? serverMessage(body) : JSON.stringify(body)}`);
     this.name = 'OpenCodeHttpError';
     this.status = status;
     this.body = body;
   }
+}
+
+function serverMessage(body: unknown): string {
+  const message = (body as { message?: unknown } | null)?.message;
+  return typeof message === 'string' && message ? message : 'request failed';
 }
 
 type QueryScalar = string | number | boolean | null | undefined;
@@ -131,7 +145,7 @@ export class OpenCodeClient {
       }
 
       if (!response.ok) {
-        throw new OpenCodeHttpError(response.status, responseBody);
+        throw new OpenCodeHttpError(response.status, responseBody, { redactBody: !logBody });
       }
 
       return responseBody as T;
@@ -161,14 +175,6 @@ export class OpenCodeClient {
     } catch {
       return false;
     }
-  }
-
-  // ============================================================================
-  // Configuration (v1 route — still used by the Copilot-enterprise path until it moves to v2)
-  // ============================================================================
-
-  async updateConfig(config: Partial<Config>, directory?: string): Promise<Config> {
-    return this.request<Config>('PATCH', '/config', config, directory ? { directory } : undefined);
   }
 
   // ============================================================================
@@ -279,53 +285,83 @@ export class OpenCodeClient {
   }
 
   // ============================================================================
-  // Provider OAuth & Discovery
+  // MCP status and connection
   // ============================================================================
 
-  async oauthAuthorize(providerID: string, method = 0): Promise<{ url: string; method: string; instructions: string }> {
-    return this.request('POST', `/provider/${providerID}/oauth/authorize`, { method });
+  /** Every MCP server at the location, including those from the user's global OpenCode config. */
+  async listMcpServers(directory?: string): Promise<McpServerState[]> {
+    const response = await this.request<{ data: McpServerState[] }>('GET', '/api/mcp', undefined, locationQuery(directory));
+    return response.data;
   }
 
-  async oauthCallback(providerID: string, method = 0, code?: string): Promise<boolean> {
-    return this.request('POST', `/provider/${providerID}/oauth/callback`, { method, code }, undefined, { timeout: 10 * 60 * 1000 });
+  async connectMcp(name: string, directory?: string): Promise<void> {
+    await this.request<unknown>('POST', `/api/experimental/mcp/${encodeURIComponent(name)}/connect`, undefined, locationQuery(directory));
   }
 
-  async listProviders(
-    directory?: string
-  ): Promise<{ all: Array<{ id: string; models?: Record<string, { name?: string }> }>; connected: string[] }> {
-    return this.request('GET', '/provider', undefined, directory ? { directory } : undefined);
-  }
-
-  async deleteAuth(providerID: string): Promise<boolean> {
-    return this.request<boolean>('DELETE', `/auth/${providerID}`);
-  }
-
-  // ============================================================================
-  // MCP Servers
-  // ============================================================================
-
-  async getMcpStatus(directory?: string): Promise<Record<string, { status: string; error?: string }>> {
-    return this.request<Record<string, { status: string; error?: string }>>(
-      'GET',
-      '/mcp',
+  async disconnectMcp(name: string, directory?: string): Promise<void> {
+    await this.request<unknown>(
+      'POST',
+      `/api/experimental/mcp/${encodeURIComponent(name)}/disconnect`,
       undefined,
-      directory ? { directory } : undefined
+      locationQuery(directory)
     );
   }
 
-  async connectMcpServer(name: string, directory?: string): Promise<boolean> {
-    return this.request<boolean>('POST', `/mcp/${encodeURIComponent(name)}/connect`, undefined, directory ? { directory } : undefined);
-  }
-
-  async disconnectMcpServer(name: string, directory?: string): Promise<void> {
-    return this.request<void>('POST', `/mcp/${encodeURIComponent(name)}/disconnect`, undefined, directory ? { directory } : undefined);
-  }
-
   // ============================================================================
-  // Tools (Experimental)
+  // Integrations, credentials and models
+  //
+  // Anything that can carry credential material passes `logBody: false`, so no response body reaches
+  // the logger or the debug panel even with payload logging on. There is deliberately no method for
+  // `GET /api/credential`: it returns every stored secret.
   // ============================================================================
 
-  async getToolIds(directory?: string): Promise<string[]> {
-    return this.request<string[]>('GET', '/experimental/tool/ids', undefined, directory ? { directory } : undefined);
+  /** Providers and their connections (ids and labels, no secrets). A location's OAuth methods only exist after this ran for it. */
+  async listIntegrations(directory?: string): Promise<IntegrationInfo[]> {
+    const response = await this.request<{ data: IntegrationInfo[] }>('GET', '/api/integration', undefined, locationQuery(directory), {
+      logBody: false,
+    });
+    return response.data;
+  }
+
+  async startOAuth(integrationID: string, input: OAuthConnectRequest, directory?: string): Promise<OAuthAttempt> {
+    const response = await this.request<{ data: OAuthAttempt }>(
+      'POST',
+      `/api/integration/${encodeURIComponent(integrationID)}/connect/oauth`,
+      input,
+      locationQuery(directory),
+      { logBody: false }
+    );
+    return response.data;
+  }
+
+  async getOAuthAttempt(integrationID: string, attemptID: string, directory?: string): Promise<OAuthAttemptStatus> {
+    const response = await this.request<{ data: OAuthAttemptStatus }>(
+      'GET',
+      `/api/integration/${encodeURIComponent(integrationID)}/connect/oauth/${encodeURIComponent(attemptID)}`,
+      undefined,
+      locationQuery(directory),
+      { logBody: false }
+    );
+    return response.data;
+  }
+
+  /** Finishes a `code`-mode attempt. An `auto` attempt completes on its own. */
+  async completeOAuth(integrationID: string, attemptID: string, code?: string, directory?: string): Promise<void> {
+    await this.request<unknown>(
+      'POST',
+      `/api/integration/${encodeURIComponent(integrationID)}/connect/oauth/${encodeURIComponent(attemptID)}/complete`,
+      code ? { code } : {},
+      locationQuery(directory),
+      { logBody: false }
+    );
+  }
+
+  async deleteCredential(credentialID: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/api/credential/${encodeURIComponent(credentialID)}`, undefined, undefined, { logBody: false });
+  }
+
+  async listModels(directory?: string): Promise<ModelInfo[]> {
+    const response = await this.request<{ data: ModelInfo[] }>('GET', '/api/model', undefined, locationQuery(directory));
+    return response.data;
   }
 }

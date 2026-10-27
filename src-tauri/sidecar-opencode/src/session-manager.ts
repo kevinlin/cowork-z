@@ -12,6 +12,7 @@ import type {
   PermissionAsk,
   QuestionAnswer,
   ResumeSessionPayload,
+  SessionMessage,
   SessionOutcome,
   StartTaskPayload,
   TextDeltaData,
@@ -81,18 +82,26 @@ interface PendingForm {
   bindings: QuestionBinding[];
 }
 
+/** v1 had a separate provider for GitHub Enterprise; v2 serves github.com and enterprise through `github-copilot`. */
+const ENTERPRISE_COPILOT_PROVIDER = 'github-copilot-enterprise';
+const COPILOT_PROVIDER = 'github-copilot';
+
 /**
  * Parse a composite model ID (e.g. "openrouter/minimax/minimax-m2.5") into
  * the { providerID, id } shape that OpenCode's session API expects.
  * This bypasses config-based model resolution, which fails for models not
  * in OpenCode's models.dev curated database.
+ *
+ * Model ids stored by the app before v2 may carry the `github-copilot-enterprise` prefix: they map to
+ * the one v2 Copilot provider.
  */
-function parseModelId(modelId?: string): ModelRef | undefined {
+export function parseModelId(modelId?: string): ModelRef | undefined {
   if (!modelId) return undefined;
   const slashIdx = modelId.indexOf('/');
   if (slashIdx <= 0) return undefined;
+  const providerID = modelId.slice(0, slashIdx);
   return {
-    providerID: modelId.slice(0, slashIdx),
+    providerID: providerID === ENTERPRISE_COPILOT_PROVIDER ? COPILOT_PROVIDER : providerID,
     id: modelId.slice(slashIdx + 1),
   };
 }
@@ -456,6 +465,38 @@ export class SessionManager extends EventEmitter {
   /** The last todo list the agent wrote in this session, or undefined when it never wrote one. */
   getSessionTodos(sessionId: string): Todo[] | undefined {
     return this.todosBySession.get(sessionId);
+  }
+
+  /**
+   * The session's todos: from memory when this run saw them, otherwise rebuilt from the message history
+   * (a restarted sidecar has seen nothing) and cached. Undefined when the agent never wrote a list or
+   * the history cannot be read. Reads only the history's first page (newest messages).
+   */
+  async loadSessionTodos(sessionId: string): Promise<Todo[] | undefined> {
+    const known = this.todosBySession.get(sessionId);
+    if (known) return known;
+
+    let messages: SessionMessage[];
+    try {
+      messages = await this.client.getSessionMessages(sessionId);
+    } catch (error) {
+      logger.warn('Could not read the message history to rebuild the todos', { sessionId, error: errorMessage(error) });
+      return undefined;
+    }
+
+    // Newest message first; inside a message the calls are in call order, so the last one is the newest.
+    for (const message of messages) {
+      const items = message.content ?? [];
+      for (let index = items.length - 1; index >= 0; index--) {
+        const item = items[index];
+        if (item.type !== 'tool' || item.name !== 'todowrite') continue;
+        const todos = toTodos(item.state?.input);
+        if (!todos) continue;
+        this.todosBySession.set(sessionId, todos);
+        return todos;
+      }
+    }
+    return undefined;
   }
 
   // ==========================================================================

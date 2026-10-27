@@ -1,10 +1,15 @@
+---
+name: opencode-server-api
+description: Read-only queries against your own OpenCode 2.x server API (server info, sessions, message history, pending permissions and questions, MCP status, skills, agents). Use when you need to inspect your own state, or when the user asks about your session, tools, MCP servers or skills.
+---
+
 # OpenCode Server API
 
-This skill gives you access to the OpenCode server REST API for self-introspection — checking your own health, session state, message history, todos, configuration, skills, MCP status, and performing lightweight config updates.
+This skill lets you inspect the OpenCode server you run on — server info, sessions, message history (including your todo lists), pending permission and question requests, MCP status, skills and agents. It is **read-only**: use `GET` requests only.
 
 ## Authentication
 
-The server port is provided in your system prompt inside the `<server-access>` block. The basic-auth password is already present in your shell environment as `OPENCODE_SERVER_PASSWORD` — your shell expands it locally when you run a command. All requests require HTTP basic auth:
+The server port is in your system prompt, inside the `<server-access>` block. The basic-auth password is already in your shell environment as `OPENCODE_SERVER_PASSWORD`; your shell expands it locally. Every request needs HTTP basic auth:
 
 ```bash
 curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/<endpoint>
@@ -16,240 +21,70 @@ Replace `$PORT` with the port from your system prompt. Use `$OPENCODE_SERVER_PAS
 
 ## IMPORTANT: Fetch the API Spec First
 
-**Before calling ANY specific endpoint, you MUST first fetch and parse the live OpenAPI specification.** The spec is the source of truth for all available endpoints, request/response schemas, and query parameters. The endpoint summaries in this skill are a convenient reference, but the server's own spec may be newer or more complete.
+**Before calling ANY endpoint, fetch the live OpenAPI spec.** It is the source of truth for routes, parameters and response shapes, and it may be newer than this skill.
 
 ```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/doc
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/openapi.json
 ```
 
-This returns the full OpenAPI JSON spec. Parse it to understand the exact request format, required parameters, and response shapes before invoking any endpoint. **Do not guess or rely solely on the examples below — always verify against `/doc` first.**
+Do not guess from the examples below; verify against the spec first.
 
----
+## Conventions
 
-## Endpoint Reference
-
-### GET /global/health
-
-Check server health and get the OpenCode version.
+- All API routes live under `/api/`. Answers are wrapped: `{"data": ...}`, plus `"location"` on location-scoped routes.
+- **Location-scoped routes** (`/api/mcp`, `/api/skill`, `/api/agent`) take the workspace folder as a `location[directory]` query parameter. The brackets break plain curl URLs, so pass it with `-G --data-urlencode`:
 
 ```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/global/health
+curl -s -G -u "opencode:$OPENCODE_SERVER_PASSWORD" \
+  --data-urlencode "location[directory]=<workspace path>" \
+  http://localhost:$PORT/api/mcp
 ```
 
-**Response:**
-```json
-{ "healthy": true, "version": "1.1.48" }
-```
+The workspace path is given in your system prompt (`<workspace-conventions>`). Session routes need no location.
 
----
+## Endpoints (all `GET`)
 
-### GET /config
+| Route | Returns |
+|---|---|
+| `/api/info` | Server `version`, `pid`, `urls`. Use it as the health check. |
+| `/api/session` | `{data: [session]}` — your sessions. Optional `directory`, `limit`, `search`. |
+| `/api/session/{id}` | `{data: session}` — `id`, `model`, `outcome`, `time`, `location`, `permissions`. |
+| `/api/session/{id}/message` | `{data: [message], cursor}` — history. Pass `order=desc` for newest first, `order=asc` for oldest first. |
+| `/api/session/{id}/permission` | `{data: [request]}` — permission requests waiting for an answer. |
+| `/api/session/{id}/form` | `{data: [form]}` — questions waiting for an answer. |
+| `/api/mcp` | `{data: [{name, status: {status, error?}}]}` — MCP servers. |
+| `/api/skill` | `{data: [{id, name, path, content}]}` — available skills. |
+| `/api/agent` | `{data: [agent]}` — available agents and their models. |
 
-Read the current server configuration (model, agents, permissions, MCP servers, etc.).
+Find your own session in `/api/session` (filter with `directory=<workspace path>`).
 
-**Query parameters:**
-- `directory` (optional) — project directory to scope the config
+### `/api/session/{id}/message`
+
+Messages have a `type` (`user`, `assistant`, `idle`, …). An `assistant` message has a `content` array of `text`, `reasoning` and `tool` items. A tool item is `{type: "tool", name, state: {status, input, content}}`.
+
+**Your todo list** is the `input.todos` of your newest `todowrite` call: read the history newest first (`order=desc`), find the first `tool` item named `todowrite` and take `state.input.todos` (`[{content, status}]`, status `pending`, `in_progress` or `completed`). There is no todo route.
 
 ```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/config
+curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" "http://localhost:$PORT/api/session/ses_abc123/message?order=desc"
 ```
 
-**Response:** Full config object including `model`, `default_agent`, `enabled_providers`, `permission`, `agent`, `mcp`, etc.
+### `/api/mcp`
 
----
+`status.status` is one of `connected`, `pending` (still connecting), `disabled`, `failed` or `needs_auth`; `error` is set on the last two. The list also includes servers from the user's global OpenCode config.
 
-### PATCH /config
+### `/api/session/{id}/permission` and `/form`
 
-Update configuration at runtime (e.g., switch model, update permissions, modify MCP servers).
+Pending permission request: `{id, action, resources, metadata, message?}`. Pending form: `{id, title, fields: [{key, type, options?}]}`. Both are empty when nothing is waiting.
 
-**Query parameters:**
-- `directory` (optional) — project directory to scope the config
+## Out of scope
 
-**Body:** Partial config object — only include fields you want to change.
-
-```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" -X PATCH \
-  -H "Content-Type: application/json" \
-  -d '{"model": "claude-sonnet-4-20250514"}' \
-  http://localhost:$PORT/config
-```
-
-**Response:** Updated full config object.
-
-**Note:** PATCH /config may cause the server to dispose and recreate its instance. This is normal and the server will recover automatically.
-
----
-
-### GET /session
-
-List all sessions.
-
-**Query parameters:**
-- `directory` (optional) — filter by project directory
-- `roots` (optional) — if `true`, only return root sessions
-- `limit` (optional) — max number of sessions to return
-
-```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/session
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "ses_abc123",
-    "slug": "my-session",
-    "projectID": "proj_1",
-    "directory": "/path/to/project",
-    "title": "Session title",
-    "version": "1",
-    "time": { "created": 1700000000, "updated": 1700000100 }
-  }
-]
-```
-
----
-
-### GET /session/{id}
-
-Get details of a specific session.
-
-**Query parameters:**
-- `directory` (optional) — project directory
-
-```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/session/ses_abc123
-```
-
-**Response:** Single session object (same shape as list items above).
-
----
-
-### GET /session/{id}/message
-
-Read back message history for a session.
-
-**Query parameters:**
-- `directory` (optional) — project directory
-- `limit` (optional) — max number of messages to return
-
-```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/session/ses_abc123/message
-```
-
-**Response:**
-```json
-[
-  {
-    "info": { "id": "msg_1", "role": "assistant", "sessionID": "ses_abc123" },
-    "parts": [{ "type": "text", "text": "Here is my response..." }]
-  }
-]
-```
-
----
-
-### GET /session/{id}/todo
-
-Get todo items for a session.
-
-```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/session/ses_abc123/todo
-```
-
-**Response:**
-```json
-[
-  { "id": "todo_1", "content": "Implement feature X", "status": "in_progress", "priority": "high" },
-  { "id": "todo_2", "content": "Write tests", "status": "pending", "priority": "medium" }
-]
-```
-
-Todo statuses: `pending`, `in_progress`, `completed`, `cancelled`
-Todo priorities: `high`, `medium`, `low`
-
----
-
-### GET /skill
-
-List available skills.
-
-```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/skill
-```
-
-**Response:** Array of skill objects, each with `name`, `description`, `location`, and `content` fields.
-
----
-
-### GET /mcp
-
-Check MCP server connection status.
-
-```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/mcp
-```
-
-**Response:** Map of MCP server names to their connection status:
-```json
-{ "my-mcp-server": { "status": "connected" } }
-```
-
----
-
-### GET /permission
-
-List pending permission requests.
-
-```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/permission
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "per_abc",
-    "sessionID": "ses_abc123",
-    "permission": "bash",
-    "patterns": ["ls -la"],
-    "metadata": { "command": "ls -la" },
-    "always": []
-  }
-]
-```
-
----
-
-### GET /question
-
-List pending question requests.
-
-```bash
-curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:$PORT/question
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "que_abc",
-    "sessionID": "ses_abc123",
-    "questions": [
-      { "question": "Which option?", "options": [{ "label": "A" }, { "label": "B" }] }
-    ]
-  }
-]
-```
-
----
+Do not call routes that change state (creating or deleting sessions, prompting, interrupting, answering permissions or forms, editing config or MCP servers). The user decides those in the app. Do not call any route that handles credentials or provider sign-in either; they are not part of this skill. Do not call `/api/config`: it returns the user's raw config files, which can hold API keys.
 
 ## Usage Guidance
 
-- **Check health** (`GET /global/health`) to verify the server is responsive before making other calls.
-- **Inspect your own session** (`GET /session/{id}`, `GET /session/{id}/message`) to review what you've said and done so far.
-- **Check todos** (`GET /session/{id}/todo`) to see your current task progress.
-- **List skills** (`GET /skill`) when the user asks about your capabilities or available skills.
-- **Check MCP status** (`GET /mcp`) when the user asks about connected tools or MCP servers.
-- **Switch model** (`PATCH /config` with `{"model": "..."}`) if the user asks you to change the AI model.
-- **Read config** (`GET /config`) to understand your current setup (active model, permissions, agents).
+- **Check health** (`/api/info`) before other calls when the server seems unresponsive.
+- **Review your own work** (`/api/session/{id}/message`) to see what you have said and done.
+- **Check todos** by reading your newest `todowrite` call from the message history.
+- **List skills** (`/api/skill`) when asked about your capabilities.
+- **Check MCP status** (`/api/mcp`) when asked about connected tools or servers.
+- **List agents** (`/api/agent`) to understand your current setup.

@@ -1,17 +1,26 @@
 import { EventEmitter } from 'node:events';
-import { buildSessionConfig, buildSystemPrompt } from './config-builder';
+import { buildSessionPermissions, buildSystemPrompt } from './config-builder';
 import type { EventStream } from './event-stream';
+import { buildFormAnswer, mapFormToQuestions, type QuestionBinding } from './form-mapper';
 import { logger } from './logger';
-import type { OpenCodeClient } from './opencode-client';
+import { type OpenCodeClient, OpenCodeHttpError } from './opencode-client';
 import type {
-  MessageInfo,
-  PartUpdate,
-  PermissionRequest,
-  QuestionRequest,
+  ExecutionFailedData,
+  ExecutionInterruptedData,
+  FormInfo,
+  ModelRef,
+  PermissionAsk,
+  QuestionAnswer,
   ResumeSessionPayload,
-  Session,
+  SessionOutcome,
   StartTaskPayload,
+  TextDeltaData,
   Todo,
+  ToolCalledData,
+  ToolContentItem,
+  ToolFailedData,
+  ToolInputStartedData,
+  ToolSuccessData,
 } from './types';
 
 /**
@@ -25,37 +34,88 @@ import type {
  */
 const COMPACTION_LOOP_THRESHOLD = 3;
 
+/** Key of the session instructions entry that carries the Cowork-Z system prompt. */
+const INSTRUCTIONS_KEY = 'cowork-z';
+
+/** v2 tool names the frontend knows under their v1 names (artifact extraction only recognises `bash`). */
+const V1_NAMES: Record<string, string> = { shell: 'bash', subagent: 'task' };
+const toV1Name = (name: string): string => V1_NAMES[name] ?? name;
+
+type Job = () => void | Promise<void>;
+
+interface ToolCall {
+  name?: string;
+  messageId?: string;
+  input?: unknown;
+  startedAt?: number;
+}
+
 interface ManagedSession {
   taskId: string;
   sessionId: string;
-  session: Session;
+  directory?: string;
   status: 'starting' | 'active' | 'completing' | 'completed' | 'error';
   currentMessageId?: string;
   textAccumulator: string;
   consecutiveCompactions: number;
   /**
-   * True once any SSE event confirmed the server is processing the turn.
-   * Used to distinguish a sendMessage rejection that means "the turn never
-   * started" (must surface a task_error) from an HTTP-level artifact like a
-   * socket timeout on a long-running turn (2026-06-12 review #9).
+   * True once any event confirmed the server is processing the turn.
+   * Used to tell a prompt transport failure that means "the turn never started"
+   * (must surface a task_error) from an ambiguous artifact such as a socket
+   * timeout on a turn that is already running (2026-06-12 review #9).
    */
   turnConfirmed: boolean;
+  /** When the prompt went out; a session outcome only counts for this turn if it is newer. */
+  promptSentAt?: number;
+  toolCalls: Map<string, ToolCall>;
+  seenPermissions: Set<string>;
+  seenForms: Set<string>;
+  /** Per-session job queue: an async job (a name lookup) holds back the events behind it. */
+  queue: Job[];
+  draining: boolean;
+}
+
+interface PendingForm {
+  taskId: string;
+  sessionId: string;
+  bindings: QuestionBinding[];
 }
 
 /**
  * Parse a composite model ID (e.g. "openrouter/minimax/minimax-m2.5") into
- * the { providerID, modelID } shape that OpenCode's sendMessage API expects.
+ * the { providerID, id } shape that OpenCode's session API expects.
  * This bypasses config-based model resolution, which fails for models not
  * in OpenCode's models.dev curated database.
  */
-function parseModelId(modelId?: string): { providerID: string; modelID: string } | undefined {
+function parseModelId(modelId?: string): ModelRef | undefined {
   if (!modelId) return undefined;
   const slashIdx = modelId.indexOf('/');
   if (slashIdx <= 0) return undefined;
   return {
     providerID: modelId.slice(0, slashIdx),
-    modelID: modelId.slice(slashIdx + 1),
+    id: modelId.slice(slashIdx + 1),
   };
+}
+
+const isPromise = (value: unknown): value is Promise<void> => typeof (value as { then?: unknown } | undefined)?.then === 'function';
+
+const errorMessage = (err: unknown): string => (err instanceof Error ? err.message : String(err));
+
+/** A tool result for the UI: text items joined by newlines, files written as `[file: name or uri]`. */
+function joinToolContent(content: ToolContentItem[] | undefined): string {
+  return (content ?? []).map((item) => (item.type === 'text' ? item.text : `[file: ${item.name ?? item.uri}]`)).join('\n');
+}
+
+/** `todowrite` input → the Todo shape of the todo panel. */
+function toTodos(input: unknown): Todo[] | undefined {
+  const todos = (input as { todos?: unknown } | undefined)?.todos;
+  if (!Array.isArray(todos)) return undefined;
+  return todos.map((todo: { content?: unknown; status?: unknown }, index) => ({
+    id: String(index),
+    content: String(todo?.content ?? ''),
+    status: (todo?.status ?? 'pending') as Todo['status'],
+    priority: 'medium' as const,
+  }));
 }
 
 export class SessionManager extends EventEmitter {
@@ -64,6 +124,12 @@ export class SessionManager extends EventEmitter {
   private sessions: Map<string, ManagedSession> = new Map();
   private sessionToTask: Map<string, string> = new Map();
   private serverPort: number;
+  /** Last-seen todos per session id, from `todowrite` calls. Outlives the task so the UI can still ask. */
+  private todosBySession: Map<string, Todo[]> = new Map();
+  /** Pending permission request id → session id, so a reply still finds its session after cleanup. */
+  private permissionSessions: Map<string, string> = new Map();
+  /** Forms currently shown to the user, with the fields their answers belong to. */
+  private pendingForms: Map<string, PendingForm> = new Map();
 
   constructor(client: OpenCodeClient, eventStream: EventStream, serverPort: number) {
     super();
@@ -73,246 +139,468 @@ export class SessionManager extends EventEmitter {
     this.setupEventListeners();
   }
 
+  // ==========================================================================
+  // Event wiring
+  // ==========================================================================
+
+  /** Route one event type to the session it belongs to, through that session's queue. */
+  private listen<T extends { sessionID: string }>(type: string, handler: (managed: ManagedSession, data: T) => void | Promise<void>): void {
+    this.eventStream.on(type, (data: T) => {
+      const managed = this.managedFor(data?.sessionID);
+      if (!managed) return;
+      this.dispatch(managed, () => handler(managed, data));
+    });
+  }
+
+  private managedFor(sessionId: string | undefined): ManagedSession | undefined {
+    if (!sessionId) return undefined;
+    const taskId = this.sessionToTask.get(sessionId);
+    return taskId ? this.sessions.get(taskId) : undefined;
+  }
+
+  /**
+   * Run jobs for one session in arrival order. Sync jobs run immediately; an async job (a tool name
+   * lookup, a REST recovery) pauses the queue until it settles, so a later event cannot overtake it.
+   */
+  private dispatch(managed: ManagedSession, job: Job): void {
+    managed.queue.push(job);
+    this.pump(managed);
+  }
+
+  private pump(managed: ManagedSession): void {
+    if (managed.draining) return;
+
+    managed.draining = true;
+    while (managed.queue.length > 0) {
+      const next = managed.queue.shift() as Job;
+      if (this.sessions.get(managed.taskId) !== managed) {
+        // The session was cleaned up while events were still queued.
+        managed.queue.length = 0;
+        break;
+      }
+
+      let result: void | Promise<void>;
+      try {
+        result = next();
+      } catch (error) {
+        logger.error('Error while handling a session event', { taskId: managed.taskId, error: errorMessage(error) });
+        continue;
+      }
+
+      if (isPromise(result)) {
+        result
+          .catch((error: unknown) =>
+            logger.error('Error while handling a session event', { taskId: managed.taskId, error: errorMessage(error) })
+          )
+          .finally(() => {
+            managed.draining = false;
+            this.pump(managed);
+          });
+        return;
+      }
+    }
+    managed.draining = false;
+  }
+
   private setupEventListeners(): void {
-    // Session status updates
-    // Server sends { sessionID: string, status: { type: string } } not { session: Session }
-    this.eventStream.on('session.status', (props: { sessionID: string; status: { type: string } }) => {
-      const taskId = this.sessionToTask.get(props.sessionID);
-      if (!taskId) return;
-
-      const managed = this.sessions.get(taskId);
-      if (!managed) return;
-
-      logger.debug('Session status update', { sessionId: props.sessionID, status: props.status });
-
-      if (props.status.type === 'idle') {
-        this.handleSessionIdle(managed);
-      } else if (props.status.type === 'busy') {
-        managed.status = 'active';
-        managed.turnConfirmed = true;
-        this.emit('progress', {
-          taskId,
-          stage: 'executing',
-        });
-      }
-    });
-
-    // Message updates
-    // Server sends { info: MessageInfo } — sessionID is nested inside info
-    this.eventStream.on('message.updated', (props: { info: MessageInfo }) => {
-      const taskId = this.sessionToTask.get(props.info.sessionID);
-      if (!taskId) return;
-
-      const managed = this.sessions.get(taskId);
-      if (!managed) return;
-
+    this.listen<{ sessionID: string }>('session.execution.started', (managed) => {
+      if (managed.status === 'completing') return;
+      logger.debug('Session execution started', { sessionId: managed.sessionId });
+      managed.status = 'active';
       managed.turnConfirmed = true;
-
-      if (props.info.role === 'assistant') {
-        // Finalize previous message's accumulated text before starting new one
-        if (managed.textAccumulator && managed.currentMessageId) {
-          this.emit('message-complete', {
-            taskId,
-            messageId: managed.currentMessageId,
-            text: managed.textAccumulator,
-          });
-          managed.textAccumulator = '';
-        }
-        managed.currentMessageId = props.info.id;
-        this.emit('message', {
-          taskId,
-          message: props.info,
-        });
-      }
+      this.emit('progress', { taskId: managed.taskId, stage: 'executing' });
     });
 
-    // Message part deltas (streaming text chunks)
-    // Server sends incremental text via message.part.delta events
-    this.eventStream.on(
-      'message.part.delta',
-      (props: { sessionID: string; messageID: string; partID: string; field: string; delta: string }) => {
-        const taskId = this.sessionToTask.get(props.sessionID);
-        if (!taskId) return;
+    this.listen<{ sessionID: string }>('session.execution.succeeded', (managed) => {
+      if (managed.status === 'completing') return;
+      this.finishSuccess(managed);
+    });
 
-        const managed = this.sessions.get(taskId);
-        if (!managed) return;
+    this.listen<ExecutionFailedData>('session.execution.failed', (managed, data) => {
+      if (managed.status === 'completing') return;
+      logger.error('Session execution failed', data);
+      this.finishFailed(managed, data.error?.message ?? 'The session failed');
+    });
 
-        managed.turnConfirmed = true;
+    this.listen<ExecutionInterruptedData>('session.execution.interrupted', (managed, data) => {
+      this.finishInterrupted(managed, data.reason);
+    });
 
-        if (props.field === 'text') {
-          managed.textAccumulator += props.delta;
-          this.emit('message-partial', {
-            taskId,
-            messageId: props.messageID,
-            textSoFar: managed.textAccumulator,
-            delta: props.delta,
-            isStreaming: true,
-          });
-        }
-      }
-    );
-
-    // Message part updates (full part state, e.g. tool use, step-start/finish)
-    // Server nests sessionID and messageID inside the part object itself
-    this.eventStream.on('message.part.updated', (props: { part: PartUpdate; delta?: string }) => {
-      const taskId = this.sessionToTask.get(props.part.sessionID);
-      if (!taskId) return;
-
-      const managed = this.sessions.get(taskId);
-      if (!managed) return;
-
+    this.listen<TextDeltaData>('session.text.delta', (managed, data) => {
       managed.turnConfirmed = true;
-
-      if (props.part.type === 'text' && props.delta) {
-        managed.textAccumulator += props.delta;
-        this.emit('message-partial', {
-          taskId,
-          messageId: props.part.messageID,
-          textSoFar: managed.textAccumulator,
-          delta: props.delta,
-          isStreaming: true,
-        });
-      } else if (props.part.type === 'tool') {
-        this.emit('tool-use', {
-          taskId,
-          messageId: props.part.messageID,
-          part: props.part,
-        });
+      // A new assistant message first flushes the previous one
+      if (managed.currentMessageId && managed.currentMessageId !== data.assistantMessageID) {
+        this.flushText(managed);
       }
-    });
-
-    // Permission requests
-    this.eventStream.on('permission.asked', (props: PermissionRequest) => {
-      const taskId = this.sessionToTask.get(props.sessionID);
-      if (!taskId) return;
-
-      logger.info('Permission request received', props);
-      this.emit('permission-request', {
-        taskId,
-        id: props.id,
-        sessionId: props.sessionID,
-        permission: props.permission,
-        patterns: props.patterns,
-        metadata: props.metadata,
+      managed.currentMessageId = data.assistantMessageID;
+      managed.textAccumulator += data.delta;
+      this.emit('message-partial', {
+        taskId: managed.taskId,
+        messageId: data.assistantMessageID,
+        textSoFar: managed.textAccumulator,
+        delta: data.delta,
+        isStreaming: true,
       });
     });
 
-    // Question requests
-    this.eventStream.on('question.asked', (props: QuestionRequest) => {
-      const taskId = this.sessionToTask.get(props.sessionID);
-      if (!taskId) return;
+    this.listen<ToolInputStartedData>('session.tool.input.started', (managed, data) => {
+      managed.turnConfirmed = true;
+      const call = managed.toolCalls.get(data.id) ?? {};
+      call.name = data.name;
+      call.messageId = data.assistantMessageID;
+      managed.toolCalls.set(data.id, call);
+    });
 
-      logger.info('Question request received', props);
-      this.emit('question-request', {
-        taskId,
-        id: props.id,
-        sessionId: props.sessionID,
-        questions: props.questions.map((q) => ({
-          ...q,
-          multiSelect: q.multiSelect ?? q.multiple ?? false,
-        })),
+    this.listen<ToolCalledData>('session.tool.called', (managed, data) => {
+      managed.turnConfirmed = true;
+      const call = managed.toolCalls.get(data.id) ?? {};
+      managed.toolCalls.set(data.id, call);
+      call.input = data.input;
+      call.messageId = data.assistantMessageID;
+      call.startedAt = Date.now();
+      if (call.name) {
+        this.emitToolCalled(managed, data.id, call);
+        return;
+      }
+      return this.lookupToolName(managed, data.id).then((name) => {
+        call.name = name;
+        this.emitToolCalled(managed, data.id, call);
       });
     });
 
-    // Session errors
-    this.eventStream.on('session.error', (props: { sessionID: string; error: string }) => {
-      const taskId = this.sessionToTask.get(props.sessionID);
-      if (!taskId) return;
-
-      const managed = this.sessions.get(taskId);
-      if (!managed) return;
-
-      logger.error('Session error', props);
-      managed.status = 'error';
-      this.emit('error', {
-        taskId,
-        error: props.error,
-        sessionId: props.sessionID,
-      });
-      this.cleanup(taskId);
+    this.listen<ToolSuccessData>('session.tool.success', (managed, data) => {
+      managed.turnConfirmed = true;
+      return this.finishTool(managed, data.id, data.assistantMessageID, { status: 'completed', output: joinToolContent(data.content) });
     });
 
-    // Compaction loop detection
-    this.eventStream.on('session.compacted', (props: { sessionID: string }) => {
-      const taskId = this.sessionToTask.get(props.sessionID);
-      if (!taskId) return;
+    this.listen<ToolFailedData>('session.tool.failed', (managed, data) => {
+      managed.turnConfirmed = true;
+      return this.finishTool(managed, data.id, data.assistantMessageID, { status: 'error', output: data.error?.message ?? 'Tool failed' });
+    });
 
-      const managed = this.sessions.get(taskId);
-      if (!managed) return;
+    this.listen<PermissionAsk>('permission.asked', (managed, ask) => {
+      managed.turnConfirmed = true;
+      logger.info('Permission request received', ask);
+      this.presentPermission(managed, ask);
+    });
 
+    this.eventStream.on('form.created', (data: { form: FormInfo }) => {
+      const form = data?.form;
+      const managed = this.managedFor(form?.sessionID);
+      if (!(managed && form)) return;
+      this.dispatch(managed, () => {
+        managed.turnConfirmed = true;
+        logger.info('Form (question) received', form);
+        this.presentForm(managed, form);
+      });
+    });
+
+    this.listen<{ sessionID: string }>('session.compaction.ended', (managed) => {
       managed.consecutiveCompactions += 1;
-      logger.warn('Session compacted', {
-        sessionId: props.sessionID,
+      logger.warn('Session compacted', { sessionId: managed.sessionId, consecutiveCompactions: managed.consecutiveCompactions });
+
+      if (managed.consecutiveCompactions < COMPACTION_LOOP_THRESHOLD) return;
+
+      logger.error('Compaction loop detected — auto-aborting session', {
+        taskId: managed.taskId,
+        sessionId: managed.sessionId,
         consecutiveCompactions: managed.consecutiveCompactions,
       });
 
-      if (managed.consecutiveCompactions >= COMPACTION_LOOP_THRESHOLD) {
-        logger.error('Compaction loop detected — auto-aborting session', {
-          taskId,
-          sessionId: props.sessionID,
-          consecutiveCompactions: managed.consecutiveCompactions,
-        });
-
-        managed.status = 'error';
-        this.emit('error', {
-          taskId,
-          error:
-            "The model entered a compaction loop (the system prompt may be too large for this model's context window). " +
-            'Try a model with a larger context window, or reduce the system prompt size.',
-          sessionId: props.sessionID,
-        });
-
-        this.client.abortSession(props.sessionID, managed.session?.directory).catch((err) => {
-          logger.warn('Failed to abort compaction-looping session', {
-            taskId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        });
-
-        this.cleanup(taskId);
-      }
-    });
-
-    // Todo updates
-    this.eventStream.on('todo.updated', (props: { sessionID: string; todos: Todo[] }) => {
-      const taskId = this.sessionToTask.get(props.sessionID);
-      if (!taskId) return;
-
-      logger.debug('Todo update received', { sessionId: props.sessionID, todoCount: props.todos.length });
-      this.emit('todo-updated', {
-        taskId,
-        todos: props.todos,
-      });
-    });
-  }
-
-  private handleSessionIdle(managed: ManagedSession): void {
-    if (managed.status === 'active') {
-      // Finalize any accumulated text
-      if (managed.textAccumulator && managed.currentMessageId) {
-        this.emit('message-complete', {
-          taskId: managed.taskId,
-          messageId: managed.currentMessageId,
-          text: managed.textAccumulator,
-        });
-      }
-
-      managed.status = 'completed';
-      managed.textAccumulator = '';
-      managed.currentMessageId = undefined;
-
-      this.emit('complete', {
+      managed.status = 'error';
+      this.emit('error', {
         taskId: managed.taskId,
+        error:
+          "The model entered a compaction loop (the system prompt may be too large for this model's context window). " +
+          'Try a model with a larger context window, or reduce the system prompt size.',
         sessionId: managed.sessionId,
-        status: 'success',
+      });
+
+      this.client.interrupt(managed.sessionId).catch((err) => {
+        logger.warn('Failed to interrupt compaction-looping session', { taskId: managed.taskId, error: errorMessage(err) });
       });
 
       this.cleanup(managed.taskId);
+    });
+
+    // The stream is volatile: events sent while it was down are gone. Rebuild every active session from REST.
+    this.eventStream.on('reconnected', () => {
+      for (const managed of Array.from(this.sessions.values())) {
+        this.dispatch(managed, () => this.recoverSession(managed));
+      }
+    });
+  }
+
+  // ==========================================================================
+  // Completion
+  // ==========================================================================
+
+  private flushText(managed: ManagedSession): void {
+    if (managed.textAccumulator && managed.currentMessageId) {
+      this.emit('message-complete', {
+        taskId: managed.taskId,
+        messageId: managed.currentMessageId,
+        text: managed.textAccumulator,
+      });
+    }
+    managed.textAccumulator = '';
+    managed.currentMessageId = undefined;
+  }
+
+  private finishSuccess(managed: ManagedSession): void {
+    this.flushText(managed);
+    managed.status = 'completed';
+    this.emit('complete', { taskId: managed.taskId, sessionId: managed.sessionId, status: 'success' });
+    this.cleanup(managed.taskId);
+  }
+
+  private finishFailed(managed: ManagedSession, message: string): void {
+    managed.status = 'error';
+    this.emit('error', { taskId: managed.taskId, error: message, sessionId: managed.sessionId });
+    this.cleanup(managed.taskId);
+  }
+
+  /**
+   * v2 reports a rejected permission, like a user stop, as an interrupted execution. With a local
+   * abort pending, abortSession already reports the stop. Otherwise the turn simply ended (v1 ended
+   * a rejected permission the same way and the task finished).
+   */
+  private finishInterrupted(managed: ManagedSession, reason: string | undefined): void {
+    if (managed.status === 'completing') {
+      logger.debug('Ignoring interrupted event: a local abort is pending', { sessionId: managed.sessionId, reason });
+      return;
+    }
+    logger.info('Session execution interrupted', { sessionId: managed.sessionId, reason });
+    this.finishSuccess(managed);
+  }
+
+  // ==========================================================================
+  // Tools and todos
+  // ==========================================================================
+
+  /** The name of a tool call whose `input.started` event was missed, from the message history. Falls back to `tool`. */
+  private async lookupToolName(managed: ManagedSession, callId: string): Promise<string> {
+    try {
+      const messages = await this.client.getSessionMessages(managed.sessionId);
+      for (const message of messages) {
+        for (const item of message.content ?? []) {
+          if (item.type === 'tool' && item.id && item.name) {
+            const known = managed.toolCalls.get(item.id) ?? {};
+            known.name ??= item.name;
+            managed.toolCalls.set(item.id, known);
+          }
+        }
+      }
+    } catch (error) {
+      logger.warn('Could not read the message history to name a tool call', { sessionId: managed.sessionId, error: errorMessage(error) });
+    }
+    return managed.toolCalls.get(callId)?.name ?? 'tool';
+  }
+
+  private toolPart(managed: ManagedSession, callId: string, call: ToolCall, state: Record<string, unknown>): Record<string, unknown> {
+    return {
+      type: 'tool',
+      tool: toV1Name(call.name ?? 'tool'),
+      callID: callId,
+      messageID: call.messageId,
+      sessionID: managed.sessionId,
+      state,
+      time: { start: call.startedAt ?? Date.now() },
+    };
+  }
+
+  private emitToolUse(managed: ManagedSession, callId: string, call: ToolCall, state: Record<string, unknown>): void {
+    this.emit('tool-use', {
+      taskId: managed.taskId,
+      messageId: call.messageId,
+      part: this.toolPart(managed, callId, call, state),
+    });
+  }
+
+  private emitToolCalled(managed: ManagedSession, callId: string, call: ToolCall): void {
+    this.emitToolUse(managed, callId, call, { status: 'running', input: call.input ?? {} });
+    if (call.name === 'todowrite') {
+      this.updateTodos(managed, call.input);
     }
   }
 
+  private finishTool(
+    managed: ManagedSession,
+    callId: string,
+    messageId: string,
+    result: { status: 'completed' | 'error'; output: string }
+  ): void | Promise<void> {
+    const call = managed.toolCalls.get(callId) ?? {};
+    managed.toolCalls.set(callId, call);
+    call.messageId ??= messageId;
+
+    const emit = () => this.emitToolUse(managed, callId, call, { status: result.status, input: call.input ?? {}, output: result.output });
+    if (call.name) {
+      emit();
+      return;
+    }
+    return this.lookupToolName(managed, callId).then((name) => {
+      call.name = name;
+      emit();
+    });
+  }
+
+  private updateTodos(managed: ManagedSession, input: unknown): void {
+    const todos = toTodos(input);
+    if (!todos) return;
+    logger.debug('Todo update received', { sessionId: managed.sessionId, todoCount: todos.length });
+    this.todosBySession.set(managed.sessionId, todos);
+    this.emit('todo-updated', { taskId: managed.taskId, todos });
+  }
+
+  /** The last todo list the agent wrote in this session, or undefined when it never wrote one. */
+  getSessionTodos(sessionId: string): Todo[] | undefined {
+    return this.todosBySession.get(sessionId);
+  }
+
+  // ==========================================================================
+  // Permissions and questions
+  // ==========================================================================
+
+  private presentPermission(managed: ManagedSession, ask: PermissionAsk): void {
+    if (managed.seenPermissions.has(ask.id)) return;
+    managed.seenPermissions.add(ask.id);
+    this.permissionSessions.set(ask.id, managed.sessionId);
+    this.emit('permission-request', {
+      taskId: managed.taskId,
+      id: ask.id,
+      sessionId: managed.sessionId,
+      permission: toV1Name(ask.action),
+      patterns: ask.resources,
+      metadata: ask.metadata ?? {},
+    });
+  }
+
+  private presentForm(managed: ManagedSession, form: FormInfo): void {
+    if (managed.seenForms.has(form.id)) return;
+    managed.seenForms.add(form.id);
+
+    const { bindings, unsupported } = mapFormToQuestions(form);
+    if (unsupported) {
+      logger.warn('Cancelling a form the app cannot show', { sessionId: managed.sessionId, formId: form.id, reason: unsupported });
+      this.client.cancelForm(managed.sessionId, form.id, `Cowork-Z cannot show this form: ${unsupported}`).catch((err) => {
+        logger.warn('Failed to cancel an unsupported form', { formId: form.id, error: errorMessage(err) });
+      });
+      return;
+    }
+
+    this.pendingForms.set(form.id, { taskId: managed.taskId, sessionId: managed.sessionId, bindings });
+    this.emit('question-request', {
+      taskId: managed.taskId,
+      id: form.id,
+      sessionId: managed.sessionId,
+      questions: bindings.map((binding) => binding.question),
+    });
+  }
+
+  // ==========================================================================
+  // Recovery after a stream reconnect
+  // ==========================================================================
+
+  private isCurrent(managed: ManagedSession): boolean {
+    return this.sessions.get(managed.taskId) === managed && managed.status !== 'completing';
+  }
+
+  private async recoverSession(managed: ManagedSession): Promise<void> {
+    if (!this.isCurrent(managed)) return;
+    logger.info('Rebuilding session after the event stream reconnected', { taskId: managed.taskId, sessionId: managed.sessionId });
+
+    let info: Awaited<ReturnType<OpenCodeClient['getSession']>>;
+    try {
+      info = await this.client.getSession(managed.sessionId);
+    } catch (error) {
+      logger.warn('Could not read the session to recover it', { sessionId: managed.sessionId, error: errorMessage(error) });
+      return;
+    }
+    if (!this.isCurrent(managed)) return;
+
+    // The outcome only counts when it is newer than the prompt of this turn.
+    if (info.outcome && managed.promptSentAt !== undefined && info.time.updated > managed.promptSentAt) {
+      await this.finishFromOutcome(managed, info.outcome);
+      return;
+    }
+
+    const [permissions, forms] = await Promise.allSettled([
+      this.client.listSessionPermissions(managed.sessionId),
+      this.client.listSessionForms(managed.sessionId),
+    ]);
+    if (!this.isCurrent(managed)) return;
+
+    if (permissions.status === 'fulfilled') {
+      for (const ask of permissions.value) this.presentPermission(managed, ask);
+    } else {
+      logger.warn('Could not list pending permissions to recover them', {
+        sessionId: managed.sessionId,
+        error: errorMessage(permissions.reason),
+      });
+    }
+    if (forms.status === 'fulfilled') {
+      for (const form of forms.value) this.presentForm(managed, form);
+    } else {
+      logger.warn('Could not list pending forms to recover them', { sessionId: managed.sessionId, error: errorMessage(forms.reason) });
+    }
+  }
+
+  private async finishFromOutcome(managed: ManagedSession, outcome: SessionOutcome): Promise<void> {
+    logger.info('Session finished while the event stream was down', { sessionId: managed.sessionId, outcome });
+    if (outcome === 'succeeded') {
+      this.finishSuccess(managed);
+      return;
+    }
+    if (outcome === 'interrupted') {
+      this.finishInterrupted(managed, 'recovered after reconnect');
+      return;
+    }
+
+    let message = 'The session failed while the connection to the OpenCode server was down';
+    try {
+      const history = await this.client.getSessionMessages(managed.sessionId);
+      const failed = history.find((entry) => entry.error?.message);
+      if (failed?.error) message = failed.error.message;
+    } catch (error) {
+      logger.warn('Could not read the message history to explain a failed session', {
+        sessionId: managed.sessionId,
+        error: errorMessage(error),
+      });
+    }
+    if (!this.isCurrent(managed)) return;
+    this.finishFailed(managed, message);
+  }
+
+  // ==========================================================================
+  // Commands
+  // ==========================================================================
+
+  private track(taskId: string, sessionId: string, directory?: string): ManagedSession {
+    const previous = this.sessions.get(taskId);
+    if (previous) this.sessionToTask.delete(previous.sessionId);
+
+    const managed: ManagedSession = {
+      taskId,
+      sessionId,
+      directory,
+      status: 'starting',
+      textAccumulator: '',
+      consecutiveCompactions: 0,
+      turnConfirmed: false,
+      toolCalls: new Map(),
+      seenPermissions: new Set(),
+      seenForms: new Set(),
+      queue: [],
+      draining: false,
+    };
+    this.sessions.set(taskId, managed);
+    this.sessionToTask.set(sessionId, taskId);
+    return managed;
+  }
+
   async startTask(payload: StartTaskPayload): Promise<void> {
-    const { taskId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, mcpServers, skipConfig, arenaId } = payload;
+    const { taskId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, arenaId } = payload;
 
     logger.info('Starting task', { taskId, prompt: prompt.slice(0, 100), arenaId });
 
@@ -324,14 +612,14 @@ export class SessionManager extends EventEmitter {
         logger.info('Cleaning up stale session', { oldTaskId, sessionId: managed?.sessionId, status: managed?.status });
         // A session still starting/active keeps running on the server after
         // local cleanup — consuming tokens and possibly executing tools.
-        // Abort it server-side first (2026-06-12 review #21). Fire-and-forget:
-        // a failed abort must not block the new task.
+        // Interrupt it server-side first (2026-06-12 review #21). Fire-and-forget:
+        // a failed interrupt must not block the new task.
         if (managed && (managed.status === 'starting' || managed.status === 'active')) {
-          this.client.abortSession(managed.sessionId, managed.session?.directory).catch((err) => {
-            logger.warn('Failed to abort stale session on server', {
+          this.client.interrupt(managed.sessionId).catch((err) => {
+            logger.warn('Failed to interrupt stale session on server', {
               oldTaskId,
               sessionId: managed.sessionId,
-              error: err instanceof Error ? err.message : String(err),
+              error: errorMessage(err),
             });
           });
         }
@@ -339,144 +627,116 @@ export class SessionManager extends EventEmitter {
       }
     }
 
-    // Push session-specific config via PATCH /config (skip if arena already sent it)
-    if (skipConfig) {
-      logger.info('Skipping config update (arena skipConfig)', { taskId });
-    } else {
-      const config = buildSessionConfig({ modelId, folderPermissions, mcpServers });
-      await this.client.updateConfig(config, workingDirectory);
-      logger.info('Config updated for session', config);
-    }
-
     this.emit('progress', { taskId, stage: 'configuring' });
 
-    // Create new session
+    // Permissions are per session in v2: every session, arena ones included, carries its own rules.
     const session = await this.client.createSession({
       directory: workingDirectory,
-      title: prompt.slice(0, 50),
+      model: parseModelId(modelId),
+      permissions: buildSessionPermissions(folderPermissions),
     });
 
-    const managed: ManagedSession = {
-      taskId,
-      sessionId: session.id,
-      session,
-      status: 'starting',
-      textAccumulator: '',
-      consecutiveCompactions: 0,
-      turnConfirmed: false,
-    };
-
-    this.sessions.set(taskId, managed);
-    this.sessionToTask.set(session.id, taskId);
+    const managed = this.track(taskId, session.id, workingDirectory);
 
     logger.info('Session created', { taskId, sessionId: session.id });
 
     this.emit('started', { taskId, sessionId: session.id });
     this.emit('progress', { taskId, stage: 'executing' });
 
-    // Send the initial message with system prompt injected directly.
-    // OpenCode 1.1.48 ignores custom agents, so we bypass agent resolution
-    // by passing the system prompt via the `system` field on sendMessage.
-    // Also pass the model directly per-message to bypass config-based model
-    // resolution, which fails for models not in OpenCode's models.dev database.
-    managed.status = 'active';
-    const messageModel = parseModelId(modelId);
-    // Fire-and-forget: session lifecycle is managed entirely via SSE events.
-    // Awaiting would cause a false "failed" status when the HTTP timeout
-    // fires on long-running agent turns (the session keeps running on the server).
-    // A rejection BEFORE any SSE event confirmed the turn is a real failure
-    // and is surfaced as a task error (2026-06-12 review #9).
-    this.client
-      .sendMessage(session.id, {
-        parts: [{ type: 'text', text: prompt }],
-        directory: workingDirectory,
-        system: buildSystemPrompt(this.serverPort, workingDirectory ?? '.', customPrompt),
-        model: messageModel,
-      })
-      .catch((err) => {
-        this.handleSendMessageFailure(taskId, session.id, err);
-      });
+    // Fire-and-forget: session lifecycle is managed entirely via events, and a failure is
+    // surfaced by sendTurn itself.
+    this.sendTurn(managed, prompt, customPrompt);
   }
 
   async resumeSession(payload: ResumeSessionPayload): Promise<void> {
-    const { taskId, sessionId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, mcpServers, skipConfig, arenaId } =
-      payload;
+    const { taskId, sessionId, prompt, workingDirectory, modelId, folderPermissions, customPrompt, arenaId } = payload;
 
     logger.info('Resuming session', { taskId, sessionId, arenaId });
 
-    // Push session-specific config via PATCH /config (skip if arena already sent it)
-    if (!skipConfig) {
-      const config = buildSessionConfig({ modelId, folderPermissions, mcpServers });
-      await this.client.updateConfig(config, workingDirectory);
-    }
-
     this.emit('progress', { taskId, stage: 'configuring' });
 
-    // Get existing session
-    const session = await this.client.getSession(sessionId, workingDirectory);
+    const permissions = buildSessionPermissions(folderPermissions);
+    const model = parseModelId(modelId);
 
-    const managed: ManagedSession = {
-      taskId,
-      sessionId,
-      session,
-      status: 'starting',
-      textAccumulator: '',
-      consecutiveCompactions: 0,
-      turnConfirmed: false,
-    };
+    // 1. Get the session. A 404 means it predates the upgrade (v1 ids are unknown to v2).
+    let existing: Awaited<ReturnType<OpenCodeClient['getSession']>> | undefined;
+    try {
+      existing = await this.client.getSession(sessionId);
+    } catch (error) {
+      if (!(error instanceof OpenCodeHttpError && error.status === 404)) throw error;
+      logger.warn('Session not found on the server; starting a new session in the same task', { taskId, sessionId });
+    }
 
-    this.sessions.set(taskId, managed);
-    this.sessionToTask.set(sessionId, taskId);
+    let activeSessionId = sessionId;
+    if (existing) {
+      // 2. Reapply permissions: a revoked or changed folder grant has no effect on an existing session otherwise.
+      await this.client.updateSession(sessionId, { permissions });
+      // 3. Switch the model when it changed.
+      if (model && (existing.model?.providerID !== model.providerID || existing.model?.id !== model.id)) {
+        await this.client.switchModel(sessionId, model);
+      }
+    } else {
+      const created = await this.client.createSession({
+        directory: workingDirectory,
+        model,
+        permissions,
+      });
+      activeSessionId = created.id;
+    }
 
-    this.emit('started', { taskId, sessionId });
+    const managed = this.track(taskId, activeSessionId, workingDirectory);
+
+    this.emit('started', { taskId, sessionId: activeSessionId });
     this.emit('progress', { taskId, stage: 'executing' });
 
-    // Send follow-up message if provided, with system prompt injected directly.
-    // Also pass the model directly per-message (same as startTask).
+    // 4 + 5. Refresh the instructions entry, then prompt (same fire-and-forget as startTask).
     if (prompt) {
-      managed.status = 'active';
-      managed.consecutiveCompactions = 0;
-      const messageModel = parseModelId(modelId);
-      // Fire-and-forget: same rationale as startTask() above.
-      this.client
-        .sendMessage(sessionId, {
-          parts: [{ type: 'text', text: prompt }],
-          directory: workingDirectory,
-          system: buildSystemPrompt(this.serverPort, workingDirectory ?? '', customPrompt),
-          model: messageModel,
-        })
-        .catch((err) => {
-          this.handleSendMessageFailure(taskId, sessionId, err);
-        });
+      this.sendTurn(managed, prompt, customPrompt);
     }
   }
 
   /**
-   * A rejected sendMessage either means the turn never started (network
-   * blip, auth error, model error — the UI would otherwise spin forever) or
-   * is an HTTP-level artifact on a turn that is already running (socket
-   * timeout on a long agent turn). SSE confirmation disambiguates the two
+   * Write the system prompt into the session's instructions entry, then send the turn. Never throws:
+   * a failure is surfaced as a task error or logged, depending on what it proves about the turn.
+   */
+  private async sendTurn(managed: ManagedSession, prompt: string, customPrompt?: string): Promise<void> {
+    managed.status = 'active';
+    managed.consecutiveCompactions = 0;
+    try {
+      await this.client.putInstructions(
+        managed.sessionId,
+        INSTRUCTIONS_KEY,
+        buildSystemPrompt(this.serverPort, managed.directory ?? '.', customPrompt)
+      );
+      managed.promptSentAt = Date.now();
+      await this.client.prompt(managed.sessionId, prompt);
+    } catch (err) {
+      this.handleSendFailure(managed, err);
+    }
+  }
+
+  /**
+   * An HTTP error response means the server refused: the turn never started, so surface it whatever
+   * the events said. A failure without an HTTP status (timeout, socket reset) is ambiguous because
+   * the input may already be admitted: an event that confirmed the turn means it is running
    * (2026-06-12 review #9).
    */
-  private handleSendMessageFailure(taskId: string, sessionId: string, err: unknown): void {
-    const msg = err instanceof Error ? err.message : String(err);
-    const managed = this.sessions.get(taskId);
+  private handleSendFailure(managed: ManagedSession, err: unknown): void {
+    const msg = errorMessage(err);
+    const { taskId, sessionId } = managed;
 
-    if (!managed || managed.sessionId !== sessionId) {
-      logger.debug('sendMessage rejected after the session ended — nothing to surface', { taskId, sessionId, error: msg });
+    if (this.sessions.get(taskId) !== managed) {
+      logger.debug('prompt failed after the session ended — nothing to surface', { taskId, sessionId, error: msg });
       return;
     }
 
-    if (managed.turnConfirmed) {
-      logger.warn('sendMessage request failed after the turn started (session still active via SSE)', {
-        taskId,
-        sessionId,
-        error: msg,
-      });
+    const refused = err instanceof OpenCodeHttpError;
+    if (!refused && managed.turnConfirmed) {
+      logger.warn('prompt request failed after the turn started (session still active via events)', { taskId, sessionId, error: msg });
       return;
     }
 
-    logger.error('sendMessage failed before the turn started — surfacing task error', { taskId, sessionId, error: msg });
+    logger.error('prompt failed before the turn started — surfacing task error', { taskId, sessionId, error: msg, refused });
     managed.status = 'error';
     this.emit('error', {
       taskId,
@@ -484,14 +744,12 @@ export class SessionManager extends EventEmitter {
       sessionId,
     });
 
-    // Abort the orphaned server session so it cannot keep running detached
-    this.client.abortSession(sessionId, managed.session?.directory).catch((abortErr) => {
-      logger.warn('Failed to abort orphaned session after sendMessage failure', {
-        taskId,
-        sessionId,
-        error: abortErr instanceof Error ? abortErr.message : String(abortErr),
+    // The input may have been admitted: stop the orphaned session so it cannot keep running detached.
+    if (!refused) {
+      this.client.interrupt(sessionId).catch((interruptErr) => {
+        logger.warn('Failed to interrupt orphaned session after prompt failure', { taskId, sessionId, error: errorMessage(interruptErr) });
       });
-    });
+    }
 
     this.cleanup(taskId);
   }
@@ -500,12 +758,19 @@ export class SessionManager extends EventEmitter {
     logger.info('Aborting session', { taskId, sessionId });
 
     const managed = this.sessions.get(taskId);
+    const previousStatus = managed?.status;
     if (managed) {
+      // Marks the abort as local: the interrupted event that follows must not complete the task a second time.
       managed.status = 'completing';
     }
 
-    const directory = managed?.session?.directory;
-    await this.client.abortSession(sessionId, directory);
+    try {
+      await this.client.interrupt(sessionId);
+    } catch (error) {
+      // The session keeps running, so its real completion must still be reported.
+      if (managed && managed.status === 'completing' && previousStatus) managed.status = previousStatus;
+      throw error;
+    }
 
     this.emit('complete', {
       taskId,
@@ -517,23 +782,43 @@ export class SessionManager extends EventEmitter {
   }
 
   async replyToPermission(taskId: string, requestId: string, reply: 'once' | 'always' | 'reject', message?: string): Promise<void> {
-    const managed = this.sessions.get(taskId);
-    const directory = managed?.session?.directory;
-    logger.info('Replying to permission', { taskId, requestId, reply, directory });
-    await this.client.replyToPermission(requestId, reply, { message, directory });
+    const sessionId = this.sessions.get(taskId)?.sessionId ?? this.permissionSessions.get(requestId);
+    if (!sessionId) {
+      throw new Error(`No active session for task ${taskId} and permission request ${requestId}`);
+    }
+    logger.info('Replying to permission', { taskId, requestId, reply, sessionId });
+    await this.client.replyPermission(sessionId, requestId, reply, message);
+    this.permissionSessions.delete(requestId);
   }
 
-  async replyToQuestion(taskId: string, requestId: string, answers: Array<{ labels: string[]; customText?: string }>): Promise<void> {
-    const managed = this.sessions.get(taskId);
-    const directory = managed?.session?.directory;
-    // OpenCode server expects each answer as a flat string[] of selected labels,
-    // not {labels, customText} objects. Transform before sending.
-    const flatAnswers: string[][] = answers.map((a) => {
-      if (a.customText) return [...a.labels, a.customText];
-      return a.labels;
-    });
-    logger.info('Replying to question', { taskId, requestId, answers: flatAnswers, directory });
-    await this.client.replyToQuestion(requestId, flatAnswers, directory);
+  async replyToQuestion(taskId: string, requestId: string, answers: QuestionAnswer[]): Promise<void> {
+    const pending = this.pendingForms.get(requestId);
+    if (!pending) {
+      throw new Error(`No pending question ${requestId} (it may already be answered or cancelled)`);
+    }
+
+    const answer = buildFormAnswer(pending.bindings, answers);
+    logger.info('Replying to question', { taskId, requestId, answer, sessionId: pending.sessionId });
+
+    try {
+      await this.client.replyForm(pending.sessionId, requestId, answer);
+    } catch (error) {
+      if (error instanceof OpenCodeHttpError && (error.body as { _tag?: string } | null)?._tag === 'FormInvalidAnswerError') {
+        this.askAgain(requestId, pending, (error.body as { message?: string }).message ?? 'The answer was not accepted');
+        return;
+      }
+      throw error;
+    }
+    this.pendingForms.delete(requestId);
+  }
+
+  /** The server refused an answer (FormInvalidAnswerError) and the form is still open: show the same questions again with the reason. */
+  private askAgain(requestId: string, pending: PendingForm, reason: string): void {
+    logger.warn('Question answer rejected by the server; asking again', { requestId, reason });
+    const questions = pending.bindings.map((binding, index) =>
+      index === 0 ? { ...binding.question, question: `Invalid answer: ${reason}\n\n${binding.question.question}` } : binding.question
+    );
+    this.emit('question-request', { taskId: pending.taskId, id: requestId, sessionId: pending.sessionId, questions });
   }
 
   /** Number of sessions currently tracked (started and not yet completed/cleaned up). */
@@ -552,6 +837,9 @@ export class SessionManager extends EventEmitter {
   dispose(): void {
     this.sessions.clear();
     this.sessionToTask.clear();
+    this.todosBySession.clear();
+    this.permissionSessions.clear();
+    this.pendingForms.clear();
     this.removeAllListeners();
   }
 }

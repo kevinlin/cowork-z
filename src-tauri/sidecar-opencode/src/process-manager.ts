@@ -5,18 +5,18 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { logger } from './logger';
-import { OpenCodeClient, OpenCodeRouteNotFoundError } from './opencode-client';
+import { OpenCodeClient, OpenCodeHttpError, OpenCodeRouteNotFoundError } from './opencode-client';
 import { getAppOpenCodeConfigDir, getOpenCodeLogDir } from './paths';
 import type { ApiKeys, Config } from './types';
 
 /**
- * Working directory for `opencode serve` and the location of the
- * opencode.json/config.json files the sidecar writes.
+ * Working directory for `opencode serve`.
  *
- * App-private (2026-06-12 review #25): earlier versions wrote into
+ * App-private (2026-06-12 review #25): earlier versions wrote config files into
  * OpenCode's own log directory, where the replace/delete merge semantics
  * could clobber settings the app did not write. The user's global OpenCode
- * config (~/.config/opencode/) is never touched.
+ * config (~/.config/opencode/) is never touched. OpenCode 2.x reads no
+ * config file from this directory; config travels in OPENCODE_CONFIG_CONTENT.
  */
 const OPENCODE_DATA_DIR = getAppOpenCodeConfigDir();
 
@@ -347,7 +347,7 @@ export function generatePassword(length = 32): string {
   return crypto.randomBytes(length).toString('base64url');
 }
 
-/** The installed OpenCode is 2.x, whose server API this Cowork-Z version does not speak. */
+/** The installed OpenCode is 1.x, whose server API this Cowork-Z version no longer speaks. */
 export class UnsupportedOpenCodeVersionError extends Error {
   constructor(message: string) {
     super(message);
@@ -355,19 +355,18 @@ export class UnsupportedOpenCodeVersionError extends Error {
   }
 }
 
-/** Returns the version string when `info` (a `/api/info` body) reports a major of 2 or more. */
-export function parseUnsupportedOpenCodeVersion(info: unknown): string | undefined {
-  if (typeof info !== 'object' || info === null) return undefined;
-  const version = (info as { version?: unknown }).version;
-  if (typeof version !== 'string') return undefined;
-  const major = Number.parseInt(version.replace(/^v/, ''), 10);
-  return Number.isInteger(major) && major >= 2 ? version : undefined;
-}
+const OPENCODE_V2_REQUIRED_MESSAGE = 'Cowork-Z needs OpenCode 2.x. Run: npm uninstall -g opencode-ai && npm install -g @opencode/cli';
 
-/** Probe `/api/info`; any failure (HTML, 404, 401, connection refused) means "not known to be v2". */
-export async function detectUnsupportedOpenCodeVersion(client: Pick<OpenCodeClient, 'getServerInfo'>): Promise<string | undefined> {
+/**
+ * Probe `/global/health`, the OpenCode 1.x health route. A JSON answer means a 1.x server is
+ * listening (return its version, or `unknown`). Any failure (HTML, 404, 401, refused connection)
+ * means "not known to be 1.x".
+ */
+export async function detectLegacyOpenCodeVersion(client: Pick<OpenCodeClient, 'health'>): Promise<string | undefined> {
   try {
-    return parseUnsupportedOpenCodeVersion(await client.getServerInfo());
+    const health = await client.health();
+    if (typeof health !== 'object' || health === null) return undefined;
+    return typeof health.version === 'string' ? health.version : 'unknown';
   } catch {
     return undefined;
   }
@@ -382,9 +381,9 @@ export interface ProcessManagerOptions {
 
 export interface ServerStartOptions {
   apiKeys?: ApiKeys;
-  /** MCP servers to write into config.json before starting the server. */
+  /** MCP servers for OPENCODE_CONFIG_CONTENT (v1 shape; OpenCode 2.x normalises it). */
   mcpServers?: Record<string, unknown>;
-  /** Model ID (e.g. "openrouter/minimax/minimax-m2.5") to derive pre-start config. */
+  /** Model ID (e.g. "openrouter/minimax/minimax-m2.5") that decides whether the OpenRouter overlay applies. */
   modelId?: string;
 }
 
@@ -440,88 +439,6 @@ export class ProcessManager {
     };
   }
 
-  /**
-   * Write config into the OpenCode data directory **before** spawning the
-   * server (or while it's running to prepare for the next instance reload).
-   *
-   * Writes to BOTH opencode.json (primary — what OpenCode actually reads)
-   * and config.json (legacy fallback).
-   *
-   * @param mcpServers  MCP server definitions (or undefined to clear)
-   * @param configOverlay  Additional config fields to merge (e.g. small_model,
-   *                       disabled_providers, provider model registration)
-   */
-  private writePreStartConfig(mcpServers?: Record<string, unknown>, configOverlay?: Partial<Config>): void {
-    const opencodePath = path.join(OPENCODE_DATA_DIR, 'opencode.json');
-    const legacyPath = path.join(OPENCODE_DATA_DIR, 'config.json');
-
-    // Read existing config from either file (prefer opencode.json)
-    let existing: Record<string, unknown> = {};
-    try {
-      if (fs.existsSync(opencodePath)) {
-        existing = JSON.parse(fs.readFileSync(opencodePath, 'utf-8'));
-      } else if (fs.existsSync(legacyPath)) {
-        existing = JSON.parse(fs.readFileSync(legacyPath, 'utf-8'));
-      }
-    } catch {
-      logger.warn('Failed to read existing config, starting fresh');
-    }
-
-    // Apply MCP servers (undefined = leave existing MCP config untouched)
-    if (mcpServers !== undefined) {
-      if (Object.keys(mcpServers).length > 0) {
-        existing.mcp = mcpServers;
-      } else {
-        delete existing.mcp;
-      }
-    }
-
-    // Apply config overlay (small_model, disabled_providers, provider, etc.)
-    if (configOverlay) {
-      for (const [key, value] of Object.entries(configOverlay)) {
-        if (value !== undefined) {
-          existing[key] = value;
-        }
-      }
-    }
-
-    // Write to opencode.json (primary config file)
-    fs.writeFileSync(opencodePath, JSON.stringify(existing, null, 2), 'utf-8');
-    // Also write to config.json (legacy) for backwards compatibility
-    fs.writeFileSync(legacyPath, JSON.stringify(existing, null, 2), 'utf-8');
-    logger.info('Pre-start config written', {
-      opencodePath,
-      legacyPath,
-      hasMcp: !!mcpServers,
-      hasOverlay: !!configOverlay,
-    });
-  }
-
-  /**
-   * Update MCP servers in the on-disk config while the server is running.
-   * OpenCode does NOT dynamically reload MCP servers from PATCH /config,
-   * so changes only take effect on next server restart (i.e. next task start
-   * after the sidecar is recycled).
-   */
-  updateMcpConfig(mcpServers?: Record<string, unknown>): void {
-    this.writePreStartConfig(mcpServers);
-  }
-
-  /**
-   * Update model-related config on disk while the server is running.
-   * This is needed when the user switches models between tasks (e.g. from
-   * Anthropic to OpenRouter) without restarting the sidecar.
-   *
-   * The config is written to opencode.json so that when PATCH /config
-   * triggers an instance disposal, the new instance picks up the settings
-   * from the file OpenCode actually reads.
-   */
-  updateModelConfig(modelId?: string): void {
-    const overlay = modelId?.startsWith('openrouter/') ? ProcessManager.buildOpenRouterOverlay() : undefined;
-    // Pass undefined for mcpServers to preserve existing MCP config on disk
-    this.writePreStartConfig(undefined, overlay);
-  }
-
   private async startServer(options?: ServerStartOptions): Promise<void> {
     const apiKeys = options?.apiKeys;
 
@@ -571,26 +488,19 @@ export class ProcessManager {
       }
     }
 
-    // Build model-specific config overlay (e.g. OpenRouter small_model pinning)
+    // The only config channel: OpenCode 2.x reads no opencode.json from the server's cwd.
+    // `experimental.todo` enables the `todowrite` tool the sidecar mirrors into the todo panel.
+    // MCP servers arrive here only for a fresh spawn; running servers are changed over the MCP
+    // runtime routes. The OpenRouter overlay pins the small model (v1 keys, normalised by v2).
     const modelOverlay = options?.modelId?.startsWith('openrouter/') ? ProcessManager.buildOpenRouterOverlay() : undefined;
-
-    // Write MCP servers and config overlay into opencode.json / config.json
-    // BEFORE spawning the server. OpenCode reads these at startup.
-    this.writePreStartConfig(options?.mcpServers, modelOverlay);
-
-    // Also set OPENCODE_CONFIG_CONTENT env var — the highest-priority config
-    // source for OpenCode. Merge MCP and model overlay so neither overrides
-    // the other when OpenCode re-reads config after instance disposal.
-    const envConfig: Record<string, unknown> = {};
+    const envConfig: Record<string, unknown> = { experimental: { todo: true } };
     if (options?.mcpServers && Object.keys(options.mcpServers).length > 0) {
       envConfig.mcp = options.mcpServers;
     }
     if (modelOverlay) {
       Object.assign(envConfig, modelOverlay);
     }
-    if (Object.keys(envConfig).length > 0) {
-      env.OPENCODE_CONFIG_CONTENT = JSON.stringify(envConfig);
-    }
+    env.OPENCODE_CONFIG_CONTENT = JSON.stringify(envConfig);
 
     this.spawnError = null;
 
@@ -648,17 +558,19 @@ export class ProcessManager {
       }
 
       try {
-        const health = await this.client.health();
-        logger.info(`OpenCode server ready, version: ${health.version}`);
+        const info = await this.client.info();
+        logger.info(`OpenCode server ready, version: ${info?.version}`);
         return;
       } catch (err) {
-        if (err instanceof OpenCodeRouteNotFoundError && !probed) {
+        // `/api/info` answering HTML or 404 means this is not a 2.x server. Ask the 1.x health
+        // route once so the user gets an upgrade hint instead of a 15 s spinner.
+        const routeMissing = err instanceof OpenCodeRouteNotFoundError || (err instanceof OpenCodeHttpError && err.status === 404);
+        if (routeMissing && !probed) {
           probed = true;
-          const version = await detectUnsupportedOpenCodeVersion(this.client);
+          const version = await detectLegacyOpenCodeVersion(this.client);
           if (version) {
-            throw new UnsupportedOpenCodeVersionError(
-              `OpenCode ${version} isn't supported by this Cowork-Z version. Run: npm uninstall -g @opencode/cli && npm install -g opencode-ai@1`
-            );
+            logger.warn(`OpenCode ${version} is running, but Cowork-Z needs OpenCode 2.x`);
+            throw new UnsupportedOpenCodeVersionError(OPENCODE_V2_REQUIRED_MESSAGE);
           }
         }
         lastError = err;
@@ -682,18 +594,6 @@ export class ProcessManager {
     }
 
     logger.info('Stopping OpenCode server...');
-
-    try {
-      // Short timeout: this runs during shutdown — a hung server must not stall it.
-      await this.client.disposeGlobal({ timeout: 3000 });
-    } catch (error) {
-      logger.warn('Failed to dispose server gracefully', error);
-    }
-
-    if (this.process === null) {
-      // The 'exit' handler already fired — the server is down.
-      return;
-    }
 
     await new Promise<void>((resolve) => {
       let settled = false;

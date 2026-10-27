@@ -35,6 +35,8 @@ export interface PermissionRequest {
   options?: PermissionOption[];
   /** Allow multiple selections */
   multiSelect?: boolean;
+  /** Whether the user may type a free-text answer; the "Others" option is shown unless this is false */
+  custom?: boolean;
   /** File operation type if type is 'file' */
   fileOperation?: FileOperation;
   /** File path being operated on if type is 'file' */

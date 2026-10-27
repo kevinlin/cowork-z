@@ -39,6 +39,29 @@ describe('QuestionDialog — always-on Others fallback', () => {
     expect(screen.queryByText('Others')).not.toBeInTheDocument();
   });
 
+  it('does not render Others when the question forbids a custom answer (custom: false)', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<QuestionDialog onCancel={vi.fn()} onSubmit={onSubmit} request={buildRequest({ custom: false })} />);
+
+    expect(screen.getByText('Red')).toBeInTheDocument();
+    expect(screen.getByText('Blue')).toBeInTheDocument();
+    expect(screen.queryByText('Others')).not.toBeInTheDocument();
+    expect(screen.queryByText('Type your own response')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Blue/ }));
+    await user.click(screen.getByRole('button', { name: /Submit/ }));
+
+    expect(onSubmit).toHaveBeenCalledWith([{ labels: ['Blue'] }]);
+  });
+
+  it('still renders Others when custom is true', () => {
+    render(<QuestionDialog onCancel={vi.fn()} onSubmit={vi.fn()} request={buildRequest({ custom: true })} />);
+
+    expect(screen.getByText('Others')).toBeInTheDocument();
+  });
+
   it('single-select: clicking Others swaps to the free-text input and submits as customText only', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();

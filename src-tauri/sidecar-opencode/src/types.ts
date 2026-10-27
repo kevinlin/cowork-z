@@ -9,91 +9,194 @@
 // ============================================================================
 
 // ============================================================================
-// OpenCode Server API Types (from opencode-api.json)
+// OpenCode 2.x Server API Types — the subset the sidecar uses
+// (full contract: docs/specs/opencode-api-v2.json)
 // ============================================================================
 
-export interface Session {
-  id: string; // Pattern: ^ses.*
-  slug: string;
-  projectID: string;
-  directory: string;
-  parentID?: string;
-  title: string;
+export interface ServerInfo {
   version: string;
-  time: {
-    created: number;
-    updated: number;
-    compacting?: number;
-    archived?: number;
-  };
-  permission?: PermissionRuleset;
+  pid?: number;
 }
 
-export interface SessionStatus {
-  type: 'idle' | 'busy' | 'retry';
-  attempt?: number;
+export interface ModelRef {
+  id: string;
+  providerID: string;
+  variant?: string;
+}
+
+export type PermissionEffect = 'ask' | 'allow' | 'deny';
+
+/** One entry of a session's ordered ruleset. The last matching rule wins. */
+export interface PermissionRule {
+  action: string;
+  resource: string;
+  effect: PermissionEffect;
+}
+
+export type SessionOutcome = 'succeeded' | 'failed' | 'interrupted';
+
+/** `Session.Info` from `GET /api/session/{id}` (unwrapped from `{data}`). */
+export interface SessionInfo {
+  id: string;
+  outcome?: SessionOutcome;
+  model?: ModelRef;
+  time: { created: number; updated: number; idle?: number };
+  location: { directory: string };
+  title?: string;
+  permissions?: PermissionRule[];
+}
+
+/** An `/api/event` frame. `server.connected` and `session.execution.*` frames carry no `location`. */
+export interface OpenCodeEventFrame {
+  id?: string;
+  created?: number;
+  type: string;
+  location?: { directory?: string };
+  data: unknown;
+}
+
+export interface ErrorInfo {
+  type: string;
+  message: string;
+}
+
+export interface TextDeltaData {
+  sessionID: string;
+  assistantMessageID: string;
+  ordinal: number;
+  delta: string;
+}
+
+export interface ToolInputStartedData {
+  sessionID: string;
+  assistantMessageID: string;
+  id: string;
+  name: string;
+}
+
+export interface ToolCalledData {
+  sessionID: string;
+  assistantMessageID: string;
+  id: string;
+  input: unknown;
+}
+
+export type ToolContentItem = { type: 'text'; text: string } | { type: 'file'; uri: string; mime: string; name?: string | null };
+
+export interface ToolSuccessData {
+  sessionID: string;
+  assistantMessageID: string;
+  id: string;
+  content: ToolContentItem[];
+}
+
+export interface ToolFailedData {
+  sessionID: string;
+  assistantMessageID: string;
+  id: string;
+  error: ErrorInfo;
+}
+
+export interface ExecutionFailedData {
+  sessionID: string;
+  error: ErrorInfo;
+}
+
+export interface ExecutionInterruptedData {
+  sessionID: string;
+  reason?: string;
+}
+
+/** `Permission.Request` — the payload of `permission.asked` and `GET /api/session/{sid}/permission`. */
+export interface PermissionAsk {
+  id: string;
+  sessionID: string;
+  action: string;
+  resources: string[];
+  save?: string[];
+  metadata?: Record<string, unknown>;
+  source?: { type: 'tool'; messageID: string; id: string };
   message?: string;
-  next?: number;
 }
 
+export interface FormOption {
+  value: string;
+  label: string;
+  description?: string;
+}
+
+export interface FormField {
+  key: string;
+  type: 'string' | 'multiselect' | 'number' | 'integer' | 'boolean' | 'external';
+  title?: string;
+  description?: string;
+  hidden?: boolean;
+  when?: unknown[];
+  options?: FormOption[];
+  custom?: boolean;
+  url?: string;
+}
+
+/** `Form.Info` — the `form` of `form.created` and the items of `GET /api/session/{sid}/form`. */
+export interface FormInfo {
+  id: string;
+  sessionID: string;
+  title: string;
+  metadata?: Record<string, unknown>;
+  fields: FormField[];
+}
+
+export type FormValue = string | number | boolean | string[];
+export type FormAnswer = Record<string, FormValue>;
+
+/** Items of `GET /api/session/{id}/message` that the sidecar reads (assistant tool calls and errors). */
+export interface SessionMessageContentItem {
+  type: string;
+  id?: string;
+  name?: string;
+  state?: { status?: string; input?: unknown };
+}
+
+export interface SessionMessage {
+  id: string;
+  type: string;
+  outcome?: SessionOutcome;
+  content?: SessionMessageContentItem[];
+  error?: ErrorInfo;
+}
+
+/** v2 `mcp` entry for `PUT /api/experimental/mcp/{name}` (`{config}`). */
+export interface McpV2Config {
+  type?: 'local' | 'remote';
+  command?: string[];
+  url?: string;
+  environment?: Record<string, string>;
+  headers?: Record<string, string>;
+  disabled?: boolean;
+  timeout?: { execution: number };
+  oauth?: { client_id: string; client_secret: string; scope?: string } | false;
+}
+
+/** v1-shaped OpenCode config document (`OPENCODE_CONFIG_CONTENT`; v2 normalises it). */
+export interface Config {
+  model?: string;
+  small_model?: string;
+  enabled_providers?: string[];
+  disabled_providers?: string[];
+  mcp?: Record<string, McpConfig>;
+  provider?: Record<string, unknown>;
+  experimental?: { todo?: boolean };
+}
+
+/** Message/part shapes carried inside `task_message` events. */
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
-  // additional fields may be present
 }
 
 export interface Part {
   type: string;
   text?: string;
-  // Union of TextPart, ToolPart, etc.
-}
-
-// Extended part shape as returned in SSE message.part.updated events.
-// The server nests sessionID and messageID inside the part object itself.
-export interface PartUpdate extends Part {
-  id: string;
-  sessionID: string;
-  messageID: string;
-  metadata?: Record<string, unknown>;
-  time?: { start?: number; end?: number };
-  reason?: string;
-  cost?: number;
-  tokens?: Record<string, number>;
-}
-
-// Message info shape as returned in SSE message.updated events.
-export interface MessageInfo {
-  id: string;
-  sessionID: string;
-  role: 'user' | 'assistant';
-  time: { created: number; completed?: number };
-  parentID?: string;
-  modelID?: string;
-  providerID?: string;
-  mode?: string;
-  agent?: string;
-  path?: { cwd: string; root: string };
-  cost?: number;
-  tokens?: Record<string, number>;
-  finish?: string;
-  summary?: Record<string, unknown>;
-}
-
-export interface PermissionRequest {
-  id: string; // Pattern: ^per.*
-  sessionID: string;
-  permission: string;
-  patterns: string[];
-  metadata: Record<string, unknown>;
-  always: string[];
-  tool?: { messageID: string; callID: string };
-}
-
-export interface QuestionRequest {
-  id: string; // Pattern: ^que.*
-  sessionID: string;
-  questions: QuestionInfo[];
-  tool?: { messageID: string; callID: string };
 }
 
 export interface QuestionInfo {
@@ -101,8 +204,8 @@ export interface QuestionInfo {
   header?: string;
   options?: QuestionOption[];
   multiSelect?: boolean;
-  /** OpenCode server uses `multiple` instead of `multiSelect` */
-  multiple?: boolean;
+  /** `false` hides the free-text "Others" answer. Absent means allowed. */
+  custom?: boolean;
 }
 
 export interface QuestionOption {
@@ -113,44 +216,6 @@ export interface QuestionOption {
 export interface QuestionAnswer {
   labels: string[];
   customText?: string;
-}
-
-export type PermissionAction = 'ask' | 'allow' | 'deny';
-
-export interface PermissionConfig {
-  read?: PermissionRuleConfig;
-  edit?: PermissionRuleConfig;
-  bash?: PermissionRuleConfig;
-  external_directory?: PermissionRuleConfig;
-  doom_loop?: PermissionAction;
-  // other permission types
-}
-
-export type PermissionRuleConfig = PermissionAction | Record<string, PermissionAction>;
-export type PermissionRuleset = PermissionRule[];
-
-export type PermissionRule = {};
-
-export interface Config {
-  $schema?: string;
-  model?: string;
-  small_model?: string;
-  default_agent?: string;
-  enabled_providers?: string[];
-  disabled_providers?: string[];
-  permission?: PermissionConfig;
-  agent?: Record<string, AgentConfig>;
-  mcp?: Record<string, McpConfig>;
-  provider?: Record<string, unknown>;
-  // other config fields
-}
-
-export interface AgentConfig {
-  model?: string;
-  prompt?: string;
-  description?: string;
-  mode?: 'primary' | 'subagent' | 'all';
-  permission?: PermissionConfig;
 }
 
 export interface McpOAuthConfig {
@@ -176,61 +241,6 @@ export interface Todo {
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'high' | 'medium' | 'low';
 }
-
-export interface HealthResponse {
-  healthy: true;
-  version: string;
-}
-
-// ============================================================================
-// OpenCode Server Events (SSE)
-// ============================================================================
-
-export type OpenCodeEvent =
-  | {
-      type: 'session.status';
-      properties: { sessionID: string; status: SessionStatus };
-    }
-  | { type: 'session.idle'; properties: { sessionID: string } }
-  | { type: 'session.created'; properties: { info: Session } }
-  | { type: 'session.updated'; properties: { info: Session } }
-  | { type: 'session.deleted'; properties: { sessionID: string } }
-  | { type: 'session.error'; properties: { sessionID: string; error: string } }
-  | { type: 'session.diff'; properties: { sessionID: string; diff: unknown[] } }
-  | {
-      type: 'message.updated';
-      properties: { info: MessageInfo };
-    }
-  | {
-      type: 'message.part.updated';
-      properties: {
-        part: PartUpdate;
-      };
-    }
-  | {
-      type: 'message.part.delta';
-      properties: {
-        sessionID: string;
-        messageID: string;
-        partID: string;
-        field: string;
-        delta: string;
-      };
-    }
-  | { type: 'permission.asked'; properties: PermissionRequest }
-  | { type: 'permission.replied'; properties: { id: string; reply: string } }
-  | { type: 'question.asked'; properties: QuestionRequest }
-  | {
-      type: 'question.replied';
-      properties: { id: string; answers: QuestionAnswer[] };
-    }
-  | { type: 'question.rejected'; properties: { id: string } }
-  | { type: 'todo.updated'; properties: { sessionID: string; todos: Todo[] } }
-  | { type: 'session.compacted'; properties: { sessionID: string } }
-  | { type: 'server.connected'; properties: Record<string, never> }
-  | { type: 'server.instance.disposed'; properties: { directory: string } }
-  | { type: 'server.heartbeat'; properties: Record<string, never> }
-  | { type: 'global.disposed'; properties: Record<string, never> };
 
 // ============================================================================
 // IPC Protocol (Tauri <-> Sidecar)

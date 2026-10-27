@@ -1,4 +1,4 @@
-import type { Config, FolderPermission, PermissionAction, PermissionConfig } from './types';
+import type { FolderPermission, McpConfig, McpV2Config, PermissionRule } from './types';
 
 /**
  * Platform-specific environment instructions for the agent
@@ -19,7 +19,8 @@ You are running on ${process.platform === 'darwin' ? 'macOS' : 'Linux'}.
 }
 
 /**
- * Build the system prompt injected via the `system` field on sendMessage.
+ * Build the system prompt that the session manager stores as the `cowork-z` instructions entry
+ * (`PUT /api/experimental/session/{id}/instructions/entries/cowork-z`) before every prompt.
  *
  * The prompt is parameterized with the OpenCode server port so that
  * agent-issued HTTP requests (e.g. skill discovery) target the correct
@@ -31,11 +32,6 @@ You are running on ${process.platform === 'darwin' ? 'macOS' : 'Linux'}.
  * echo). The agent's shell tools run as children of `opencode serve`,
  * which carries `OPENCODE_SERVER_PASSWORD` in its environment — so the
  * prompt references the variable and the shell expands it locally.
- *
- * OpenCode 1.1.48 ignores custom agent names set via PATCH /config
- * (falls back to the built-in "build" agent). Passing the prompt
- * directly through the sendMessage `system` parameter bypasses
- * agent resolution and reliably applies the prompt.
  */
 export function buildSystemPrompt(serverPort: number, workspaceDir: string, customPrompt?: string): string {
   return `<identity>
@@ -105,9 +101,9 @@ When the user asks to "promote", "publish", "save as artefact", "save as utility
 The OpenCode server is running at http://localhost:${serverPort}
 The basic-auth password is available in your shell environment as \`OPENCODE_SERVER_PASSWORD\` — your shell expands it locally. NEVER print, echo, log, or write this value anywhere; only reference it as a shell variable inside commands.
 Authenticate with: -u "opencode:$OPENCODE_SERVER_PASSWORD" (bash/zsh) or -u "opencode:$env:OPENCODE_SERVER_PASSWORD" (PowerShell)
-Before calling any API endpoint, ALWAYS fetch the OpenAPI spec first: curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:${serverPort}/doc
+Before calling any API endpoint, ALWAYS fetch the OpenAPI spec first: curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:${serverPort}/openapi.json
 Refer to the "opencode-server-api" skill for the full API reference.
-To load it: curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:${serverPort}/skill
+To load it: curl -s -u "opencode:$OPENCODE_SERVER_PASSWORD" http://localhost:${serverPort}/api/skill
 </server-access>
 
 <tools>
@@ -116,10 +112,9 @@ You have access to these tools — use them proactively:
 | Tool | When to use |
 |------|-------------|
 | \`todowrite\` | Create and manage task lists. Use this to break down every non-trivial task into steps BEFORE starting work. Update task status as you progress. |
-| \`todoread\` | Read the current todo list. Check this frequently to stay on track and decide what to do next. |
 | \`question\` | Ask the user a question with multiple-choice options or free-text input. Use this to clarify ambiguous requirements, confirm your approach, or let the user choose between alternatives. |
 | \`webfetch\` | Fetch content from a URL and return it as markdown/text. Use this when you need to read documentation, API references, or any web content relevant to the task. |
-| \`task\` | Launch a specialized sub-agent for complex or independent subtasks. Use this to parallelize work or delegate research-heavy steps without blocking your main workflow. |
+| \`subagent\` | Launch a specialized sub-agent for complex or independent subtasks. Use this to parallelize work or delegate research-heavy steps without blocking your main workflow. |
 </tools>
 
 <behavior name="task-planning">
@@ -129,7 +124,7 @@ Before taking ANY action, you MUST:
 
 1. **Clarify if needed** — If the task is ambiguous, has multiple valid approaches, or you are unsure about the user's expectations, use the \`question\` tool FIRST to ask the user before proceeding. Do not guess — ask.
 2. **Create a todo list** — Use \`todowrite\` to break the task into numbered steps with clear completion criteria. This is your plan.
-3. **Execute step by step** — Work through each todo item. Mark items complete as you finish them. Use \`todoread\` to check progress and decide what's next.
+3. **Execute step by step** — Work through each todo item. Mark items complete as you finish them. Re-check your todo list to decide what's next.
 
 Example flow:
 - User asks: "Organize my downloads folder"
@@ -140,7 +135,7 @@ Example flow:
 
 <behavior>
 - After each action, evaluate the result before deciding next steps
-- Use \`todoread\` between steps to maintain awareness of overall progress
+- Revisit your todo list between steps to maintain awareness of overall progress
 - Use \`question\` whenever you encounter a decision point where user preference matters — don't assume
 
 **DO NOT ASK FOR PERMISSION TO CONTINUE:**
@@ -152,126 +147,81 @@ If the user gave you a task with specific criteria:
 ${customPrompt ? `\n<user-instructions>\n${customPrompt}\n</user-instructions>` : ''}`;
 }
 
-export interface ConfigBuilderOptions {
-  modelId?: string;
-  folderPermissions?: FolderPermission[];
-  enabledProviders?: string[];
-  mcpServers?: Record<string, import('./types').McpConfig>;
+/** Forward-slash form of a filesystem path without trailing separators (v2 normalises paths this way). */
+function toPatternBase(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+$/, '');
 }
 
-export function buildSessionConfig(options: ConfigBuilderOptions = {}): Partial<Config> {
-  // Build permission config with deny-by-default for external directories
-  const permissionConfig: PermissionConfig = {
-    doom_loop: 'deny' as PermissionAction,
-  };
+/**
+ * Build the ordered v2 permission rules for a session. The last matching rule wins, so general
+ * rules come first and overrides after.
+ *
+ * - v2 allows `external_directory` by default; the leading `ask` rule keeps the sandbox closed.
+ * - Workspace files are matched by location-relative path (`Output/a.txt`), so workspace rules use
+ *   relative patterns. An absolute workspace pattern never matches and would silently void the
+ *   `Input/` deny.
+ * - Folders outside the workspace use absolute forward-slash patterns for `external_directory`,
+ *   `read` and `edit`.
+ */
+export function buildSessionPermissions(folderPermissions: FolderPermission[] = []): PermissionRule[] {
+  const rules: PermissionRule[] = [{ action: 'external_directory', resource: '*', effect: 'ask' }];
 
-  if (options.folderPermissions && options.folderPermissions.length > 0) {
-    const externalDirRules: Record<string, PermissionAction> = { '*': 'ask' };
-    const editRules: Record<string, PermissionAction> = { '*': 'ask' };
-    const readRules: Record<string, PermissionAction> = {};
+  if (folderPermissions.length === 0) {
+    return rules;
+  }
 
-    for (const fp of options.folderPermissions) {
-      if (fp.source === 'workspace') {
-        const wsPath = fp.path;
-        const sep = process.platform === 'win32' ? '\\' : '/';
-        const norm = wsPath.replace(/[/\\]+$/, '');
-        const inputDir = norm + sep + 'Input';
-        const outputDir = norm + sep + 'Output';
-        const miscDir = norm + sep + 'Misc';
-        const artefactsDir = norm + sep + 'Artefacts';
+  rules.push({ action: 'edit', resource: '*', effect: 'ask' });
 
-        externalDirRules[wsPath] = 'allow';
-        readRules[wsPath] = 'allow';
-
-        // "Last matching pattern wins" — general rules first, overrides last
-        editRules[wsPath] = 'allow';
-        editRules[inputDir] = 'deny';
-        editRules[inputDir + sep + '*'] = 'deny';
-        editRules[outputDir] = 'allow';
-        editRules[outputDir + sep + '*'] = 'allow';
-        editRules[miscDir] = 'ask';
-        editRules[miscDir + sep + '*'] = 'ask';
-        editRules[artefactsDir] = 'ask';
-        editRules[artefactsDir + sep + '*'] = 'ask';
-        continue;
-      }
-
-      // Allow external directory access for all permitted folders
-      externalDirRules[fp.path] = 'allow';
-      // Always allow read access for permitted folders
-      readRules[fp.path] = 'allow';
-
-      if (fp.accessLevel === 'read-write') {
-        if (fp.source === 'adhoc') {
-          // For adhoc-granted folders (from accepted permission prompts): auto-allow on resume
-          editRules[fp.path] = 'allow';
-        } else {
-          // For user-added read-write folders: ask before any edit/delete operation
-          editRules[fp.path] = 'ask';
-        }
-      } else {
-        // For read-only folders: deny all edits
-        editRules[fp.path] = 'deny';
-      }
+  for (const fp of folderPermissions) {
+    if (fp.source === 'workspace') {
+      rules.push(
+        { action: 'edit', resource: 'Input/*', effect: 'deny' },
+        { action: 'edit', resource: 'Output/*', effect: 'allow' },
+        { action: 'edit', resource: 'Misc/*', effect: 'ask' },
+        { action: 'edit', resource: 'Artefacts/*', effect: 'ask' }
+      );
+      continue;
     }
 
-    permissionConfig.external_directory = externalDirRules;
-    permissionConfig.read = readRules;
-    permissionConfig.edit = editRules;
-  }
-
-  // Note: agent/default_agent are NOT sent here. OpenCode 1.1.48 ignores
-  // custom agent names and falls back to the built-in "build" agent.
-  // Instead, the system prompt is injected directly via the `system` field
-  // on each sendMessage call (see session-manager.ts).
-  const config: Partial<Config> = {
-    permission: permissionConfig,
-  };
-
-  // Set model if provided (best-effort via config; the authoritative model
-  // override is passed per-message in sendMessage — see session-manager.ts).
-  if (options.modelId) {
-    config.model = options.modelId;
-
-    // OpenRouter models are not in OpenCode's curated model database, so
-    // automatic small-model resolution picks the wrong model (e.g. Claude
-    // Haiku 4.5 via the built-in "opencode" provider).  Fix:
-    //  1. Disable the "opencode" provider so it can't auto-load.
-    //  2. Register gpt-5-nano under the openrouter provider config so
-    //     OpenCode's getModel("openrouter", "openai/gpt-5-nano") succeeds.
-    //  3. Set small_model explicitly.
-    if (options.modelId.startsWith('github-copilot-enterprise/')) {
-      config.enabled_providers = [...((config.enabled_providers as string[]) ?? []), 'github-copilot-enterprise'];
-    } else if (options.modelId.startsWith('github-copilot/')) {
-      config.enabled_providers = [...((config.enabled_providers as string[]) ?? []), 'github-copilot'];
+    const pattern = `${toPatternBase(fp.path)}/*`;
+    let edit: PermissionRule['effect'] = 'deny';
+    if (fp.accessLevel === 'read-write') {
+      // Adhoc folders (granted from an accepted permission prompt) auto-allow on resume;
+      // user-added read-write folders ask before any edit or delete.
+      edit = fp.source === 'adhoc' ? 'allow' : 'ask';
     }
 
-    if (options.modelId.startsWith('openrouter/')) {
-      config.small_model = 'openrouter/openai/gpt-5-nano';
-      config.disabled_providers = ['opencode'];
-      config.provider = {
-        ...((config.provider as Record<string, unknown>) ?? {}),
-        openrouter: {
-          models: {
-            'openai/gpt-5-nano': {
-              name: 'GPT-5 Nano',
-              tool_call: true,
-            },
-          },
-        },
-      };
-    }
+    rules.push(
+      { action: 'external_directory', resource: pattern, effect: 'allow' },
+      { action: 'read', resource: pattern, effect: 'allow' },
+      { action: 'edit', resource: pattern, effect: edit }
+    );
   }
 
-  // Set enabled providers
-  if (options.enabledProviders) {
-    config.enabled_providers = options.enabledProviders;
+  return rules;
+}
+
+/** Map the app's v1-shaped MCP server config onto the v2 runtime shape (`PUT /api/experimental/mcp/{name}`). */
+export function toV2McpConfig(config: McpConfig): McpV2Config {
+  const result: McpV2Config = {};
+
+  if (config.type !== undefined) result.type = config.type;
+  if (config.command !== undefined) result.command = config.command;
+  if (config.url !== undefined) result.url = config.url;
+  if (config.environment !== undefined) result.environment = config.environment;
+  if (config.headers !== undefined) result.headers = config.headers;
+  if (config.enabled === false) result.disabled = true;
+  if (typeof config.timeout === 'number') result.timeout = { execution: config.timeout };
+
+  if (config.oauth === false) {
+    result.oauth = false;
+  } else if (config.oauth) {
+    result.oauth = {
+      client_id: config.oauth.clientId,
+      client_secret: config.oauth.clientSecret,
+      ...(config.oauth.scope !== undefined ? { scope: config.oauth.scope } : {}),
+    };
   }
 
-  // Set MCP servers
-  if (options.mcpServers) {
-    config.mcp = options.mcpServers;
-  }
-
-  return config;
+  return result;
 }

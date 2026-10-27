@@ -58,8 +58,7 @@ jest.mock('node:net', () => ({
 jest.mock('../src/opencode-client', () => ({
   ...jest.requireActual('../src/opencode-client'),
   OpenCodeClient: jest.fn().mockImplementation(() => ({
-    health: jest.fn().mockResolvedValue({ version: '1.0.0', status: 'healthy' }),
-    disposeGlobal: jest.fn().mockResolvedValue(undefined),
+    info: jest.fn().mockResolvedValue({ version: '2.2.0' }),
   })),
 }));
 
@@ -473,47 +472,43 @@ describe('applyApiKeyEnv — server spawn env mapping (2026-06-12 review #22)', 
   });
 });
 
-describe('OpenCode 2.x gate', () => {
+describe('OpenCode 2.x requirement', () => {
+  const V2_REQUIRED_MESSAGE = 'Cowork-Z needs OpenCode 2.x. Run: npm uninstall -g opencode-ai && npm install -g @opencode/cli';
+
   const loadModules = async () => {
     jest.resetModules();
     const processManager = await import('../src/process-manager');
     const openCodeClient = await import('../src/opencode-client');
+    const { logger } = await import('../src/logger');
     return {
       ...processManager,
+      logger: logger as unknown as Record<'info' | 'debug' | 'warn' | 'error', jest.Mock>,
       OpenCodeClient: openCodeClient.OpenCodeClient as unknown as jest.Mock,
       OpenCodeRouteNotFoundError: openCodeClient.OpenCodeRouteNotFoundError,
+      OpenCodeHttpError: openCodeClient.OpenCodeHttpError,
     };
   };
 
-  describe('parseUnsupportedOpenCodeVersion', () => {
-    it.each([
-      [{ version: '2.2.0' }, '2.2.0'],
-      [{ version: 'v2.0.1' }, 'v2.0.1'],
-      [{ version: '1.19.4' }, undefined],
-      [{ version: 'abc' }, undefined],
-      [{}, undefined],
-      [null, undefined],
-      ['<html>', undefined],
-    ])('maps %j to %j', async (info, expected) => {
-      const { parseUnsupportedOpenCodeVersion } = await loadModules();
+  describe('detectLegacyOpenCodeVersion', () => {
+    it('returns the version when /global/health answers with JSON (an OpenCode 1.x server)', async () => {
+      const { detectLegacyOpenCodeVersion } = await loadModules();
+      const client = { health: jest.fn<() => Promise<{ version?: string } | null>>().mockResolvedValue({ version: '1.19.4' }) };
 
-      expect(parseUnsupportedOpenCodeVersion(info)).toBe(expected);
-    });
-  });
-
-  describe('detectUnsupportedOpenCodeVersion', () => {
-    it('returns the version when /api/info reports 2.x', async () => {
-      const { detectUnsupportedOpenCodeVersion } = await loadModules();
-      const client = { getServerInfo: jest.fn<() => Promise<{ version?: string } | null>>().mockResolvedValue({ version: '2.2.0' }) };
-
-      await expect(detectUnsupportedOpenCodeVersion(client)).resolves.toBe('2.2.0');
+      await expect(detectLegacyOpenCodeVersion(client)).resolves.toBe('1.19.4');
     });
 
-    it('returns undefined when /api/info resolves null', async () => {
-      const { detectUnsupportedOpenCodeVersion } = await loadModules();
-      const client = { getServerInfo: jest.fn<() => Promise<{ version?: string } | null>>().mockResolvedValue(null) };
+    it('still flags a JSON health answer that carries no version', async () => {
+      const { detectLegacyOpenCodeVersion } = await loadModules();
+      const client = { health: jest.fn<() => Promise<{ version?: string } | null>>().mockResolvedValue({}) };
 
-      await expect(detectUnsupportedOpenCodeVersion(client)).resolves.toBeUndefined();
+      await expect(detectLegacyOpenCodeVersion(client)).resolves.toBe('unknown');
+    });
+
+    it('returns undefined when /global/health resolves null', async () => {
+      const { detectLegacyOpenCodeVersion } = await loadModules();
+      const client = { health: jest.fn<() => Promise<{ version?: string } | null>>().mockResolvedValue(null) };
+
+      await expect(detectLegacyOpenCodeVersion(client)).resolves.toBeUndefined();
     });
 
     it.each([
@@ -521,26 +516,33 @@ describe('OpenCode 2.x gate', () => {
         'an HTML route-not-found response',
         (m: Awaited<ReturnType<typeof loadModules>>) => new m.OpenCodeRouteNotFoundError('route not found'),
       ],
-      ['an HTTP 404', () => new Error('HTTP 404: {"error":"not found"}')],
-      ['an HTTP 401', () => new Error('HTTP 401: {"error":"unauthorized"}')],
+      ['an HTTP 404', (m: Awaited<ReturnType<typeof loadModules>>) => new m.OpenCodeHttpError(404, { error: 'not found' })],
+      ['an HTTP 401', (m: Awaited<ReturnType<typeof loadModules>>) => new m.OpenCodeHttpError(401, { error: 'unauthorized' })],
       ['a refused connection', () => new TypeError('fetch failed')],
     ])('returns undefined when the probe fails with %s', async (_label, makeError) => {
       const modules = await loadModules();
-      const client = { getServerInfo: jest.fn<() => Promise<{ version?: string } | null>>().mockRejectedValue(makeError(modules)) };
+      const client = { health: jest.fn<() => Promise<{ version?: string } | null>>().mockRejectedValue(makeError(modules)) };
 
-      await expect(modules.detectUnsupportedOpenCodeVersion(client)).resolves.toBeUndefined();
+      await expect(modules.detectLegacyOpenCodeVersion(client)).resolves.toBeUndefined();
     });
   });
 
-  describe('server startup failure', () => {
-    const health = jest.fn<() => Promise<unknown>>();
-    const getServerInfo = jest.fn<() => Promise<{ version?: string } | null>>();
-    let child: { stdout: { on: jest.Mock }; stderr: { on: jest.Mock }; on: jest.Mock; kill: jest.Mock; killed: boolean };
+  describe('server startup', () => {
+    const info = jest.fn<() => Promise<{ version?: string } | null>>();
+    const health = jest.fn<() => Promise<{ version?: string } | null>>();
+    let child: {
+      stdout: { on: jest.Mock };
+      stderr: { on: jest.Mock };
+      on: jest.Mock;
+      once: jest.Mock;
+      kill: jest.Mock;
+      killed: boolean;
+    };
 
-    // Start a ProcessManager whose OpenCode server never becomes healthy and whose child never exits.
+    // Start a ProcessManager against a scripted client; the spawned child never exits unless a test says so.
     const createManager = async () => {
       const modules = await loadModules();
-      modules.OpenCodeClient.mockImplementation(() => ({ health, getServerInfo, disposeGlobal: jest.fn() }));
+      modules.OpenCodeClient.mockImplementation(() => ({ info, health }));
       const sleep = jest
         .spyOn(modules.ProcessManager.prototype as unknown as { sleep: (ms: number) => Promise<void> }, 'sleep')
         .mockResolvedValue(undefined);
@@ -548,9 +550,12 @@ describe('OpenCode 2.x gate', () => {
       return { ...modules, pm, sleep };
     };
 
+    const spawnedEnv = (): NodeJS.ProcessEnv =>
+      (mockSpawn.mock.calls[0] as unknown as [string, string[], { env: NodeJS.ProcessEnv }])[2].env;
+
     beforeEach(() => {
+      info.mockReset();
       health.mockReset();
-      getServerInfo.mockReset();
       mockExistsSync.mockReset();
       mockExecFileSync.mockReset();
       mockSpawn.mockReset();
@@ -559,7 +564,7 @@ describe('OpenCode 2.x gate', () => {
       mockMkdirSync.mockReset();
       mockExistsSync.mockReturnValue(false);
       mockReadFileSync.mockReturnValue('{}');
-      child = { stdout: { on: jest.fn() }, stderr: { on: jest.fn() }, on: jest.fn(), kill: jest.fn(), killed: false };
+      child = { stdout: { on: jest.fn() }, stderr: { on: jest.fn() }, on: jest.fn(), once: jest.fn(), kill: jest.fn(), killed: false };
       mockSpawn.mockReturnValue(child);
       Object.defineProperty(process, 'platform', { value: 'darwin', writable: true, configurable: true });
     });
@@ -568,52 +573,167 @@ describe('OpenCode 2.x gate', () => {
       Object.defineProperty(process, 'platform', { value: originalPlatform, writable: true, configurable: true });
     });
 
-    it('fails on the first health poll with UnsupportedOpenCodeVersionError when the server reports 2.x', async () => {
+    it('becomes ready on /api/info and logs the server version', async () => {
+      const { pm, logger } = await createManager();
+      info.mockResolvedValue({ version: '2.2.0' });
+
+      await pm.ensureServerRunning();
+
+      expect(info).toHaveBeenCalledTimes(1);
+      expect(health).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('2.2.0'));
+    });
+
+    it('keeps polling through refused connections without probing for a 1.x server', async () => {
+      const { pm, sleep } = await createManager();
+      info
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockResolvedValue({ version: '2.2.0' });
+
+      await pm.ensureServerRunning();
+
+      expect(info).toHaveBeenCalledTimes(3);
+      expect(sleep).toHaveBeenCalledTimes(2);
+      expect(health).not.toHaveBeenCalled();
+    });
+
+    it('fails on the first poll with UnsupportedOpenCodeVersionError when /api/info is HTML but /global/health is JSON (1.x)', async () => {
       const { pm, sleep, OpenCodeRouteNotFoundError, UnsupportedOpenCodeVersionError } = await createManager();
-      health.mockRejectedValue(
-        new OpenCodeRouteNotFoundError('OpenCode route not found: GET /global/health (unsupported OpenCode version?)')
-      );
-      getServerInfo.mockResolvedValue({ version: '2.2.0' });
+      info.mockRejectedValue(new OpenCodeRouteNotFoundError('OpenCode route not found: GET /api/info (unsupported OpenCode version?)'));
+      health.mockResolvedValue({ version: '1.19.4' });
 
       const result = pm.ensureServerRunning();
 
       await expect(result).rejects.toBeInstanceOf(UnsupportedOpenCodeVersionError);
-      await expect(result).rejects.toMatchObject({
-        name: 'UnsupportedOpenCodeVersionError',
-        message: expect.stringContaining('2.2.0'),
-      });
-      await expect(result).rejects.toThrow('npm uninstall -g @opencode/cli && npm install -g opencode-ai@1');
+      await expect(result).rejects.toMatchObject({ name: 'UnsupportedOpenCodeVersionError', message: V2_REQUIRED_MESSAGE });
+      expect(info).toHaveBeenCalledTimes(1);
       expect(health).toHaveBeenCalledTimes(1);
-      expect(getServerInfo).toHaveBeenCalledTimes(1);
       expect(sleep).not.toHaveBeenCalled();
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
     });
 
-    it('probes /api/info once, then keeps polling and reports the generic error when no 2.x server answers', async () => {
+    it('treats an HTTP 404 on /api/info the same way', async () => {
+      const { pm, OpenCodeHttpError, UnsupportedOpenCodeVersionError } = await createManager();
+      info.mockRejectedValue(new OpenCodeHttpError(404, { error: 'not found' }));
+      health.mockResolvedValue({ version: '1.19.4' });
+
+      await expect(pm.ensureServerRunning()).rejects.toBeInstanceOf(UnsupportedOpenCodeVersionError);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    });
+
+    it('probes /global/health once, then keeps polling and reports the generic error when no 1.x server answers', async () => {
       const { pm, OpenCodeRouteNotFoundError, UnsupportedOpenCodeVersionError } = await createManager();
-      health.mockRejectedValue(
-        new OpenCodeRouteNotFoundError('OpenCode route not found: GET /global/health (unsupported OpenCode version?)')
-      );
-      getServerInfo.mockResolvedValue(null);
+      info.mockRejectedValue(new OpenCodeRouteNotFoundError('OpenCode route not found: GET /api/info (unsupported OpenCode version?)'));
+      health.mockResolvedValue(null);
 
       const result = pm.ensureServerRunning();
 
       await expect(result).rejects.toThrow('OpenCode server failed to start after 15000ms');
       await expect(result).rejects.not.toBeInstanceOf(UnsupportedOpenCodeVersionError);
-      expect(health).toHaveBeenCalledTimes(30);
-      expect(getServerInfo).toHaveBeenCalledTimes(1);
+      expect(info).toHaveBeenCalledTimes(30);
+      expect(health).toHaveBeenCalledTimes(1);
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
     });
 
     it('kills the spawned child before rejecting when the server never becomes healthy', async () => {
       const { pm } = await createManager();
-      health.mockRejectedValue(new Error('HTTP 500: {"error":"boom"}'));
+      info.mockRejectedValue(new Error('HTTP 500: {"error":"boom"}'));
 
       await expect(pm.ensureServerRunning()).rejects.toThrow('OpenCode server failed to start after 15000ms. Last error: HTTP 500');
 
-      expect(health).toHaveBeenCalledTimes(30);
-      expect(getServerInfo).not.toHaveBeenCalled();
+      expect(info).toHaveBeenCalledTimes(30);
+      expect(health).not.toHaveBeenCalled();
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    });
+
+    describe('OPENCODE_CONFIG_CONTENT', () => {
+      it('always enables the experimental todo tool', async () => {
+        const { pm } = await createManager();
+        info.mockResolvedValue({ version: '2.2.0' });
+
+        await pm.ensureServerRunning();
+
+        expect(JSON.parse(spawnedEnv().OPENCODE_CONFIG_CONTENT ?? 'null')).toEqual({ experimental: { todo: true } });
+      });
+
+      it('adds the MCP servers from the task payload', async () => {
+        const { pm } = await createManager();
+        info.mockResolvedValue({ version: '2.2.0' });
+        const mcp = { files: { type: 'local', command: ['npx', 'files'], enabled: false } };
+
+        await pm.ensureServerRunning({ mcpServers: mcp });
+
+        expect(JSON.parse(spawnedEnv().OPENCODE_CONFIG_CONTENT ?? 'null')).toEqual({ experimental: { todo: true }, mcp });
+      });
+
+      it('omits an empty MCP server map', async () => {
+        const { pm } = await createManager();
+        info.mockResolvedValue({ version: '2.2.0' });
+
+        await pm.ensureServerRunning({ mcpServers: {} });
+
+        expect(JSON.parse(spawnedEnv().OPENCODE_CONFIG_CONTENT ?? 'null')).toEqual({ experimental: { todo: true } });
+      });
+
+      it('merges the OpenRouter overlay next to the todo flag and the MCP servers', async () => {
+        const { pm, ProcessManager } = await createManager();
+        info.mockResolvedValue({ version: '2.2.0' });
+        const mcp = { files: { type: 'local', command: ['npx', 'files'] } };
+
+        await pm.ensureServerRunning({ mcpServers: mcp, modelId: 'openrouter/minimax/minimax-m2.5' });
+
+        expect(JSON.parse(spawnedEnv().OPENCODE_CONFIG_CONTENT ?? 'null')).toEqual({
+          experimental: { todo: true },
+          mcp,
+          ...ProcessManager.buildOpenRouterOverlay(),
+        });
+        expect(ProcessManager.buildOpenRouterOverlay()).toEqual(
+          expect.objectContaining({ small_model: 'openrouter/openai/gpt-5-nano', disabled_providers: ['opencode'] })
+        );
+      });
+
+      it('leaves the overlay out for a non-OpenRouter model', async () => {
+        const { pm } = await createManager();
+        info.mockResolvedValue({ version: '2.2.0' });
+
+        await pm.ensureServerRunning({ modelId: 'anthropic/claude-sonnet-4-5' });
+
+        expect(JSON.parse(spawnedEnv().OPENCODE_CONFIG_CONTENT ?? 'null')).toEqual({ experimental: { todo: true } });
+      });
+
+      it('never writes opencode.json or config.json, which v2 does not read', async () => {
+        const { pm } = await createManager();
+        info.mockResolvedValue({ version: '2.2.0' });
+
+        await pm.ensureServerRunning({ mcpServers: { files: { type: 'local', command: ['x'] } }, modelId: 'openrouter/x/y' });
+
+        expect(mockWriteFileSync).not.toHaveBeenCalled();
+      });
+
+      it('has no on-disk config updaters left', async () => {
+        const { pm } = await createManager();
+
+        expect((pm as unknown as Record<string, unknown>).updateMcpConfig).toBeUndefined();
+        expect((pm as unknown as Record<string, unknown>).updateModelConfig).toBeUndefined();
+        expect((pm as unknown as Record<string, unknown>).writePreStartConfig).toBeUndefined();
+      });
+    });
+
+    describe('stopServer', () => {
+      it('just terminates the child; there is no dispose call to make', async () => {
+        const { pm } = await createManager();
+        info.mockResolvedValue({ version: '2.2.0' });
+        child.once.mockImplementation((event: unknown, callback: unknown) => {
+          if (event === 'exit') setTimeout(callback as () => void, 0);
+          return child;
+        });
+        await pm.ensureServerRunning();
+
+        await pm.stopServer();
+
+        expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      });
     });
   });
 });

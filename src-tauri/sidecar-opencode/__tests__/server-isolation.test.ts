@@ -60,7 +60,21 @@ describe('Server Isolation', () => {
   describe('buildSystemPrompt', () => {
     it('should include the dynamic server port in the skill discovery curl command', () => {
       const prompt = buildSystemPrompt(12_345, '/tmp/workspace');
-      expect(prompt).toContain('http://localhost:12345/skill');
+      expect(prompt).toContain('http://localhost:12345/api/skill');
+    });
+
+    it('should point the agent at the v2 OpenAPI document and not at the removed /doc route', () => {
+      const prompt = buildSystemPrompt(12_345, '/tmp/workspace');
+      expect(prompt).toContain('http://localhost:12345/openapi.json');
+      expect(prompt).not.toContain('localhost:12345/doc');
+    });
+
+    it('should name the v2 tools: subagent instead of task, and no todoread', () => {
+      const prompt = buildSystemPrompt(12_345, '/tmp/workspace');
+      expect(prompt).toContain('`subagent`');
+      expect(prompt).not.toContain('`task`');
+      expect(prompt).toContain('`todowrite`');
+      expect(prompt).not.toContain('todoread');
     });
 
     it('should reference the password via env var and never inline a credential (2026-06-12 review #1)', () => {

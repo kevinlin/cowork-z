@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import readline from 'node:readline';
 import { CommandQueue } from './command-queue';
+import { toV2McpConfig } from './config-builder';
 import { EventStream } from './event-stream';
 import { logger } from './logger';
 import { ProcessManager } from './process-manager';
@@ -8,6 +9,7 @@ import { SessionManager } from './session-manager';
 import type {
   ApiKeys,
   ApiKeysResponsePayload,
+  McpConfig,
   PermissionReplyPayload,
   QuestionInfo,
   QuestionReplyPayload,
@@ -46,6 +48,12 @@ let sessionManager: SessionManager | null = null;
 let currentDirectory: string | undefined;
 let initializePromise: Promise<void> | null = null;
 let appliedApiKeysFingerprint: string | undefined;
+/** Whether the running server was spawned with the OpenRouter config overlay. */
+let appliedOpenRouter = false;
+/** MCP servers the running server has: its startup config plus every runtime put/delete since. */
+let appliedMcpServers: Record<string, McpConfig> = {};
+
+const isOpenRouterModel = (modelId: string | undefined): boolean => modelId?.startsWith('openrouter/') === true;
 
 // ============================================================================
 // API-key bridge (2026-06-12 review #5)
@@ -94,7 +102,7 @@ function handleApiKeysResponse(payload: ApiKeysResponsePayload): void {
 
 async function initialize(
   apiKeysFingerprint?: string,
-  mcpServers?: Record<string, unknown>,
+  mcpServers?: Record<string, McpConfig>,
   modelId?: string,
   workingDirectory?: string
 ): Promise<void> {
@@ -106,11 +114,20 @@ async function initialize(
     // the check.
     const keysChanged = apiKeysFingerprint !== undefined && apiKeysFingerprint !== appliedApiKeysFingerprint;
 
-    if (keysChanged && sessionManager.activeSessionCount() === 0) {
-      logger.info('API keys changed since initialization — restarting OpenCode server to apply them');
+    // The OpenRouter overlay (small-model pin, provider registration) is part of the config the
+    // server reads at spawn time, and v2 has no runtime route for it. A switch between an OpenRouter
+    // and a non-OpenRouter model therefore needs a restart as well. A caller that passes no model
+    // (e.g. Copilot OAuth) expresses no opinion and skips the check.
+    const openRouterChanged = modelId !== undefined && isOpenRouterModel(modelId) !== appliedOpenRouter;
+
+    if ((keysChanged || openRouterChanged) && sessionManager.activeSessionCount() === 0) {
+      logger.info('Server spawn config changed since initialization — restarting OpenCode server to apply it', {
+        keysChanged,
+        openRouterChanged,
+      });
       initializePromise = (async () => {
         await teardown();
-        await doInitialize(mcpServers, modelId, workingDirectory);
+        await doInitialize(mcpServers ?? appliedMcpServers, modelId, workingDirectory);
       })();
       try {
         await initializePromise;
@@ -120,17 +137,18 @@ async function initialize(
       return;
     }
 
-    if (keysChanged) {
+    if (keysChanged || openRouterChanged) {
       logger.warn(
-        'API keys changed but sessions are still active; restart deferred — the new keys will be applied when the next task starts while idle'
+        'Server spawn config changed but sessions are still active; restart deferred — it will be applied when the next task starts while idle',
+        { keysChanged, openRouterChanged }
       );
     }
 
-    // Fully initialized — but reconnect SSE if directory changed
+    // Fully initialized — but re-scope the event stream if the directory changed
     if (eventStream && workingDirectory && workingDirectory !== currentDirectory) {
-      logger.info('Workspace directory changed, reconnecting SSE stream', { from: currentDirectory, to: workingDirectory });
+      logger.info('Workspace directory changed, re-scoping the event stream', { from: currentDirectory, to: workingDirectory });
       currentDirectory = workingDirectory;
-      eventStream.reconnectWithDirectory(workingDirectory);
+      eventStream.setDirectory(workingDirectory);
     }
     return;
   }
@@ -149,8 +167,10 @@ async function initialize(
   }
 }
 
-async function doInitialize(mcpServers?: Record<string, unknown>, modelId?: string, workingDirectory?: string): Promise<void> {
+async function doInitialize(mcpServers?: Record<string, McpConfig>, modelId?: string, workingDirectory?: string): Promise<void> {
   currentDirectory = workingDirectory;
+  appliedOpenRouter = isOpenRouterModel(modelId);
+  appliedMcpServers = { ...mcpServers };
 
   // Pull credentials from the host at spawn time (2026-06-12 review #5)
   const keyResponse = await requestApiKeysFromHost();
@@ -312,8 +332,14 @@ async function doInitialize(mcpServers?: Record<string, unknown>, modelId?: stri
     sendLog('warn', 'SSE connection lost, reconnecting...');
   });
 
-  // Connect event stream
-  eventStream.connect();
+  // Connect the event stream and wait for the server's first `server.connected`: a prompt sent before
+  // the subscription is live would lose its early events (the stream has no replay).
+  try {
+    await eventStream.connect();
+  } catch (error) {
+    await teardown();
+    throw error;
+  }
 }
 
 // ============================================================================
@@ -327,12 +353,6 @@ async function handleStartTask(taskId: string, payload: StartTaskPayload): Promi
     if (!(sessionManager && processManager)) {
       throw new Error('Session manager not initialized');
     }
-
-    // Update model config on disk for subsequent instance reloads.
-    // This is a no-op when the server is freshly started (config already
-    // written in startServer), but handles model changes between tasks
-    // when the server is already running.
-    processManager.updateModelConfig(payload.modelId);
 
     await sessionManager.startTask(payload);
   } catch (error) {
@@ -354,9 +374,6 @@ async function handleResumeSession(taskId: string, payload: ResumeSessionPayload
     if (!(sessionManager && processManager)) {
       throw new Error('Session manager not initialized');
     }
-
-    // Update model config on disk (same rationale as handleStartTask)
-    processManager.updateModelConfig(payload.modelId);
 
     await sessionManager.resumeSession(payload);
   } catch (error) {
@@ -380,15 +397,38 @@ async function handleUpdateMcpConfig(payload: UpdateMcpConfigPayload): Promise<v
       throw new Error('Process manager not initialized');
     }
 
-    // Write to config files on disk so the next server start picks up MCP servers.
-    // OpenCode does NOT dynamically initialize MCP servers from PATCH /config;
-    // it only reads them at startup.
-    processManager.updateMcpConfig(payload.mcpServers);
-
-    // Also send PATCH /config to update the in-memory config (model, permissions, etc.)
+    // MCP servers are put and deleted on the running server, so no restart. A server that is already
+    // there with the same config is left alone (a put would reconnect it).
     const client = processManager.getClient();
-    await client.updateConfig({ mcp: payload.mcpServers }, payload.workingDirectory);
-    logger.info('MCP config updated', { serverCount: Object.keys(payload.mcpServers).length });
+    const directory = payload.workingDirectory ?? currentDirectory;
+    const desired = payload.mcpServers ?? {};
+    const failures: string[] = [];
+
+    for (const [name, config] of Object.entries(desired)) {
+      const known = appliedMcpServers[name];
+      if (known && JSON.stringify(toV2McpConfig(known)) === JSON.stringify(toV2McpConfig(config))) continue;
+      try {
+        await client.putMcpServer(name, toV2McpConfig(config), directory);
+        appliedMcpServers[name] = config;
+      } catch (error) {
+        failures.push(`${name}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    for (const name of Object.keys(appliedMcpServers)) {
+      if (name in desired) continue;
+      try {
+        await client.removeMcpServer(name, directory);
+        delete appliedMcpServers[name];
+      } catch (error) {
+        failures.push(`${name}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new Error(failures.join('; '));
+    }
+    logger.info('MCP config updated', { serverCount: Object.keys(desired).length });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Failed to update MCP config', { error: message });
@@ -672,13 +712,13 @@ async function handleCheckServer(): Promise<void> {
     }
 
     const client = processManager.getClient();
-    const health = await client.health();
+    const info = await client.info();
     send({
       type: 'server_status',
       payload: {
         running: true,
         port: processManager.getPort(),
-        version: health.version,
+        version: info.version,
       },
     });
   } catch {
@@ -763,15 +803,9 @@ async function handleMessage(msg: SidecarCommand): Promise<void> {
       break;
 
     case 'get_session_todos': {
-      try {
-        if (!processManager) throw new Error('Not initialized');
-        const client = processManager.getClient();
-        const todos = await client.getSessionTodos(msg.sessionId);
-        send({ type: 'todo_updated', taskId: msg.taskId, payload: { todos } });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.error('Failed to get session todos', { error: message });
-      }
+      // OpenCode 2.x has no todo route: answer from the todos the agent last wrote (null when it never wrote any).
+      const todos = sessionManager?.getSessionTodos(msg.sessionId) ?? null;
+      send({ type: 'todo_updated', taskId: msg.taskId, payload: { todos } } as unknown as SidecarEvent);
       break;
     }
 

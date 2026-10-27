@@ -1,5 +1,16 @@
 import { logger } from './logger';
-import type { Config, HealthResponse, Message, Part, PermissionRequest, QuestionRequest, Session, Todo } from './types';
+import type {
+  Config,
+  FormAnswer,
+  FormInfo,
+  McpV2Config,
+  ModelRef,
+  PermissionAsk,
+  PermissionRule,
+  ServerInfo,
+  SessionInfo,
+  SessionMessage,
+} from './types';
 
 export interface OpenCodeClientOptions {
   baseUrl?: string;
@@ -9,12 +20,57 @@ export interface OpenCodeClientOptions {
   password?: string;
 }
 
-/** A 2xx `text/html` response: OpenCode 2.x serves its web UI for unknown v1 paths. */
+/** A 2xx `text/html` response: OpenCode serves its web UI for paths it has no API route for (e.g. `/api/info` on a 1.x server). */
 export class OpenCodeRouteNotFoundError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'OpenCodeRouteNotFoundError';
   }
+}
+
+/**
+ * A non-2xx HTTP response from OpenCode. Distinguishes "the server answered and refused"
+ * (`status` set) from a transport failure (timeout, socket reset), which stays a plain Error.
+ */
+export class OpenCodeHttpError extends Error {
+  readonly status: number;
+  readonly body: unknown;
+
+  constructor(status: number, body: unknown) {
+    super(`HTTP ${status}: ${JSON.stringify(body)}`);
+    this.name = 'OpenCodeHttpError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
+type QueryScalar = string | number | boolean | null | undefined;
+export type QueryValue = QueryScalar | Record<string, QueryScalar>;
+
+/**
+ * Serialise query parameters. Object values use the OpenAPI `deepObject` style that v2's
+ * location-scoped routes declare: `{location: {directory: '/ws'}}` → `location[directory]=%2Fws`.
+ * Brackets stay literal; values are percent-encoded. Undefined and null values are skipped.
+ */
+export function serializeQuery(params: Record<string, QueryValue>): string {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'object') {
+      for (const [child, childValue] of Object.entries(value)) {
+        if (childValue === undefined || childValue === null) continue;
+        parts.push(`${key}[${child}]=${encodeURIComponent(String(childValue))}`);
+      }
+      continue;
+    }
+    parts.push(`${key}=${encodeURIComponent(String(value))}`);
+  }
+  return parts.join('&');
+}
+
+/** Where a v2 location-scoped route should look: `?location[directory]=<cwd>`. */
+function locationQuery(directory?: string): Record<string, QueryValue> | undefined {
+  return directory ? { location: { directory } } : undefined;
 }
 
 export class OpenCodeClient {
@@ -35,17 +91,16 @@ export class OpenCodeClient {
     method: string,
     path: string,
     body?: unknown,
-    queryParams?: Record<string, string>,
-    options?: { timeout?: number }
+    queryParams?: Record<string, QueryValue>,
+    options?: { timeout?: number; logBody?: boolean }
   ): Promise<T> {
     const url = new URL(path, this.baseUrl);
-    if (queryParams) {
-      for (const [key, value] of Object.entries(queryParams)) {
-        url.searchParams.set(key, value);
-      }
-    }
+    const query = queryParams ? serializeQuery(queryParams) : '';
+    if (query) url.search = query;
 
     const effectiveTimeout = options?.timeout ?? this.timeout;
+    // Responses that can carry secrets pass `logBody: false` so the body never reaches the logger.
+    const logBody = options?.logBody !== false;
     const controller = new AbortController();
     // timeout === 0 means no timeout (fire-and-forget calls)
     const timeoutId = effectiveTimeout > 0 ? setTimeout(() => controller.abort(), effectiveTimeout) : null;
@@ -69,10 +124,14 @@ export class OpenCodeClient {
       }
 
       const responseBody = await response.json().catch(() => null);
-      logger.httpResponse(method, path, response.status, responseBody);
+      if (logBody) {
+        logger.httpResponse(method, path, response.status, responseBody);
+      } else {
+        logger.httpResponse(method, path, response.status);
+      }
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${JSON.stringify(responseBody)}`);
+        throw new OpenCodeHttpError(response.status, responseBody);
       }
 
       return responseBody as T;
@@ -82,41 +141,31 @@ export class OpenCodeClient {
   }
 
   // ============================================================================
-  // Health & Server Management
+  // Server info
   // ============================================================================
 
-  async health(): Promise<HealthResponse> {
-    return this.request<HealthResponse>('GET', '/global/health');
+  /** `GET /api/info` — the v2 health and version probe. */
+  async info(): Promise<ServerInfo> {
+    return this.request<ServerInfo>('GET', '/api/info');
   }
 
-  async getServerInfo(): Promise<{ version?: string } | null> {
-    return this.request<{ version?: string } | null>('GET', '/api/info');
+  /** v1 `GET /global/health`. Only the version gate calls this, to recognise an OpenCode 1.x server. */
+  async health(): Promise<{ version?: string } | null> {
+    return this.request<{ version?: string } | null>('GET', '/global/health');
   }
 
   async isServerRunning(): Promise<boolean> {
     try {
-      await this.health();
+      await this.info();
       return true;
     } catch {
       return false;
     }
   }
 
-  async disposeGlobal(options?: { timeout?: number }): Promise<boolean> {
-    return this.request<boolean>('POST', '/global/dispose', undefined, undefined, options);
-  }
-
-  async disposeInstance(directory?: string): Promise<boolean> {
-    return this.request<boolean>('POST', '/instance/dispose', undefined, directory ? { directory } : undefined);
-  }
-
   // ============================================================================
-  // Configuration
+  // Configuration (v1 route — still used by the Copilot-enterprise path until it moves to v2)
   // ============================================================================
-
-  async getConfig(directory?: string): Promise<Config> {
-    return this.request<Config>('GET', '/config', undefined, directory ? { directory } : undefined);
-  }
 
   async updateConfig(config: Partial<Config>, directory?: string): Promise<Config> {
     return this.request<Config>('PATCH', '/config', config, directory ? { directory } : undefined);
@@ -126,124 +175,107 @@ export class OpenCodeClient {
   // Sessions
   // ============================================================================
 
-  async listSessions(options?: { directory?: string; roots?: boolean; limit?: number }): Promise<Session[]> {
-    const params: Record<string, string> = {};
-    if (options?.directory) params.directory = options.directory;
-    if (options?.roots) params.roots = 'true';
-    if (options?.limit) params.limit = String(options.limit);
-    return this.request<Session[]>('GET', '/session', undefined, params);
-  }
-
-  async createSession(options?: { directory?: string; parentID?: string; title?: string; permission?: unknown }): Promise<Session> {
-    const params = options?.directory ? { directory: options.directory } : undefined;
+  async createSession(options: { directory?: string; model?: ModelRef; permissions?: PermissionRule[] }): Promise<SessionInfo> {
     const body = {
-      parentID: options?.parentID,
-      title: options?.title,
-      permission: options?.permission,
+      location: options.directory ? { directory: options.directory } : undefined,
+      model: options.model,
+      permissions: options.permissions,
     };
-    return this.request<Session>('POST', '/session', body, params);
+    const response = await this.request<{ data: SessionInfo }>('POST', '/api/session', body);
+    return response.data;
   }
 
-  async getSession(sessionId: string, directory?: string): Promise<Session> {
-    return this.request<Session>('GET', `/session/${sessionId}`, undefined, directory ? { directory } : undefined);
+  async getSession(sessionId: string): Promise<SessionInfo> {
+    const response = await this.request<{ data: SessionInfo }>('GET', `/api/session/${encodeURIComponent(sessionId)}`);
+    return response.data;
   }
 
-  async deleteSession(sessionId: string, directory?: string): Promise<boolean> {
-    return this.request<boolean>('DELETE', `/session/${sessionId}`, undefined, directory ? { directory } : undefined);
+  /** Replaces the session's permission rules. Takes effect on the next tool call. */
+  async updateSession(sessionId: string, update: { permissions?: PermissionRule[] }): Promise<void> {
+    await this.request<unknown>('PATCH', `/api/session/${encodeURIComponent(sessionId)}`, update);
   }
 
-  async abortSession(sessionId: string, directory?: string): Promise<boolean> {
-    return this.request<boolean>('POST', `/session/${sessionId}/abort`, undefined, directory ? { directory } : undefined);
+  async switchModel(sessionId: string, model: ModelRef): Promise<void> {
+    await this.request<unknown>('POST', `/api/session/${encodeURIComponent(sessionId)}/model`, { model });
   }
 
-  // ============================================================================
-  // Todos
-  // ============================================================================
-
-  async getSessionTodos(sessionId: string, directory?: string): Promise<Todo[]> {
-    return this.request<Todo[]>('GET', `/session/${sessionId}/todo`, undefined, directory ? { directory } : undefined);
-  }
-
-  // ============================================================================
-  // Messages
-  // ============================================================================
-
-  async getMessages(sessionId: string, options?: { directory?: string; limit?: number }): Promise<Array<{ info: Message; parts: Part[] }>> {
-    const params: Record<string, string> = {};
-    if (options?.directory) params.directory = options.directory;
-    if (options?.limit) params.limit = String(options.limit);
-    return this.request('GET', `/session/${sessionId}/message`, undefined, params);
-  }
-
-  async sendMessage(
-    sessionId: string,
-    options: {
-      parts: Array<{ type: 'text'; text: string }>;
-      directory?: string;
-      model?: { providerID: string; modelID: string };
-      agent?: string;
-      /** System prompt override — injected directly, bypassing agent resolution. */
-      system?: string;
-    }
-  ): Promise<{ info: Message; parts: Part[] }> {
-    const params = options.directory ? { directory: options.directory } : undefined;
-    // sendMessage is a long-running request: OpenCode blocks until the full agent
-    // turn completes (which may include permission waits, tool execution, etc.).
-    // timeout: 0 disables the abort timer — callers fire-and-forget this call
-    // and rely on SSE events for session lifecycle.
-    return this.request(
-      'POST',
-      `/session/${sessionId}/message`,
-      {
-        parts: options.parts,
-        model: options.model,
-        agent: options.agent,
-        system: options.system,
-      },
-      params,
-      { timeout: 0 }
+  /** Experimental: sets one named entry of the session's system instructions. */
+  async putInstructions(sessionId: string, key: string, value: string): Promise<void> {
+    await this.request<unknown>(
+      'PUT',
+      `/api/experimental/session/${encodeURIComponent(sessionId)}/instructions/entries/${encodeURIComponent(key)}`,
+      { value }
     );
   }
 
-  // ============================================================================
-  // Permissions
-  // ============================================================================
-
-  async listPermissions(directory?: string): Promise<PermissionRequest[]> {
-    return this.request<PermissionRequest[]>('GET', '/permission', undefined, directory ? { directory } : undefined);
+  /**
+   * Admit one user turn. The server durably queues the input and returns within milliseconds;
+   * the run itself is observed on the event stream, so no extended timeout is needed.
+   */
+  async prompt(sessionId: string, text: string): Promise<unknown> {
+    const response = await this.request<{ data: unknown }>('POST', `/api/session/${encodeURIComponent(sessionId)}/prompt`, { text });
+    return response?.data;
   }
 
-  async replyToPermission(
-    requestId: string,
-    reply: 'once' | 'always' | 'reject',
-    options?: { directory?: string; message?: string }
-  ): Promise<boolean> {
-    const params = options?.directory ? { directory: options.directory } : undefined;
-    return this.request<boolean>(
-      'POST',
-      `/permission/${requestId}/reply`,
-      {
-        reply,
-        message: options?.message,
-      },
-      params
+  async interrupt(sessionId: string): Promise<{ interrupted: boolean }> {
+    return this.request<{ interrupted: boolean }>('POST', `/api/session/${encodeURIComponent(sessionId)}/interrupt`);
+  }
+
+  /** Session history, newest first. */
+  async getSessionMessages(sessionId: string): Promise<SessionMessage[]> {
+    const response = await this.request<{ data: SessionMessage[] }>(
+      'GET',
+      `/api/session/${encodeURIComponent(sessionId)}/message`,
+      undefined,
+      { order: 'desc' }
     );
+    return response.data;
   }
 
   // ============================================================================
-  // Questions
+  // Permissions and forms (questions)
   // ============================================================================
 
-  async listQuestions(directory?: string): Promise<QuestionRequest[]> {
-    return this.request<QuestionRequest[]>('GET', '/question', undefined, directory ? { directory } : undefined);
+  async listSessionPermissions(sessionId: string): Promise<PermissionAsk[]> {
+    const response = await this.request<{ data: PermissionAsk[] }>('GET', `/api/session/${encodeURIComponent(sessionId)}/permission`);
+    return response.data;
   }
 
-  async replyToQuestion(requestId: string, answers: string[][], directory?: string): Promise<boolean> {
-    return this.request<boolean>('POST', `/question/${requestId}/reply`, { answers }, directory ? { directory } : undefined);
+  async listSessionForms(sessionId: string): Promise<FormInfo[]> {
+    const response = await this.request<{ data: FormInfo[] }>('GET', `/api/session/${encodeURIComponent(sessionId)}/form`);
+    return response.data;
   }
 
-  async rejectQuestion(requestId: string, directory?: string): Promise<boolean> {
-    return this.request<boolean>('POST', `/question/${requestId}/reject`, undefined, directory ? { directory } : undefined);
+  async replyPermission(sessionId: string, requestId: string, decision: 'once' | 'always' | 'reject', message?: string): Promise<void> {
+    await this.request<unknown>('POST', `/api/session/${encodeURIComponent(sessionId)}/permission/${encodeURIComponent(requestId)}/reply`, {
+      decision,
+      message,
+    });
+  }
+
+  async replyForm(sessionId: string, formId: string, answer: FormAnswer): Promise<void> {
+    await this.request<unknown>('POST', `/api/session/${encodeURIComponent(sessionId)}/form/${encodeURIComponent(formId)}/reply`, {
+      answer,
+    });
+  }
+
+  async cancelForm(sessionId: string, formId: string, message: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/api/session/${encodeURIComponent(sessionId)}/form/${encodeURIComponent(formId)}`, undefined, {
+      message,
+    });
+  }
+
+  // ============================================================================
+  // MCP servers at runtime (experimental)
+  // ============================================================================
+
+  /** Adds or replaces a server at the location and connects it. */
+  async putMcpServer(name: string, config: McpV2Config, directory?: string): Promise<void> {
+    await this.request<unknown>('PUT', `/api/experimental/mcp/${encodeURIComponent(name)}`, { config }, locationQuery(directory));
+  }
+
+  async removeMcpServer(name: string, directory?: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/api/experimental/mcp/${encodeURIComponent(name)}`, undefined, locationQuery(directory));
   }
 
   // ============================================================================

@@ -1064,6 +1064,7 @@ export interface QuestionRequestEvent {
     header?: string;
     options?: Array<{ label: string; description?: string }>;
     multiSelect?: boolean;
+    custom?: boolean;
   }>;
 }
 

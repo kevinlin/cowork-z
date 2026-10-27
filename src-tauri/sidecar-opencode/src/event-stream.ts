@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import EventSource from 'eventsource';
 import { logger } from './logger';
-import type { OpenCodeEvent } from './types';
+import type { OpenCodeEventFrame } from './types';
 
 export interface EventStreamOptions {
   baseUrl: string;
@@ -11,29 +11,37 @@ export interface EventStreamOptions {
   password?: string;
 }
 
-/**
- * GlobalBus event wrapper shape — `/global/event` emits
- *   { directory?: string, project?: string, payload: OpenCodeEvent }
- *
- * Server-only payloads (`server.connected`, `server.heartbeat`, `server.instance.disposed`)
- * arrive without `directory`; instance-scoped payloads (`session.*`, `message.*`,
- * `permission.asked`, etc.) always carry the workspace directory the event belongs to.
- *
- * We listen on `/global/event` rather than the per-instance `/event` because OpenCode
- * 1.14.x ties `/event` to per-request Effect/InstanceState lifecycle — the wildcard
- * PubSub fires `server.instance.disposed` and shuts down the moment the request scope
- * closes, severing the stream after the very first event. `/global/event` uses
- * GlobalBus (a plain Node EventEmitter) and is unaffected.
- */
-interface GlobalEventEnvelope {
-  directory?: string;
-  project?: string;
-  payload: OpenCodeEvent;
-}
-
 /** Upper bound for the exponential reconnect backoff. */
 const MAX_RECONNECT_INTERVAL_MS = 60_000;
 
+/** How long `connect()` waits for the server's first `server.connected` frame. */
+const READY_TIMEOUT_MS = 10_000;
+
+/**
+ * v2 reports paths with forward slashes; the host may hand us Windows paths. Compare in one form.
+ */
+function normalizeDirectory(directory: string): string {
+  return directory.replace(/\\/g, '/').replace(/\/+$/, '');
+}
+
+interface PendingReady {
+  resolve: () => void;
+  reject: (error: Error) => void;
+  timer: NodeJS.Timeout;
+}
+
+/**
+ * Client for OpenCode 2.x `GET /api/event`.
+ *
+ * Frames are `{id, created, type, location?: {directory}, data}` sent as plain `data:` lines.
+ * `server.connected` (the server's greeting) and `session.execution.*` carry no `location`.
+ * The stream is volatile by contract: events sent while it is down are lost and there is no
+ * replay, so every `server.connected` after the first emits `reconnected` and the session
+ * manager rebuilds its state over REST.
+ *
+ * Emits: `event` (the whole frame), `<frame.type>` (the frame's `data`), `connected` (HTTP open),
+ * `reconnected`, `stream-error`.
+ */
 export class EventStream extends EventEmitter {
   private eventSource: EventSource | null = null;
   private baseUrl: string;
@@ -44,6 +52,8 @@ export class EventStream extends EventEmitter {
   private authHeader?: string;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
+  private pendingReady: PendingReady | null = null;
+  private hasBeenReady = false;
 
   constructor(options: EventStreamOptions) {
     super();
@@ -55,18 +65,28 @@ export class EventStream extends EventEmitter {
     }
   }
 
-  connect(): void {
+  /**
+   * Open the stream. The returned promise resolves on the first `server.connected` frame and
+   * rejects after 10 s (or when `disconnect()` runs first), so a caller can fail startup instead
+   * of racing the first events of a turn.
+   */
+  connect(): Promise<void> {
     if (this.eventSource) {
       this.disconnect();
     }
 
     this.shouldReconnect = true;
 
-    // Use /global/event — OpenCode 1.14.x's /event endpoint terminates the chunked
-    // response within ~1 ms because its wildcard PubSub is bound to per-request
-    // Effect scope lifecycle (publishes server.instance.disposed and shuts down on
-    // scope finalization). /global/event uses GlobalBus and stays open.
-    const url = new URL('/global/event', this.baseUrl);
+    const ready = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        if (this.pendingReady?.timer === timer) this.pendingReady = null;
+        logger.warn(`OpenCode event stream sent no server.connected within ${READY_TIMEOUT_MS}ms`);
+        reject(new Error(`Timed out after ${READY_TIMEOUT_MS}ms waiting for server.connected on the OpenCode event stream`));
+      }, READY_TIMEOUT_MS);
+      this.pendingReady = { resolve, reject, timer };
+    });
+
+    const url = new URL('/api/event', this.baseUrl);
 
     logger.info(`Connecting to SSE stream: ${url.toString()} (filtering to directory=${this.directory ?? '<any>'})`);
 
@@ -80,35 +100,37 @@ export class EventStream extends EventEmitter {
     };
 
     this.eventSource.onmessage = (event) => {
-      let envelope: GlobalEventEnvelope;
+      let frame: OpenCodeEventFrame;
       try {
-        envelope = JSON.parse(event.data) as GlobalEventEnvelope;
+        frame = JSON.parse(event.data) as OpenCodeEventFrame;
       } catch (error) {
         logger.error('Failed to parse SSE event data', { data: event.data, error });
         return;
       }
 
-      // /global/event emits a stream-level envelope; unwrap to the OpenCode event payload.
-      const data: OpenCodeEvent | undefined = envelope?.payload;
-      if (!data || typeof data.type !== 'string') return;
+      if (!frame || typeof frame.type !== 'string') return;
 
-      // Filter to events for our workspace. Server-only payloads (no `directory` on the
-      // envelope) such as server.connected / server.heartbeat are always passed through;
-      // workspace-scoped payloads are gated on directory match. When this stream has no
-      // directory scope (e.g. the sidecar initialized for Copilot OAuth before any task),
-      // workspace-scoped events are dropped rather than passed through — routing them on
-      // the session map alone risks misattribution (2026-06-12 review #23). A task start
-      // re-scopes the stream via reconnectWithDirectory.
-      if (envelope.directory) {
-        if (!this.directory || envelope.directory !== this.directory) return;
+      if (frame.type === 'server.connected') {
+        this.handleServerConnected();
+      }
+
+      // Filter to events for our workspace. Frames without a location (server.connected,
+      // session.execution.*) always pass; workspace-scoped frames are gated on a directory
+      // match. When this stream has no directory scope (e.g. the sidecar initialized for
+      // Copilot OAuth before any task), workspace-scoped events are dropped rather than passed
+      // through — routing them on the session map alone risks misattribution (2026-06-12
+      // review #23). A task start re-scopes the stream via setDirectory.
+      const frameDirectory = frame.location?.directory;
+      if (frameDirectory) {
+        if (!this.directory || normalizeDirectory(frameDirectory) !== normalizeDirectory(this.directory)) return;
       }
 
       try {
-        logger.serverEvent(data);
-        this.emit('event', data);
-        this.emit(data.type, data.properties);
+        logger.serverEvent(frame);
+        this.emit('event', frame);
+        this.emit(frame.type, frame.data);
       } catch (error) {
-        logger.error('Error in SSE event handler', { type: data.type, error });
+        logger.error('Error in SSE event handler', { type: frame.type, error });
       }
     };
 
@@ -127,6 +149,32 @@ export class EventStream extends EventEmitter {
         logger.debug('SSE stream error (EventSource will auto-reconnect)', error);
       }
     };
+
+    return ready;
+  }
+
+  /** First greeting resolves `connect()`; every later one means events may have been lost. */
+  private handleServerConnected(): void {
+    const pending = this.pendingReady;
+    if (pending) {
+      clearTimeout(pending.timer);
+      this.pendingReady = null;
+      pending.resolve();
+    }
+    if (this.hasBeenReady) {
+      logger.info('SSE stream re-established — sessions must be rebuilt from REST');
+      this.emit('reconnected');
+    }
+    this.hasBeenReady = true;
+  }
+
+  private settleReadyWithError(error: Error): void {
+    const pending = this.pendingReady;
+    if (pending) {
+      clearTimeout(pending.timer);
+      this.pendingReady = null;
+      pending.reject(error);
+    }
   }
 
   /**
@@ -145,7 +193,10 @@ export class EventStream extends EventEmitter {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       if (this.shouldReconnect) {
-        this.connect();
+        // Nobody awaits a background reconnect; the readiness result is only logged.
+        this.connect().catch((readyError: unknown) => {
+          logger.debug('Background SSE reconnect did not become ready', readyError);
+        });
       }
     }, delay);
   }
@@ -160,6 +211,7 @@ export class EventStream extends EventEmitter {
   disconnect(): void {
     this.shouldReconnect = false;
     this.clearReconnectTimer();
+    this.settleReadyWithError(new Error('Event stream disconnected before server.connected'));
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
@@ -169,13 +221,11 @@ export class EventStream extends EventEmitter {
   }
 
   /**
-   * Reconnect the SSE stream with a new directory scope.
-   * Used when the workspace changes to ensure session events are received.
+   * Scope the workspace filter to a new directory. v2 has one global stream and filters on the
+   * client, so a workspace switch needs no reconnect (and opens no gap in which events are lost).
    */
-  reconnectWithDirectory(directory: string): void {
+  setDirectory(directory: string): void {
     this.directory = directory;
-    this.disconnect();
-    this.connect();
   }
 
   isActive(): boolean {

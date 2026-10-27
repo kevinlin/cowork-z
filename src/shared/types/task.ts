@@ -154,6 +154,8 @@ export interface QuestionRequest {
     header?: string;
     options?: Array<{ label: string; description?: string }>;
     multiSelect?: boolean;
+    /** Whether the user may type a free-text answer; the "Others" option is shown unless this is false */
+    custom?: boolean;
   }>;
 }
 

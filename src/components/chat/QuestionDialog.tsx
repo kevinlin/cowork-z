@@ -50,8 +50,9 @@ export function QuestionDialog({ request, onSubmit, onCancel }: QuestionDialogPr
 
   const providedOptions = currentQuestion.options ?? [];
   const hasFreeTextOption = providedOptions.some((o) => isOthersLabel(o.label));
+  const allowsCustom = currentQuestion.custom !== false;
   const renderedOptions =
-    providedOptions.length === 0 || hasFreeTextOption
+    providedOptions.length === 0 || hasFreeTextOption || !allowsCustom
       ? providedOptions
       : [...providedOptions, { label: OTHERS_LABEL, description: OTHERS_DESCRIPTION }];
 

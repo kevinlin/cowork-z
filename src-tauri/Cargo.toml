@@ -40,7 +40,7 @@ dirs = "5.0"
 keyring = "2"
 
 # Base64 encoding for binary file preview
-base64 = "0.22"
+base64 = "0.23"
 
 # Filesystem watching
 notify = "7"
